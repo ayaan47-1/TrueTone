@@ -49,6 +49,17 @@ These were discovered/decided during implementation. Where they conflict with ta
 - Verify de-identified rows (`user_id null`) as a privileged role in tests — RLS hides them from
   the authenticated caller (`reset role;` before such assertions).
 
+**App shell (Phase 2):**
+- `supabase.ts` falls back to the local URL + local anon key (not a secret) when
+  `EXPO_PUBLIC_*` env isn't inlined (e.g. under Jest), so the singleton always constructs. Real
+  builds supply `.env`. (Follow-up: add a production guard that throws if env is missing.)
+- `supabase.test.ts` mocks `@react-native-async-storage/async-storage` (its native module is null
+  under Jest, which otherwise crashes GoTrue on init).
+- Jest `jest.mock` factories cannot reference non-`mock`-prefixed outer variables — mock vars use
+  the `mock…` prefix (e.g. `mockSignInAnonymously`).
+- `profile-context.tsx` and `app/_layout.tsx` are exercised via integration (Phase 4), not unit
+  tests — coverage thresholds will be met once Phase 3 component tests + Phase 4 land.
+
 ## File Structure
 
 ```
