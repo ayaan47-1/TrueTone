@@ -60,6 +60,17 @@ These were discovered/decided during implementation. Where they conflict with ta
 - `profile-context.tsx` and `app/_layout.tsx` are exercised via integration (Phase 4), not unit
   tests — coverage thresholds will be met once Phase 3 component tests + Phase 4 land.
 
+**Component tests / RTL 14 (Phase 3):**
+- `@testing-library/react-native@14` requires the peer dep **`test-renderer@^1`** (published by the
+  RTL maintainer `mdjastrzebski`; RTL moved off React-19-deprecated `react-test-renderer`). Install
+  it: `npm install -D test-renderer@^1.2.0`. Without it, every component test fails to load.
+- **RTL 14 `render` AND `fireEvent` are `async`** — component tests must `await render(...)` and
+  `await fireEvent.*(...)` (unawaited `fireEvent` leaves state uncommitted before the next line).
+- Use `getAllByText(...).length` when a string legitimately appears in multiple elements (e.g.
+  "biometric"/"purpose" both appear in the consent copy); `getByText` throws on multiple matches.
+- Re-query elements after a state change (`getByTestId(...)` again) rather than holding a stale ref.
+- Added `declare module '*.css';` to `nativewind-env.d.ts` so `tsc` accepts the `global.css` import.
+
 ## File Structure
 
 ```
