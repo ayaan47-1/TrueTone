@@ -27,7 +27,12 @@ create table public.consent_log (
   user_id uuid references public.profiles(id) on delete set null,
   action consent_action not null,
   policy_version text not null,
-  created_at timestamptz not null default now()
+  -- the specific policy doc this receipt pins; consent is always for the biometric policy
+  policy_doc_key text not null default 'biometric',
+  created_at timestamptz not null default now(),
+  -- a receipt must reference a real, specific policy version (BIPA legal record)
+  foreign key (policy_version, policy_doc_key)
+    references public.policy_versions(version, doc_key)
 );
 create index consent_log_user_idx on public.consent_log(user_id);
 

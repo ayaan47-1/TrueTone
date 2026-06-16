@@ -1,5 +1,9 @@
 begin;
-select plan(3);
+select plan(5);
+
+-- RLS must be enabled on every table holding user data (regression guard)
+select is((select relrowsecurity from pg_class where relname='profiles'), true, 'RLS enabled on profiles');
+select is((select relrowsecurity from pg_class where relname='consent_log'), true, 'RLS enabled on consent_log');
 
 -- seed a current policy + two users' profiles as the privileged role
 insert into public.policy_versions(version, doc_key, is_current) values ('v-test','biometric', true);
