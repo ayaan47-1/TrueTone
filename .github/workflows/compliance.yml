@@ -11,5 +11,6 @@ jobs:
       - run: npm ci
       # Build fails if any ad/analytics SDK reaches the data path (CLAUDE.md §1).
       - run: npm run check:compliance
+      - run: npm run check:no-egress
       # Unit tests (integration tests need a live Supabase and run separately).
       - run: npm test
