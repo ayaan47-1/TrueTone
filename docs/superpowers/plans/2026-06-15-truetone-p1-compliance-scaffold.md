@@ -12,6 +12,11 @@
 
 **Conventions:** TDD (RED→GREEN→REFACTOR), 80%+ coverage, frequent commits. Compliance invariants are must-pass regardless of coverage. Workers in Phase 3 own ONE feature dir and never touch `/supabase/**` or `/src/lib/**`.
 
+> **Implementation status (2026-06-16): COMPLETE — all phases landed.** Phases 0–4 are implemented,
+> tested, and committed; final coverage 87% stmts / 83% branch / 80% funcs / 96% lines (see the
+> Phase 4 deviation notes below). The authoritative deviation log follows. Module map:
+> [`docs/ARCHITECTURE.md`](../../ARCHITECTURE.md). Next: P2 (`2026-06-16-truetone-p2-guided-capture.md`).
+
 ---
 
 ## Deviations from this plan made during Phase 0–1 (authoritative — follow these)

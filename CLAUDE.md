@@ -63,7 +63,8 @@ If a feature request would break any of these, STOP and escalate to the founders
 - **MUST NOT** share biometric/health data with any third party without separate consent.
 - **MUST NOT** embed Firebase Analytics, Meta Pixel/SDK, or ANY ad/analytics SDK that can touch face
   images, skin data, scores, or health inferences. (This is the exact trap that fined GoodRx /
-  BetterHelp / Flo.)
+  BetterHelp / Flo.) *Enforced in code:* `scripts/check-no-analytics-sdk.mjs` (`npm run
+  check:compliance`) fails the build/CI if any such SDK reaches deps or Expo config.
 
 ### Scope gates
 - **MUST** keep v0 **US-only** (geo-restrict; defer GDPR).
@@ -137,13 +138,18 @@ BACKEND    →  Supabase (auth, consent log, scores, retention) + LLM routine/ch
 Build and test in this sequence. Wiring consent + deletion BEFORE the camera exists is the whole
 point — biometric compliance cannot be retrofitted.
 
-1. 18+ age gate (neutral DOB) — *Expo Go OK*
-2. Standalone biometric consent screen + consent logging — *Expo Go OK*
-3. Data-rights screens: "Your Data" view + delete-everything + account deletion — *Expo Go OK*
-4. Privacy Policy / Terms / Biometric Data Policy reachable before the scan — *Expo Go OK*
-5. Guided capture + on-device read → cosmetic scores — *dev build + real iPhone*
-6. Brand-neutral routine + "why this product" chat (scores only) — *dev build*
-7. Progress re-scan + honest trend + "did this help?" loop
+1. ✅ 18+ age gate (neutral DOB) — *Expo Go OK*
+2. ✅ Standalone biometric consent screen + consent logging — *Expo Go OK*
+3. ✅ Data-rights screens: "Your Data" view + delete-everything + account deletion — *Expo Go OK*
+4. ✅ Privacy Policy / Terms / Biometric Data Policy reachable before the scan — *Expo Go OK*
+5. ⏳ Guided capture + on-device read → cosmetic scores — *dev build + real iPhone* (designed; not built)
+6. ⏳ Brand-neutral routine + "why this product" chat (scores only) — *dev build*
+7. ⏳ Progress re-scan + honest trend + "did this help?" loop
+
+> **Status (2026-06-16):** Steps 1–4 (the P1 compliance scaffold) are implemented, tested, and
+> committed. Step 5+ (P2) is designed but not yet built. Architecture + module map:
+> [`docs/ARCHITECTURE.md`](docs/ARCHITECTURE.md); setup/run/test: [`README.md`](README.md);
+> phase plans/specs: `docs/superpowers/`.
 
 Build the **balanced skin-tone test set in parallel with step 5** — equal performance across
 Fitzpatrick I–VI is the product; verify the read holds up on IV–VI before any equity claim ships.

@@ -6,6 +6,9 @@ node_modules/
 .expo/
 dist/
 web-build/
+
+# Test coverage
+coverage/
 *.log
 npm-debug.*
 yarn-debug.*
