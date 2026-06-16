@@ -1,0 +1,15 @@
+name: compliance
+on: [push, pull_request]
+jobs:
+  guard:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+      - run: npm ci
+      # Build fails if any ad/analytics SDK reaches the data path (CLAUDE.md §1).
+      - run: npm run check:compliance
+      # Unit tests (integration tests need a live Supabase and run separately).
+      - run: npm test
