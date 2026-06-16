@@ -10,12 +10,16 @@ select lives_ok($$ select public.record_consent() $$, 'record_consent runs');
 select is(
   (select consent_active from public.profiles where id = '44444444-4444-4444-4444-444444444444'),
   true, 'consent_active set true');
+-- scope by user_id (not de-identified here) so committed rows from other runs don't interfere
 select is(
-  (select policy_version from public.consent_log where action='consented' limit 1),
+  (select policy_version from public.consent_log
+     where action='consented' and user_id='44444444-4444-4444-4444-444444444444' limit 1),
   '2026-06-15.1', 'logged current biometric policy version');
--- idempotent: second call does not create a 2nd active-consent duplicate
+-- idempotent: second call does not create a 2nd active-consent row for this user
 select public.record_consent();
 select is(
-  (select count(*) from public.consent_log where action='consented')::int, 1, 'idempotent re-consent');
+  (select count(*) from public.consent_log
+     where action='consented' and user_id='44444444-4444-4444-4444-444444444444')::int,
+  1, 'idempotent re-consent');
 select * from finish();
 rollback;
