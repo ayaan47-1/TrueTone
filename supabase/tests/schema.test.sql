@@ -1,0 +1,10 @@
+begin;
+select plan(6);
+select has_table('public', 'profiles', 'profiles exists');
+select has_table('public', 'consent_log', 'consent_log exists');
+select has_table('public', 'policy_versions', 'policy_versions exists');
+select has_table('public', 'retention_runs', 'retention_runs exists');
+select col_is_pk('public', 'profiles', 'id', 'profiles pk is id');
+select hasnt_column('public', 'profiles', 'dob', 'profiles never stores dob');
+select * from finish();
+rollback;
