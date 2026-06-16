@@ -88,7 +88,7 @@ data/                    compliance spec PDFs (source of truth, not shipped)
 
 ### Prerequisites
 
-- Node 20+
+- Node 22+ (`@supabase/realtime-js` requires native `WebSocket`, which lands in Node 22)
 - Docker (for local Supabase)
 - [Supabase CLI](https://supabase.com/docs/guides/cli) (`npx supabase` works)
 - A physical iPhone for any camera work (the iOS Simulator has no camera; P2+)
