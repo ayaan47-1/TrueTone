@@ -5,8 +5,7 @@ select plan(5);
 select is((select relrowsecurity from pg_class where relname='profiles'), true, 'RLS enabled on profiles');
 select is((select relrowsecurity from pg_class where relname='consent_log'), true, 'RLS enabled on consent_log');
 
--- seed a current policy + two users' profiles as the privileged role
-insert into public.policy_versions(version, doc_key, is_current) values ('v-test','biometric', true);
+-- two users' profiles as the privileged role (policies are seeded by migration 0006)
 insert into auth.users(id) values ('11111111-1111-1111-1111-111111111111');
 insert into auth.users(id) values ('22222222-2222-2222-2222-222222222222');
 insert into public.profiles(id) values ('11111111-1111-1111-1111-111111111111');
@@ -23,7 +22,7 @@ select is(
   (select count(*) from public.profiles where id = '11111111-1111-1111-1111-111111111111')::int,
   1, 'user1 can read own profile');
 select is(
-  (select count(*) from public.policy_versions)::int, 1, 'policy_versions world-readable');
+  (select count(*) from public.policy_versions)::int, 5, 'policy_versions world-readable (5 seeded)');
 
 select * from finish();
 rollback;

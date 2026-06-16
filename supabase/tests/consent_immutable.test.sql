@@ -1,10 +1,10 @@
 begin;
 select plan(2);
-insert into public.policy_versions(version, doc_key, is_current) values ('v-test','biometric', true);
+-- policies are seeded by migration 0006; use the seeded biometric version
 insert into auth.users(id) values ('33333333-3333-3333-3333-333333333333');
 insert into public.profiles(id) values ('33333333-3333-3333-3333-333333333333');
 insert into public.consent_log(user_id, action, policy_version)
-  values ('33333333-3333-3333-3333-333333333333','consented','v-test');
+  values ('33333333-3333-3333-3333-333333333333','consented','2026-06-15.1');
 
 select throws_ok(
   $$ update public.consent_log set action = 'withdrawn' $$,
