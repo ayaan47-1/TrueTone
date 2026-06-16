@@ -14,6 +14,41 @@
 
 ---
 
+## Deviations from this plan made during Phase 0–1 (authoritative — follow these)
+
+These were discovered/decided during implementation. Where they conflict with task code below,
+**these win**; later phases and worktree workers must follow them.
+
+**Environment / setup (Phase 0):**
+- Added `.npmrc` with `legacy-peer-deps=true` (Expo Router 56's tree has a react/react-dom peer
+  mismatch). All `npm install` (incl. worktrees) rely on this.
+- `tailwindcss` pinned to `^3.4.17` (NativeWind 4 needs Tailwind 3, not the v4 that auto-installs).
+- `jest` pinned to `^29` (jest-expo 56 is built on the jest-29 ecosystem; jest 30 caused
+  `clearMocksOnScope` runtime skew). `@types/jest` ^29 to match.
+- Extra deps required for the toolchain to run: `@react-native/jest-preset`, `babel-preset-expo`,
+  `react-native-reanimated`, `react-native-worklets` (NativeWind/RN 0.85 babel + Metro need them).
+- Local Supabase emits the new `sb_publishable_…`/`sb_secret_…` keys, but `npx supabase status`
+  still prints a legacy `ANON_KEY` JWT — use that for `EXPO_PUBLIC_SUPABASE_ANON_KEY`.
+- No local `psql`; query the DB via `docker exec <supabase_db_*> psql -U postgres -tAc "…"`.
+
+**Schema / DB (Phase 1):**
+- `policy_versions` PK is **composite `(version, doc_key)`** (the original single-column `version`
+  PK breaks the seed that shares one version across five docs). One-current-per-doc enforced by a
+  partial unique index.
+- `consent_log` gained **`policy_doc_key text not null default 'biometric'`** + a **composite FK**
+  `(policy_version, policy_doc_key) → policy_versions(version, doc_key)` (security-review #3: a BIPA
+  receipt must reference a real, specific policy). All RPCs pin `policy_doc_key='biometric'`.
+- Immutability (`0003`): the trigger blocks DELETE and all UPDATEs **except `user_id → null`**
+  de-identification. RPCs therefore do a **plain `UPDATE … set user_id = null`** — no
+  `session_replication_role = replica` (which needs superuser and is fragile on hosted Supabase).
+- `FORCE ROW LEVEL SECURITY` intentionally **not** used (would subject the `SECURITY DEFINER`
+  retention sweep to RLS and break cross-user purge; clients are never table owners).
+- pgTAP tests must account for the **seeded** policies — don't insert a second `is_current`
+  biometric row (collides with the partial unique index); reference the seeded `'2026-06-15.1'`.
+- Added pgTAP guards asserting RLS is enabled on `profiles`/`consent_log` (regression guard).
+- Verify de-identified rows (`user_id null`) as a privileged role in tests — RLS hides them from
+  the authenticated caller (`reset role;` before such assertions).
+
 ## File Structure
 
 ```
