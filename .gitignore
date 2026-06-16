@@ -23,3 +23,6 @@ supabase/.temp/
 # Native build output
 ios/build/
 android/build/
+
+# Visual brainstorm companion
+.superpowers/
