@@ -17,7 +17,11 @@ begin
     raise exception 'invalid skin type' using errcode='P0001';
   end if;
   foreach v_k in array v_keys loop
-    if not (p_scores ? v_k) then raise exception 'missing score: %', v_k using errcode='P0001'; end if;
+    -- jsonb_typeof catches a missing key (null), an explicit json null, and non-numeric values,
+    -- so every bad input surfaces as the RPC's P0001 contract rather than a raw constraint error.
+    if jsonb_typeof(p_scores -> v_k) is distinct from 'number' then
+      raise exception 'missing or non-numeric score: %', v_k using errcode='P0001';
+    end if;
     v_v := (p_scores ->> v_k)::numeric;
     if v_v < 0 or v_v > 1 then raise exception 'score out of range: %', v_k using errcode='P0001'; end if;
   end loop;
@@ -46,8 +50,10 @@ create or replace function public.purge_scans_on_consent_withdrawn()
 returns trigger language plpgsql security definer set search_path = public, pg_temp as $$
 begin
   if old.consent_active and not new.consent_active then
-    perform public.audit_deletion('scans', old.id);
     delete from public.scans where user_id = old.id;
+    -- audit only when scans actually existed, so the delete_my_data path (which purges first,
+    -- then flips consent) does not produce a second, empty audit row.
+    if found then perform public.audit_deletion('scans', old.id); end if;
   end if;
   return new;
 end; $$;
@@ -66,8 +72,10 @@ begin
   insert into public.consent_log(user_id, action, policy_version, policy_doc_key)
     values (v_uid,'deleted',v_version,'biometric');
   update public.consent_log set user_id = null where user_id = v_uid;
-  perform public.audit_deletion('scans', v_uid);
+  -- purge scans + audit BEFORE flipping consent, so the consent-withdrawn trigger finds nothing
+  -- to delete and does not write a duplicate audit row.
   delete from public.scans where user_id = v_uid;
+  if found then perform public.audit_deletion('scans', v_uid); end if;
   update public.profiles
      set is_18_plus=false, age_verified_at=null, consent_active=false, last_interaction_at=now()
    where id=v_uid;
@@ -85,7 +93,9 @@ begin
     insert into public.consent_log(user_id, action, policy_version, policy_doc_key)
       values (v_id, 'deleted', v_version, 'biometric');
     update public.consent_log set user_id = null where user_id = v_id;
-    perform public.audit_deletion('scans', v_id);
+    if exists (select 1 from public.scans where user_id = v_id) then
+      perform public.audit_deletion('scans', v_id);   -- audit only when scans existed
+    end if;
     delete from public.profiles where id = v_id;   -- scans + auth.users cascade
     delete from auth.users where id = v_id;
     v_count := v_count + 1;
