@@ -19,3 +19,7 @@ test('lays out channels first (R plane, then G, then B)', () => {
 test('rejects wrong input dimensions', () => {
   expect(() => normalizeToTensor(new Uint8Array(12), 2, 2)).toThrow(/expected/);
 });
+test('rejects a buffer whose length does not match (e.g. an RGBA buffer)', () => {
+  const rgba = new Uint8Array(INPUT_SIZE * INPUT_SIZE * 4); // 4 channels, right dimensions
+  expect(() => normalizeToTensor(rgba, INPUT_SIZE, INPUT_SIZE)).toThrow(/RGB buffer of length/);
+});

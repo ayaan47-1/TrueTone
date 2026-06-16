@@ -17,7 +17,7 @@ export const THRESHOLDS = {
   brightnessMin: 0.35, brightnessMax: 0.9,
   sharpness: 0.5,
   faceFractionMin: 0.2, faceFractionMax: 0.6,
-};
+} as const;
 
 export function evaluateQuality(m: FrameMetrics): QualityReport {
   const face = m.faceDetected && m.faceCenteredness >= THRESHOLDS.centeredness;
