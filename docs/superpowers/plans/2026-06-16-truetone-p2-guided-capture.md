@@ -2127,3 +2127,108 @@ git commit -m "docs: record P2 implementation deviations"
 - [ ] Encrypted in transit + at rest; RLS scoped to owner (`scans` RLS test + integration isolation test).
 - [ ] No accuracy/efficacy/skin-tone-equity claim shipped (stub model; UI carries no such claim).
 - [ ] Backup/PITR purge mechanism (Task 2.1) live + documented before any non-dev-device capture.
+
+---
+
+## Deviations from this plan (Phases 0–3, as built — 2026-06-16)
+
+Phases 0–3 were executed subagent-driven (implementer + two-stage review per batch). All deviations
+below are committed on branch `p2-guided-capture`. Phases 4–5 are **not yet built** (device-gated; see
+the handoff section below).
+
+**Status:** Tasks 0.2, 1.1–1.8, 2.1–2.3, 3.1–3.2 DONE and review-approved. 72 Jest unit tests, 45
+pgTAP (10 suites), 4 node:test integration tests, `check:compliance` + `check:no-image-egress` all green.
+
+1. **Batch A review fix (commit `df9f586`)** — added an RGB **buffer-length** check to
+   `preprocess.ts` (`normalizeToTensor` rejects a wrong-length buffer, e.g. an RGBA buffer that passes
+   the dimension check), and froze `MEAN`/`STD` (preprocess) and `THRESHOLDS` (quality-gate) with
+   `as const` to satisfy the immutability rule. Additive to the plan's literal code. (Code-review
+   items I-2 CWD-relative egress paths and I-3 case-sensitive token matching were judged low-risk and
+   **deferred** — see item 6.)
+
+2. **Batch B review fix (commit `d739f22`) — two latent bugs in the plan's own SQL, corrected:**
+   - `record_scan`: the `p_scores ? key` presence check let a JSON `null` / non-numeric value through
+     to the INSERT, dying with a raw `23502` instead of the RPC's `P0001` contract. Replaced with
+     `jsonb_typeof(p_scores -> key) is distinct from 'number'`, which catches missing keys, json null,
+     and non-numbers uniformly as `P0001`.
+   - **Double `deletion_audit` write:** `delete_my_data` audited+deleted scans *and* then flipped
+     `consent_active=false`, firing `purge_scans_on_consent_withdrawn` to audit+delete again (2 audit
+     rows per deletion). Fixed by purging scans **before** the consent flip and guarding both the
+     trigger's and `delete_my_data`'s audit with `IF FOUND`; the retention sweep audits only when
+     scans existed (`IF EXISTS`). Net: exactly one audit row per purge on every path.
+   - Added regression pgTAP (`plan(6)`→`plan(10)`): null-score→`P0001`, direct client `INSERT` into
+     `scans` denied (`42501`), and `delete_my_data` writes exactly one scans audit row.
+   - The plan's Task 2.3 `record_scan` snippet was updated to the `jsonb_typeof` form; the trigger /
+     `delete_my_data` / retention snippets in the plan text still show the original (buggy) ordering —
+     **the committed migration `0009` is the corrected source of truth**, not the plan snippet.
+
+3. **Batch B test convention** — `scan_rpcs.test.sql` uses `reset role;` before asserting on the
+   admin-only `deletion_audit` table (RLS on, no client policies), mirroring P1's
+   `rpc_delete.test.sql` precedent. (Reported by the implementer; confirmed correct in review.)
+
+4. **DB workflow note** — editing an already-applied migration file does NOT re-apply it; run
+   `npx supabase db reset` before `npx supabase test db` to pick up migration edits. (Cost us one
+   false failure during Batch B.)
+
+5. **Process** — the in-session TodoWrite/Task list and three in-flight review subagents were lost to
+   a mid-run process restart; their findings had already been captured and acted on before the crash,
+   and git + the committed tests are the durable record.
+
+6. **Deferred (logged, non-blocking) — address in Phase 5 or a fast-follow:**
+   - `tsconfig.json` lacks `@types/jest` wiring, so `npx tsc --noEmit` errors on **all** test files
+     repo-wide (pre-existing since P1; P2 source is type-clean). Phase 5 Step 2 expects tsc clean —
+     fix by adding jest types **without** dropping Expo's ambient types (verify RN/Expo types still
+     resolve after the change).
+   - Egress guard (Task 0.2): CWD-relative directory walk (anchor to `import.meta.url`) and
+     case-sensitive token matching — low live risk (CI runs from repo root; tokens are our own
+     literal-cased APIs).
+   - `scans_select_own` RLS policy uses bare `auth.uid()` rather than `(select auth.uid())`; this
+     matches the existing P1 policies in `0002_rls.sql` — defer to a single RLS-perf pass across all
+     policies, not a P2-only change.
+   - `deletion_audit` open-row partial index is on `reconciled_at`; cosmetic for a low-volume table.
+   - Minor: `cosmetic-filter` recompiles its blocklist regex per call; the egress guard's own
+     node:test isn't run as a CI step (only the guard script is). Both negligible.
+
+---
+
+## Phase 4 + 5 handoff (device-gated — NOT yet built)
+
+Phases 0–3 deliver the entire compliance backbone + pure logic, fully tested on a workstation. Phase 4
+(native read + camera/results UI + routes) and Phase 5 (finalize) require hardware/accounts that are
+prerequisites, not code. Do these **in order** when resuming:
+
+**Prerequisites (blockers, owned by the founders):**
+1. **Apple Developer *Organization* enrollment** (LLC + D-U-N-S) — gates TestFlight/device builds
+   (`CLAUDE.md` §4). Start early; can take weeks.
+2. **A physical iPhone** + an **Expo dev build** (`expo-dev-client` + EAS) — the Simulator has no
+   camera; the native read + capture must be verified on-device.
+3. **Python toolchain** with `torch` + `executorch` to run `scripts/export_stub_model.py` (Task 4.1).
+4. **Confirm the backup/PITR purge gate (Task 2.1) is live** against the real Supabase project (the
+   project's actual PITR window matches `deletion_audit.pitr_window`, default 7 days) **before any
+   non-dev-device capture** — this is the hard pre-camera compliance gate.
+
+**Then build, in plan order:**
+- **Task 0.1** — install `react-native-vision-camera`, `react-native-executorch`, `expo-file-system`,
+  `expo-dev-client`; add config plugins + the camera **purpose string** to `app.json`. (Deferred from
+  Phase 0 precisely because these native deps are only consumed here.)
+- **Task 4.1** — generate `src/features/read/assets/stub-model.pte` via the export script.
+- **Task 4.2** — `executorch-engine.ts` + `read-engine.ts`. **Confirm the executorch load/forward and
+  the image-decode-to-RGB API via Context7** (`resolve-library-id` → `query-docs`) before wiring —
+  the plan's `loadModule`/`decodeToRgb` are best-effort and explicitly flagged for confirmation.
+- **Task 4.3** — `use-frame-metrics.ts` + `Capture.tsx`. Confirm the vision-camera frame-processor +
+  face-detector plugin API via Context7; install the face-detector plugin if needed and add its config
+  plugin to `app.json`.
+- **Task 4.4** — `Result.tsx` (Jest-testable; could even be pulled forward — it has no native dep).
+- **Task 4.5** — `app/scan/index.tsx` (+ the retry-save path), `app/scan/result.tsx`, home entry.
+- **Phase 5** — coverage gate (add native shells to `coveragePathIgnorePatterns` if they drag the
+  number; the pure logic already carries it), full suites, fix the tsconfig/`tsc` item, and append a
+  Phase 4 deviation note.
+
+**On-device acceptance checks (the compliance-critical ones):** after a real capture, the photo file
+no longer exists (`FileSystem.getInfoAsync` → `exists:false`); the image never appears in network
+traffic; the permission-denied path is graceful; the blocking gate + auto-capture behave; and the
+results screen shows bands only (no numbers) with the disclaimer + dermatologist redirect.
+
+> **Note:** `Result.tsx` (Task 4.4) is the one Phase 4 task with **no native dependency** — it's pure
+> React Native + the already-built `bands`/`cosmetic-vocab`/`cosmetic-filter`. It can be built and
+> Jest-tested on a workstation ahead of the device prerequisites if you want to keep momentum.
