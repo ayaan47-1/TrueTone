@@ -71,6 +71,18 @@ These were discovered/decided during implementation. Where they conflict with ta
 - Re-query elements after a state change (`getByTestId(...)` again) rather than holding a stale ref.
 - Added `declare module '*.css';` to `nativewind-env.d.ts` so `tsc` accepts the `global.css` import.
 
+**CI + integration (Phase 4):**
+- The integration test runs on **Node's built-in test runner** (`node --test`), NOT jest — jest-expo's
+  environment breaks `supabase-js`'s `fetch` ("undefined is not valid JSON"); plain node works.
+  `npm run test:integration` → `node --test "test/integration/**/*.test.mjs"`. Excluded from the
+  default jest run via `testPathIgnorePatterns`.
+- pgTAP RPC tests must be **robust to committed deletion receipts**: `delete_*` leave permanent
+  de-identified `'deleted'` rows, so global `count = 1` assertions break after any deletion (incl.
+  integration runs). Scope consent counts by `user_id`; measure a **delta** for the deletion count.
+- jest needs `moduleNameMapper: { '\\.css$': test/css-stub.js }` to test `app/_layout.tsx`.
+- Full 80% coverage reached by testing `profile-context`, `region`, and every `app/` route wrapper
+  (mock `useProfile`/`expo-router`/`supabase`). Final: 87% stmts / 83% branch / 80% funcs / 96% lines.
+
 ## File Structure
 
 ```
