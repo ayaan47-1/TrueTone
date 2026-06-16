@@ -7,6 +7,7 @@ module.exports = {
   // Integration tests hit a running local Supabase; excluded from the default unit run.
   // Run them with `npm run test:integration`.
   testPathIgnorePatterns: ['/node_modules/', '<rootDir>/test/integration/'],
+  moduleNameMapper: { '\\.css$': '<rootDir>/test/css-stub.js' },
   collectCoverageFrom: ['src/**/*.{ts,tsx}', 'app/**/*.{ts,tsx}'],
   coverageThreshold: { global: { lines: 80, statements: 80, branches: 70, functions: 80 } },
 };
