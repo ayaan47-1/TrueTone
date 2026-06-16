@@ -5,18 +5,26 @@ import { isUSRegion } from './region';
 import { nextRoute, type Route } from './routing-guard';
 
 type Profile = { is_18_plus: boolean; consent_active: boolean };
-type Ctx = { loading: boolean; error: boolean; route: Route; refresh: () => Promise<void> };
+type Ctx = {
+  loading: boolean;
+  error: boolean;
+  route: Route;
+  userId: string | null;
+  refresh: () => Promise<void>;
+};
 const ProfileContext = createContext<Ctx | null>(null);
 
 export function ProfileProvider({ children }: { children: React.ReactNode }) {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(false);
   const [route, setRoute] = useState<Route>('region-blocked');
+  const [userId, setUserId] = useState<string | null>(null);
 
   async function refresh() {
     try {
       setError(false);
       const uid = await bootstrapSession();
+      setUserId(uid);
       const { data, error: e } = await supabase
         .from('profiles')
         .select('is_18_plus, consent_active')
@@ -35,7 +43,7 @@ export function ProfileProvider({ children }: { children: React.ReactNode }) {
     void refresh();
   }, []);
   return (
-    <ProfileContext.Provider value={{ loading, error, route, refresh }}>
+    <ProfileContext.Provider value={{ loading, error, route, userId, refresh }}>
       {children}
     </ProfileContext.Provider>
   );
