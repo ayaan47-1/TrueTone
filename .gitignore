@@ -29,3 +29,6 @@ android/build/
 
 # Visual brainstorm companion
 .superpowers/
+
+# Fairness eval: raw images + manifests with real faces NEVER enter git
+eval/data/
