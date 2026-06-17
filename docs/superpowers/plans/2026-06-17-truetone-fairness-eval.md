@@ -921,4 +921,68 @@ git commit -m "docs(eval): record fairness-eval implementation deviations"
 - [ ] `npm test` green; `tsc --noEmit` clean.
 - [ ] Thresholds documented as provisional/policy-owned; no equity claim is made anywhere.
 - [ ] Spec §9 hard gates intact: no real images sourced/committed; sourcing remains a counsel sign-off.
-```
+
+---
+
+## Deviations
+
+Recorded after Tasks 1-9 implementation + review cycle (all committed before Task 10).
+
+### `thresholds.ts` — `Thresholds` type widened (commit `4e40ba6`)
+
+Plan specified `export type Thresholds = typeof THRESHOLDS;`, which resolves to a type with literal
+number values (e.g. `gateFloor: 0.9` rather than `gateFloor: number`). Test fixtures pass override
+objects with different numeric values, which TypeScript rejected as not assignable to the literal
+type. Fix: replaced `typeof THRESHOLDS` with an explicit interface using `number` fields.
+
+### `metrics.ts` — fail-closed combiner with asymmetric per-axis verdicts (commit `20f1f05`)
+
+The plan's combiner treated any null axis as `null` overall and any false axis as `false` overall,
+but had a gap: an axis that was neither definitively null nor definitively false (e.g. one group has
+insufficient sample but another group definitively fails) could produce a misleading null rather
+than FAIL. The implementation was hardened to be fail-closed: a definite FAIL on any axis
+disqualifies the run regardless of other axes being null; a flagged bias dimension always yields
+FAIL; a partial FST coverage (criterion-met-but-incomplete axis) returns null rather than false
+pass. A dead `?? 0` gap fallback was also removed.
+
+### `manifest.ts` — whitespace-only `consentRef` rejected (commit `20f1f05`)
+
+Plan's `consentRef: z.string().min(1)` would accept a string of spaces. Changed to
+`.trim().min(1)` so whitespace-only values are also rejected. Same treatment applied to other
+string fields.
+
+### `gate-parity.ts` — `GroupRate.pass` renamed to `passCount` (commit `20f1f05`)
+
+The plan's `GroupRate` interface had a field named `pass` (the count of gate-passing observations).
+This collided with the boolean `pass` field added by `FairnessReport` via the spread `{ ...g, pass: gatePass }`,
+causing a type conflict. Renamed the count field to `passCount`.
+
+### `stability.ts` — population std (÷n) documented; misleading param renamed (commit `20f1f05`)
+
+The plan did not specify population vs sample std. The implementation uses population std (÷n), which
+is appropriate here (the group of observations is the whole population being measured, not a sample
+of a larger population). This choice is now documented in a comment. A misleading internal parameter
+name was also renamed for clarity.
+
+### Task 9 — no standalone CLI/demo script added (by design)
+
+The plan note at the end of Task 9 explicitly states that no standalone CLI/demo script is added
+because the repo has no TypeScript runner (`ts-node`/`tsx`) and a real run is gated on the model
+and counsel-approved images. The smoke test (`eval/fairness/__tests__/smoke.test.ts`) is the
+end-to-end proof on synthetic data. This remains the case — no CLI was added.
+
+### Task 10 — gitignore pattern adjusted so the README is committed (review fix, commit `aaa9f33`)
+
+The plan first ignored the whole `eval/data/` directory, which also hid `eval/data/README.md` —
+but spec §4 requires that README to be **committed** (it documents the consent / no-faces rules for
+any engineer who later populates the dir). Fixed by switching the ignore to `eval/data/*` plus a
+negation `!eval/data/README.md`: real images and manifests stay out of git, while the rules doc
+ships. Verified: `git check-ignore eval/data/sample.jpg` still matches (faces ignored);
+`eval/data/README.md` is no longer ignored and is tracked. The hygiene guard
+(`eval/__tests__/hygiene.test.ts`) still passes — no image-extension files are tracked under `eval/`.
+
+### Final suite totals (Task 11, 2026-06-17)
+
+- `npm test`: **34 suites / 104 tests — all pass**
+- `npx tsc --noEmit --pretty false`: **0 errors**
+- `npm test -- smoke`: **2 suites / 2 tests — all pass**

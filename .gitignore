@@ -29,3 +29,8 @@ android/build/
 
 # Visual brainstorm companion
 .superpowers/
+
+# Fairness eval: raw images + manifests with real faces NEVER enter git.
+# The README documenting the rules IS committed; everything else under eval/data/ is ignored.
+eval/data/*
+!eval/data/README.md
