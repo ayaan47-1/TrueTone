@@ -971,13 +971,15 @@ because the repo has no TypeScript runner (`ts-node`/`tsx`) and a real run is ga
 and counsel-approved images. The smoke test (`eval/fairness/__tests__/smoke.test.ts`) is the
 end-to-end proof on synthetic data. This remains the case — no CLI was added.
 
-### Task 10 — `eval/data/README.md` not committed (by construction)
+### Task 10 — gitignore pattern adjusted so the README is committed (review fix, commit `aaa9f33`)
 
-The plan's Task 10 commit includes `eval/data/README.md`, but once `eval/data/` is added to
-`.gitignore`, git refuses to stage any file inside it. The README was created locally for engineers
-who populate the directory, but it is correctly excluded from git. This is the compliance boundary
-working as designed. The hygiene guard (`eval/__tests__/hygiene.test.ts`) continues to pass because
-git tracks no files inside `eval/data/`.
+The plan first ignored the whole `eval/data/` directory, which also hid `eval/data/README.md` —
+but spec §4 requires that README to be **committed** (it documents the consent / no-faces rules for
+any engineer who later populates the dir). Fixed by switching the ignore to `eval/data/*` plus a
+negation `!eval/data/README.md`: real images and manifests stay out of git, while the rules doc
+ships. Verified: `git check-ignore eval/data/sample.jpg` still matches (faces ignored);
+`eval/data/README.md` is no longer ignored and is tracked. The hygiene guard
+(`eval/__tests__/hygiene.test.ts`) still passes — no image-extension files are tracked under `eval/`.
 
 ### Final suite totals (Task 11, 2026-06-17)
 
