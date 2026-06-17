@@ -9,4 +9,13 @@ export const THRESHOLDS = {
   stabilityTolerance: 0.25, // worst-group instability <= best-group * (1 + this)
   biasBound: 0.2, // |corr(FST, score)| above this is flagged
 } as const;
-export type Thresholds = typeof THRESHOLDS;
+
+// Widened to number so test fixtures can supply different values without literal-type errors.
+export type Thresholds = {
+  minSamplesPerFst: number;
+  minSubjectsPerFst: number;
+  gateFloor: number;
+  gateMaxGap: number;
+  stabilityTolerance: number;
+  biasBound: number;
+};
