@@ -19,3 +19,6 @@ test('rejects a missing consentRef (required for every image)', () => {
   const { consentRef, ...noConsent } = valid[0];
   expect(() => parseManifest([noConsent])).toThrow();
 });
+test('rejects a whitespace-only consentRef (meaningless consent pointer)', () => {
+  expect(() => parseManifest([{ ...valid[0], consentRef: '   ' }])).toThrow();
+});

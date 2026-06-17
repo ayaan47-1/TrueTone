@@ -21,7 +21,7 @@ export function renderReportMarkdown(r: FairnessReport): string {
   ];
   for (const f of FITZPATRICK) {
     const g = r.gate.perFst[f];
-    lines.push(`- FST ${f}: ${g.rate === null ? 'insufficient sample' : `${(g.rate * 100).toFixed(1)}% (${g.pass}/${g.total})`}`);
+    lines.push(`- FST ${f}: ${g.rate === null ? 'insufficient sample' : `${(g.rate * 100).toFixed(1)}% (${g.passCount}/${g.total})`}`);
   }
   lines.push(`- gap: ${r.gate.gap === null ? 'n/a' : `${(r.gate.gap * 100).toFixed(1)} pp`} · axis: ${verdict(r.gate.pass)}`);
   lines.push('', '## Score stability (lower = better)');

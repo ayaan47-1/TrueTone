@@ -3,6 +3,10 @@ import { FITZPATRICK, type Fitzpatrick } from './fst';
 import { DIMENSIONS } from '../../src/content/cosmetic-vocab';
 import type { Observation } from './types';
 
+// POPULATION standard deviation (divides by n, not n-1). Deliberate and applied uniformly to
+// every FST group, so cross-group comparisons and the parity gap are unaffected. Note for whoever
+// calibrates `stabilityTolerance`: tools defaulting to sample std (R, NumPy, pandas) report values
+// larger by a factor of sqrt(n/(n-1)) for the same data.
 function std(values: number[]): number {
   if (values.length < 2) return 0;
   const mean = values.reduce((a, b) => a + b, 0) / values.length;
@@ -11,8 +15,8 @@ function std(values: number[]): number {
 }
 
 // One subject's instability = mean over dimensions of the std of that subject's repeat scores.
-function subjectInstability(group: Observation[]): number {
-  const perDim = DIMENSIONS.map((d) => std(group.map((o) => o.scores[d])));
+function subjectInstability(subjectObs: Observation[]): number {
+  const perDim = DIMENSIONS.map((d) => std(subjectObs.map((o) => o.scores[d])));
   return perDim.reduce((a, b) => a + b, 0) / perDim.length;
 }
 

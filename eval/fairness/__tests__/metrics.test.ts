@@ -21,8 +21,21 @@ test('a balanced set passes every axis', () => {
     [obs(f as Fitzpatrick, `${f}-a`, true, 0.5), obs(f as Fitzpatrick, `${f}-a`, true, 0.5)]);
   const r = fairnessReport(data, '2026-06-17T00:00:00Z', t);
   expect(r.gate.pass).toBe(true);
+  expect(r.stability.pass).toBe(true);
   expect(r.bias.pass).toBe(true);
   expect(r.pass).toBe(true);
+});
+test('partial FST coverage cannot PASS even when the evaluable groups meet the criteria', () => {
+  // Only I and II present, both 100% gate pass (criterion met among evaluable groups), but the
+  // other four FST groups are absent -> fairness cannot be CERTIFIED -> null, never true.
+  const data = [
+    obs('I', 'I-a', true, 0.5), obs('I', 'I-a', true, 0.5),
+    obs('II', 'II-a', true, 0.5), obs('II', 'II-a', true, 0.5),
+  ];
+  const r = fairnessReport(data, '2026-06-17T00:00:00Z', t);
+  expect(r.gate.pass).toBeNull();
+  expect(r.stability.pass).toBeNull();
+  expect(r.pass).toBeNull();
 });
 test('a gate disparity fails the gate axis and overall', () => {
   const data = [

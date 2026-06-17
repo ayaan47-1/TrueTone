@@ -9,5 +9,7 @@ test('end-to-end on synthetic data produces a complete report', () => {
     { minSamplesPerFst: 1, minSubjectsPerFst: 1, gateFloor: 0.9, gateMaxGap: 0.05,
       stabilityTolerance: 0.25, biasBound: 0.2 });
   expect(report.totalObservations).toBeGreaterThan(0);
+  // synthetic data is balanced across all six FST groups with identical scores -> deterministic PASS
+  expect(report.pass).toBe(true);
   expect(renderReportMarkdown(report)).toContain('Overall:');
 });

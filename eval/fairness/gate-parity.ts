@@ -2,7 +2,7 @@
 import { FITZPATRICK, type Fitzpatrick } from './fst';
 import type { Observation } from './types';
 
-export interface GroupRate { pass: number; total: number; rate: number | null }
+export interface GroupRate { passCount: number; total: number; rate: number | null }
 export interface GateParity {
   perFst: Record<Fitzpatrick, GroupRate>;
   bestRate: number | null;
@@ -15,8 +15,8 @@ export function gateParity(obs: Observation[], minSamples: number): GateParity {
   for (const f of FITZPATRICK) {
     const group = obs.filter((o) => o.fst === f);
     const total = group.length;
-    const pass = group.filter((o) => o.gate.allPass).length;
-    perFst[f] = { pass, total, rate: total >= minSamples ? pass / total : null };
+    const passCount = group.filter((o) => o.gate.allPass).length;
+    perFst[f] = { passCount, total, rate: total >= minSamples ? passCount / total : null };
   }
   const rates = FITZPATRICK.map((f) => perFst[f].rate).filter((r): r is number => r !== null);
   const bestRate = rates.length ? Math.max(...rates) : null;

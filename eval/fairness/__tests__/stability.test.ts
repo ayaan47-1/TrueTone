@@ -21,7 +21,8 @@ test('a subject with identical repeat scores has zero instability', () => {
 test('more variation across a subject\'s repeats means higher instability', () => {
   const data = [obs('V', 's1', 0.2), obs('V', 's1', 0.8)];
   const r = stability(data, 1);
-  expect(r.perFst.V).toBeGreaterThan(0);
+  // population std of [0.2, 0.8] is exactly 0.3; locks in the estimator (sample std would be ~0.424)
+  expect(r.perFst.V).toBeCloseTo(0.3, 5);
 });
 test('a group with too few multi-capture subjects reports null', () => {
   const r = stability([obs('I', 's1', 0.5), obs('I', 's1', 0.5)], 2);
