@@ -7,8 +7,9 @@
 // (Task 4.2) consumes the URI, derives cosmetic scores, and deletes the image.
 //
 // Camera + capture use the vision-camera v5 outputs-based API (usePhotoOutput / capturePhotoToFile,
-// confirmed via Context7 2026-06-18). Quality metrics come from useFrameMetrics, backed by a real
-// on-device face detector (face presence / centering / distance); see that file's header.
+// confirmed via Context7 2026-06-18). Quality metrics come from useFrameMetrics, backed by real
+// on-device signals — a face detector (presence / centering / distance) and a luma frame processor
+// (brightness / sharpness); see that file's header.
 import { useCallback, useEffect, useReducer, useRef } from 'react';
 import {
   Animated,
@@ -48,7 +49,7 @@ export function Capture({ onCaptured, onCancel }: CaptureProps) {
   const { hasPermission, requestPermission } = useCameraPermission();
   const device = useCameraDevice('front');
   const photoOutput = usePhotoOutput({ qualityPrioritization: 'balanced' });
-  const { metrics, faceOutput } = useFrameMetrics();
+  const { metrics, faceOutput, lumaOutput } = useFrameMetrics();
   const [state, dispatch] = useReducer(captureReducer, initialCaptureState);
 
   const quality = evaluateQuality(metrics);
@@ -155,7 +156,7 @@ export function Capture({ onCaptured, onCancel }: CaptureProps) {
         style={StyleSheet.absoluteFill}
         device={device}
         isActive
-        outputs={[photoOutput, faceOutput]}
+        outputs={[photoOutput, faceOutput, lumaOutput]}
       />
 
       {/* top scrim + guidance hint */}
