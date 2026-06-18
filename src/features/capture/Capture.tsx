@@ -27,7 +27,7 @@ import {
   useCameraPermission,
   usePhotoOutput,
 } from 'react-native-vision-camera';
-import { evaluateQuality } from './quality-gate';
+import { evaluateQuality, THRESHOLDS, type FrameMetrics, type QualityReport } from './quality-gate';
 import {
   captureReducer,
   countdownSeconds,
@@ -200,6 +200,9 @@ export function Capture({ onCaptured, onCancel }: CaptureProps) {
 
       {/* capture flash */}
       <Animated.View style={[StyleSheet.absoluteFill, styles.flash, { opacity: flash }]} pointerEvents="none" />
+
+      {/* dev-only calibration overlay */}
+      {__DEV__ && <MetricsDebug metrics={metrics} quality={quality} insetTop={insets.top} />}
     </View>
   );
 }
@@ -209,6 +212,37 @@ function CheckChip({ label, ok }: { label: string; ok: boolean }) {
     <View style={[styles.chip, ok && styles.chipOk]}>
       <View style={[styles.chipDot, ok && styles.chipDotOk]} />
       <Text style={[styles.chipText, ok && styles.chipTextOk]}>{label}</Text>
+    </View>
+  );
+}
+
+// Dev-only overlay: raw metric values + the gate thresholds, to calibrate on a physical device
+// (THRESHOLDS + luma SHARPNESS_SCALE). Rendered only under __DEV__; not part of the shipped UI.
+function DebugRow({ label, value, range, ok }: { label: string; value: string; range: string; ok: boolean }) {
+  return (
+    <Text style={[styles.dbgRow, { color: ok ? PASS_GREEN : '#fca5a5' }]}>
+      {ok ? '✓' : '✗'} {label} {value} <Text style={styles.dbgRange}>{range}</Text>
+    </Text>
+  );
+}
+
+function MetricsDebug({
+  metrics,
+  quality,
+  insetTop,
+}: {
+  metrics: FrameMetrics;
+  quality: QualityReport;
+  insetTop: number;
+}) {
+  const f = (n: number) => n.toFixed(2);
+  return (
+    <View style={[styles.dbgPanel, { top: insetTop + 56 }]} pointerEvents="none">
+      <Text style={styles.dbgTitle}>metrics (dev)</Text>
+      <DebugRow label="face" value={metrics.faceDetected ? 'yes' : 'no'} range={`cen ${f(metrics.faceCenteredness)}≥${THRESHOLDS.centeredness}`} ok={quality.face} />
+      <DebugRow label="light" value={f(metrics.brightness)} range={`${THRESHOLDS.brightnessMin}–${THRESHOLDS.brightnessMax}`} ok={quality.lighting} />
+      <DebugRow label="frame" value={f(metrics.faceFraction)} range={`${THRESHOLDS.faceFractionMin}–${THRESHOLDS.faceFractionMax}`} ok={quality.distance} />
+      <DebugRow label="focus" value={f(metrics.sharpness)} range={`≥${THRESHOLDS.sharpness}`} ok={quality.focus} />
     </View>
   );
 }
@@ -277,6 +311,19 @@ const styles = StyleSheet.create({
   cancelText: { color: '#fff', fontSize: 15, fontWeight: '600' },
   cancelTextDim: { color: 'rgba(255,255,255,0.35)' },
   flash: { backgroundColor: '#fff' },
+  // dev-only calibration overlay
+  dbgPanel: {
+    position: 'absolute',
+    left: 8,
+    paddingHorizontal: 10,
+    paddingVertical: 8,
+    borderRadius: 10,
+    backgroundColor: 'rgba(0,0,0,0.6)',
+    gap: 2,
+  },
+  dbgTitle: { color: 'rgba(255,255,255,0.55)', fontSize: 10, fontWeight: '700', letterSpacing: 1, marginBottom: 2 },
+  dbgRow: { fontSize: 12, fontVariant: ['tabular-nums'], fontWeight: '600' },
+  dbgRange: { color: 'rgba(255,255,255,0.45)', fontWeight: '400' },
   // permission / no-device fallbacks
   fallback: { flex: 1, alignItems: 'center', justifyContent: 'center', padding: 28, gap: 14, backgroundColor: '#0b0b0c' },
   fallbackTitle: { color: '#fff', fontSize: 20, fontWeight: '700' },
