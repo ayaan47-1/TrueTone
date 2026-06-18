@@ -2,18 +2,23 @@
 //
 // Quality metrics that drive the guided-capture gate (see ./quality-gate).
 //
-// DEVICE-ONLY (real path): on a physical device the live metrics come from a vision-camera v5
-// frame output (`useFrameOutput`, confirmed via Context7 2026-06-18) that computes brightness +
-// sharpness from the luma plane, plus a face-detector plugin (NitroModules) for face bbox /
-// centeredness. That plugin is a native dependency that must be confirmed + installed on-device
-// (plan Task 4.3, Step 1), so it is intentionally NOT wired here yet.
+// REAL PATH (default): face presence / centering / distance come from a real on-device face
+// detector — `react-native-vision-camera-face-detector` v2 (vision-camera v5 + NitroModules). The
+// detector runs entirely on-device; the image never leaves the phone (CLAUDE.md §3). Its
+// `useFaceDetectorOutput` hook returns a CameraOutput whose `onFacesDetected` callback we map to
+// FrameMetrics via the pure, unit-tested `facesToMetrics`. Brightness/sharpness are neutral-pass
+// for now (the detector doesn't measure them) — a luma frame processor for real light/focus
+// metering is the follow-up. The 0.2–0.6 framing + 0.6 centeredness thresholds are calibrated for
+// the simulation and SHOULD be re-tuned on a physical device.
 //
-// Until it lands, a short scripted simulation drives a realistic metrics sequence so the whole
-// guided-capture experience — blocking quality gate → 3-2-1 auto-capture — is fully demonstrable
-// and looks right in the dev build. Flip `simulate` to false the moment the real frame processor
-// is wired; the on-device worklet then pushes metrics via `setMetrics` (runOnJS).
+// SIMULATION (simulate: true): a scripted metrics sequence (searching → too far → aligned) so the
+// full gate → countdown → capture flow is demonstrable without a face in view. Default off now
+// that real detection is wired.
 import { useEffect, useRef, useState } from 'react';
+import { useWindowDimensions } from 'react-native';
+import { useFaceDetectorOutput, type Face } from 'react-native-vision-camera-face-detector';
 import type { FrameMetrics } from './quality-gate';
+import { facesToMetrics } from './face-metrics';
 
 const BLANK: FrameMetrics = {
   faceDetected: false,
@@ -23,8 +28,7 @@ const BLANK: FrameMetrics = {
   faceFraction: 0,
 };
 
-// A short, deterministic story: searching → aligned-but-too-far → well-framed. Each entry is
-// [untilElapsedMs, metrics]; the last entry holds so auto-capture can complete.
+// Scripted simulation story: searching → aligned-but-too-far → well-framed. [untilElapsedMs, metrics].
 const SIM_TIMELINE: ReadonlyArray<readonly [number, FrameMetrics]> = [
   [1200, BLANK],
   [2400, { faceDetected: true, faceCenteredness: 0.82, brightness: 0.58, sharpness: 0.72, faceFraction: 0.15 }],
@@ -39,25 +43,38 @@ function metricsForElapsed(ms: number): FrameMetrics {
 }
 
 export interface UseFrameMetricsOptions {
-  /** When true, drive metrics from the scripted simulation instead of the (device-only) frame processor. */
+  /** Drive metrics from the scripted simulation instead of the real on-device face detector. */
   simulate?: boolean;
 }
 
-export function useFrameMetrics({ simulate = __DEV__ }: UseFrameMetricsOptions = {}) {
+export function useFrameMetrics({ simulate = false }: UseFrameMetricsOptions = {}) {
+  const { width, height } = useWindowDimensions();
   const [metrics, setMetrics] = useState<FrameMetrics>(BLANK);
-  const startRef = useRef<number | null>(null);
+
+  // Real detector output — attach to the Camera's `outputs`. autoMode + screen dims give bounds in
+  // screen coordinates, which facesToMetrics expects.
+  const faceOutput = useFaceDetectorOutput({
+    cameraFacing: 'front',
+    performanceMode: 'fast',
+    autoMode: true,
+    windowWidth: width,
+    windowHeight: height,
+    outputResolution: 'preview',
+    onFacesDetected: (faces: Face[]) => {
+      if (!simulate) setMetrics(facesToMetrics(faces, width, height));
+    },
+    onError: () => {
+      if (!simulate) setMetrics(BLANK);
+    },
+  });
 
   useEffect(() => {
-    if (!simulate) return; // real path: the device frame output pushes metrics via setMetrics.
-    startRef.current = Date.now();
+    if (!simulate) return;
+    const start = Date.now();
     setMetrics(BLANK);
-    const id = setInterval(() => {
-      const elapsed = Date.now() - (startRef.current ?? Date.now());
-      setMetrics(metricsForElapsed(elapsed));
-    }, 100);
+    const id = setInterval(() => setMetrics(metricsForElapsed(Date.now() - start)), 100);
     return () => clearInterval(id);
   }, [simulate]);
 
-  // `setMetrics` is exposed so the on-device frame processor can push real metrics (runOnJS).
-  return { metrics, setMetrics };
+  return { metrics, setMetrics, faceOutput };
 }
