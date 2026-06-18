@@ -27,6 +27,10 @@ supabase/.temp/
 ios/build/
 android/build/
 
+# Python (model export tooling)
+__pycache__/
+*.pyc
+
 # Visual brainstorm companion
 .superpowers/
 
