@@ -1,21 +1,26 @@
 # TrueTone Architecture & Codemap
 
-> Reflects the **P1 compliance scaffold** as landed (migrations `0001`–`0006`, all app/src/lib
-> modules below). P2 (capture + on-device read) is design-only and not represented here yet.
+> Reflects what has landed on `main`: the **P1 compliance scaffold**, the **P2 capture +
+> on-device-read pipeline**, the **brand-neutral routine + scores-only chat** (build-order step 6),
+> and the **fairness-eval dev tool** (migrations `0001`–`0010`, all modules below). The only
+> device-gated piece is on-device verification of the camera + Executorch native shells.
 > Source of truth for *rules*: [`../CLAUDE.md`](../CLAUDE.md). This doc maps *what exists*.
 
 ## The compliance boundary
 
 ```
-ON DEVICE  →  capture → quality gate → on-device read → cosmetic scores      (P2, not built)
-                                  (raw image deleted here)
+ON DEVICE  →  capture → quality gate → on-device read → cosmetic scores + routine
+                                  (raw image deleted here — never logged, never uploaded)
 ──────────────── compliance boundary: only derived scores cross ────────────────
-BACKEND    →  Supabase (auth, consent log, retention) + LLM routine/chat (scores only)   (P1 = no image, no scan)
+BACKEND    →  Supabase (auth, consent log, scans, retention) + routine-chat Edge Fn → Claude (scores only)
 ```
 
-In P1 there is no image and no scan yet — the entire scaffold (auth, gating, consent, data rights,
-policies, retention) sits on the backend side of that boundary. P2 must keep the face image on the
-device; only derived scores may cross.
+The **face image lives and dies on the phone**: capture hands a file URI to the read, the read
+derives scores and **deletes the image** (success or failure), and only the derived `ScoreVector` +
+skin-type + routine ever cross to Supabase. The routine-chat Edge Function receives band labels +
+routine text — never the image, never raw scores presented as medical fact. Two CI guards enforce
+this statically: `check-no-analytics-sdk.mjs` (no ad/analytics SDK) and `check-no-image-egress.mjs`
+(no image→network/log path).
 
 ## DB-core-first design
 
@@ -47,6 +52,10 @@ Postgres holds the compliance **guarantees**; the Expo app is a thin, **fail-clo
 
 Always-reachable: `policies/index.tsx` (list) and `policies/[doc].tsx` (reader);
 `data/index.tsx` ("Your Data").
+
+Behind the gates, the scan flow lives under `app/scan/`: `index.tsx` (guided capture) →
+`result.tsx` (fetch latest scan, render the dimension-list read) → `routine.tsx` (routine view +
+scoped chat entry).
 
 ## Gating logic — `src/lib/`
 
@@ -83,6 +92,40 @@ nextRoute({ isUS, is18, consent }): 'region-blocked' | 'age-gate' | 'consent' | 
 | `onboarding/Onboarding.tsx` | Home + standing disclaimer | "not a medical device; AI estimate; see a dermatologist" |
 | `policies/PolicyList.tsx` | Lists docs from manifest | — |
 | `policies/PolicyReader.tsx` | Renders one policy body | — |
+
+### Scan pipeline — `capture/` + `read/` (P2)
+
+All real logic is **pure and Jest-tested**; the camera and native inference are thin shells marked
+`// DEVICE-ONLY` (not runnable under Jest or the Simulator — verified in an Expo dev build).
+
+| Module | What it does | Compliance-critical behavior |
+|--------|--------------|------------------------------|
+| `capture/quality-gate.ts` | `evaluateQuality(metrics)` → pass/fail per face/light/framing/focus | pure; blocks capture until steady |
+| `capture/face-metrics.ts`, `luma-metrics.ts` | Derive face presence/centering/distance + brightness/sharpness | pure metric math over frame signals |
+| `capture/capture-controller.ts` | Auto-capture reducer (steady → 3-2-1 countdown → fire) | pure state machine |
+| `capture/use-frame-metrics.ts`, `Capture.tsx` | vision-camera v5 wiring + guided UI | **device-only shell**; URI handed to read **only**, never logged/uploaded |
+| `read/preprocess.ts` | JPEG bytes → normalized `224×224` tensor | pure |
+| `read/decode-output.ts` | Model output `[1,12]` → `ScoreVector` + skin-type | pure; `MODEL_OUTPUT_LENGTH` validated |
+| `read/bands.ts` | Numeric score → cosmetic **band label** | pure; non-diagnostic vocabulary only |
+| `read/image-lifecycle.ts` | `withImageCleanup` — guarantees image deletion after the read | **deletes image on success OR failure** |
+| `read/read-engine.ts` | `ReadEngine` interface (no native dep) | pure contract |
+| `read/executorch-engine.ts` | `react-native-executorch` deep-stub on the real runtime | **device-only shell**; image read, decoded, deleted on device; only scores leave |
+| `read/Result.tsx` | Dimension-list results screen | renders **bands only**, never diagnostic language |
+
+### Recommendation + chat — `recommend/` (step 6)
+
+| Module | What it does | Compliance-critical behavior |
+|--------|--------------|------------------------------|
+| `recommend/routine-engine.ts`, `skincare/{library,rules,domain}.ts` | Deterministic scores+type → routine | **on-device**; content drawn ONLY from the approved library |
+| `recommend/RoutineView.tsx` | Renders the routine + cosmetic disclaimer | approved vocabulary only |
+| `recommend/chat/refusal.ts` | Medical-query detector (mole/lesion/cancer/melanoma, inflections) | **hard-refuse → dermatologist referral; LLM never called** |
+| `recommend/chat/prompt.ts` | Builds the Claude prompt from **band labels**, not raw scores | no image, no raw scores as medical fact |
+| `recommend/chat/guard.ts` | Fail-closed output post-filter (reuses the cosmetic filter) | blocks any disease term before display |
+| `recommend/chat/handle.ts` | Orchestration: refuse → load (RLS) → prompt → complete → guard | ephemeral; no transcript stored |
+| `recommend/ChatScreen.tsx` | Scoped chat UI | scores-only context |
+
+The deterministic chat logic lives in `src/`; the Edge Function imports byte-identical copies under
+`supabase/functions/_shared/recommend/` — a drift guard test asserts the copies match.
 
 ## Content & versioning — `src/content/`
 
@@ -143,12 +186,44 @@ select cron.schedule('truetone-retention', '0 3 * * *',
   $$ select public.truetone_retention_sweep(); $$);   -- daily 03:00 UTC
 ```
 
-The "purpose-met" deletion arm is **deferred to P2** (no scan/purpose exists yet).
+The "purpose-met" deletion arm — deferred in P1 — is **closed by P2** (`0009`, below).
 
 ### Seed (`0006_seed_policies.sql`)
 
 Seeds all five docs at `2026-06-15.1` as current (idempotent `on conflict do nothing`); mirrors
 `manifest.ts`.
+
+### Backup / PITR purge (`0007_backup_purge.sql`)
+
+Closes the P1 spec §1 *verified backup/PITR purge* hard gate: documents and wires the cycle on which
+deleted/de-identified data is purged from backups + point-in-time-recovery windows, so a delete is
+truly final. See [`docs/compliance/pitr-purge.md`](compliance/pitr-purge.md).
+
+### Scans (`0008_scans.sql`) — derived scores only, no image
+
+Append-only `scans` table holding **only derived cosmetic scores** (eight `score_*` numerics in
+`[0,1]`, `skin_type_feel`, `model_version`, `is_stub`) — never the image. RLS: clients can `select`
+their own rows only; **all writes go through a `SECURITY DEFINER` RPC** (no client insert/update/
+delete). Append-only by design so the future trend loop (step 7) needs no schema change.
+
+### Scan RPCs + purpose-met retention (`0009_scan_rpcs_retention.sql`)
+
+`record_scan(...)` (SECURITY DEFINER) validates and inserts a scan row for `auth.uid()`. This
+migration also adds the BIPA §15(a) **purpose-met** retention arm deferred in `0005`.
+
+### Routine (`0010_routine.sql`)
+
+Adds `routine jsonb` + `routine_engine_version` to `scans` (routine is 1:1 with a scan — scores are
+immutable, so the routine is stable), inheriting all existing RLS / retention / delete machinery.
+Replaces `record_scan` with the 6-arg form that persists the routine atomically with the scores.
+
+### Routine-chat Edge Function (`supabase/functions/routine-chat/`)
+
+The only LLM/network piece. Loads the caller's scores + routine under RLS, short-circuits medical
+queries to a dermatologist referral (Claude not called), builds a band-label prompt, calls Anthropic
+(**`ANTHROPIC_API_KEY` is a server-side Edge Function secret — never in the app bundle**), and runs
+every reply through the fail-closed cosmetic post-filter. Compliance modules are byte-identical
+copies under `_shared/recommend/`, asserted by a drift-guard test.
 
 ### pgTAP tests (`supabase/tests/`)
 
@@ -160,15 +235,42 @@ Seeds all five docs at `2026-06-15.1` as current (idempotent `on conflict do not
 | `rpc_consent.test.sql` | `record_consent` idempotency + version pinning |
 | `rpc_delete.test.sql` | derived data cleared, receipt logged, prior rows de-identified |
 | `retention.test.sql` | stale user purged, active kept, run logged |
+| `scan_rpcs.test.sql` | `record_scan` validates scores/shape, scopes to caller, persists routine |
 
 ---
 
-## Compliance CI guard — `scripts/check-no-analytics-sdk.mjs`
+## Compliance CI guards — `scripts/`
 
-`findForbidden(text)` scans `package.json`, `package-lock.json`, and Expo config for forbidden
-ad/analytics SDKs (Firebase Analytics, Meta/FB SDK, Segment, Google Mobile Ads, AppsFlyer,
-Amplitude, Mixpanel, Branch) and exits non-zero on any hit — the "GoodRx/BetterHelp/Flo trap"
-guard. Wired into `npm run check:compliance` and the `compliance` GitHub workflow.
+- **`check-no-analytics-sdk.mjs`** — `findForbidden(text)` scans `package.json`,
+  `package-lock.json`, and Expo config for forbidden ad/analytics SDKs (Firebase Analytics,
+  Meta/FB SDK, Segment, Google Mobile Ads, AppsFlyer, Amplitude, Mixpanel, Branch) and exits
+  non-zero on any hit — the "GoodRx/BetterHelp/Flo trap" guard. (`npm run check:compliance`)
+- **`check-no-image-egress.mjs`** — fails the build if a captured image URI could reach a network
+  or log sink, enforcing that the raw image never crosses the compliance boundary. (`npm run
+  check:no-egress`)
+
+Both are wired into the `compliance` GitHub workflow. (`export_stub_model.py` builds the deep-stub
+`.pte` model used by the read engine.)
+
+## Fairness-eval dev tool — `eval/fairness/`
+
+A standalone harness, **never imported by `app/` or `src/` and never shipped**. Pure metric modules
+consume `Observation[]` (Fitzpatrick FST + subjectId + quality-gate report + scores); a runner
+produces observations from a manifest via an **injected extractor** (synthetic fixtures now; the
+real image→read adapter is gated on the model + counsel-approved data).
+
+| Module | Verifies / does |
+|--------|-----------------|
+| `fst.ts`, `types.ts` | Fitzpatrick I–VI scale + `Observation`/`zod` manifest schema (FST + consentRef required) |
+| `gate-parity.ts` | quality-gate pass-rate parity across Fitzpatrick groups |
+| `stability.ts` | intra-subject score-stability parity across groups |
+| `bias.ts` | systematic bias — correlation of Fitzpatrick vs score per dimension |
+| `thresholds.ts`, `report.ts` | provisional (policy-owned) thresholds → aggregate-only `FairnessReport` (md + json) |
+| `run-eval.ts`, `run-fixtures.ts` | manifest → observations → report; synthetic end-to-end |
+
+Compliance by construction: raw eval images never enter git or production Supabase (`eval/data/` is
+gitignored; a guard test enforces "no images tracked under `eval/`"); only aggregate reports are
+committed. The harness **reports** numbers — it does not certify fairness.
 
 ## Test topology
 
