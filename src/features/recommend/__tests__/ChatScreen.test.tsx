@@ -1,7 +1,6 @@
 import { render, fireEvent, waitFor } from '@testing-library/react-native';
 import { ChatScreen } from '../ChatScreen';
 import { sendChat } from '../../../lib/routine-chat';
-import { findDiseaseTerms } from '../../../lib/cosmetic-filter';
 
 jest.mock('../../../lib/routine-chat', () => ({ sendChat: jest.fn() }));
 
@@ -35,10 +34,6 @@ test('renders a distinct referral card (not a plain bubble) for a referral reply
   await waitFor(() => expect(getByTestId('referral-card')).toBeTruthy());
   expect(getByText(/isn.t a diagnosis/i)).toBeTruthy();
   expect(getByText(/board-certified dermatologist/i)).toBeTruthy();
-});
-
-test('the UI-authored referral heading contains no disease terms', () => {
-  expect(findDiseaseTerms("This isn't a diagnosis")).toEqual([]);
 });
 
 test('a non-referral reply renders a plain bubble, not the referral card', async () => {

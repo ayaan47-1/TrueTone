@@ -31,7 +31,7 @@ export const SKIN_TYPE_LABELS: Record<SkinTypeFeel, string> = {
 export const DISEASE_BLOCKLIST = [
   'acne', 'rosacea', 'eczema', 'melasma', 'dermatitis', 'psoriasis',
   'cancer', 'melanoma', 'carcinoma', 'lesion', 'tumor', 'infection',
-  'disease', 'condition',
+  'diagnosis', 'disease', 'condition',
 ] as const;
 
 export const APPROVED_LABELS: string[] = [

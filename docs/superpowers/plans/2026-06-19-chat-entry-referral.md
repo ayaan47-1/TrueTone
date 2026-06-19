@@ -32,11 +32,15 @@
 
 - [ ] **Step 1: Write the failing tests**
 
-Append these tests to `src/features/recommend/__tests__/ChatScreen.test.tsx` (keep the two existing tests). Add `getByTestId`/`queryByTestId` usage and the new import:
+Append these tests to `src/features/recommend/__tests__/ChatScreen.test.tsx` (keep the two existing tests). Add `getByTestId`/`queryByTestId` usage:
+
+> **Do NOT** add a test that runs `findDiseaseTerms` over the static heading "This isn't a diagnosis".
+> That heading is UI chrome and never passes through the output filter; such a test is tautological
+> AND collides with `'diagnosis'` being a legitimately blocked term, which would force a compliance
+> regression (weakening `DISEASE_BLOCKLIST`). The "renders a distinct referral card" test below
+> already verifies the heading is shown.
 
 ```tsx
-import { findDiseaseTerms } from '../../../lib/cosmetic-filter';
-
 test('renders a distinct referral card (not a plain bubble) for a referral reply', async () => {
   (sendChat as jest.Mock).mockResolvedValue({
     reply:
