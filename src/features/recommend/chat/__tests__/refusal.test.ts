@@ -6,6 +6,9 @@ test.each([
   'can you check this lesion',
   'does this look like skin cancer',
   'is this a carcinoma',
+  'could this be precancerous?',
+  'is this a cyst?',
+  'does this look normal to you?',
 ])('flags medical query: %s', (q) => {
   expect(isMedicalQuery(q)).toBe(true);
 });

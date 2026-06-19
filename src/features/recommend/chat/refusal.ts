@@ -3,6 +3,7 @@
 const MEDICAL_TRIGGERS = [
   'mole', 'lesion', 'cancer', 'melanoma', 'carcinoma', 'tumor', 'tumour',
   'biopsy', 'diagnos', 'is this normal', 'should i be worried',
+  'precancerous', 'pre-cancer', 'dysplasia', 'cyst', 'dermoscopy', 'dermatoscopy', 'does this look normal',
 ];
 
 export function isMedicalQuery(message: string): boolean {
