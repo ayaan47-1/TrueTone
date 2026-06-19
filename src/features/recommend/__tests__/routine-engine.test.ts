@@ -17,8 +17,12 @@ test('stamps the domain version', () => {
 
 test('every emitted step category comes from the approved library (structural invariant)', () => {
   const r = buildRoutine(skincareDomain, { scores: flat(0.8), skinType: 'sensitive' });
+  const libraryEntries = Object.values(SKINCARE_LIBRARY);
   for (const step of [...r.am, ...r.pm]) {
-    expect(libraryCategories.has(step.category)).toBe(true);
+    const match = libraryEntries.some(
+      (e) => e.category === step.category && e.habit === step.habit && e.rationale === step.rationale,
+    );
+    expect(match).toBe(true);
   }
 });
 
