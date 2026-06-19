@@ -1,6 +1,9 @@
 import { supabase } from './supabase';
 import { DIMENSIONS, SCORE_COLUMNS } from '../content/cosmetic-vocab';
 import type { ReadResult, ScoreVector } from '../features/read/read-types';
+import { buildRoutine } from '../features/recommend/routine-engine';
+import { skincareDomain } from '../features/recommend/skincare/domain';
+import type { Routine } from '../features/recommend/routine-types';
 
 export interface Scan {
   id: string;
@@ -9,14 +12,18 @@ export interface Scan {
   scores: ScoreVector;
   modelVersion: string;
   isStub: boolean;
+  routine: Routine;
 }
 
 export async function recordScan(r: ReadResult): Promise<void> {
+  const routine = buildRoutine(skincareDomain, { scores: r.scores, skinType: r.skinType });
   const { error } = await supabase.rpc('record_scan', {
     p_scores: r.scores,
     p_skin_type: r.skinType,
     p_model_version: r.modelVersion,
     p_is_stub: r.isStub,
+    p_routine: routine,
+    p_routine_version: routine.version,
   });
   if (error) throw new Error('record-scan-failed');
 }
@@ -25,6 +32,7 @@ function rowToScan(row: Record<string, unknown>): Scan {
   const scores = Object.fromEntries(
     DIMENSIONS.map((d) => [d, Number(row[SCORE_COLUMNS[d]])]),
   ) as ScoreVector;
+  const routine = (row.routine ?? { version: '', am: [], pm: [], notes: [] }) as Routine;
   return {
     id: String(row.id),
     capturedAt: String(row.captured_at),
@@ -32,6 +40,7 @@ function rowToScan(row: Record<string, unknown>): Scan {
     scores,
     modelVersion: String(row.model_version),
     isStub: Boolean(row.is_stub),
+    routine,
   };
 }
 

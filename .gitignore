@@ -38,3 +38,7 @@ __pycache__/
 # The README documenting the rules IS committed; everything else under eval/data/ is ignored.
 eval/data/*
 !eval/data/README.md
+
+# Expo prebuild (CNG) generated native projects
+/android
+/ios
