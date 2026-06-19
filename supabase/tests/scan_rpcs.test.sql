@@ -12,7 +12,7 @@ set local request.jwt.claims = '{"sub":"cccccccc-cccc-cccc-cccc-cccccccccccc","r
 select lives_ok($$
   select public.record_scan(
     '{"hydration":0.5,"oiliness":0.5,"texture":0.5,"pores":0.5,"darkSpots":0.5,"redness":0.5,"fineLines":0.5,"darkCircles":0.5}'::jsonb,
-    'combination', 'stub-1', true) $$, 'record_scan runs');
+    'combination', 'stub-1', true, '{"version":"skincare-1","am":[],"pm":[]}'::jsonb, 'skincare-1') $$, 'record_scan runs');
 select is((select count(*) from public.scans where user_id='cccccccc-cccc-cccc-cccc-cccccccccccc')::int,
   1, 'one scan recorded');
 
@@ -20,19 +20,19 @@ select is((select count(*) from public.scans where user_id='cccccccc-cccc-cccc-c
 select throws_ok($$
   select public.record_scan(
     '{"hydration":9,"oiliness":0.5,"texture":0.5,"pores":0.5,"darkSpots":0.5,"redness":0.5,"fineLines":0.5,"darkCircles":0.5}'::jsonb,
-    'combination', 'stub-1', true) $$, 'P0001', NULL, 'out-of-range score rejected');
+    'combination', 'stub-1', true, '{"version":"skincare-1","am":[],"pm":[]}'::jsonb, 'skincare-1') $$, 'P0001', NULL, 'out-of-range score rejected');
 
 -- bad skin type is rejected
 select throws_ok($$
   select public.record_scan(
     '{"hydration":0.5,"oiliness":0.5,"texture":0.5,"pores":0.5,"darkSpots":0.5,"redness":0.5,"fineLines":0.5,"darkCircles":0.5}'::jsonb,
-    'eczema-prone', 'stub-1', true) $$, 'P0001', NULL, 'invalid skin type rejected');
+    'eczema-prone', 'stub-1', true, '{"version":"skincare-1","am":[],"pm":[]}'::jsonb, 'skincare-1') $$, 'P0001', NULL, 'invalid skin type rejected');
 
 -- a JSON null score is rejected with the RPC's P0001 contract (not a raw not-null DB error)
 select throws_ok($$
   select public.record_scan(
     '{"hydration":null,"oiliness":0.5,"texture":0.5,"pores":0.5,"darkSpots":0.5,"redness":0.5,"fineLines":0.5,"darkCircles":0.5}'::jsonb,
-    'combination', 'stub-1', true) $$, 'P0001', NULL, 'null score rejected with P0001');
+    'combination', 'stub-1', true, '{"version":"skincare-1","am":[],"pm":[]}'::jsonb, 'skincare-1') $$, 'P0001', NULL, 'null score rejected with P0001');
 
 -- clients cannot INSERT scans directly; writes go only through the SECURITY DEFINER RPC
 select throws_ok($$
@@ -60,7 +60,7 @@ set local role authenticated;
 set local request.jwt.claims = '{"sub":"dddddddd-dddd-dddd-dddd-dddddddddddd","role":"authenticated"}';
 select public.record_scan(
   '{"hydration":0.5,"oiliness":0.5,"texture":0.5,"pores":0.5,"darkSpots":0.5,"redness":0.5,"fineLines":0.5,"darkCircles":0.5}'::jsonb,
-  'combination', 'stub-1', true);
+  'combination', 'stub-1', true, '{"version":"skincare-1","am":[],"pm":[]}'::jsonb, 'skincare-1');
 select public.delete_my_data();
 select is((select count(*) from public.scans where user_id='dddddddd-dddd-dddd-dddd-dddddddddddd')::int,
   0, 'delete_my_data purges scans');

@@ -1,7 +1,7 @@
-// src/lib/cosmetic-filter.ts
+// SOURCE OF TRUTH: src/lib/cosmetic-filter.ts — this copy is kept in sync manually.
 // Defense-in-depth: validate every user-facing label against the approved vocabulary
 // AND the disease blocklist before it is persisted or displayed (CLAUDE.md §1).
-import { APPROVED_LABELS, DISEASE_BLOCKLIST } from '../content/cosmetic-vocab';
+import { APPROVED_LABELS, DISEASE_BLOCKLIST } from './cosmetic-vocab.ts';
 
 export function findDiseaseTerms(text: string): string[] {
   const lower = text.toLowerCase();

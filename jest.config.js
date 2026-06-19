@@ -9,5 +9,14 @@ module.exports = {
   testPathIgnorePatterns: ['/node_modules/', '<rootDir>/test/integration/'],
   moduleNameMapper: { '\\.css$': '<rootDir>/test/css-stub.js' },
   collectCoverageFrom: ['src/**/*.{ts,tsx}', 'app/**/*.{ts,tsx}'],
+  // Device-only native shells (vision-camera capture / on-device read) can't run under Jest or the
+  // Simulator; their real logic lives in pure, unit-tested modules (quality-gate, capture-controller).
+  // Mirror P1's approach instead of writing brittle native mocks (plan Task 4.x).
+  coveragePathIgnorePatterns: [
+    '/node_modules/',
+    '<rootDir>/src/features/capture/Capture.tsx',
+    '<rootDir>/src/features/capture/use-frame-metrics.ts',
+    '<rootDir>/app/scan/index.tsx',
+  ],
   coverageThreshold: { global: { lines: 80, statements: 80, branches: 70, functions: 80 } },
 };

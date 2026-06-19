@@ -18,10 +18,8 @@
 // (The class form is used rather than the `useExecutorchModule` hook because the engine runs
 // outside React render — the route does `new ExecutorchEngine()`.)
 
-// DEVICE-ONLY: expo-file-system is a Phase-4 dep installed in the dev build (Task 0.1:
-// `npx expo install expo-file-system`); not present in the host workspace yet.
-// eslint-disable-next-line @typescript-eslint/ban-ts-comment
-// @ts-expect-error resolved on-device once the Phase-4 native deps are installed.
+// DEVICE-ONLY: expo-file-system resolves in the host workspace (Expo built-in); its native
+// behaviour is exercised on-device in the Phase-4 dev build (Task 0.1).
 import * as FileSystem from 'expo-file-system';
 // DEVICE-ONLY: native module — not resolvable / runnable under Jest or the Simulator.
 // eslint-disable-next-line @typescript-eslint/ban-ts-comment
