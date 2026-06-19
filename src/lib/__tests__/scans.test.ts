@@ -13,12 +13,15 @@ const result: ReadResult = {
 
 beforeEach(() => jest.clearAllMocks());
 
-test('recordScan calls the record_scan RPC with the camelCase score map', async () => {
+test('recordScan calls the record_scan RPC with the camelCase score map and routine', async () => {
   mockRpc.mockResolvedValue({ error: null });
   await recordScan(result);
-  expect(mockRpc).toHaveBeenCalledWith('record_scan', {
+  const args = mockRpc.mock.calls[0][1];
+  expect(mockRpc).toHaveBeenCalledWith('record_scan', expect.objectContaining({
     p_scores: result.scores, p_skin_type: 'combination', p_model_version: 'stub-1', p_is_stub: true,
-  });
+  }));
+  expect(args.p_routine_version).toBe('skincare-1');
+  expect(args.p_routine.version).toBe('skincare-1');
 });
 test('recordScan throws on RPC error', async () => {
   mockRpc.mockResolvedValue({ error: { message: 'boom' } });
@@ -37,4 +40,22 @@ test('fetchLatestScan reassembles snake_case columns into a ScoreVector', async 
   const scan = await fetchLatestScan();
   expect(scan?.scores.darkSpots).toBe(0.5);
   expect(Object.keys(scan!.scores)).toHaveLength(DIMENSIONS.length);
+});
+
+test('recordScan builds a routine and passes it to the RPC', async () => {
+  const dryResult: ReadResult = {
+    scores: {
+      hydration: 0.2, oiliness: 0.5, texture: 0.5, pores: 0.5,
+      darkSpots: 0.8, redness: 0.5, fineLines: 0.5, darkCircles: 0.5,
+    },
+    skinType: 'dry', modelVersion: 'stub-1', isStub: true,
+  };
+  mockRpc.mockResolvedValue({ error: null });
+  await recordScan(dryResult);
+  const args = mockRpc.mock.calls[0][1];
+  expect(args.p_routine_version).toBe('skincare-1');
+  expect(args.p_routine.version).toBe('skincare-1');
+  // low hydration on dry skin -> hydrating serum is present somewhere in the routine
+  const cats = [...args.p_routine.am, ...args.p_routine.pm].map((s: { category: string }) => s.category);
+  expect(cats.some((c: string) => c.includes('hydrating serum'))).toBe(true);
 });
