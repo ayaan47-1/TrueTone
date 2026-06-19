@@ -56,7 +56,7 @@
   "expo": {
     "doctor": {
       "reactNativeDirectoryCheck": {
-        "exclude": ["react-native-vision-camera-face-detector", "expo-modules-jsi"]
+        "exclude": ["react-native-vision-camera-face-detector", "expo-modules-jsi", "react-native-nitro-image"]
       }
     }
   }
