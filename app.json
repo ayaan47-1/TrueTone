@@ -21,7 +21,10 @@
         "monochromeImage": "./assets/android-icon-monochrome.png"
       },
       "predictiveBackGestureEnabled": false,
-      "permissions": ["android.permission.CAMERA"]
+      "permissions": [
+        "android.permission.CAMERA"
+      ],
+      "package": "com.ayaan47.truetone"
     },
     "web": {
       "favicon": "./assets/favicon.png"
@@ -29,7 +32,25 @@
     "plugins": [
       "expo-router",
       "expo-localization",
-      "expo-dev-client"
-    ]
+      "expo-dev-client",
+      [
+        "expo-build-properties",
+        {
+          "android": {
+            "minSdkVersion": 26
+          },
+          "ios": {
+            "deploymentTarget": "16.4"
+          }
+        }
+      ]
+    ],
+    "extra": {
+      "router": {},
+      "eas": {
+        "projectId": "b1e3e53e-cdfc-4bff-9e29-f02a2c1e18b7"
+      }
+    },
+    "owner": "ayaan47"
   }
 }
