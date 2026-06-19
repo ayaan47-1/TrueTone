@@ -5,7 +5,7 @@ import { APPROVED_LABELS, DISEASE_BLOCKLIST } from '../content/cosmetic-vocab';
 
 export function findDiseaseTerms(text: string): string[] {
   const lower = text.toLowerCase();
-  return DISEASE_BLOCKLIST.filter((t) => new RegExp(`\\b${t}\\b`).test(lower));
+  return DISEASE_BLOCKLIST.filter((t) => new RegExp(`\\b${t}(s|es|ous|tic)?\\b`, 'i').test(lower));
 }
 
 export function isApprovedLabel(label: string): boolean {

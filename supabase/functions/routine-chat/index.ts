@@ -79,10 +79,12 @@ serve(async (req) => {
       message: body.message,
       history: (body.history as ChatTurn[] | undefined) ?? [],
     });
+    if (out.blocked) console.warn('routine-chat: output blocked by post-filter');
     return Response.json(out);
   } catch (e) {
     const msg = e instanceof Error ? e.message : 'error';
     if (msg === 'scan-not-found') return new Response('not found', { status: 404 });
+    console.error('routine-chat: chat failed', e instanceof Error ? e.message : 'unknown');
     return new Response('chat unavailable', { status: 502 });
   }
 });
