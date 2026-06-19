@@ -109,6 +109,18 @@ cp .env.example .env
 # (Local emits sb_publishable_… keys too, but the app uses the legacy ANON_KEY.)
 ```
 
+#### Edge Function secrets
+
+The `routine-chat` Edge Function requires one server-side secret — set it once and it is never
+exposed to the client or the app `.env`:
+
+```bash
+npx supabase secrets set ANTHROPIC_API_KEY=sk-ant-...
+```
+
+`ANTHROPIC_API_KEY` must be a Supabase Edge Function secret (`npx supabase secrets set`).
+It is **server-side only** — it must never appear in the app `.env` or be shipped to the client.
+
 ### Run the app
 
 ```bash
