@@ -142,12 +142,15 @@ point — biometric compliance cannot be retrofitted.
 2. ✅ Standalone biometric consent screen + consent logging — *Expo Go OK*
 3. ✅ Data-rights screens: "Your Data" view + delete-everything + account deletion — *Expo Go OK*
 4. ✅ Privacy Policy / Terms / Biometric Data Policy reachable before the scan — *Expo Go OK*
-5. ⏳ Guided capture + on-device read → cosmetic scores — *dev build + real iPhone* (designed; not built)
-6. ⏳ Brand-neutral routine + "why this product" chat (scores only) — *dev build*
+5. ✅ Guided capture + on-device read → cosmetic scores — *dev build + real iPhone* (code landed; on-device verification of the camera + Executorch native shells is the open work)
+6. ✅ Brand-neutral routine + "why this product" chat (scores only) — *dev build*
 7. ⏳ Progress re-scan + honest trend + "did this help?" loop
 
-> **Status (2026-06-16):** Steps 1–4 (the P1 compliance scaffold) are implemented, tested, and
-> committed. Step 5+ (P2) is designed but not yet built. Architecture + module map:
+> **Status (2026-06-18):** Steps 1–6 are implemented, tested, and merged to `main`. The scan
+> pipeline's pure logic is host-tested; the camera + on-device-read native shells (marked
+> `// DEVICE-ONLY`) still need on-device verification in an Expo dev build on a physical iPhone
+> (tracked in the open guided-capture PR). Step 7 (trend loop) is not built. The fairness-eval
+> harness (parallel track) is merged. Architecture + module map:
 > [`docs/ARCHITECTURE.md`](docs/ARCHITECTURE.md); setup/run/test: [`README.md`](README.md);
 > phase plans/specs: `docs/superpowers/`.
 

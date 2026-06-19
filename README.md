@@ -9,15 +9,19 @@ diagnoses anything.**
 > (BIPA / WA MHMDA / PIPA / FTC) are load-bearing, not style preferences.
 
 - **Platform:** Expo (SDK 56) + React Native + TypeScript · iOS-primary · **US-only for v0** · **18+ only**
-- **Status:** **P1 (compliance scaffold) is complete and landed.** P2 (guided capture + on-device
-  read) is designed and planned but **not yet implemented** — see [Roadmap](#roadmap).
+- **Status:** **P1 (compliance scaffold), P2 (guided capture + on-device read), the fairness-eval
+  harness, and the brand-neutral routine + scores-only chat are all built and landed on `main`.**
+  The remaining open work is **on-device verification of the camera + inference path in an Expo dev
+  build on a physical iPhone**, plus the progress/trend re-scan loop — see [Roadmap](#roadmap).
 
 ---
 
-## What P1 ships
+## What's built
 
-P1 builds the compliance scaffold **before** the camera exists, so the scan (P2) slots in behind
-it without a retrofit. Everything a regulator looks for is wired up first:
+### P1 — compliance scaffold
+
+Built **before** the camera existed so the scan slots in behind it without a retrofit. Everything a
+regulator looks for is wired up first:
 
 - **18+ age gate** — neutral date-of-birth entry. The DOB is computed locally and **never
   persisted**; only a derived `is_18_plus` boolean + verification timestamp are stored.
@@ -37,6 +41,47 @@ it without a retrofit. Everything a regulator looks for is wired up first:
   Meta SDK, Segment, Amplitude, Mixpanel, AppsFlyer, Branch, Google Mobile Ads) reaches the
   dependency tree or Expo config.
 
+### P2 — guided capture + on-device read
+
+The scan pipeline, built so **all real logic is pure and Jest-tested**; only the camera and native
+inference are thin **device-only shells** over it. The raw image never crosses the compliance
+boundary.
+
+- **Guided capture** (`react-native-vision-camera` v5) — a blocking quality gate (face presence /
+  centering / distance, brightness, sharpness) must pass, then an auto-capture state machine fires a
+  3-2-1 countdown. The captured file URI is handed to the read **only** — never logged or uploaded.
+- **On-device read** (`react-native-executorch`) — decodes the photo, runs a **deep-stub model on
+  the real Executorch runtime** (placeholder weights, so the real model is a file swap), derives a
+  cosmetic `ScoreVector` + skin-type, then **deletes the image** (success or failure).
+- **Scores persistence + results** — derived scores (never the image) are written via a
+  `SECURITY DEFINER` `record_scan` RPC into an append-only `scans` table (RLS-scoped); a
+  dimension-list results screen renders **bands only**, never diagnostic language.
+- **Image-egress CI guard** — `npm run check:no-egress` fails the build if image data could reach a
+  network/log sink.
+
+> **Device-gated:** the camera and Executorch native calls cannot run under Jest or the iOS
+> Simulator. They are isolated behind `// DEVICE-ONLY` shells and are verified in an Expo dev build
+> on a physical iPhone (tracked in the open guided-capture PR).
+
+### Routine + scores-only chat (build-order step 6)
+
+- **Brand-neutral routine** — a pure, deterministic engine turns scores + skin type into an
+  approved-vocabulary routine **on-device**, persisted 1:1 on the `scans` row (inheriting all
+  RLS / retention / delete machinery).
+- **Scoped chat** — a single Supabase Edge Function (`routine-chat`) is the only LLM/network piece.
+  It loads the caller's scores + routine under RLS, **hard-refuses** any mole/lesion/cancer query
+  with a dermatologist referral (the LLM is never called on that path), builds a constrained Claude
+  prompt from **band labels (not raw scores)**, and runs every reply through the cosmetic
+  post-filter (fail-closed). The Anthropic key is **server-side only**; chat is ephemeral.
+
+### Fairness-eval harness (parallel track)
+
+- A standalone `eval/` **dev tool** (never bundled): Fitzpatrick I–VI labeling schema + a host/CI
+  harness aggregating per-Fitzpatrick metrics — quality-gate pass-rate parity, score stability, and
+  systematic bias. Raw eval images **never enter git or the backend**; only aggregate reports are
+  committed. Thresholds are **provisional and policy-owned** — the harness reports, it does not
+  certify fairness.
+
 The architecture and full module map live in [`docs/ARCHITECTURE.md`](./docs/ARCHITECTURE.md).
 
 ---
@@ -47,14 +92,19 @@ The architecture and full module map live in [`docs/ARCHITECTURE.md`](./docs/ARC
 |-------|--------|
 | App shell | Expo SDK 56, Expo Router, NativeWind, TypeScript |
 | Auth | `@supabase/supabase-js` v2 — **anonymous-first** (stable user id from launch) |
-| Backend | Supabase: Postgres + Auth + Row-Level Security + RPCs (`SECURITY DEFINER`) + `pg_cron` |
+| Capture | `react-native-vision-camera` v5 (guided front-camera + quality gate) |
+| On-device read | `react-native-executorch` (deep-stub model on the real runtime; device-only shell) |
+| Backend | Supabase: Postgres + Auth + Row-Level Security + RPCs (`SECURITY DEFINER`) + `pg_cron` + Edge Functions |
+| Routine chat | Supabase Edge Function (Deno) → Anthropic Claude (Sonnet 4.6), **server-side key only** |
 | DB testing | pgTAP (`supabase test db`) |
 | App testing | Jest (`jest-expo`) + `@testing-library/react-native` 14 (+ `test-renderer`) |
 | Integration | Node's built-in test runner (`node --test`) against local Supabase |
+| Fairness eval | TypeScript dev tool under `eval/` — Jest + `zod` (host/CI only, never bundled) |
 
 > The compliance boundary is non-negotiable: the **raw face image lives and dies on the device**;
-> only **derived cosmetic scores** ever cross to the backend. P2 capture/on-device-read code must
-> honor this — see [`CLAUDE.md` §3](./CLAUDE.md).
+> only **derived cosmetic scores** ever cross to the backend. The capture/on-device-read code
+> honors this (image deleted after the read; egress guarded by `check:no-egress`) — see
+> [`CLAUDE.md` §3](./CLAUDE.md).
 
 ---
 
@@ -69,16 +119,23 @@ app/                     Expo Router routes (gated by a fail-closed routing guar
   data/index.tsx         "Your Data" (withdraw / delete / account)
   policies/              Policy list + dynamic policy reader
   region-blocked.tsx     Not-available-in-region screen
+  scan/                  capture → result → routine (P2 + step 6)
 src/
   lib/                   supabase client, anon auth, region check, routing guard, profile context
-  features/              age-gate, consent, data-rights, onboarding, policies
+  features/
+    age-gate, consent, data-rights, onboarding, policies   (P1)
+    capture/             guided camera + quality gate + auto-capture controller (device-only shell)
+    read/                preprocess, decode, image lifecycle, bands, executorch engine (device-only shell)
+    recommend/           deterministic routine engine, skincare library, RoutineView, scoped chat
   content/               policy manifest (version source of truth) + markdown/bodies
 supabase/
-  migrations/            0001 schema → 0006 seed policies
-  tests/                 pgTAP suites (RLS, consent immutability, RPCs, retention)
-scripts/                 check-no-analytics-sdk.mjs (CI compliance guard)
-test/                    Jest setup + node:test integration (gate-flow)
-docs/                    architecture + superpowers plans/specs
+  migrations/            0001 schema → 0010 routine (scans, scan RPCs, backup purge, routine)
+  functions/             routine-chat Edge Function (+ _shared compliance copies)
+  tests/                 pgTAP suites (RLS, consent immutability, RPCs, retention, scans)
+scripts/                 check-no-analytics-sdk.mjs + check-no-image-egress.mjs (CI guards)
+eval/                    fairness-eval dev tool (Fitzpatrick metrics; host/CI only, never bundled)
+test/                    Jest setup + node:test integration (gate-flow, scans)
+docs/                    architecture + ops checklists + superpowers plans/specs
 data/                    compliance spec PDFs (source of truth, not shipped)
 ```
 
@@ -91,7 +148,8 @@ data/                    compliance spec PDFs (source of truth, not shipped)
 - Node 22+ (`@supabase/realtime-js` requires native `WebSocket`, which lands in Node 22)
 - Docker (for local Supabase)
 - [Supabase CLI](https://supabase.com/docs/guides/cli) (`npx supabase` works)
-- A physical iPhone for any camera work (the iOS Simulator has no camera; P2+)
+- A physical iPhone + an Expo dev build for any camera / on-device-read work (the iOS Simulator
+  has no camera and cannot load the vision-camera / Executorch native modules)
 
 ### Install
 
@@ -137,16 +195,17 @@ npm run android    # Android
 ## Testing & checks
 
 ```bash
-npm test                 # Jest unit/component tests
-npm run test:coverage    # with coverage (P1 final: 87% stmts / 83% branch / 80% funcs / 96% lines)
-npm run test:integration # node --test against a running local Supabase (gate-flow E2E)
+npm test                 # Jest unit/component tests (app/src + eval harness; coverage gate enforced)
+npm run test:coverage    # with coverage (Jest global gate: 80% lines/stmts/funcs, 70% branches)
+npm run test:integration # node --test against a running local Supabase (gate-flow + scans E2E)
 npm run check:compliance # fails if any ad/analytics SDK is present
-npx supabase test db     # pgTAP suites (RLS isolation, consent immutability, RPCs, retention)
+npm run check:no-egress  # fails if the raw image could reach a network/log sink
+npx supabase test db     # pgTAP suites (RLS isolation, consent immutability, RPCs, retention, scans)
 ```
 
 CI ([`.github/workflows/compliance.yml`](.github/workflows/compliance.yml)) runs
-`check:compliance` + `npm test` on every push and PR. Integration and pgTAP tests need a live
-Supabase and run separately.
+`check:compliance` + `check:no-egress` + `npm test` on every push and PR. Integration and pgTAP
+tests need a live Supabase and run separately.
 
 ---
 
@@ -158,9 +217,16 @@ Build order (P1 first — biometric compliance cannot be retrofitted):
 2. ✅ Standalone biometric consent + consent logging
 3. ✅ Data-rights screens (withdraw / delete-everything / account deletion)
 4. ✅ Privacy / Terms / Biometric / Retention / WA-health policies reachable before scan
-5. ⏳ Guided capture + on-device read → cosmetic scores *(P2 — designed, not yet built; dev build + real iPhone)*
-6. ⏳ Brand-neutral routine + "why this product" chat (scores only)
+5. ✅ Guided capture + on-device read → cosmetic scores *(code landed; on-device verification in an
+   Expo dev build on a physical iPhone is the open work)*
+6. ✅ Brand-neutral routine + scores-only "why this" chat
 7. ⏳ Progress re-scan + honest trend + "did this help?" loop
+
+Parallel track:
+
+- ✅ Fairness-eval harness — balanced Fitzpatrick I–VI labeling + per-group metrics (runs on
+  synthetic fixtures now; the real image→read extractor is gated on the model + counsel-approved
+  data).
 
 Plans and specs: [`docs/superpowers/`](./docs/superpowers/).
 

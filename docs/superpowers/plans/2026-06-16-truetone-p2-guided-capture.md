@@ -8,10 +8,12 @@
 
 **Tech Stack:** Expo SDK 56 + RN 0.85 + TypeScript · expo-router · `react-native-vision-camera` v5 · `react-native-executorch` · Supabase (Postgres + RLS + pg_cron) · Jest 29 + RTL 14 · pgTAP · node:test.
 
-> **Implementation status (2026-06-16): NOT STARTED — this is design + plan only.** No P2 code has
-> landed (no capture, quality-gate, on-device-read, or scores modules; no migration beyond `0006`).
-> The current codebase is the P1 scaffold; see [`docs/ARCHITECTURE.md`](../../ARCHITECTURE.md).
-> Record deviations in this file (Task 5.2) as the plan is executed.
+> **Implementation status (2026-06-18): COMPLETE — landed on `main`.** The capture, quality-gate,
+> on-device-read, scores, and routine modules are built and host-tested; migrations `0007`–`0010`
+> (backup purge, scans, scan RPCs + purpose-met retention, routine) are in. The camera + Executorch
+> native shells (`// DEVICE-ONLY`) still need on-device verification in an Expo dev build on a
+> physical iPhone (the open guided-capture PR). See [`docs/ARCHITECTURE.md`](../../ARCHITECTURE.md);
+> deviations recorded in this file (Task 5.2).
 
 ---
 
