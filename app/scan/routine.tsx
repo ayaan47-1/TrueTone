@@ -1,8 +1,21 @@
 import { useEffect, useState } from 'react';
-import { View, Text, Pressable } from 'react-native';
+import { View } from 'react-native';
 import { useRouter } from 'expo-router';
 import { fetchLatestScan, type Scan } from '../../src/lib/scans';
 import { RoutineView } from '../../src/features/recommend/RoutineView';
+import { MistBackground, GlassCard, Body } from '../../src/components/ui';
+
+function StateCard({ children }: { children: React.ReactNode }) {
+  return (
+    <MistBackground>
+      <View className="flex-1 items-center justify-center px-8">
+        <GlassCard className="px-7 py-8 items-center" radius={32}>
+          <Body className="text-center">{children}</Body>
+        </GlassCard>
+      </View>
+    </MistBackground>
+  );
+}
 
 export default function RoutineRoute() {
   const router = useRouter();
@@ -13,18 +26,12 @@ export default function RoutineRoute() {
     fetchLatestScan().then(setScan).finally(() => setLoading(false));
   }, []);
 
-  if (loading) return <View><Text>Loading…</Text></View>;
-  if (!scan) return <View><Text>No scan yet — run a scan to see your routine.</Text></View>;
+  if (loading) return <StateCard>Loading…</StateCard>;
+  if (!scan) return <StateCard>No scan yet — run a scan to see your routine.</StateCard>;
   return (
-    <View className="flex-1">
-      <RoutineView routine={scan.routine} />
-      <Pressable
-        accessibilityRole="button"
-        className="m-4 bg-violet-600 active:bg-violet-700 rounded-2xl py-4 items-center"
-        onPress={() => router.push({ pathname: '/scan/chat', params: { scanId: scan.id } })}
-      >
-        <Text className="text-white text-base font-semibold">Ask about your routine</Text>
-      </Pressable>
-    </View>
+    <RoutineView
+      routine={scan.routine}
+      onAsk={() => router.push({ pathname: '/scan/chat', params: { scanId: scan.id } })}
+    />
   );
 }

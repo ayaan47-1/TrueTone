@@ -1,26 +1,47 @@
-import { View, Text, ScrollView } from 'react-native';
+import { View } from 'react-native';
 import type { Routine, RoutineStep } from './routine-types';
+import { Screen, GlassCard, Display, Subheading, Eyebrow, Body, Caption, PrimaryButton } from '../../components/ui';
 
 function Step({ step }: { step: RoutineStep }) {
   return (
-    <View className="mb-3">
-      <Text className="font-semibold">{step.category}</Text>
-      <Text className="text-sm text-gray-600">{step.habit} — {step.rationale}</Text>
+    <View className="mb-3 last:mb-0">
+      <Body className="font-body-semibold text-ink">{step.category}</Body>
+      <Caption className="text-[13px] text-ink-muted mt-0.5">{step.habit} — {step.rationale}</Caption>
     </View>
   );
 }
 
-export function RoutineView({ routine }: { routine: Routine }) {
+export function RoutineView({ routine, onAsk }: { routine: Routine; onAsk?: () => void }) {
   return (
-    <ScrollView className="p-4">
-      <Text className="text-lg font-bold mb-2">Morning</Text>
-      {routine.am.map((s, i) => <Step key={`am-${i}`} step={s} />)}
-      <Text className="text-lg font-bold mb-2 mt-4">Evening</Text>
-      {routine.pm.map((s, i) => <Step key={`pm-${i}`} step={s} />)}
-      {routine.notes.map((n, i) => <Text key={`note-${i}`} className="mt-3 italic">{n}</Text>)}
-      <Text className="mt-6 text-xs text-gray-500">
+    <Screen className="px-6" contentStyle={{ paddingTop: 8, paddingBottom: 24 }}>
+      <View className="gap-2 mb-5 mt-2">
+        <Eyebrow>Brand-neutral, just for you</Eyebrow>
+        <Display className="text-3xl">Your routine</Display>
+      </View>
+
+      <GlassCard radius={26} className="px-5 py-5 mb-4">
+        <Subheading className="mb-3">Morning</Subheading>
+        {routine.am.map((s, i) => <Step key={`am-${i}`} step={s} />)}
+      </GlassCard>
+
+      <GlassCard radius={26} className="px-5 py-5">
+        <Subheading className="mb-3">Evening</Subheading>
+        {routine.pm.map((s, i) => <Step key={`pm-${i}`} step={s} />)}
+      </GlassCard>
+
+      {routine.notes.map((n, i) => (
+        <Body key={`note-${i}`} className="mt-4 px-1 font-display-italic text-ink-soft">{n}</Body>
+      ))}
+
+      {onAsk ? (
+        <View className="mt-6">
+          <PrimaryButton label="Ask about your routine" fullWidth onPress={onAsk} />
+        </View>
+      ) : null}
+
+      <Caption className="mt-6 px-1 text-[11px]">
         This describes how your skin looks and suggests cosmetic habits — it is not medical advice.
-      </Text>
-    </ScrollView>
+      </Caption>
+    </Screen>
   );
 }

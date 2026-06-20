@@ -10,10 +10,12 @@ jest.mock('../../src/lib/profile-context', () => ({
 
 jest.mock('expo-router', () => {
   const { Text } = require('react-native');
+  // Stack renders a marker and ignores its <Stack.Screen> config children.
+  const Stack = Object.assign(() => <Text>stack</Text>, { Screen: () => null });
   return {
     Redirect: ({ href }: { href: string }) => <Text>{`redirect:${href}`}</Text>,
-    Stack: () => <Text>stack</Text>,
-    useRouter: () => ({ push: jest.fn() }),
+    Stack,
+    useRouter: () => ({ push: jest.fn(), back: jest.fn() }),
     useLocalSearchParams: () => ({ doc: 'privacy' }),
   };
 });
@@ -89,7 +91,7 @@ test('region-blocked route renders the not-available message', async () => {
 test('root layout shows loading state', async () => {
   mockUseProfile.mockReturnValue({ loading: true, error: false, route: 'home' });
   await render(<RootLayout />);
-  expect(screen.getByText(/loading/i)).toBeTruthy();
+  expect(screen.getByText(/warming up your mirror/i)).toBeTruthy();
 });
 
 test('root layout shows fail-closed error state', async () => {
