@@ -156,7 +156,9 @@ export function Capture({ onCaptured, onCancel }: CaptureProps) {
         style={StyleSheet.absoluteFill}
         device={device}
         isActive
-        outputs={[photoOutput, faceOutput, lumaOutput]}
+        outputs={[photoOutput, faceOutput, lumaOutput].filter(
+          (o): o is NonNullable<typeof o> => o != null,
+        )}
       />
 
       {/* top scrim + guidance hint */}
