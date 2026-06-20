@@ -3,6 +3,8 @@ import { render, screen } from '@testing-library/react-native';
 // ---- mocks (must be mock-prefixed for jest factory hoisting) ----
 const mockUseProfile = jest.fn();
 const mockRefresh = jest.fn();
+const mockReplace = jest.fn();
+const mockPathname = jest.fn(() => '/');
 jest.mock('../../src/lib/profile-context', () => ({
   useProfile: () => mockUseProfile(),
   ProfileProvider: ({ children }: { children: React.ReactNode }) => children,
@@ -13,7 +15,8 @@ jest.mock('expo-router', () => {
   return {
     Redirect: ({ href }: { href: string }) => <Text>{`redirect:${href}`}</Text>,
     Stack: () => <Text>stack</Text>,
-    useRouter: () => ({ push: jest.fn() }),
+    useRouter: () => ({ push: jest.fn(), replace: mockReplace }),
+    usePathname: () => mockPathname(),
     useLocalSearchParams: () => ({ doc: 'privacy' }),
   };
 });
@@ -36,6 +39,7 @@ import RootLayout from '../_layout';
 
 beforeEach(() => {
   jest.clearAllMocks();
+  mockPathname.mockReturnValue('/');
   mockUseProfile.mockReturnValue({
     loading: false,
     error: false,
@@ -98,10 +102,27 @@ test('root layout shows fail-closed error state', async () => {
   expect(screen.getByText(/connection problem/i)).toBeTruthy();
 });
 
-test('root layout redirects to a gate route', async () => {
+test('root layout redirects to a gate route (imperatively, keeping the Stack mounted)', async () => {
   mockUseProfile.mockReturnValue({ loading: false, error: false, route: 'consent' });
   await render(<RootLayout />);
-  expect(screen.getByText('redirect:/consent')).toBeTruthy();
+  // Stack always renders (so the target screen can mount); the gate is enforced by navigation.
+  expect(screen.getByText('stack')).toBeTruthy();
+  expect(mockReplace).toHaveBeenCalledWith('/consent');
+});
+
+test('root layout advances into the app once the last gate clears', async () => {
+  // All gates passed (route=home) but still sitting on the consent screen → enter the app.
+  mockUseProfile.mockReturnValue({ loading: false, error: false, route: 'home' });
+  mockPathname.mockReturnValue('/consent');
+  await render(<RootLayout />);
+  expect(mockReplace).toHaveBeenCalledWith('/');
+});
+
+test('root layout does not redirect when already home', async () => {
+  mockUseProfile.mockReturnValue({ loading: false, error: false, route: 'home' });
+  mockPathname.mockReturnValue('/');
+  await render(<RootLayout />);
+  expect(mockReplace).not.toHaveBeenCalled();
 });
 
 test('root layout renders the app stack when unlocked', async () => {
