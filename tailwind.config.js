@@ -1,6 +1,11 @@
 /** @type {import('tailwindcss').Config} */
 // TrueTone "Mist" design system — Soft-Surrealism liquid glass.
 // Palette + type live here so every screen reskins from one source of truth.
+//
+// Refinement: the palette + fonts are unchanged (they were already right).
+// The only token added here is the inclusive `fitzpatrick` I–VI scale, mirrored
+// in src/theme/tokens.ts. Gradient/glass/shadow refinements live in tokens.ts
+// (StyleSheet land); type-weight refinements live in Typography.tsx.
 module.exports = {
   content: ['./app/**/*.{ts,tsx}', './src/**/*.{ts,tsx}'],
   presets: [require('nativewind/preset')],
@@ -37,6 +42,16 @@ module.exports = {
         },
         sage: '#7FA88C', // gentle "looks settled" positive
         clay: '#C9836B', // gentle "worth a look" caution
+        // Inclusive Fitzpatrick I–VI scale (onboarding tone strip + fairness UI).
+        // Mirrored in src/theme/tokens.ts as `fitzpatrick`.
+        fitzpatrick: {
+          1: '#F5D9C0',
+          2: '#EBC19A',
+          3: '#D9A579',
+          4: '#B97A50',
+          5: '#8A5232',
+          6: '#5A3520',
+        },
       },
       fontFamily: {
         display: ['Fraunces_600SemiBold'],
