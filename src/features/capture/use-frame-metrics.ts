@@ -50,12 +50,18 @@ function metricsForElapsed(ms: number): FrameMetrics {
   return SIM_TIMELINE[SIM_TIMELINE.length - 1][1];
 }
 
+// Real frame processors (face detector + luma) require react-native-vision-camera-worklets, which
+// is a NATIVE module — installing it needs a rebuild. Flip this to true only in a dev build that
+// has it. Until then the frame-processor hooks are skipped and the gate runs on the scripted
+// simulation, so the camera screen renders without that native dependency.
+const FRAME_PROCESSORS_INSTALLED = false;
+
 export interface UseFrameMetricsOptions {
   /** Drive metrics from the scripted simulation instead of the real on-device signals. */
   simulate?: boolean;
 }
 
-export function useFrameMetrics({ simulate = false }: UseFrameMetricsOptions = {}) {
+export function useFrameMetrics({ simulate = !FRAME_PROCESSORS_INSTALLED }: UseFrameMetricsOptions = {}) {
   const { width, height } = useWindowDimensions();
   const [metrics, setMetrics] = useState<FrameMetrics>({ ...BLANK_FACE, ...NEUTRAL_LUMA });
 
@@ -66,24 +72,30 @@ export function useFrameMetrics({ simulate = false }: UseFrameMetricsOptions = {
     if (!simulate) setMetrics({ ...faceRef.current, ...lumaRef.current });
   }, [simulate]);
 
+  // FACE + LUMA come from real frame processors, which need react-native-vision-camera-worklets
+  // (native). Gate the hook calls on a module CONSTANT so React's hook order stays stable across
+  // renders despite the conditional call (the lint rule is safe to suppress here for that reason).
+  /* eslint-disable react-hooks/rules-of-hooks */
   // FACE signal -------------------------------------------------------------
-  const faceOutput = useFaceDetectorOutput({
-    cameraFacing: 'front',
-    performanceMode: 'fast',
-    autoMode: true,
-    windowWidth: width,
-    windowHeight: height,
-    outputResolution: 'preview',
-    onFacesDetected: (faces: Face[]) => {
-      const m = facesToMetrics(faces, width, height);
-      faceRef.current = { faceDetected: m.faceDetected, faceCenteredness: m.faceCenteredness, faceFraction: m.faceFraction };
-      publish();
-    },
-    onError: () => {
-      faceRef.current = BLANK_FACE;
-      publish();
-    },
-  });
+  const faceOutput = FRAME_PROCESSORS_INSTALLED
+    ? useFaceDetectorOutput({
+        cameraFacing: 'front',
+        performanceMode: 'fast',
+        autoMode: true,
+        windowWidth: width,
+        windowHeight: height,
+        outputResolution: 'preview',
+        onFacesDetected: (faces: Face[]) => {
+          const m = facesToMetrics(faces, width, height);
+          faceRef.current = { faceDetected: m.faceDetected, faceCenteredness: m.faceCenteredness, faceFraction: m.faceFraction };
+          publish();
+        },
+        onError: () => {
+          faceRef.current = BLANK_FACE;
+          publish();
+        },
+      })
+    : undefined;
 
   // LIGHT + FOCUS signal ----------------------------------------------------
   const onLumaGrid = useCallback(
@@ -94,7 +106,9 @@ export function useFrameMetrics({ simulate = false }: UseFrameMetricsOptions = {
     [publish],
   );
 
-  const lumaOutput = useFrameOutput({
+  const lumaOutput = !FRAME_PROCESSORS_INSTALLED
+    ? undefined
+    : useFrameOutput({
     pixelFormat: 'yuv',
     onFrame: (frame: Frame) => {
       'worklet';
@@ -126,6 +140,7 @@ export function useFrameMetrics({ simulate = false }: UseFrameMetricsOptions = {
       }
     },
   });
+  /* eslint-enable react-hooks/rules-of-hooks */
 
   // SIMULATION --------------------------------------------------------------
   useEffect(() => {
