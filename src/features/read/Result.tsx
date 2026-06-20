@@ -1,11 +1,11 @@
 // src/features/read/Result.tsx
-import { View, Text } from 'react-native';
+import { View, Text, StyleSheet } from 'react-native';
 import { SKIN_TYPE_LABELS, type Dimension, type SkinTypeFeel } from '../../content/cosmetic-vocab';
 import { toBand, direction } from './bands';
 import { assertCosmetic } from '../../lib/cosmetic-filter';
 import type { ScoreVector } from './read-types';
 import { Screen, GlassCard, Display, Eyebrow, Body, Caption } from '../../components/ui';
-import { palette } from '../../theme/tokens';
+import { palette, bandTint, type BandTone } from '../../theme/tokens';
 
 interface ResultProps {
   scores: ScoreVector;
@@ -21,18 +21,35 @@ const LABELS: Record<Dimension, string> = {
 };
 const ARROW: Record<'up' | 'down' | 'same', string> = { up: '↑', down: '↓', same: '' };
 
+// Gentle, on-brand tone per band index (low → high). Uses the existing sage
+// ("looks settled") / clay ("worth a look") tokens; mauve stays neutral. This is
+// presentation only — the band *label* text is unchanged and still drives meaning.
+const TONE: Record<Dimension, readonly [BandTone, BandTone, BandTone]> = {
+  hydration: ['clay', 'mauve', 'sage'],
+  oiliness: ['clay', 'sage', 'clay'],
+  texture: ['sage', 'mauve', 'clay'],
+  pores: ['sage', 'mauve', 'clay'],
+  darkSpots: ['sage', 'mauve', 'clay'],
+  redness: ['sage', 'mauve', 'clay'],
+  fineLines: ['sage', 'mauve', 'clay'],
+  darkCircles: ['sage', 'mauve', 'clay'],
+};
+
 function Row({ dim, scores, prev, last }: { dim: Dimension; scores: ScoreVector; prev: ScoreVector | null; last: boolean }) {
   const band = toBand(dim, scores[dim]);
   assertCosmetic([band.label]); // last-line compliance check before display
   const dir = direction(scores[dim], prev ? prev[dim] : null);
+  const tint = bandTint[TONE[dim][band.index]];
   return (
     <View
       className={`flex-row justify-between items-center px-5 py-3.5 ${last ? '' : 'border-b border-white/40'}`}
     >
       <Body className="text-ink">{LABELS[dim]}</Body>
-      <Text className="font-body-medium text-[15px]" style={{ color: palette.mauve600 }}>
-        {band.label} {ARROW[dir]}
-      </Text>
+      <View style={[styles.pill, { backgroundColor: tint.bg }]}>
+        <Text className="font-body-semibold text-[12.5px]" style={{ color: tint.fg }}>
+          {band.label} {ARROW[dir]}
+        </Text>
+      </View>
     </View>
   );
 }
@@ -79,3 +96,11 @@ export function Result({ scores, skinType, prev }: ResultProps) {
     </Screen>
   );
 }
+
+const styles = StyleSheet.create({
+  pill: {
+    borderRadius: 999,
+    paddingHorizontal: 11,
+    paddingVertical: 4,
+  },
+});

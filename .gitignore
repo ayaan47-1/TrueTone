@@ -42,3 +42,8 @@ eval/data/*
 # Expo prebuild (CNG) generated native projects
 /android
 /ios
+
+# Imported design handoff bundle (scratch, not shipped)
+skincare-routine-ai-app/
+Skincare routine AI app-handoff.zip
+truetone-design-system-bundle.txt
