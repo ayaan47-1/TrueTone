@@ -1,7 +1,8 @@
 import { useEffect, useState } from 'react';
-import { View, Text, Pressable } from 'react-native';
+import { View } from 'react-native';
 import { useRouter } from 'expo-router';
 import { Result } from '../../src/features/read/Result';
+import { MistBackground, GlassCard, Body, PrimaryButton } from '../../src/components/ui';
 import { fetchScanHistory } from '../../src/lib/scans';
 import { SKIN_TYPE_FEELS, type SkinTypeFeel } from '../../src/content/cosmetic-vocab';
 import type { ScoreVector } from '../../src/features/read/read-types';
@@ -43,31 +44,39 @@ export default function ResultRoute() {
 
   if (status === 'loading') {
     return (
-      <View className="flex-1 items-center justify-center">
-        <Text>Preparing your read…</Text>
-      </View>
+      <MistBackground>
+        <View className="flex-1 items-center justify-center px-8">
+          <GlassCard className="px-7 py-8 items-center" radius={32}>
+            <Body className="text-center">Preparing your read…</Body>
+          </GlassCard>
+        </View>
+      </MistBackground>
     );
   }
 
   if (status === 'error') {
     return (
-      <View className="flex-1 items-center justify-center p-6">
-        <Text className="text-center mb-4">Couldn&apos;t load your read. Please try again.</Text>
-        <Pressable className="p-4 bg-violet-600 rounded-xl" onPress={() => router.replace('/')}>
-          <Text className="text-white">Back to Home</Text>
-        </Pressable>
-      </View>
+      <MistBackground>
+        <View className="flex-1 items-center justify-center px-8">
+          <GlassCard className="px-7 py-8 items-center gap-5" radius={32}>
+            <Body className="text-center">Couldn&apos;t load your read. Please try again.</Body>
+            <PrimaryButton label="Back to Home" fullWidth onPress={() => router.replace('/')} />
+          </GlassCard>
+        </View>
+      </MistBackground>
     );
   }
 
   if (status === 'empty' || !scores) {
     return (
-      <View className="flex-1 items-center justify-center p-6">
-        <Text className="text-center mb-4">No scan yet. Your skin reads will show up here.</Text>
-        <Pressable className="p-4 bg-violet-600 rounded-xl" onPress={() => router.replace('/')}>
-          <Text className="text-white">Back to Home</Text>
-        </Pressable>
-      </View>
+      <MistBackground>
+        <View className="flex-1 items-center justify-center px-8">
+          <GlassCard className="px-7 py-8 items-center gap-5" radius={32}>
+            <Body className="text-center">No scan yet. Your skin reads will show up here.</Body>
+            <PrimaryButton label="Back to Home" fullWidth onPress={() => router.replace('/')} />
+          </GlassCard>
+        </View>
+      </MistBackground>
     );
   }
 

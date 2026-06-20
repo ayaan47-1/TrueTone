@@ -6,7 +6,9 @@ module.exports = {
   ],
   // Integration tests hit a running local Supabase; excluded from the default unit run.
   // Run them with `npm run test:integration`.
-  testPathIgnorePatterns: ['/node_modules/', '<rootDir>/test/integration/'],
+  // '.claude/worktrees/*' are nested git worktrees with their own node_modules
+  // (duplicate React) — never part of this project's suite.
+  testPathIgnorePatterns: ['/node_modules/', '<rootDir>/test/integration/', '<rootDir>/.claude/'],
   moduleNameMapper: { '\\.css$': '<rootDir>/test/css-stub.js' },
   collectCoverageFrom: ['src/**/*.{ts,tsx}', 'app/**/*.{ts,tsx}'],
   // Device-only native shells (vision-camera capture / on-device read) can't run under Jest or the

@@ -1,9 +1,11 @@
 // src/features/read/Result.tsx
-import { View, Text, ScrollView } from 'react-native';
-import { DIMENSIONS, SKIN_TYPE_LABELS, type Dimension, type SkinTypeFeel } from '../../content/cosmetic-vocab';
+import { View, Text } from 'react-native';
+import { SKIN_TYPE_LABELS, type Dimension, type SkinTypeFeel } from '../../content/cosmetic-vocab';
 import { toBand, direction } from './bands';
 import { assertCosmetic } from '../../lib/cosmetic-filter';
 import type { ScoreVector } from './read-types';
+import { Screen, GlassCard, Display, Eyebrow, Body, Caption } from '../../components/ui';
+import { palette } from '../../theme/tokens';
 
 interface ResultProps {
   scores: ScoreVector;
@@ -19,40 +21,61 @@ const LABELS: Record<Dimension, string> = {
 };
 const ARROW: Record<'up' | 'down' | 'same', string> = { up: '↑', down: '↓', same: '' };
 
-function Row({ dim, scores, prev }: { dim: Dimension; scores: ScoreVector; prev: ScoreVector | null }) {
+function Row({ dim, scores, prev, last }: { dim: Dimension; scores: ScoreVector; prev: ScoreVector | null; last: boolean }) {
   const band = toBand(dim, scores[dim]);
   assertCosmetic([band.label]); // last-line compliance check before display
   const dir = direction(scores[dim], prev ? prev[dim] : null);
   return (
-    <View className="flex-row justify-between px-4 py-2 border-b border-gray-100">
-      <Text>{LABELS[dim]}</Text>
-      <Text className="text-gray-600">{band.label} {ARROW[dir]}</Text>
+    <View
+      className={`flex-row justify-between items-center px-5 py-3.5 ${last ? '' : 'border-b border-white/40'}`}
+    >
+      <Body className="text-ink">{LABELS[dim]}</Body>
+      <Text className="font-body-medium text-[15px]" style={{ color: palette.mauve600 }}>
+        {band.label} {ARROW[dir]}
+      </Text>
+    </View>
+  );
+}
+
+function Section({ title, dims, scores, prev }: { title: string; dims: Dimension[]; scores: ScoreVector; prev: ScoreVector | null }) {
+  return (
+    <View className="gap-2">
+      <Eyebrow className="px-1">{title}</Eyebrow>
+      <GlassCard radius={26} className="overflow-hidden">
+        {dims.map((d, i) => (
+          <Row key={d} dim={d} scores={scores} prev={prev} last={i === dims.length - 1} />
+        ))}
+      </GlassCard>
     </View>
   );
 }
 
 export function Result({ scores, skinType, prev }: ResultProps) {
   return (
-    <ScrollView className="flex-1 bg-white">
-      <View className="bg-amber-50 px-4 py-3">
-        <Text className="text-amber-800 text-xs">
+    <Screen className="px-6" contentStyle={{ paddingTop: 8, paddingBottom: 32 }}>
+      <GlassCard flat intensity={26} radius={20} className="px-4 py-3 mb-5 mt-2">
+        <Caption className="text-[11px] leading-[16px]">
           This describes how your skin looks today. It is not a medical diagnosis and TrueTone is not a medical device.
+        </Caption>
+      </GlassCard>
+
+      <View className="gap-1 mb-1">
+        <Display className="text-3xl">Your skin today</Display>
+        <Text className="font-body-medium text-base" style={{ color: palette.mauve600 }}>
+          Skin type feel: {SKIN_TYPE_LABELS[skinType]}
         </Text>
       </View>
-      <Text className="px-4 pt-4 text-lg font-bold">Your skin today</Text>
-      <Text className="px-4 pb-3 text-violet-700">Skin type feel: {SKIN_TYPE_LABELS[skinType]}</Text>
 
-      <Text className="px-4 pt-2 pb-1 text-xs uppercase text-gray-400">Skin qualities</Text>
-      {QUALITY_DIMS.map((d) => <Row key={d} dim={d} scores={scores} prev={prev} />)}
+      <View className="gap-5 mt-5">
+        <Section title="Skin qualities" dims={QUALITY_DIMS} scores={scores} prev={prev} />
+        <Section title="Appearance of" dims={APPEARANCE_DIMS} scores={scores} prev={prev} />
+      </View>
 
-      <Text className="px-4 pt-3 pb-1 text-xs uppercase text-gray-400">Appearance of</Text>
-      {APPEARANCE_DIMS.map((d) => <Row key={d} dim={d} scores={scores} prev={prev} />)}
-
-      <View className="m-4 p-3 bg-blue-50 rounded-xl">
-        <Text className="text-blue-900 text-xs">
+      <GlassCard flat intensity={30} radius={22} className="px-5 py-4 mt-6" style={{ borderColor: palette.rose300 }}>
+        <Body className="text-[13px] text-ink-soft">
           Notice something changing, painful, or unusual? TrueTone can&apos;t assess that — please see a dermatologist.
-        </Text>
-      </View>
-    </ScrollView>
+        </Body>
+      </GlassCard>
+    </Screen>
   );
 }
