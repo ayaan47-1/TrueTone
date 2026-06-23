@@ -14,13 +14,13 @@ import { detectFaceBbox } from './detect-bbox';
 
 interface Deps {
   decode?: (uri: string) => Promise<RgbImage>;
-  detect?: (uri: string) => Promise<Rect>;
+  detect?: (rgb: RgbImage) => Promise<Rect>;
   del?: (uri: string) => Promise<void>;
 }
 
 export class CvReadEngine implements ReadEngine {
   private readonly decode: (uri: string) => Promise<RgbImage>;
-  private readonly detect: (uri: string) => Promise<Rect>;
+  private readonly detect: (rgb: RgbImage) => Promise<Rect>;
   private readonly del: (uri: string) => Promise<void>;
 
   constructor(deps: Deps = {}) {
@@ -33,8 +33,8 @@ export class CvReadEngine implements ReadEngine {
     return withImageCleanup(
       uri,
       async (u) => {
-        const rgb = await this.decode(u); // DEVICE-ONLY
-        const bbox = await this.detect(u); // DEVICE-ONLY
+        const rgb = await this.decode(u); // DEVICE: native JPEG decode
+        const bbox = await this.detect(rgb); // bbox in the decoded image's pixel space
         return scoreFromRgb(rgb, bbox); // pure, tested
       },
       this.del,
