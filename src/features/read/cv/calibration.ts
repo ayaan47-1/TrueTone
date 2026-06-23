@@ -1,6 +1,11 @@
 // Central calibration: region geometry (fractions of the face bbox) and per-dimension
 // normalization ranges. Tuned against synthetic fixtures + the fairness self-test (Task 18).
 // Keeping every magic number here means tuning never edits an extractor.
+// PROVISIONAL: these hi/threshold values are heuristic (chosen so the synthetic directional tests
+// are non-saturated and the fairness self-test passes). They set score magnitudes, not the
+// fairness property, and MUST be empirically grounded on real data before any accuracy claim
+// ships (CLAUDE.md §1, §7). The fairness self-test only constrains tone-invariance, not absolute
+// calibration.
 import type { RegionName } from './types';
 
 export const norm01 = (raw: number, lo: number, hi: number): number =>
