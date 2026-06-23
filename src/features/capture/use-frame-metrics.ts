@@ -54,7 +54,7 @@ function metricsForElapsed(ms: number): FrameMetrics {
 // is a NATIVE module — installing it needs a rebuild. Flip this to true only in a dev build that
 // has it. Until then the frame-processor hooks are skipped and the gate runs on the scripted
 // simulation, so the camera screen renders without that native dependency.
-const FRAME_PROCESSORS_INSTALLED = true;
+const FRAME_PROCESSORS_INSTALLED = false;
 
 export interface UseFrameMetricsOptions {
   /** Drive metrics from the scripted simulation instead of the real on-device signals. */
