@@ -1,18 +1,18 @@
 import { useRouter } from 'expo-router';
 import { Capture } from '../../src/features/capture/Capture';
-import { runStubRead } from '../../src/features/read/run-stub-read';
+import { runRead } from '../../src/features/read/run-read';
 
 export default function ScanRoute() {
   const router = useRouter();
   return (
     <Capture
-      // DEV STUB read (the real executorch engine, Task 4.2, isn't built yet): derive placeholder
-      // cosmetic scores on-device, persist the scan, and delete the image. Only derived scores cross
-      // the compliance boundary; the image is never uploaded (CLAUDE.md §3). The scan is marked
-      // isStub:true so it's never mistaken for a real read.
+      // Real CV read: run the on-device engine on a captured photo, derive cosmetic scores,
+      // and persist only the derived scan (image deleted on-device per CLAUDE.md §3). In __DEV__
+      // (web/Expo Go preview, where native decode is unavailable), it falls back to stubRead()
+      // so the non-device preview still works. Real Android dev builds always get the real read.
       onCaptured={async (photoUri) => {
         try {
-          await runStubRead(photoUri);
+          await runRead(photoUri);
         } catch {
           // Even if the save fails, leave the camera — the result screen shows its empty/error state.
         }

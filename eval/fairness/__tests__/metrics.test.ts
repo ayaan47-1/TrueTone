@@ -14,7 +14,7 @@ function obs(fst: Fitzpatrick, subjectId: string, allPass: boolean, v: number): 
 }
 // loose thresholds so a tiny synthetic set can exercise pass/fail deterministically
 const t = { minSamplesPerFst: 1, minSubjectsPerFst: 1, gateFloor: 0.9, gateMaxGap: 0.05,
-  stabilityTolerance: 0.25, biasBound: 0.2 } as const;
+  stabilityTolerance: 0.25, biasBound: 0.2, biasEffectFloor: 0.02 } as const;
 
 test('a balanced set passes every axis', () => {
   const data = ['I', 'II', 'III', 'IV', 'V', 'VI'].flatMap((f) =>
