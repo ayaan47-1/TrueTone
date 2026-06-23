@@ -65,6 +65,27 @@ export function laplacianEnergy(img: RgbImage, rect: Rect): number {
   return n ? sum / n : 0;
 }
 
+export function meanLuma(img: RgbImage, rect: Rect): number {
+  const r = clampRect(rect, img.width, img.height);
+  let sum = 0;
+  let n = 0;
+  for (let y = r.y; y < r.y + r.h; y++) {
+    for (let x = r.x; x < r.x + r.w; x++) {
+      sum += lumaAt(img, x, y);
+      n++;
+    }
+  }
+  return n ? sum / n : 0;
+}
+
+// Weber-style relative texture: high-frequency energy divided by local brightness, so the
+// measure is invariant to overall skin lightness. This is the fairness fix — absolute Laplacian
+// energy scales with luminance, biasing texture/hydration across Fitzpatrick tones.
+export function microContrast(img: RgbImage, rect: Rect): number {
+  const lum = meanLuma(img, rect);
+  return lum > 0 ? laplacianEnergy(img, rect) / lum : 0;
+}
+
 export function gradientEnergy(img: RgbImage, rect: Rect): number {
   const r = clampRect(rect, img.width, img.height);
   let sum = 0;

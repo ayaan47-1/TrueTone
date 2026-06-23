@@ -19,7 +19,7 @@ const report = fairnessReport(
     [obs(f as Fitzpatrick, `${f}-a`), obs(f as Fitzpatrick, `${f}-a`)]),
   '2026-06-17T00:00:00Z',
   { minSamplesPerFst: 1, minSubjectsPerFst: 1, gateFloor: 0.9, gateMaxGap: 0.05,
-    stabilityTolerance: 0.25, biasBound: 0.2 },
+    stabilityTolerance: 0.25, biasBound: 0.2, biasEffectFloor: 0.02 },
 );
 
 test('markdown shows the date, every FST group, and the overall verdict', () => {

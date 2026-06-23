@@ -23,9 +23,9 @@ export const CAL = {
   redness: { lo: 0, hi: 25 }, // Δa* over baseline
   darkCircles: { lo: 0, hi: 25 }, // ΔL* deficit vs baseline
   oiliness: { lumaThr: 0.8, satThr: 0.15, lo: 0, hi: 0.25 }, // bright low-sat fraction
-  texture: { lo: 0, hi: 0.15 }, // mean |laplacian|
+  texture: { lo: 0, hi: 0.3 }, // mean |laplacian| / mean luma (tone-relative)
   pores: { thr: 0.06, lo: 0, hi: 0.3 }, // local-contrast density
   fineLines: { lo: 0, hi: 0.12 }, // mean horizontal gradient
-  darkSpots: { dL: 12, lo: 0, hi: 0.15 }, // fraction darker than baseline by dL
-  hydration: { lo: 0, hi: 0.15 }, // inverse micro-texture
+  darkSpots: { relThr: 0.08, lo: 0, hi: 0.15 }, // fraction darker than baseline L* by relThr (relative)
+  hydration: { lo: 0, hi: 0.3 }, // inverse tone-relative micro-texture
 } as const;

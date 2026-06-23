@@ -36,3 +36,19 @@ test('does not flag a dimension that varies but does not track Fitzpatrick index
   expect(r.flagged).not.toContain('hydration');
   expect(Math.abs(r.perDimension.hydration)).toBeLessThan(0.2);
 });
+test('effect-size guard: a high correlation with negligible spread is not flagged', () => {
+  // texture tracks FST perfectly (monotonic) but the spread is only 4e-4 — float/quantization
+  // noise, not a real bias. With an effectFloor of 0.02 it must NOT be flagged, even though its
+  // |corr| is ~1. Without the guard (effectFloor 0) it would be flagged.
+  const tinyByFst: Record<Fitzpatrick, number> = {
+    I: 0.0700, II: 0.0699, III: 0.0698, IV: 0.0697, V: 0.0696, VI: 0.0695,
+  };
+  const data: Observation[] = (['I', 'II', 'III', 'IV', 'V', 'VI'] as Fitzpatrick[]).map((f) => {
+    const scores = Object.fromEntries(DIMENSIONS.map((d) => [d, 0.5])) as ScoreVector;
+    scores.texture = tinyByFst[f];
+    return { fst: f, subjectId: f, gate, scores };
+  });
+  expect(Math.abs(bias(data, 0.2, 0).perDimension.texture)).toBeGreaterThan(0.99); // monotonic
+  expect(bias(data, 0.2, 0).flagged).toContain('texture'); // no guard -> flagged
+  expect(bias(data, 0.2, 0.02).flagged).not.toContain('texture'); // guard -> not flagged
+});

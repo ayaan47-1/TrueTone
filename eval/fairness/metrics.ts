@@ -45,7 +45,7 @@ export function fairnessReport(
     && s.worst <= s.best * (1 + t.stabilityTolerance);
   const stabilityPass = axisVerdict(s.worst !== null, stabilityCriterion, stabilityComplete);
 
-  const b = bias(obs, t.biasBound);
+  const b = bias(obs, t.biasBound, t.biasEffectFloor);
   const biasPass = b.flagged.length === 0;
 
   // Fail-closed precedence: a definite FAIL on ANY axis disqualifies the whole run (a known

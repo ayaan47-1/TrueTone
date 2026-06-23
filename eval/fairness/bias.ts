@@ -19,17 +19,23 @@ function pearson(xs: number[], ys: number[]): number {
 
 export interface BiasResult {
   perDimension: Record<Dimension, number>; // corr(FST index, score)
-  flagged: Dimension[]; // |corr| > bound
+  flagged: Dimension[]; // |corr| > bound AND spread > effectFloor
 }
 
-export function bias(obs: Observation[], bound: number): BiasResult {
+export function bias(obs: Observation[], bound: number, effectFloor = 0): BiasResult {
   const x = obs.map((o) => fstIndex(o.fst));
   const perDimension = {} as Record<Dimension, number>;
   const flagged: Dimension[] = [];
   for (const d of DIMENSIONS) {
-    const c = pearson(x, obs.map((o) => o.scores[d]));
+    const ys = obs.map((o) => o.scores[d]);
+    const c = pearson(x, ys);
     perDimension[d] = c;
-    if (Math.abs(c) > bound) flagged.push(d);
+    // Practical-vs-statistical significance: Pearson is scale-free, so a near-constant dimension
+    // whose scores differ only by float/quantization noise can still show |corr| ~ 1. A correlation
+    // is only a real bias if the scores actually differ across tones by a meaningful amount, so we
+    // also require the cross-tone spread (max - min) to exceed effectFloor before flagging.
+    const spread = ys.length ? Math.max(...ys) - Math.min(...ys) : 0;
+    if (Math.abs(c) > bound && spread > effectFloor) flagged.push(d);
   }
   return { perDimension, flagged };
 }
