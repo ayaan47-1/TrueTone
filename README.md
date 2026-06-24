@@ -12,7 +12,7 @@ diagnoses anything.**
 - **Status:** **P1 (compliance scaffold), P2 (guided capture + on-device read), the fairness-eval
   harness, the brand-neutral routine + scores-only chat, and the "Mist" liquid-glass design system
   are all built and landed on `main`.** The guided-capture flow runs **end-to-end on a physical
-  device** (Android dev build) against the **real classical-CV on-device read** (fairness-validated).
+  device** (Android dev build) against the **real classical-CV on-device read** (fairness-instrumented).
   The remaining work is the vision-camera worklet quality metrics, a full physical-device
   verification pass, the iOS path, and the progress/trend re-scan loop — see [Roadmap](#roadmap).
 
@@ -54,9 +54,11 @@ boundary.
   3-2-1 countdown. The captured file URI is handed to the read **only** — never logged or uploaded.
 - **On-device read** (`CvReadEngine`, classical computer vision) — decodes the photo, samples skin
   regions, derives a cosmetic `ScoreVector` + skin-type with no network or ML model, then **deletes
-  the image** (success or failure). It is **fairness-validated** by the eval harness across
-  Fitzpatrick I–VI. A future ML model can drop in behind the same `ReadEngine` interface (an
-  `executorch-engine` shell exists), but the shipped read is classical CV.
+  the image** (success or failure). It is **fairness-instrumented** — the eval harness exercises it
+  on a synthetic Fitzpatrick I–VI tone self-test (a tone-invariance check of the algorithm);
+  validation on real, consented skin-tone data is a separate, legally-gated step (no equity claim
+  ships from synthetic results). A future ML model can drop in behind the same `ReadEngine` interface
+  (an `executorch-engine` shell exists), but the shipped read is classical CV.
 - **Scores persistence + results** — derived scores (never the image) are written via a
   `SECURITY DEFINER` `record_scan` RPC into an append-only `scans` table (RLS-scoped); a
   dimension-list results screen renders **bands only**, never diagnostic language.
@@ -124,7 +126,7 @@ The architecture and full module map live in [`docs/ARCHITECTURE.md`](./docs/ARC
 | Design system | "Mist" liquid glass — `expo-blur` + `expo-linear-gradient`, Fraunces + Mulish (`@expo-google-fonts`), `react-native-reanimated` |
 | Auth | `@supabase/supabase-js` v2 — **anonymous-first** (stable user id from launch) |
 | Capture | `react-native-vision-camera` v5 (+ `-face-detector`, `react-native-nitro-image`) — guided front-camera + quality gate |
-| On-device read | `CvReadEngine` — classical computer vision, fairness-validated (device-only decode shell; `react-native-executorch` shell reserved for a future ML model) |
+| On-device read | `CvReadEngine` — classical computer vision, fairness-instrumented on a synthetic tone self-test (device-only decode shell; `react-native-executorch` shell reserved for a future ML model) |
 | Dev/CI builds | EAS Build (`eas.json`: development / preview / production; Android dev build = arm64-v8a APK) |
 | Backend | Supabase: Postgres + Auth + Row-Level Security + RPCs (`SECURITY DEFINER`) + `pg_cron` + Edge Functions |
 | Routine chat | Supabase Edge Function (Deno) → Anthropic Claude (Sonnet 4.6), **server-side key only** |
