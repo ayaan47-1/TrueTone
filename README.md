@@ -10,9 +10,11 @@ diagnoses anything.**
 
 - **Platform:** Expo (SDK 56) + React Native + TypeScript · iOS-primary · **US-only for v0** · **18+ only**
 - **Status:** **P1 (compliance scaffold), P2 (guided capture + on-device read), the fairness-eval
-  harness, and the brand-neutral routine + scores-only chat are all built and landed on `main`.**
-  The remaining open work is **on-device verification of the camera + inference path in an Expo dev
-  build on a physical iPhone**, plus the progress/trend re-scan loop — see [Roadmap](#roadmap).
+  harness, the brand-neutral routine + scores-only chat, and the "Mist" liquid-glass design system
+  are all built and landed on `main`.** The guided-capture flow runs **end-to-end on a physical
+  device** (Android dev build) against the **real classical-CV on-device read** (fairness-validated).
+  The remaining work is the vision-camera worklet quality metrics, a full physical-device
+  verification pass, the iOS path, and the progress/trend re-scan loop — see [Roadmap](#roadmap).
 
 ---
 
@@ -50,18 +52,46 @@ boundary.
 - **Guided capture** (`react-native-vision-camera` v5) — a blocking quality gate (face presence /
   centering / distance, brightness, sharpness) must pass, then an auto-capture state machine fires a
   3-2-1 countdown. The captured file URI is handed to the read **only** — never logged or uploaded.
-- **On-device read** (`react-native-executorch`) — decodes the photo, runs a **deep-stub model on
-  the real Executorch runtime** (placeholder weights, so the real model is a file swap), derives a
-  cosmetic `ScoreVector` + skin-type, then **deletes the image** (success or failure).
+- **On-device read** (`CvReadEngine`, classical computer vision) — decodes the photo, samples skin
+  regions, derives a cosmetic `ScoreVector` + skin-type with no network or ML model, then **deletes
+  the image** (success or failure). It is **fairness-validated** by the eval harness across
+  Fitzpatrick I–VI. A future ML model can drop in behind the same `ReadEngine` interface (an
+  `executorch-engine` shell exists), but the shipped read is classical CV.
 - **Scores persistence + results** — derived scores (never the image) are written via a
   `SECURITY DEFINER` `record_scan` RPC into an append-only `scans` table (RLS-scoped); a
   dimension-list results screen renders **bands only**, never diagnostic language.
 - **Image-egress CI guard** — `npm run check:no-egress` fails the build if image data could reach a
   network/log sink.
 
-> **Device-gated:** the camera and Executorch native calls cannot run under Jest or the iOS
-> Simulator. They are isolated behind `// DEVICE-ONLY` shells and are verified in an Expo dev build
-> on a physical iPhone (tracked in the open guided-capture PR).
+The flow runs **end-to-end on a physical device** (Android dev build): gates are enforced by
+imperative navigation, the guided camera mounts, and capture → the **real classical-CV read** →
+result renders real cosmetic bands. The capture route calls `runRead()`, which runs `CvReadEngine`
+on-device (deleting the image) and persists only derived scores via the `record_scan` RPC. Two
+clearly-flagged items remain, neither weakening compliance:
+
+- **Preview-only stub** — `stubRead()` returns deterministic placeholder scores marked
+  `isStub: true` and is reached **only** in `__DEV__` web/Expo Go preview, where native image decode
+  is unavailable. On a real dev build `CvReadEngine` runs; the stub is never the device read.
+- **Frame-processor flag** — `FRAME_PROCESSORS_INSTALLED=false` gates the face-detector/luma
+  worklets so the camera renders without `react-native-vision-camera-worklets` (a native dep needing
+  a rebuild); the quality gate runs on a scripted simulation until the flag is flipped.
+
+> **Still device-gated:** the worklet-backed quality metrics and a full physical-device verification
+> pass cannot run under Jest or the iOS Simulator. They stay isolated behind `// DEVICE-ONLY` shells.
+
+### Design system — "Mist" (liquid glass)
+
+A soft-surrealism, liquid-glass UI: mist-lavender / washed-rose palette, Fraunces + Mulish type, and
+`expo-blur` frosted surfaces over an `expo-linear-gradient` mesh. Shared primitives live in
+`src/components/ui/` (`MistBackground`, `Screen`, `GlassCard`, `GlassSheet`, `Button`, `Typography`)
+with design tokens in `src/theme/tokens.ts`. The age gate and the policy reader present as frosted
+**glass popups** (the reader is a `transparentModal` route); result bands render in soft sage / mauve
+/ clay pills via a per-dimension polarity map.
+
+> **Presentation-only, compliance preserved:** all compliance copy and `testID`s are unchanged, and
+> no analytics/ad SDK was added (both CI guards still pass). The design's "tuned fairly for every
+> tone" caption is a skin-tone-equity claim gated on validation data (`CLAUDE.md` §1/§6), so the
+> Fitzpatrick I–VI tone strip ships with the **factual** "Fitzpatrick I–VI" caption instead.
 
 ### Routine + scores-only chat (build-order step 6)
 
@@ -90,10 +120,12 @@ The architecture and full module map live in [`docs/ARCHITECTURE.md`](./docs/ARC
 
 | Layer | Choice |
 |-------|--------|
-| App shell | Expo SDK 56, Expo Router, NativeWind, TypeScript |
+| App shell | Expo SDK 56 (RN 0.85, React 19, New Arch), Expo Router, NativeWind, TypeScript |
+| Design system | "Mist" liquid glass — `expo-blur` + `expo-linear-gradient`, Fraunces + Mulish (`@expo-google-fonts`), `react-native-reanimated` |
 | Auth | `@supabase/supabase-js` v2 — **anonymous-first** (stable user id from launch) |
-| Capture | `react-native-vision-camera` v5 (guided front-camera + quality gate) |
-| On-device read | `react-native-executorch` (deep-stub model on the real runtime; device-only shell) |
+| Capture | `react-native-vision-camera` v5 (+ `-face-detector`, `react-native-nitro-image`) — guided front-camera + quality gate |
+| On-device read | `CvReadEngine` — classical computer vision, fairness-validated (device-only decode shell; `react-native-executorch` shell reserved for a future ML model) |
+| Dev/CI builds | EAS Build (`eas.json`: development / preview / production; Android dev build = arm64-v8a APK) |
 | Backend | Supabase: Postgres + Auth + Row-Level Security + RPCs (`SECURITY DEFINER`) + `pg_cron` + Edge Functions |
 | Routine chat | Supabase Edge Function (Deno) → Anthropic Claude (Sonnet 4.6), **server-side key only** |
 | DB testing | pgTAP (`supabase test db`) |
@@ -122,10 +154,12 @@ app/                     Expo Router routes (gated by a fail-closed routing guar
   scan/                  capture → result → routine (P2 + step 6)
 src/
   lib/                   supabase client, anon auth, region check, routing guard, profile context
+  components/ui/         "Mist" glass primitives (MistBackground, Screen, GlassCard, GlassSheet, Button, Typography)
+  theme/                 design tokens (palette, type, glass, Fitzpatrick scale)
   features/
-    age-gate, consent, data-rights, onboarding, policies   (P1)
+    age-gate, consent, data-rights, onboarding, policies   (P1; reskinned as glass)
     capture/             guided camera + quality gate + auto-capture controller (device-only shell)
-    read/                preprocess, decode, image lifecycle, bands, executorch engine (device-only shell)
+    read/                preprocess, decode, image lifecycle, bands, executorch engine + dev stub (device-only shell)
     recommend/           deterministic routine engine, skincare library, RoutineView, scoped chat
   content/               policy manifest (version source of truth) + markdown/bodies
 supabase/
@@ -148,8 +182,9 @@ data/                    compliance spec PDFs (source of truth, not shipped)
 - Node 22+ (`@supabase/realtime-js` requires native `WebSocket`, which lands in Node 22)
 - Docker (for local Supabase)
 - [Supabase CLI](https://supabase.com/docs/guides/cli) (`npx supabase` works)
-- A physical iPhone + an Expo dev build for any camera / on-device-read work (the iOS Simulator
-  has no camera and cannot load the vision-camera / Executorch native modules)
+- A physical device (Android today; iPhone once Apple Org enrollment lands) + an Expo dev build for
+  any camera / on-device-read work — simulators have no camera and can't load the vision-camera /
+  Executorch native modules. See [Build a dev client](#build-a-dev-client-eas).
 
 ### Install
 
@@ -181,14 +216,36 @@ It is **server-side only** — it must never appear in the app `.env` or be ship
 
 ### Run the app
 
+The app now ships custom native modules (vision-camera, nitro-image, blur/gradient), so **Expo Go
+can no longer load it** — you need a development build (below). Once a dev build is installed on a
+device/emulator, start the bundler with the dev client:
+
 ```bash
-npm start          # Expo dev server (Expo Go is fine for all P1 screens — no native modules yet)
-npm run ios        # iOS
-npm run android    # Android
+npx expo start --dev-client   # then open the app from your dev-build device
 ```
 
-> Switch to an **Expo development build** (`expo-dev-client` + EAS Build) the moment P2 camera or
-> on-device ML is added — Expo Go cannot load custom native modules.
+### Build a dev client (EAS)
+
+Native code (camera, on-device read, glass blur) runs only in a development build. Profiles live in
+[`eas.json`](./eas.json):
+
+```bash
+npm i -g eas-cli            # or use npx eas-cli
+eas login
+eas build -p android --profile development   # internal APK; arm64-v8a only (physical devices)
+eas build -p ios     --profile development   # requires the Apple Developer Organization (see docs/ops)
+```
+
+When the build finishes, install it:
+
+```bash
+eas build:run -p android --latest            # install to a connected device/emulator
+```
+
+> iOS builds run in EAS cloud and need the company **Apple Developer Organization** enrollment
+> (LLC + D-U-N-S) — see [`docs/ops/apple-org-enrollment-checklist.md`](./docs/ops/apple-org-enrollment-checklist.md).
+> The Android dev build is restricted to `arm64-v8a` (real devices) to cut native compile time;
+> re-add other ABIs in `app.json` if you target 32-bit devices or x86 emulators.
 
 ---
 
@@ -217,13 +274,16 @@ Build order (P1 first — biometric compliance cannot be retrofitted):
 2. ✅ Standalone biometric consent + consent logging
 3. ✅ Data-rights screens (withdraw / delete-everything / account deletion)
 4. ✅ Privacy / Terms / Biometric / Retention / WA-health policies reachable before scan
-5. ✅ Guided capture + on-device read → cosmetic scores *(code landed; on-device verification in an
-   Expo dev build on a physical iPhone is the open work)*
+5. ✅ Guided capture + real classical-CV on-device read → cosmetic scores *(runs end-to-end on an
+   Android dev build; vision-camera worklet quality metrics + a full physical-device verification
+   pass + iOS are the open work)*
 6. ✅ Brand-neutral routine + scores-only "why this" chat
 7. ⏳ Progress re-scan + honest trend + "did this help?" loop
 
-Parallel track:
+Parallel tracks:
 
+- ✅ "Mist" liquid-glass design system — shared glass primitives + tokens; every non-camera screen
+  reskinned (presentation-only; compliance copy + guards unchanged).
 - ✅ Fairness-eval harness — balanced Fitzpatrick I–VI labeling + per-group metrics (runs on
   synthetic fixtures now; the real image→read extractor is gated on the model + counsel-approved
   data).
