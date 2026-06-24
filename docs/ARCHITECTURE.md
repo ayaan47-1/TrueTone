@@ -1,10 +1,12 @@
 # TrueTone Architecture & Codemap
 
 > Reflects what has landed on `main`: the **P1 compliance scaffold**, the **P2 capture +
-> on-device-read pipeline**, the **brand-neutral routine + scores-only chat** (build-order step 6),
-> and the **fairness-eval dev tool** (migrations `0001`–`0010`, all modules below). The only
-> device-gated piece is on-device verification of the camera + Executorch native shells.
-> Source of truth for *rules*: [`../CLAUDE.md`](../CLAUDE.md). This doc maps *what exists*.
+> on-device-read pipeline** (shipped read = **classical computer vision**, `CvReadEngine`), the
+> **brand-neutral routine + scores-only chat** (build-order step 6), the **"Mist" liquid-glass
+> design system**, and the **fairness-eval dev tool** (migrations `0001`–`0010`, all modules below).
+> The device-gated pieces are the native JPEG decode + the worklet-backed quality metrics; an
+> `ExecutorchEngine` ML shell exists but is **dormant** (never instantiated — reserved for a future
+> model). Source of truth for *rules*: [`../CLAUDE.md`](../CLAUDE.md). This doc maps *what exists*.
 
 ## The compliance boundary
 
@@ -104,12 +106,17 @@ All real logic is **pure and Jest-tested**; the camera and native inference are 
 | `capture/face-metrics.ts`, `luma-metrics.ts` | Derive face presence/centering/distance + brightness/sharpness | pure metric math over frame signals |
 | `capture/capture-controller.ts` | Auto-capture reducer (steady → 3-2-1 countdown → fire) | pure state machine |
 | `capture/use-frame-metrics.ts`, `Capture.tsx` | vision-camera v5 wiring + guided UI | **device-only shell**; URI handed to read **only**, never logged/uploaded |
-| `read/preprocess.ts` | JPEG bytes → normalized `224×224` tensor | pure |
-| `read/decode-output.ts` | Model output `[1,12]` → `ScoreVector` + skin-type | pure; `MODEL_OUTPUT_LENGTH` validated |
+| `read/run-read.ts` | Orchestrates the live read: `new CvReadEngine().run(uri)` → persist scores | wires capture → engine → `record_scan`; image deleted inside the engine |
+| `read/read-engine.ts` | `ReadEngine` interface (no native dep) | pure contract — both engines implement it |
+| `read/cv-read-engine.ts` | **Shipped engine** — classical CV: decode → detect bbox → `scoreFromRgb` | runs inside `withImageCleanup`; **no network, no ML model**; `isStub: false` |
+| `read/cv/score-from-rgb.ts` | Core inference: 8 cosmetic dimensions from pixels | pure; Laplacian texture energy, CIELAB (`color.ts`) deltas vs a per-face skin baseline |
+| `read/cv/dimensions/*.ts` | One pure function per dimension (hydration, oiliness, texture, pores, darkSpots, redness, fineLines, darkCircles) | pure; baseline-normalized so the read holds across tones |
+| `read/cv/{sampling,regions,baseline,color,calibration,skin-type}.ts` | Region sampling, color-space math, calibration, skin-type classify | pure; Jest-tested |
+| `read/decode-rgb.ts`, `detect-bbox.ts` | Native JPEG decode + face bbox | **device-only shells** (the only non-host part of the CV path) |
+| `read/image-lifecycle.ts` | `withImageCleanup` — `try/finally` + retries | **deletes image on success OR failure**; cleanup never throws |
 | `read/bands.ts` | Numeric score → cosmetic **band label** | pure; non-diagnostic vocabulary only |
-| `read/image-lifecycle.ts` | `withImageCleanup` — guarantees image deletion after the read | **deletes image on success OR failure** |
-| `read/read-engine.ts` | `ReadEngine` interface (no native dep) | pure contract |
-| `read/executorch-engine.ts` | `react-native-executorch` deep-stub on the real runtime | **device-only shell**; image read, decoded, deleted on device; only scores leave |
+| `read/stub-read.ts`, `run-stub-read.ts` | Deterministic placeholder scores (`isStub: true`) | **`__DEV__` web/Expo-Go preview only**, where native decode is unavailable — never the device read |
+| `read/executorch-engine.ts`, `preprocess.ts`, `decode-output.ts` | **Dormant** ML shell (`react-native-executorch`) + its tensor/`[1,12]` helpers | **never instantiated**; native calls `throw`; reserved for a future model swap behind `ReadEngine` |
 | `read/Result.tsx` | Dimension-list results screen | renders **bands only**, never diagnostic language |
 
 ### Recommendation + chat — `recommend/` (step 6)
@@ -126,6 +133,23 @@ All real logic is **pure and Jest-tested**; the camera and native inference are 
 
 The deterministic chat logic lives in `src/`; the Edge Function imports byte-identical copies under
 `supabase/functions/_shared/recommend/` — a drift guard test asserts the copies match.
+
+### Design system — "Mist" (`components/ui/` + `theme/`)
+
+A liquid-glass UI layer. Presentation-only: it changes how screens look, not what they assert —
+all compliance copy and `testID`s are preserved, and no analytics/ad SDK is added (both CI guards
+stay green).
+
+| Module | What it does |
+|--------|--------------|
+| `theme/tokens.ts` | Design tokens — palette, type scale, glass/elevation, Fitzpatrick I–VI scale, sage/clay band tints |
+| `components/ui/MistBackground.tsx` | `expo-linear-gradient` mist mesh backdrop |
+| `components/ui/{GlassCard,GlassSheet}.tsx` | `expo-blur` frosted surfaces (the age gate + policy reader render as glass popups; the reader is a `transparentModal` route) |
+| `components/ui/{Screen,Button,Typography}.tsx` | Layout shell + primitives (Fraunces + Mulish via `@expo-google-fonts`) |
+
+> The "tuned fairly for every tone" caption from the design is a skin-tone-equity claim gated on
+> validation data (`CLAUDE.md` §1/§6); the Fitzpatrick I–VI tone strip ships with the **factual**
+> "Fitzpatrick I–VI" caption instead.
 
 ## Content & versioning — `src/content/`
 
@@ -256,21 +280,26 @@ Both are wired into the `compliance` GitHub workflow. (`export_stub_model.py` bu
 
 A standalone harness, **never imported by `app/` or `src/` and never shipped**. Pure metric modules
 consume `Observation[]` (Fitzpatrick FST + subjectId + quality-gate report + scores); a runner
-produces observations from a manifest via an **injected extractor** (synthetic fixtures now; the
-real image→read adapter is gated on the model + counsel-approved data).
+produces observations from a manifest via an **injected extractor**. Two extractors exist today,
+both **synthetic** — the real image→read adapter (decode a consented image → run `CvReadEngine`) is
+gated on counsel-approved data.
 
 | Module | Verifies / does |
 |--------|-----------------|
 | `fst.ts`, `types.ts` | Fitzpatrick I–VI scale + `Observation`/`zod` manifest schema (FST + consentRef required) |
 | `gate-parity.ts` | quality-gate pass-rate parity across Fitzpatrick groups |
 | `stability.ts` | intra-subject score-stability parity across groups |
-| `bias.ts` | systematic bias — correlation of Fitzpatrick vs score per dimension |
-| `thresholds.ts`, `report.ts` | provisional (policy-owned) thresholds → aggregate-only `FairnessReport` (md + json) |
-| `run-eval.ts`, `run-fixtures.ts` | manifest → observations → report; synthetic end-to-end |
+| `bias.ts` | systematic bias — Pearson corr(Fitzpatrick, score) per dimension, with a practical-significance effect floor |
+| `thresholds.ts`, `metrics.ts`, `report.ts` | provisional (policy-owned) thresholds → fail-closed verdict → aggregate-only `FairnessReport` (md + json) |
+| `run-eval.ts` | manifest + injected extractor → `Observation[]` → report |
+| `run-fixtures.ts` | deterministic synthetic observations (no faces) — CI smoke |
+| `self-test-images.ts`, `cv-extractor.ts` | procedurally renders the **same** blemishes on each Fitzpatrick tone, runs the real `scoreFromRgb` over them → a **tone-invariance self-test** of the CV algorithm (still synthetic — proves the algorithm, not real-world fairness) |
 
 Compliance by construction: raw eval images never enter git or production Supabase (`eval/data/` is
-gitignored; a guard test enforces "no images tracked under `eval/`"); only aggregate reports are
-committed. The harness **reports** numbers — it does not certify fairness.
+gitignored — it holds only a README; a guard test enforces "no images tracked under `eval/`"); only
+aggregate reports are committed. The harness **reports** numbers and verifies the algorithm is
+tone-invariant on synthetic faces — it does **not** certify real-world fairness, and per spec §9 **no
+equity claim ships from synthetic results**.
 
 ## Test topology
 
