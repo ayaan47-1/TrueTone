@@ -1,6 +1,5 @@
 // src/features/age/AgeTrendCard.tsx
 import React from 'react';
-import { View } from 'react-native';
 import { GlassCard, Display, Body, Caption } from '../../components/ui';
 import { computeSkinFreshnessTrend } from './skin-age-trend';
 import { trendCopy } from './age-copy';
