@@ -2,6 +2,8 @@
 import { hasAgeAccess, setEntitlementSource, localStubEntitlement } from '../entitlement';
 
 describe('entitlement', () => {
+  afterEach(() => setEntitlementSource(localStubEntitlement(false)));
+
   it('defaults to locked (no access)', () => {
     expect(hasAgeAccess()).toBe(false);
   });
