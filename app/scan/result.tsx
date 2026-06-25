@@ -6,6 +6,7 @@ import { MistBackground, GlassCard, Body, PrimaryButton } from '../../src/compon
 import { fetchScanHistory } from '../../src/lib/scans';
 import { SKIN_TYPE_FEELS, type SkinTypeFeel } from '../../src/content/cosmetic-vocab';
 import type { ScoreVector } from '../../src/features/read/read-types';
+import type { ScoreSnapshot } from '../../src/features/age/age-types';
 
 type Status = 'loading' | 'ready' | 'empty' | 'error';
 
@@ -22,11 +23,13 @@ export default function ResultRoute() {
   const [scores, setScores] = useState<ScoreVector | null>(null);
   const [prev, setPrev] = useState<ScoreVector | null>(null);
   const [skinType, setSkinType] = useState<SkinTypeFeel>('combination');
+  const [trendHistory, setTrendHistory] = useState<ScoreSnapshot[]>([]);
+  const [skinAge, setSkinAge] = useState<number | null>(null);
 
   useEffect(() => {
     void (async () => {
       try {
-        const history = await fetchScanHistory(2); // latest + the one before, for trend arrows
+        const history = await fetchScanHistory(5); // more samples for the trend
         const latest = history[0];
         if (!latest) {
           setStatus('empty');
@@ -35,6 +38,9 @@ export default function ResultRoute() {
         setScores(latest.scores);
         setSkinType(toSkinTypeFeel(latest.skinType));
         setPrev(history[1]?.scores ?? null);
+        // Build ScoreSnapshot[] (newest-first) for the age/trend card.
+        setTrendHistory(history.map((s) => ({ capturedAt: s.capturedAt, scores: s.scores })));
+        setSkinAge(latest.skinAge ?? null);
         setStatus('ready');
       } catch {
         setStatus('error');
@@ -80,5 +86,5 @@ export default function ResultRoute() {
     );
   }
 
-  return <Result scores={scores} skinType={skinType} prev={prev} />;
+  return <Result scores={scores} skinType={skinType} prev={prev} history={trendHistory} skinAge={skinAge} />;
 }

@@ -23,6 +23,8 @@ function scan(id: string, overrides: Partial<Record<string, unknown>> = {}) {
     scores,
     modelVersion: 'stub-1',
     isStub: true,
+    skinAge: null,
+    skinAgeConfidence: null,
     ...overrides,
   };
 }
@@ -36,10 +38,10 @@ test('renders the read (disclaimer + a band) when a scan exists', async () => {
   expect(screen.getByText('Skin type feel: Combination')).toBeTruthy();
 });
 
-test('requests the latest two scans (for trend)', async () => {
+test('requests the latest five scans (for trend)', async () => {
   mockFetchScanHistory.mockResolvedValue([scan('s1')]);
   await render(<ResultRoute />);
-  await waitFor(() => expect(mockFetchScanHistory).toHaveBeenCalledWith(2));
+  await waitFor(() => expect(mockFetchScanHistory).toHaveBeenCalledWith(5));
 });
 
 test('passes the previous scan so a trend arrow renders', async () => {
