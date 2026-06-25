@@ -4,6 +4,7 @@ import type { ReadResult, ScoreVector } from '../features/read/read-types';
 import { buildRoutine } from '../features/recommend/routine-engine';
 import { skincareDomain } from '../features/recommend/skincare/domain';
 import type { Routine } from '../features/recommend/routine-types';
+import type { SkinAgeEstimate } from '../features/age/age-types';
 
 export interface Scan {
   id: string;
@@ -13,9 +14,11 @@ export interface Scan {
   modelVersion: string;
   isStub: boolean;
   routine: Routine;
+  skinAge: number | null;
+  skinAgeConfidence: number | null;
 }
 
-export async function recordScan(r: ReadResult): Promise<void> {
+export async function recordScan(r: ReadResult, age: SkinAgeEstimate | null = null): Promise<void> {
   const routine = buildRoutine(skincareDomain, { scores: r.scores, skinType: r.skinType });
   const { error } = await supabase.rpc('record_scan', {
     p_scores: r.scores,
@@ -24,6 +27,8 @@ export async function recordScan(r: ReadResult): Promise<void> {
     p_is_stub: r.isStub,
     p_routine: routine,
     p_routine_version: routine.version,
+    p_skin_age: age?.ageEstimate ?? null,
+    p_skin_age_confidence: age?.confidence ?? null,
   });
   if (error) throw new Error('record-scan-failed');
 }
@@ -41,6 +46,8 @@ function rowToScan(row: Record<string, unknown>): Scan {
     modelVersion: String(row.model_version),
     isStub: Boolean(row.is_stub),
     routine,
+    skinAge: row.skin_age_estimate == null ? null : Number(row.skin_age_estimate),
+    skinAgeConfidence: row.skin_age_confidence == null ? null : Number(row.skin_age_confidence),
   };
 }
 
