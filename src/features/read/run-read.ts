@@ -5,6 +5,8 @@ import type { ReadEngine } from './read-engine';
 import type { ReadResult } from './read-types';
 import { CvReadEngine } from './cv-read-engine';
 import { stubRead } from './stub-read';
+import { recordScan } from '../../lib/scans';
+import { estimateSkinAge } from '../age/skin-age-engine';
 
 interface Deps {
   engine?: ReadEngine;
@@ -14,9 +16,7 @@ interface Deps {
 export async function runRead(photoUri: string, deps: Deps = {}): Promise<void> {
   const engine = deps.engine ?? new CvReadEngine();
   const persist = deps.persist ?? (async (result: ReadResult) => {
-    // Deferred import to avoid loading Supabase during tests.
-    const { recordScan } = await import('../../lib/scans');
-    await recordScan(result);
+    await recordScan(result, estimateSkinAge(result));
   });
   try {
     const result = await engine.run(photoUri);
