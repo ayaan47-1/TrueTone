@@ -5,6 +5,7 @@ import { buildRoutine } from '../features/recommend/routine-engine';
 import { skincareDomain } from '../features/recommend/skincare/domain';
 import type { Routine } from '../features/recommend/routine-types';
 import type { SkinAgeEstimate } from '../features/age/age-types';
+import { type RoutineHelpful, isRoutineHelpful } from '../features/feedback/types';
 
 export interface Scan {
   id: string;
@@ -16,6 +17,7 @@ export interface Scan {
   routine: Routine;
   skinAge: number | null;
   skinAgeConfidence: number | null;
+  routineHelpful: RoutineHelpful | null;
 }
 
 export async function recordScan(r: ReadResult, age: SkinAgeEstimate | null = null): Promise<void> {
@@ -48,7 +50,13 @@ function rowToScan(row: Record<string, unknown>): Scan {
     routine,
     skinAge: row.skin_age_estimate == null ? null : Number(row.skin_age_estimate),
     skinAgeConfidence: row.skin_age_confidence == null ? null : Number(row.skin_age_confidence),
+    routineHelpful: isRoutineHelpful(row.routine_helpful) ? row.routine_helpful : null,
   };
+}
+
+export async function setRoutineFeedback(scanId: string, helpful: RoutineHelpful): Promise<void> {
+  const { error } = await supabase.rpc('set_routine_feedback', { p_scan_id: scanId, p_helpful: helpful });
+  if (error) throw new Error('set-routine-feedback-failed');
 }
 
 export async function fetchLatestScan(): Promise<Scan | null> {
