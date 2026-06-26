@@ -1,3 +1,8 @@
+// run-read.ts now statically imports lib/scans and age/skin-age-engine; mock both to
+// prevent Supabase/AsyncStorage from loading in the test environment.
+jest.mock('../../../lib/scans', () => ({ recordScan: jest.fn().mockResolvedValue(undefined) }));
+jest.mock('../../age/skin-age-engine', () => ({ estimateSkinAge: jest.fn().mockReturnValue(null) }));
+
 import { runRead } from '../run-read';
 import type { ReadEngine } from '../read-engine';
 import type { ReadResult } from '../read-types';

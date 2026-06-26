@@ -6,11 +6,15 @@ import { assertCosmetic } from '../../lib/cosmetic-filter';
 import type { ScoreVector } from './read-types';
 import { Screen, GlassCard, Display, Eyebrow, Body, Caption } from '../../components/ui';
 import { palette, bandTint, type BandTone } from '../../theme/tokens';
+import { AgeTrendCard } from '../age/AgeTrendCard';
+import type { ScoreSnapshot } from '../age/age-types';
 
 interface ResultProps {
   scores: ScoreVector;
   skinType: SkinTypeFeel;
   prev: ScoreVector | null; // previous scan for trend arrows (null on first scan)
+  history?: ScoreSnapshot[]; // newest-first snapshots for the age/trend card (default: [])
+  skinAge?: number | null;   // appearance-age estimate from the latest scan (default: null)
 }
 
 const QUALITY_DIMS: Dimension[] = ['hydration', 'oiliness', 'texture', 'pores'];
@@ -67,7 +71,7 @@ function Section({ title, dims, scores, prev }: { title: string; dims: Dimension
   );
 }
 
-export function Result({ scores, skinType, prev }: ResultProps) {
+export function Result({ scores, skinType, prev, history = [], skinAge = null }: ResultProps) {
   return (
     <Screen className="px-6" contentStyle={{ paddingTop: 8, paddingBottom: 32 }}>
       <GlassCard flat intensity={26} radius={20} className="px-4 py-3 mb-5 mt-2">
@@ -87,6 +91,8 @@ export function Result({ scores, skinType, prev }: ResultProps) {
         <Section title="Skin qualities" dims={QUALITY_DIMS} scores={scores} prev={prev} />
         <Section title="Appearance of" dims={APPEARANCE_DIMS} scores={scores} prev={prev} />
       </View>
+
+      <AgeTrendCard history={history} skinAge={skinAge} />
 
       <GlassCard flat intensity={30} radius={22} className="px-5 py-4 mt-6" style={{ borderColor: palette.rose300 }}>
         <Body className="text-[13px] text-ink-soft">
