@@ -144,13 +144,15 @@ point — biometric compliance cannot be retrofitted.
 4. ✅ Privacy Policy / Terms / Biometric Data Policy reachable before the scan — *Expo Go OK*
 5. ✅ Guided capture + on-device read → cosmetic scores — *dev build + real iPhone* (code landed; on-device verification of the camera + Executorch native shells is the open work)
 6. ✅ Brand-neutral routine + "why this product" chat (scores only) — *dev build*
-7. ⏳ Progress re-scan + honest trend + "did this help?" loop
+7. ✅ Progress re-scan + honest trend + "did this help?" loop — *dev build* (PR #16; the absolute
+   skin-age number is built but **dark** behind `SKIN_AGE_ABSOLUTE_ENABLED=false` until validation +
+   founder/legal sign-off)
 
-> **Status (2026-06-18):** Steps 1–6 are implemented, tested, and merged to `main`. The scan
-> pipeline's pure logic is host-tested; the camera + on-device-read native shells (marked
-> `// DEVICE-ONLY`) still need on-device verification in an Expo dev build on a physical iPhone
-> (tracked in the open guided-capture PR). Step 7 (trend loop) is not built. The fairness-eval
-> harness (parallel track) is merged. Architecture + module map:
+> **Status (2026-06-26):** Steps 1–7 are implemented, tested, and merged to `main` (step 7 = PR #16:
+> within-user trend + "did this help?" loop + a dark absolute-age engine). The scan pipeline's pure
+> logic is host-tested; the camera + on-device-read native shells (marked `// DEVICE-ONLY`) still
+> need on-device verification in an Expo dev build on a physical iPhone. The fairness-eval harness
+> (parallel track) is merged. Architecture + module map:
 > [`docs/ARCHITECTURE.md`](docs/ARCHITECTURE.md); setup/run/test: [`README.md`](README.md);
 > phase plans/specs: `docs/superpowers/`.
 
