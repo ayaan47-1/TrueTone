@@ -18,8 +18,7 @@ describe('DISEASE_BLOCKLIST self-check', () => {
 
   it('flags regular +s / +es plurals of blocklisted terms', () => {
     // The cosmetic-filter regex allows (s|es|ous|tic)? — regular plurals must match.
-    // NOTE: two irregular-plural forms are known gaps (psoriases, diagnoses) and are
-    // documented in a separate test below. The filter correctly catches all regular forms.
+    // Irregular Greek/Latin -is->-es plurals (psoriases, diagnoses) are covered in a separate test.
     const regularPlurals: Partial<Record<typeof DISEASE_BLOCKLIST[number], string>> = {
       acne: 'acnes',
       rosacea: 'rosaceas',
@@ -41,15 +40,14 @@ describe('DISEASE_BLOCKLIST self-check', () => {
     }
   });
 
-  it('KNOWN GAP: psoriases and diagnoses are irregular plurals not caught by the regex', () => {
-    // BUG: findDiseaseTerms does NOT catch "psoriases" (psoriasis → psoriases, -is→-es suffix)
-    // or "diagnoses" (diagnosis → diagnoses). These are irregular Greek/Latin plurals.
-    // The filter regex \b{term}(s|es|ous|tic)?\b does not handle -is→-es substitution.
-    // This test documents the gap without silently masking it.
-    // ACTION REQUIRED: extend the regex or use a dedicated plural map in cosmetic-filter.ts.
-    expect(findDiseaseTerms('several psoriases present')).toHaveLength(0); // known miss
-    expect(findDiseaseTerms('several diagnoses here')).toHaveLength(0);    // known miss
-    // Direct (non-plural) forms ARE caught — only the irregular plural forms are missed.
+  it('flags irregular Greek/Latin -is->-es plurals (psoriases, diagnoses)', () => {
+    // Regression guard for the fixed compliance hole: findDiseaseTerms now handles the -is->-es
+    // inflection. "diagnoses" matters most — it is also the verb form ("the app diagnoses..."),
+    // exactly the diagnostic phrasing CLAUDE.md §1 must block.
+    expect(findDiseaseTerms('several psoriases present')).toContain('psoriasis');
+    expect(findDiseaseTerms('the app diagnoses your skin')).toContain('diagnosis');
+    expect(findDiseaseTerms('several diagnoses here')).toContain('diagnosis');
+    // Direct (non-plural) forms remain caught.
     expect(findDiseaseTerms('you have psoriasis')).toContain('psoriasis');
     expect(findDiseaseTerms('a diagnosis was given')).toContain('diagnosis');
   });

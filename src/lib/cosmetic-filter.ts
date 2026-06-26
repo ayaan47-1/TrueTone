@@ -5,7 +5,15 @@ import { APPROVED_LABELS, DISEASE_BLOCKLIST } from '../content/cosmetic-vocab';
 
 export function findDiseaseTerms(text: string): string[] {
   const lower = text.toLowerCase();
-  return DISEASE_BLOCKLIST.filter((t) => new RegExp(`\\b${t}(s|es|ous|tic)?\\b`, 'i').test(lower));
+  return DISEASE_BLOCKLIST.filter((t) => {
+    // Greek/Latin "-is" terms also inflect "-is -> -es" (diagnosis -> diagnoses, which is also the
+    // verb form; psoriasis -> psoriases; dermatitis -> dermatites). The plain additive-suffix
+    // pattern below misses those, so handle the stem explicitly for -is terms.
+    const pattern = t.endsWith('is')
+      ? `\\b${t.slice(0, -2)}(is|es|ises)\\b`
+      : `\\b${t}(s|es|ous|tic)?\\b`;
+    return new RegExp(pattern, 'i').test(lower);
+  });
 }
 
 export function isApprovedLabel(label: string): boolean {
