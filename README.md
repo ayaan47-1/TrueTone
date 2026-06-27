@@ -9,12 +9,13 @@ diagnoses anything.**
 > (BIPA / WA MHMDA / PIPA / FTC) are load-bearing, not style preferences.
 
 - **Platform:** Expo (SDK 56) + React Native + TypeScript · iOS-primary · **US-only for v0** · **18+ only**
-- **Status:** **P1 (compliance scaffold), P2 (guided capture + on-device read), the fairness-eval
-  harness, the brand-neutral routine + scores-only chat, and the "Mist" liquid-glass design system
-  are all built and landed on `main`.** The guided-capture flow runs **end-to-end on a physical
-  device** (Android dev build) against the **real classical-CV on-device read** (fairness-instrumented).
-  The remaining work is the vision-camera worklet quality metrics, a full physical-device
-  verification pass, the iOS path, and the progress/trend re-scan loop — see [Roadmap](#roadmap).
+- **Status:** **The full v0 build order (steps 1–7) is implemented and landed on `main`** — the P1
+  compliance scaffold, P2 guided capture + on-device read, the brand-neutral routine + scores-only
+  chat, the progress-trend + "did this help?" loop, plus the "Mist" design system and the
+  fairness-eval harness. The guided-capture flow runs **end-to-end on a physical device** (Android
+  dev build) against the **real classical-CV on-device read** (fairness-instrumented). Remaining work
+  is the vision-camera worklet quality metrics, the iOS device path, and gated/dark features awaiting
+  validation data (the absolute "skin age" number; premium billing) — see [Roadmap](#roadmap).
 
 ---
 
@@ -106,6 +107,22 @@ with design tokens in `src/theme/tokens.ts`. The age gate and the policy reader 
   prompt from **band labels (not raw scores)**, and runs every reply through the cosmetic
   post-filter (fail-closed). The Anthropic key is **server-side only**; chat is ephemeral.
 
+### Progress trend + "did this help?" (build-order step 7)
+
+- **Within-user trend** — an `AgeTrendCard` shows a *relative* freshness/trend read computed from the
+  user's own stored cosmetic scores (no cross-user comparison, no validation gate), plus a "Scan
+  again" entry. The `scans` table was already append-only, so trend needed **no schema change**.
+- **Routine feedback** — a `RoutineFeedbackPrompt` records whether a routine helped
+  (`routine_helpful` ∈ `helped`/`no_change`/`worse`) on the scan row via a `SECURITY DEFINER` RPC
+  (`0012_routine_feedback.sql`), inheriting RLS / delete / retention.
+- **Absolute "skin age" — built dark, triple-gated OFF.** A concrete "your skin looks like ~N" number
+  is an accuracy claim, so it must not ship without validation data (FTC §5 / ICFA). The engine is
+  built but gated: `SKIN_AGE_ABSOLUTE_ENABLED = false` → `estimateSkinAge()` returns `null` → the DB
+  column stays `null` → the UI gates on the flag. It stays dark until validation data is on file **and**
+  founder/legal sign-off flips it. Age is computed on-device from the in-memory read (never the image).
+- **Premium entitlement seam** — display-only `hasAgeAccess()` boolean; the billing path (RevenueCat
+  adapter) is **deferred** and **never imports scores/reads/image** (billing sees no biometric data).
+
 ### Fairness-eval harness (parallel track)
 
 - A standalone `eval/` **dev tool** (never bundled): Fitzpatrick I–VI labeling schema + a host/CI
@@ -153,19 +170,22 @@ app/                     Expo Router routes (gated by a fail-closed routing guar
   data/index.tsx         "Your Data" (withdraw / delete / account)
   policies/              Policy list + dynamic policy reader
   region-blocked.tsx     Not-available-in-region screen
-  scan/                  capture → result → routine (P2 + step 6)
+  scan/                  capture → result (+ trend/feedback) → routine (P2 + steps 6–7)
 src/
-  lib/                   supabase client, anon auth, region check, routing guard, profile context
+  lib/                   supabase client, anon auth, region check, routing guard, profile context, scans client
   components/ui/         "Mist" glass primitives (MistBackground, Screen, GlassCard, GlassSheet, Button, Typography)
   theme/                 design tokens (palette, type, glass, Fitzpatrick scale)
   features/
     age-gate, consent, data-rights, onboarding, policies   (P1; reskinned as glass)
     capture/             guided camera + quality gate + auto-capture controller (device-only shell)
-    read/                preprocess, decode, image lifecycle, bands, executorch engine + dev stub (device-only shell)
+    read/                CvReadEngine (classical CV) + cv/ dimensions, image lifecycle, bands, dormant executorch shell
     recommend/           deterministic routine engine, skincare library, RoutineView, scoped chat
+    age/                 within-user trend card + skin-age engine (absolute gated dark by age-flags)
+    feedback/            "did this help?" routine-feedback prompt (step 7)
+    premium/             display-only entitlement seam (RevenueCat deferred; no biometric data)
   content/               policy manifest (version source of truth) + markdown/bodies
 supabase/
-  migrations/            0001 schema → 0010 routine (scans, scan RPCs, backup purge, routine)
+  migrations/            0001 schema → 0012 routine feedback (scans, RPCs, backup purge, routine, skin-age)
   functions/             routine-chat Edge Function (+ _shared compliance copies)
   tests/                 pgTAP suites (RLS, consent immutability, RPCs, retention, scans)
 scripts/                 check-no-analytics-sdk.mjs + check-no-image-egress.mjs (CI guards)
@@ -280,15 +300,21 @@ Build order (P1 first — biometric compliance cannot be retrofitted):
    Android dev build; vision-camera worklet quality metrics + a full physical-device verification
    pass + iOS are the open work)*
 6. ✅ Brand-neutral routine + scores-only "why this" chat
-7. ⏳ Progress re-scan + honest trend + "did this help?" loop
+7. ✅ Progress re-scan + honest within-user trend + "did this help?" feedback
+
+Gated / dark (built, awaiting sign-off — not user-visible):
+
+- ⏳ Absolute "skin age" number — engine built, **triple-gated OFF** until validation data + legal
+  sign-off (accuracy claim, FTC §5 / ICFA).
+- ⏳ Premium billing (RevenueCat) — entitlement seam only; adapter deferred.
 
 Parallel tracks:
 
 - ✅ "Mist" liquid-glass design system — shared glass primitives + tokens; every non-camera screen
   reskinned (presentation-only; compliance copy + guards unchanged).
-- ✅ Fairness-eval harness — balanced Fitzpatrick I–VI labeling + per-group metrics (runs on
-  synthetic fixtures now; the real image→read extractor is gated on the model + counsel-approved
-  data).
+- ✅ Fairness-eval harness — balanced Fitzpatrick I–VI labeling + per-group metrics, now wired to the
+  real CV read via a synthetic tone-invariance self-test (still synthetic — real-data validation is
+  gated on counsel-approved images; no equity claim ships from synthetic results).
 
 Plans and specs: [`docs/superpowers/`](./docs/superpowers/).
 

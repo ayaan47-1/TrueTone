@@ -3,7 +3,8 @@
 > Reflects what has landed on `main`: the **P1 compliance scaffold**, the **P2 capture +
 > on-device-read pipeline** (shipped read = **classical computer vision**, `CvReadEngine`), the
 > **brand-neutral routine + scores-only chat** (build-order step 6), the **"Mist" liquid-glass
-> design system**, and the **fairness-eval dev tool** (migrations `0001`–`0010`, all modules below).
+> design system**, the **progress-trend + "did this help?" loop** (step 7), and the **fairness-eval
+> dev tool** (migrations `0001`–`0012`, all modules below).
 > The device-gated pieces are the native JPEG decode + the worklet-backed quality metrics; an
 > `ExecutorchEngine` ML shell exists but is **dormant** (never instantiated — reserved for a future
 > model). Source of truth for *rules*: [`../CLAUDE.md`](../CLAUDE.md). This doc maps *what exists*.
@@ -134,6 +135,19 @@ All real logic is **pure and Jest-tested**; the camera and native inference are 
 The deterministic chat logic lives in `src/`; the Edge Function imports byte-identical copies under
 `supabase/functions/_shared/recommend/` — a drift guard test asserts the copies match.
 
+### Trend + feedback + skin-age — `age/`, `feedback/`, `premium/` (step 7)
+
+| Module | What it does | Compliance-critical behavior |
+|--------|--------------|------------------------------|
+| `age/skin-age-trend.ts`, `AgeTrendCard.tsx` | Within-user *relative* freshness/trend from stored scores + "Scan again" | no cross-user comparison; no validation gate (relative, not an absolute claim) |
+| `age/skin-age-engine.ts` | `estimateSkinAge(read)` → absolute "looks like ~N" estimate | **gated dark**: returns `null` unless `SKIN_AGE_ABSOLUTE_ENABLED` (false); computed from the in-memory read, never the image |
+| `age/age-flags.ts` | `SKIN_AGE_ABSOLUTE_ENABLED = false` | the absolute number is an accuracy claim — flipping it needs validation data + founder/legal sign-off (`CLAUDE.md` §1) |
+| `feedback/RoutineFeedbackPrompt.tsx`, `types.ts` | "Did this help?" → `routine_helpful` (`helped`/`no_change`/`worse`) | written to the scan row via RPC; inherits RLS / delete / retention |
+| `premium/entitlement.ts` | Display-only `hasAgeAccess()` boolean; `setEntitlementSource` seam for RevenueCat | **MUST NOT import scores/reads/image** — billing never sees biometric/health data |
+
+`run-read.ts` also computes the (gated) skin-age in the same on-device pass as the read; only the
+derived number (or `null`) is persisted via `record_scan`, never the image.
+
 ### Design system — "Mist" (`components/ui/` + `theme/`)
 
 A liquid-glass UI layer. Presentation-only: it changes how screens look, not what they assert —
@@ -241,6 +255,19 @@ Adds `routine jsonb` + `routine_engine_version` to `scans` (routine is 1:1 with 
 immutable, so the routine is stable), inheriting all existing RLS / retention / delete machinery.
 Replaces `record_scan` with the 6-arg form that persists the routine atomically with the scores.
 
+### Skin-age (`0011_skin_age.sql`)
+
+Adds nullable `skin_age_estimate` (0–120) + `skin_age_confidence` to `scans` and extends
+`record_scan` to an 8-arg form (two trailing nullable params). The absolute age stays `NULL` until
+`SKIN_AGE_ABSOLUTE_ENABLED` is flipped (validation gate). Inherits scans RLS, the retention sweep,
+and `delete_my_data()`.
+
+### Routine feedback (`0012_routine_feedback.sql`)
+
+Step 7 "did this help?": adds `routine_helpful` (`helped`/`no_change`/`worse`, checked) +
+`feedback_at` to `scans`, captured via a `SECURITY DEFINER` RPC. No new retention/deletion code —
+it rides the existing scans RLS, `delete_my_data`, retention sweep, and backup/PITR purge.
+
 ### Routine-chat Edge Function (`supabase/functions/routine-chat/`)
 
 The only LLM/network piece. Loads the caller's scores + routine under RLS, short-circuits medical
@@ -260,6 +287,8 @@ copies under `_shared/recommend/`, asserted by a drift-guard test.
 | `rpc_delete.test.sql` | derived data cleared, receipt logged, prior rows de-identified |
 | `retention.test.sql` | stale user purged, active kept, run logged |
 | `scan_rpcs.test.sql` | `record_scan` validates scores/shape, scopes to caller, persists routine |
+| `skin_age.test.sql` | skin-age columns nullable + range-checked; `record_scan` 8-arg form scoped to caller |
+| `routine_feedback.test.sql` | `routine_helpful` constrained values; feedback RPC scopes to caller; inherits delete |
 
 ---
 

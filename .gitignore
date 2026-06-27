@@ -47,3 +47,7 @@ eval/data/*
 skincare-routine-ai-app/
 Skincare routine AI app-handoff.zip
 truetone-design-system-bundle.txt
+
+# truetone-brain is a SEPARATE repo (Obsidian vault). If cloned here for convenience,
+# never let it get staged into the app repo.
+truetone-brain/
