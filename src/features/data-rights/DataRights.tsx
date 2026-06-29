@@ -18,7 +18,7 @@ export function DataRights({ onChanged, confirm }: Props) {
     if (!error) onChanged();
   }
   return (
-    <Screen className="px-6" contentStyle={{ paddingTop: 8 }}>
+    <Screen className="px-6" topGap={8}>
       <View className="gap-2 mb-6 mt-2">
         <Eyebrow>You’re in control</Eyebrow>
         <Display className="text-3xl">Your Data</Display>

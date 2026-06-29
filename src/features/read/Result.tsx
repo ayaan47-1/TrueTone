@@ -73,7 +73,7 @@ function Section({ title, dims, scores, prev }: { title: string; dims: Dimension
 
 export function Result({ scores, skinType, prev, history = [], skinAge = null }: ResultProps) {
   return (
-    <Screen className="px-6" contentStyle={{ paddingTop: 8, paddingBottom: 32 }}>
+    <Screen className="px-6" topGap={8} bottomGap={32}>
       <GlassCard flat intensity={26} radius={20} className="px-4 py-3 mb-5 mt-2">
         <Caption className="text-[11px] leading-[16px]">
           This describes how your skin looks today. It is not a medical diagnosis and TrueTone is not a medical device.

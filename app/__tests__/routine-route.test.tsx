@@ -5,7 +5,7 @@ jest.mock('expo-router', () => ({
   useRouter: () => ({ push: mockPush }),
 }));
 
-import RoutineRoute from '../scan/routine';
+import RoutineRoute from '../(tabs)/routine';
 import { fetchLatestScan } from '../../src/lib/scans';
 
 jest.mock('../../src/lib/scans', () => ({ fetchLatestScan: jest.fn() }));
@@ -34,4 +34,10 @@ test('navigates to /scan/chat with the scanId when the button is pressed', async
   const button = await screen.findByText(/ask about your routine/i);
   fireEvent.press(button);
   expect(mockPush).toHaveBeenCalledWith({ pathname: '/scan/chat', params: { scanId: 's1' } });
+});
+
+test('shows a retry state when the scan fetch fails', async () => {
+  (fetchLatestScan as jest.Mock).mockRejectedValue(new Error('network'));
+  await render(<RoutineRoute />);
+  expect(await screen.findByText(/couldn.t load your routine/i)).toBeTruthy();
 });

@@ -5,36 +5,64 @@ import { useInsets } from './use-insets';
 
 interface ScreenProps {
   children: ReactNode;
-  /** Tailwind classes for the content container. */
+  /** Tailwind classes for the centered content column (e.g. horizontal padding). */
   className?: string;
   /** Wrap content in a ScrollView (default true). */
   scroll?: boolean;
-  /** Apply safe-area top padding (default true). */
+  /** Apply safe-area padding on each edge (default both true). */
   edges?: { top?: boolean; bottom?: boolean };
+  /** Extra padding ABOVE the safe-area top inset. */
+  topGap?: number;
+  /** Extra padding BELOW the safe-area bottom inset (e.g. TAB_BAR_CLEARANCE). */
+  bottomGap?: number;
+  /** Max content width; content is centered and capped on large/unfolded screens. */
+  maxWidth?: number;
+  /** Extra container styles. Avoid setting paddingTop/Bottom here — use the gap props. */
   contentStyle?: StyleProp<ViewStyle>;
 }
 
+const DEFAULT_MAX_WIDTH = 560;
+
 /**
- * Standard page chrome for the "Mist" system: the gradient-mesh atmosphere plus
- * safe-area-aware padding. Most screens render their content directly inside.
+ * Standard page chrome for the "Mist" system: the gradient-mesh atmosphere, plus
+ * safe-area-aware padding that callers cannot accidentally clobber, plus a centered
+ * content column that caps its width on large/unfolded (foldable) screens.
+ *
+ * Safe-area insets are applied ADDITIVELY with `topGap`/`bottomGap` so edge-to-edge
+ * content (mandatory on Android SDK 56) never slips under the status/navigation bars.
  */
-export function Screen({ children, className, scroll = true, edges, contentStyle }: ScreenProps) {
+export function Screen({
+  children,
+  className,
+  scroll = true,
+  edges,
+  topGap = 0,
+  bottomGap = 0,
+  maxWidth = DEFAULT_MAX_WIDTH,
+  contentStyle,
+}: ScreenProps) {
   const insets = useInsets();
-  const pad = {
-    paddingTop: (edges?.top ?? true) ? insets.top : 0,
-    paddingBottom: (edges?.bottom ?? true) ? insets.bottom : 0,
-  };
+  const paddingTop = ((edges?.top ?? true) ? insets.top : 0) + topGap;
+  const paddingBottom = ((edges?.bottom ?? true) ? insets.bottom : 0) + bottomGap;
+
+  const column = (
+    <View
+      className={className}
+      style={{ width: '100%', maxWidth, alignSelf: 'center', flexGrow: 1 }}
+    >
+      {children}
+    </View>
+  );
 
   if (scroll) {
     return (
       <MistBackground>
         <ScrollView
-          className={className}
-          contentContainerStyle={[pad, contentStyle]}
+          contentContainerStyle={[{ paddingTop, paddingBottom, flexGrow: 1 }, contentStyle]}
           showsVerticalScrollIndicator={false}
           keyboardShouldPersistTaps="handled"
         >
-          {children}
+          {column}
         </ScrollView>
       </MistBackground>
     );
@@ -42,9 +70,7 @@ export function Screen({ children, className, scroll = true, edges, contentStyle
 
   return (
     <MistBackground>
-      <View style={[{ flex: 1 }, pad, contentStyle]} className={className}>
-        {children}
-      </View>
+      <View style={[{ flex: 1, paddingTop, paddingBottom }, contentStyle]}>{column}</View>
     </MistBackground>
   );
 }

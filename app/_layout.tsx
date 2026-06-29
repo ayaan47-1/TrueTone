@@ -19,6 +19,7 @@ import { SafeAreaProvider, initialWindowMetrics } from 'react-native-safe-area-c
 import { ProfileProvider, useProfile } from '../src/lib/profile-context';
 import type { Route } from '../src/lib/routing-guard';
 import { MistBackground, GlassCard, Heading, Body } from '../src/components/ui';
+import { DevDimensions } from '../src/components/ui/DevDimensions';
 import { palette } from '../src/theme/tokens';
 
 // Map a gate Route to the screen path that must be shown for it. `home` means "no gate".
@@ -75,23 +76,26 @@ function Guard() {
       </Centered>
     );
   return (
-    <Stack
-      screenOptions={{
-        headerShown: true,
-        headerTransparent: true,
-        headerTitle: '',
-        headerBackTitle: '',
-        headerTintColor: palette.mauve600,
-        headerShadowVisible: false,
-        contentStyle: { backgroundColor: 'transparent' },
-      }}
-    >
-      <Stack.Screen name="index" options={{ headerShown: false }} />
-      <Stack.Screen
-        name="policies/[doc]"
-        options={{ presentation: 'transparentModal', headerShown: false, animation: 'fade' }}
-      />
-    </Stack>
+    <>
+      <Stack
+        screenOptions={{
+          headerShown: true,
+          headerTransparent: true,
+          headerTitle: '',
+          headerBackTitle: '',
+          headerTintColor: palette.mauve600,
+          headerShadowVisible: false,
+          contentStyle: { backgroundColor: 'transparent' },
+        }}
+      >
+        <Stack.Screen name="(tabs)" options={{ headerShown: false }} />
+        <Stack.Screen
+          name="policies/[doc]"
+          options={{ presentation: 'transparentModal', headerShown: false, animation: 'fade' }}
+        />
+      </Stack>
+      {__DEV__ ? <DevDimensions /> : null}
+    </>
   );
 }
 

@@ -13,7 +13,7 @@ function Step({ step }: { step: RoutineStep }) {
 
 export function RoutineView({ routine, onAsk }: { routine: Routine; onAsk?: () => void }) {
   return (
-    <Screen className="px-6" contentStyle={{ paddingTop: 8, paddingBottom: 24 }}>
+    <Screen className="px-6" topGap={8} bottomGap={24}>
       <View className="gap-2 mb-5 mt-2">
         <Eyebrow>Brand-neutral, just for you</Eyebrow>
         <Display className="text-3xl">Your routine</Display>
