@@ -22,3 +22,10 @@ jest.mock('expo-font', () => ({
   isLoaded: () => true,
   loadAsync: async () => {},
 }));
+
+// AsyncStorage backs the on-device skin-feel diary; use its official in-memory mock
+// so any suite that pulls it in (directly or via DataRights) runs without the native
+// module. Individual tests can still spy on it.
+jest.mock('@react-native-async-storage/async-storage', () =>
+  require('@react-native-async-storage/async-storage/jest/async-storage-mock'),
+);

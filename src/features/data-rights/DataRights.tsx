@@ -1,5 +1,6 @@
 import { View, Text, Pressable } from 'react-native';
 import { supabase } from '../../lib/supabase';
+import { clearDiary } from '../diary/diary-storage';
 import { Screen, GlassCard, Display, Eyebrow, Body, Caption } from '../../components/ui';
 
 type RpcName = 'withdraw_consent' | 'delete_my_data' | 'delete_account';
@@ -15,7 +16,19 @@ export function DataRights({ onChanged, confirm }: Props) {
   async function run(fn: RpcName, msg: string) {
     if (!(await confirm(msg))) return;
     const { error } = await supabase.rpc(fn);
-    if (!error) onChanged();
+    if (error) return;
+    // Deleting data/account also wipes the on-device skin-feel diary so the
+    // data-rights deletion is complete (the diary never reaches the server). Guard
+    // it: the server delete already succeeded, so still refresh even if the local
+    // wipe throws.
+    if (fn === 'delete_my_data' || fn === 'delete_account') {
+      try {
+        await clearDiary();
+      } catch {
+        // local diary wipe failed — server data is already gone; surface nothing.
+      }
+    }
+    onChanged();
   }
   return (
     <Screen className="px-6" topGap={8}>

@@ -30,7 +30,6 @@ jest.mock('../../src/lib/supabase', () => ({
   },
 }));
 
-import IndexRoute from '../(tabs)/index';
 import AgeGateRoute from '../age-gate';
 import ConsentRoute from '../consent';
 import DataScreen from '../data/index';
@@ -49,11 +48,6 @@ beforeEach(() => {
     userId: 'u1',
     refresh: mockRefresh,
   });
-});
-
-test('today (home) route renders the cosmetic disclaimer', async () => {
-  await render(<IndexRoute />);
-  expect(screen.getByText(/not a medical device/i)).toBeTruthy();
 });
 
 test('age-gate route renders the gate when a userId exists', async () => {

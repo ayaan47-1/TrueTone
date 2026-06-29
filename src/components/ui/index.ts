@@ -10,3 +10,4 @@ export type { ResponsiveLayout, Size } from './use-responsive';
 export { GlassTabBar, TAB_BAR_CLEARANCE, type TabKey } from './GlassTabBar';
 export { ListRow } from './ListRow';
 export { Disclaimer } from './Disclaimer';
+export { SectionLabel } from './SectionLabel';

@@ -3,6 +3,18 @@ import { render, fireEvent } from '@testing-library/react-native';
 const mockPush = jest.fn();
 jest.mock('expo-router', () => ({
   useRouter: () => ({ push: mockPush, replace: jest.fn(), back: jest.fn() }),
+  // Run the focus effect once on mount (real useFocusEffect fires on focus, not
+  // every render — running it per-render would loop when the callback sets state).
+  useFocusEffect: (cb: () => void | (() => void)) => {
+    const { useEffect } = require('react');
+    useEffect(cb, []);
+  },
+}));
+
+jest.mock('../../src/lib/scans', () => ({ fetchScanHistory: jest.fn(() => Promise.resolve([])) }));
+jest.mock('../../src/features/diary/diary-storage', () => ({
+  getMood: jest.fn(() => Promise.resolve(null)),
+  setMood: jest.fn(() => Promise.resolve()),
 }));
 
 import TodayScreen from '../(tabs)/index';
