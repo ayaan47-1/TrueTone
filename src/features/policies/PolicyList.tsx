@@ -4,7 +4,7 @@ import { Screen, GlassCard, Display, Eyebrow, Body } from '../../components/ui';
 
 export function PolicyList({ onOpen }: { onOpen: (k: DocKey) => void }) {
   return (
-    <Screen className="px-6" contentStyle={{ paddingTop: 8 }}>
+    <Screen className="px-6" topGap={8}>
       <View className="gap-2 mb-6 mt-2">
         <Eyebrow>The fine print, plainly</Eyebrow>
         <Display className="text-3xl">Policies</Display>

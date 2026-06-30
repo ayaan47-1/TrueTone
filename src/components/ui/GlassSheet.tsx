@@ -1,8 +1,9 @@
 import type { ReactNode } from 'react';
-import { Pressable, View, StyleSheet } from 'react-native';
+import { Pressable, View, StyleSheet, useWindowDimensions } from 'react-native';
 import Animated, { FadeIn, FadeInDown } from 'react-native-reanimated';
 import { GlassCard } from './GlassCard';
 import { useInsets } from './use-insets';
+import { sheetMaxWidth } from './use-responsive';
 import { glass } from '../../theme/tokens';
 
 interface GlassSheetProps {
@@ -24,6 +25,7 @@ interface GlassSheetProps {
  */
 export function GlassSheet({ children, onClose, className, align = 'center' }: GlassSheetProps) {
   const insets = useInsets();
+  const { width } = useWindowDimensions();
   return (
     <View style={StyleSheet.absoluteFill}>
       <AnimatedBackdrop onPress={onClose} />
@@ -37,7 +39,7 @@ export function GlassSheet({ children, onClose, className, align = 'center' }: G
       >
         <Animated.View
           entering={FadeInDown.springify().damping(20).mass(0.9)}
-          style={styles.sheetWrap}
+          style={[styles.sheetWrap, { maxWidth: sheetMaxWidth(width) }]}
         >
           <GlassCard intensity={50} radius={36} className={className}>
             {onClose ? (
@@ -77,7 +79,7 @@ const styles = StyleSheet.create({
   stage: { flex: 1, paddingHorizontal: 20 },
   stageCenter: { justifyContent: 'center' },
   stageBottom: { justifyContent: 'flex-end' },
-  sheetWrap: { width: '100%', maxWidth: 440, alignSelf: 'center' },
+  sheetWrap: { width: '100%', alignSelf: 'center' },
   close: {
     position: 'absolute',
     top: 14,

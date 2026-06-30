@@ -19,8 +19,10 @@ import {
   StyleSheet,
   Text,
   View,
+  useWindowDimensions,
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import { captureOvalSize, SHORT_VIEWPORT_THRESHOLD } from '../../components/ui/use-responsive';
 import {
   Camera,
   useCameraDevice,
@@ -46,6 +48,12 @@ interface CaptureProps {
 
 export function Capture({ onCaptured, onCancel }: CaptureProps) {
   const insets = useSafeAreaInsets();
+  const window = useWindowDimensions();
+  // Guide oval scales to the viewport so it fits a folded (narrow/short) or unfolded
+  // (near-square) screen instead of using fixed pixels that clip. Glow is a touch larger.
+  const oval = captureOvalSize(window);
+  const glow = { width: Math.round(oval.width * 1.12), height: Math.round(oval.height * 1.12) };
+  const isShort = window.height > 0 && window.height < SHORT_VIEWPORT_THRESHOLD;
   const { hasPermission, requestPermission } = useCameraPermission();
   const device = useCameraDevice('front');
   const photoOutput = usePhotoOutput({ qualityPrioritization: 'balanced' });
@@ -175,17 +183,27 @@ export function Capture({ onCaptured, onCancel }: CaptureProps) {
           <Animated.View
             style={[
               styles.ovalGlow,
+              { width: glow.width, height: glow.height, borderRadius: glow.height / 2 },
               { transform: [{ scale: breatheScale }], opacity: breatheOpacity },
             ]}
           />
         )}
-        <Animated.View style={[styles.oval, { borderColor: ovalBorder, shadowColor: ovalBorder }]}>
+        <Animated.View
+          style={[
+            styles.oval,
+            { width: oval.width, height: oval.height, borderRadius: oval.height / 2 },
+            { borderColor: ovalBorder, shadowColor: ovalBorder },
+          ]}
+        >
           {counting && <Text style={styles.countdown}>{countdownSeconds(state)}</Text>}
         </Animated.View>
       </View>
 
       {/* per-check status strip */}
-      <View style={[styles.checkStrip, { bottom: insets.bottom + 116 }]} pointerEvents="none">
+      <View
+        style={[styles.checkStrip, { bottom: insets.bottom + (isShort ? 84 : 116) }]}
+        pointerEvents="none"
+      >
         <CheckChip label="Face" ok={quality.face} />
         <CheckChip label="Light" ok={quality.lighting} />
         <CheckChip label="Framing" ok={quality.distance} />
@@ -273,17 +291,11 @@ const styles = StyleSheet.create({
   centerArea: { position: 'absolute', top: 0, left: 0, right: 0, bottom: 0, alignItems: 'center', justifyContent: 'center' },
   ovalGlow: {
     position: 'absolute',
-    width: 300,
-    height: 392,
-    borderRadius: 196,
     backgroundColor: 'rgba(255,255,255,0.06)',
     borderWidth: 1,
     borderColor: 'rgba(255,255,255,0.18)',
   },
   oval: {
-    width: 268,
-    height: 350,
-    borderRadius: 175,
     borderWidth: 3,
     alignItems: 'center',
     justifyContent: 'center',

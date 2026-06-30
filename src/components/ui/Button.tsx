@@ -33,13 +33,22 @@ export function PrimaryButton({ label, variant = 'primary', fullWidth, disabled,
         ]}
         {...rest}
       >
-        <LinearGradient
-          colors={[palette.mauve400, palette.mauve600]}
-          start={{ x: 0, y: 0 }}
-          end={{ x: 1, y: 1 }}
-          style={StyleSheet.absoluteFill}
-        />
-        <Text className="font-body-semibold text-[15px] tracking-[0.3px] text-white">{label}</Text>
+        {/* Clip the gradient to the pill radius in its own layer so the outer
+            Pressable can still cast the (un-clipped) mauve shadow. */}
+        <View style={styles.clip}>
+          <LinearGradient
+            colors={[palette.mauve400, palette.mauve600]}
+            start={{ x: 0, y: 0 }}
+            end={{ x: 1, y: 1 }}
+            style={StyleSheet.absoluteFill}
+          />
+        </View>
+        <Text
+          numberOfLines={1}
+          className="font-body-semibold text-[15px] tracking-[0.3px] text-white text-center"
+        >
+          {label}
+        </Text>
       </Pressable>
     );
   }
@@ -90,6 +99,7 @@ const styles = StyleSheet.create({
     paddingHorizontal: 24,
   },
   block: { alignSelf: 'stretch', width: '100%' },
+  clip: { position: 'absolute', top: 0, left: 0, right: 0, bottom: 0, borderRadius: 999, overflow: 'hidden' },
   glassFill: {
     backgroundColor: glass.fillStrong,
     borderRadius: 999,

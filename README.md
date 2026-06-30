@@ -91,6 +91,13 @@ with design tokens in `src/theme/tokens.ts`. The age gate and the policy reader 
 **glass popups** (the reader is a `transparentModal` route); result bands render in soft sage / mauve
 / clay pills via a per-dimension polarity map.
 
+The app home is a five-tab layout — **Today · Routine · ⊙ Scan · Trend · You** — under a **floating
+glass tab bar** (`GlassTabBar`); the center Scan opens the full-screen camera. This also surfaces the
+Routine, chat, Data Rights, and Policies screens that were previously built but unreachable. Layout is
+**foldable-aware** (Galaxy Fold): `Screen` applies safe-area insets additively and caps/centers
+content on wide screens, and `use-responsive` scales surfaces across the folded + unfolded aspect
+ratios (edge-to-edge is mandatory on Expo SDK 56). Portrait stays locked.
+
 > **Presentation-only, compliance preserved:** all compliance copy and `testID`s are unchanged, and
 > no analytics/ad SDK was added (both CI guards still pass). The design's "tuned fairly for every
 > tone" caption is a skin-tone-equity claim gated on validation data (`CLAUDE.md` §1/§6), so the
@@ -164,7 +171,11 @@ The architecture and full module map live in [`docs/ARCHITECTURE.md`](./docs/ARC
 ```
 app/                     Expo Router routes (gated by a fail-closed routing guard)
   _layout.tsx            ProfileProvider + routing guard mount
-  index.tsx              Home / onboarding (standing disclaimer)
+  (tabs)/                tab nav (Today · Routine · ⊙ Scan · Trend · You) w/ floating glass tab bar
+    index.tsx            Today dashboard (week strip, routine summary, skin-feel diary, affirmation)
+    routine.tsx          Routine + scoped chat entry
+    trend.tsx            Within-user trend + recent-reads timeline
+    you.tsx              Skin profile + links to Data Rights & Policies
   age-gate.tsx           18+ gate
   consent.tsx            Biometric consent
   data/index.tsx         "Your Data" (withdraw / delete / account)
@@ -173,13 +184,16 @@ app/                     Expo Router routes (gated by a fail-closed routing guar
   scan/                  capture → result (+ trend/feedback) → routine (P2 + steps 6–7)
 src/
   lib/                   supabase client, anon auth, region check, routing guard, profile context, scans client
-  components/ui/         "Mist" glass primitives (MistBackground, Screen, GlassCard, GlassSheet, Button, Typography)
+  components/ui/         "Mist" glass primitives (MistBackground, Screen, GlassCard, GlassSheet, Button,
+                         Typography, GlassTabBar, ListRow, SectionLabel, use-responsive foldable sizing)
   theme/                 design tokens (palette, type, glass, Fitzpatrick scale)
   features/
     age-gate, consent, data-rights, onboarding, policies   (P1; reskinned as glass)
     capture/             guided camera + quality gate + auto-capture controller (device-only shell)
     read/                CvReadEngine (classical CV) + cv/ dimensions, image lifecycle, bands, dormant executorch shell
     recommend/           deterministic routine engine, skincare library, RoutineView, scoped chat
+    today/               week strip, daily affirmation (pure, on-device wellness copy)
+    diary/               skin-feel mood picker + on-device AsyncStorage (purged by delete-everything)
     age/                 within-user trend card + skin-age engine (absolute gated dark by age-flags)
     feedback/            "did this help?" routine-feedback prompt (step 7)
     premium/             display-only entitlement seam (RevenueCat deferred; no biometric data)

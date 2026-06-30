@@ -75,23 +75,25 @@ function Guard() {
       </Centered>
     );
   return (
-    <Stack
-      screenOptions={{
-        headerShown: true,
-        headerTransparent: true,
-        headerTitle: '',
-        headerBackTitle: '',
-        headerTintColor: palette.mauve600,
-        headerShadowVisible: false,
-        contentStyle: { backgroundColor: 'transparent' },
-      }}
-    >
-      <Stack.Screen name="index" options={{ headerShown: false }} />
-      <Stack.Screen
-        name="policies/[doc]"
-        options={{ presentation: 'transparentModal', headerShown: false, animation: 'fade' }}
-      />
-    </Stack>
+    <>
+      <Stack
+        screenOptions={{
+          headerShown: true,
+          headerTransparent: true,
+          headerTitle: '',
+          headerBackTitle: '',
+          headerTintColor: palette.mauve600,
+          headerShadowVisible: false,
+          contentStyle: { backgroundColor: 'transparent' },
+        }}
+      >
+        <Stack.Screen name="(tabs)" options={{ headerShown: false }} />
+        <Stack.Screen
+          name="policies/[doc]"
+          options={{ presentation: 'transparentModal', headerShown: false, animation: 'fade' }}
+        />
+      </Stack>
+    </>
   );
 }
 
