@@ -1,4 +1,4 @@
-import { useCallback, useState } from 'react';
+import { useCallback, useRef, useState } from 'react';
 import { View, Pressable } from 'react-native';
 import { useRouter, useFocusEffect } from 'expo-router';
 import {
@@ -31,18 +31,31 @@ export default function TodayScreen() {
   const [history, setHistory] = useState<Scan[]>([]);
   const [mood, setMoodState] = useState<MoodValue | null>(null);
   const [loadFailed, setLoadFailed] = useState(false);
+  const activeRef = useRef(true);
   const latest = history[0] ?? null;
 
+  const load = useCallback(() => {
+    fetchScanHistory(30)
+      .then((h) => {
+        if (!activeRef.current) return;
+        setHistory(h);
+        setLoadFailed(false);
+      })
+      .catch(() => {
+        if (activeRef.current) setLoadFailed(true);
+      });
+    getMood().then((m) => activeRef.current && setMoodState(m)).catch(() => {});
+  }, []);
+
+  // Refetch on focus; guard against a stale in-flight fetch resolving after blur.
   useFocusEffect(
     useCallback(() => {
-      fetchScanHistory(30)
-        .then((h) => {
-          setHistory(h);
-          setLoadFailed(false);
-        })
-        .catch(() => setLoadFailed(true));
-      getMood().then(setMoodState).catch(() => {});
-    }, []),
+      activeRef.current = true;
+      load();
+      return () => {
+        activeRef.current = false;
+      };
+    }, [load]),
   );
 
   const onPickMood = (v: MoodValue) => {
@@ -81,10 +94,9 @@ export default function TodayScreen() {
           </GlassCard>
         </Pressable>
       ) : loadFailed ? (
-        <GlassCard flat intensity={24} radius={24} className="px-5 py-5 items-center">
-          <Caption className="text-center text-ink-muted">
-            Couldn’t load your scans. Pull to refresh, or try again in a moment.
-          </Caption>
+        <GlassCard flat intensity={24} radius={24} className="px-5 py-5 items-center gap-4">
+          <Caption className="text-center text-ink-muted">Couldn’t load your scans.</Caption>
+          <PrimaryButton label="Try again" variant="glass" onPress={load} />
         </GlassCard>
       ) : (
         <GlassCard flat intensity={24} radius={24} className="px-5 py-5 items-center">

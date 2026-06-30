@@ -96,12 +96,20 @@ export default function ResultRoute() {
   }
 
   return (
-    <>
-      <Result scores={scores} skinType={skinType} prev={prev} history={trendHistory} skinAge={skinAge} />
-      {needsFeedback && latestId && (
-        <RoutineFeedbackPrompt scanId={latestId} onDone={() => setNeedsFeedback(false)} />
-      )}
-      <PrimaryButton label="Scan again" onPress={() => router.push('/scan')} />
-    </>
+    <Result
+      scores={scores}
+      skinType={skinType}
+      prev={prev}
+      history={trendHistory}
+      skinAge={skinAge}
+      footer={
+        <>
+          {needsFeedback && latestId && (
+            <RoutineFeedbackPrompt scanId={latestId} onDone={() => setNeedsFeedback(false)} />
+          )}
+          <PrimaryButton label="Scan again" fullWidth onPress={() => router.push('/scan')} />
+        </>
+      }
+    />
   );
 }

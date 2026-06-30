@@ -2,6 +2,15 @@
 // is fully deterministic under test (callers pass `today`).
 
 const DAY_LABELS = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'] as const;
+const MONTH_LABELS = [
+  'Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec',
+] as const;
+
+/** A short, friendly local date like "Jun 9" for scan timelines. */
+export function formatShortDate(date: Date | string): string {
+  const d = typeof date === 'string' ? new Date(date) : date;
+  return `${MONTH_LABELS[d.getMonth()]} ${d.getDate()}`;
+}
 
 export interface WeekDay {
   /** Local calendar day, YYYY-MM-DD. */

@@ -1,4 +1,13 @@
-import { toDateKey, buildWeek } from '../week';
+import { toDateKey, buildWeek, formatShortDate } from '../week';
+
+describe('formatShortDate', () => {
+  it('formats as "Mon D"', () => {
+    expect(formatShortDate(new Date(2026, 5, 9))).toBe('Jun 9');
+  });
+  it('accepts an ISO string', () => {
+    expect(formatShortDate('2026-01-03T12:00:00.000Z')).toMatch(/^Jan [23]$/);
+  });
+});
 
 describe('toDateKey', () => {
   it('formats a date as local YYYY-MM-DD', () => {

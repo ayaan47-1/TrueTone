@@ -1,4 +1,5 @@
 // src/features/read/Result.tsx
+import type { ReactNode } from 'react';
 import { View, Text, StyleSheet } from 'react-native';
 import { SKIN_TYPE_LABELS, type Dimension, type SkinTypeFeel } from '../../content/cosmetic-vocab';
 import { toBand, direction } from './bands';
@@ -15,6 +16,7 @@ interface ResultProps {
   prev: ScoreVector | null; // previous scan for trend arrows (null on first scan)
   history?: ScoreSnapshot[]; // newest-first snapshots for the age/trend card (default: [])
   skinAge?: number | null;   // appearance-age estimate from the latest scan (default: null)
+  footer?: ReactNode;        // actions rendered inside the scroll, below the read (e.g. Scan again)
 }
 
 const QUALITY_DIMS: Dimension[] = ['hydration', 'oiliness', 'texture', 'pores'];
@@ -71,7 +73,7 @@ function Section({ title, dims, scores, prev }: { title: string; dims: Dimension
   );
 }
 
-export function Result({ scores, skinType, prev, history = [], skinAge = null }: ResultProps) {
+export function Result({ scores, skinType, prev, history = [], skinAge = null, footer }: ResultProps) {
   return (
     <Screen className="px-6" topGap={8} bottomGap={32}>
       <GlassCard flat intensity={26} radius={20} className="px-4 py-3 mb-5 mt-2">
@@ -99,6 +101,8 @@ export function Result({ scores, skinType, prev, history = [], skinAge = null }:
           Notice something changing, painful, or unusual? TrueTone can&apos;t assess that — please see a dermatologist.
         </Body>
       </GlassCard>
+
+      {footer ? <View className="mt-6 gap-3">{footer}</View> : null}
     </Screen>
   );
 }
