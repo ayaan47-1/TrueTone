@@ -42,7 +42,8 @@ Postgres holds the compliance **guarantees**; the Expo app is a thin, **fail-clo
 ## App routing (Expo Router)
 
 `app/_layout.tsx` wraps the stack in `ProfileProvider` and a `Guard`. The guard reads
-`useProfile()` and renders a redirect based on the computed `route`:
+`useProfile()` and **navigates imperatively** (never renders `<Redirect>` in place of the `<Stack>` —
+that remount-loops `ProfileProvider`) based on the computed `route`:
 
 | State | Screen | Route file |
 |-------|--------|-----------|
@@ -51,14 +52,28 @@ Postgres holds the compliance **guarantees**; the Expo app is a thin, **fail-clo
 | `region-blocked` | not available in your region | `region-blocked.tsx` |
 | `age-gate` | 18+ DOB entry | `age-gate.tsx` → `features/age-gate/AgeGate` |
 | `consent` | biometric consent | `consent.tsx` → `features/consent/Consent` |
-| `home` | onboarding + disclaimer | `index.tsx` → `features/onboarding/Onboarding` |
+| `home` | **Today dashboard (tab nav)** | `(tabs)/index.tsx` |
 
-Always-reachable: `policies/index.tsx` (list) and `policies/[doc].tsx` (reader);
-`data/index.tsx` ("Your Data").
+`home` resolves to the **`(tabs)` group** (`(tabs)/index.tsx` → path `/`, so the gate redirect is
+unchanged). A **floating glass tab bar** (`GlassTabBar`, custom `tabBar` prop — the default bar
+can't render glass) carries five items: **Today · Routine · ⊙ Scan · Trend · You**. The center
+**Scan** is a button that `router.push('/scan')` (the camera stays a full-screen route, not a tab).
+
+| Tab | Screen | Surfaces |
+|-----|--------|----------|
+| Today | `(tabs)/index.tsx` | week strip, today's-routine summary, skin-feel diary, daily affirmation, disclaimer |
+| Routine | `(tabs)/routine.tsx` | latest routine (`RoutineView`) + scoped chat entry |
+| Trend | `(tabs)/trend.tsx` | within-user trend (`AgeTrendCard`, flag-gated skin-age) + recent-reads timeline |
+| You | `(tabs)/you.tsx` | skin profile + `ListRow` links to **Data Rights** (`/data`) and **Policies** (`/policies`) |
+
+This surfaces what were previously **orphaned** screens (Routine, chat, Data Rights, Policies — built
+but unreachable). The standing cosmetic disclaimer that lived on the old onboarding entry now renders
+in the Today footer (and You). `policies/index.tsx` (list) and `policies/[doc].tsx` (reader) remain
+always-reachable; `data/index.tsx` ("Your Data") is reached from the You tab.
 
 Behind the gates, the scan flow lives under `app/scan/`: `index.tsx` (guided capture) →
-`result.tsx` (fetch latest scan, render the dimension-list read) → `routine.tsx` (routine view +
-scoped chat entry).
+`result.tsx` (fetch latest scan, render the dimension-list read; "Scan again" + feedback render
+inside the scroll via `Result`'s `footer` slot). The routine is also reachable as a tab.
 
 ## Gating logic — `src/lib/`
 
@@ -148,6 +163,19 @@ The deterministic chat logic lives in `src/`; the Edge Function imports byte-ide
 `run-read.ts` also computes the (gated) skin-age in the same on-device pass as the read; only the
 derived number (or `null`) is persisted via `record_scan`, never the image.
 
+### Today dashboard + skin-feel diary — `today/`, `diary/`
+
+The Today tab's content. The **skin-feel diary** is new user data; per `CLAUDE.md` it is stored
+**on-device only** (no server table) and wired into delete-everything.
+
+| Module | What it does | Compliance-critical behavior |
+|--------|--------------|------------------------------|
+| `today/week.ts` | `toDateKey`, `buildWeek`, `formatShortDate` — pure week-strip + date math | pure; no persistence |
+| `today/WeekStrip.tsx` | Row of day pills, marking days with a scan; today highlighted | reads scan dates only |
+| `today/affirmations.ts`, `AffirmationCard.tsx` | Rotating local affirmation (day-of-year) + Share | **pure wellness copy**, cosmetic vocabulary only; no data, no network |
+| `diary/moods.ts`, `MoodPicker.tsx` | 5-face "how does your skin feel today?" row | **cosmetic wording only** (skin *feel*, never a condition) |
+| `diary/diary-storage.ts` | `getMood`/`setMood`/`clearDiary` over AsyncStorage (single key `truetone.diary.v1`) | **on-device only**; `clearDiary()` is called from `delete_my_data`/`delete_account` in `DataRights` so the diary is purged with everything else |
+
 ### Design system — "Mist" (`components/ui/` + `theme/`)
 
 A liquid-glass UI layer. Presentation-only: it changes how screens look, not what they assert —
@@ -159,7 +187,10 @@ stay green).
 | `theme/tokens.ts` | Design tokens — palette, type scale, glass/elevation, Fitzpatrick I–VI scale, sage/clay band tints |
 | `components/ui/MistBackground.tsx` | `expo-linear-gradient` mist mesh backdrop |
 | `components/ui/{GlassCard,GlassSheet}.tsx` | `expo-blur` frosted surfaces (the age gate + policy reader render as glass popups; the reader is a `transparentModal` route) |
-| `components/ui/{Screen,Button,Typography}.tsx` | Layout shell + primitives (Fraunces + Mulish via `@expo-google-fonts`) |
+| `components/ui/{Screen,Button,Typography}.tsx` | Layout shell + primitives (Fraunces + Mulish via `@expo-google-fonts`). `Screen` applies safe-area insets **additively** (`topGap`/`bottomGap`) and centers + caps content width on wide/unfolded screens |
+| `components/ui/GlassTabBar.tsx` | Floating frosted pill tab bar (custom `tabBar`); exports `TAB_BAR_CLEARANCE` for screen bottom padding |
+| `components/ui/{ListRow,SectionLabel,Disclaimer}.tsx`, `tab-icons.tsx` | Row link, centered divider label, standing cosmetic disclaimer, hand-drawn tab glyphs (no icon dependency) |
+| `components/ui/use-responsive.ts` | Foldable-aware sizing (`useResponsive`, `clampContentWidth`, `captureOvalSize`, `bloomMetrics`); edge-to-edge is mandatory on SDK 56, so surfaces scale to the Galaxy Fold's folded + unfolded aspect ratios |
 
 > The "tuned fairly for every tone" caption from the design is a skin-tone-equity claim gated on
 > validation data (`CLAUDE.md` §1/§6); the Fitzpatrick I–VI tone strip ships with the **factual**
