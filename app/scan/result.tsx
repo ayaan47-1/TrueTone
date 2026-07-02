@@ -8,6 +8,9 @@ import { SKIN_TYPE_FEELS, type SkinTypeFeel } from '../../src/content/cosmetic-v
 import type { ScoreVector } from '../../src/features/read/read-types';
 import type { ScoreSnapshot } from '../../src/features/age/age-types';
 import { RoutineFeedbackPrompt } from '../../src/features/feedback/RoutineFeedbackPrompt';
+import { computePersonalBaseline } from '../../src/features/personalize/personal-baseline';
+import { computePersonalDeviation } from '../../src/features/personalize/personal-deviation';
+import { personalCopy } from '../../src/features/personalize/personal-copy';
 
 type Status = 'loading' | 'ready' | 'empty' | 'error';
 
@@ -28,12 +31,13 @@ export default function ResultRoute() {
   const [skinAge, setSkinAge] = useState<number | null>(null);
   const [latestId, setLatestId] = useState<string | null>(null);
   const [needsFeedback, setNeedsFeedback] = useState(false);
+  const [personalMessages, setPersonalMessages] = useState<string[]>([]);
 
   useEffect(() => {
     let active = true; // guard against setState after unmount / fast navigation
     void (async () => {
       try {
-        const history = await fetchScanHistory(5); // more samples for the trend
+        const history = await fetchScanHistory(10); // trend + enough priors for personalization
         const latest = history[0];
         if (!active) return;
         if (!latest) {
@@ -46,6 +50,14 @@ export default function ResultRoute() {
         // Build ScoreSnapshot[] (newest-first) for the age/trend card.
         setTrendHistory(history.map((s) => ({ capturedAt: s.capturedAt, scores: s.scores })));
         setSkinAge(latest.skinAge ?? null);
+        // Personalization: relative to the user's own prior scans (spec §4.1).
+        // Cold start (baseline null) → no messages → today's UI exactly.
+        const baseline = computePersonalBaseline(
+          history.map((s) => ({ scores: s.scores, isStub: s.isStub })),
+        );
+        setPersonalMessages(
+          baseline ? personalCopy(computePersonalDeviation(latest.scores, baseline)) : [],
+        );
         // "Did this help?" shows once a prior scan exists and the latest has no feedback yet.
         setLatestId(latest.id);
         setNeedsFeedback(history.length > 1 && latest.routineHelpful === null);
@@ -102,6 +114,7 @@ export default function ResultRoute() {
       prev={prev}
       history={trendHistory}
       skinAge={skinAge}
+      personalMessages={personalMessages}
       footer={
         <>
           {needsFeedback && latestId && (

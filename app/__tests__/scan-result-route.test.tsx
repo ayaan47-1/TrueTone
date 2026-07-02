@@ -41,10 +41,10 @@ test('renders the read (disclaimer + a band) when a scan exists', async () => {
   expect(screen.getByText('Skin type feel: Combination')).toBeTruthy();
 });
 
-test('requests the latest five scans (for trend)', async () => {
+test('requests the latest ten scans (trend + personalization)', async () => {
   mockFetchScanHistory.mockResolvedValue([scan('s1')]);
   await render(<ResultRoute />);
-  await waitFor(() => expect(mockFetchScanHistory).toHaveBeenCalledWith(5));
+  await waitFor(() => expect(mockFetchScanHistory).toHaveBeenCalledWith(10));
 });
 
 test('passes the previous scan so a trend arrow renders', async () => {
@@ -69,6 +69,43 @@ test('shows the error state when the fetch fails', async () => {
   mockFetchScanHistory.mockRejectedValue(new Error('boom'));
   await render(<ResultRoute />);
   await waitFor(() => expect(screen.getByText(/couldn.t load your read/i)).toBeTruthy());
+});
+
+test('shows the personal card once MIN_SCANS non-stub priors exist and a dimension deviates', async () => {
+  // Priors: redness 0.4 across 3 non-stub scans (spread → floor 0.05).
+  // Latest: redness 0.9 → z = 10 → above, unfavorable → message renders.
+  mockFetchScanHistory.mockResolvedValue([
+    scan('s1', { isStub: false, scores: { ...scores, redness: 0.9 } }),
+    scan('s2', { isStub: false, scores: { ...scores, redness: 0.4 } }),
+    scan('s3', { isStub: false, scores: { ...scores, redness: 0.4 } }),
+    scan('s4', { isStub: false, scores: { ...scores, redness: 0.4 } }),
+  ]);
+  await render(<ResultRoute />);
+  await waitFor(() => expect(screen.getByText(/redness is up compared to your usual/i)).toBeTruthy());
+  expect(screen.getAllByText(/compared to your usual/i).length > 0).toBe(true);
+});
+
+test('cold start (too few priors) renders no personal card', async () => {
+  mockFetchScanHistory.mockResolvedValue([
+    scan('s1', { isStub: false }),
+    scan('s2', { isStub: false }),
+  ]);
+  await render(<ResultRoute />);
+  await waitFor(() => expect(screen.getByText(/not a medical diagnosis/i)).toBeTruthy());
+  expect(screen.queryByText(/compared to your usual/i)).toBeNull();
+});
+
+test('stub priors never teach the baseline (no personal card)', async () => {
+  // 3 priors exist but all stubs → baseline null → cold-start UI.
+  mockFetchScanHistory.mockResolvedValue([
+    scan('s1', { isStub: false, scores: { ...scores, redness: 0.9 } }),
+    scan('s2'), // isStub: true by default
+    scan('s3'),
+    scan('s4'),
+  ]);
+  await render(<ResultRoute />);
+  await waitFor(() => expect(screen.getByText(/not a medical diagnosis/i)).toBeTruthy());
+  expect(screen.queryByText(/compared to your usual/i)).toBeNull();
 });
 
 test('shows the feedback prompt when a prior scan exists and feedback is unanswered', async () => {
