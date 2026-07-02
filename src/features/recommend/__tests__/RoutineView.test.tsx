@@ -15,3 +15,28 @@ test('renders AM and PM steps and the disclaimer', async () => {
   expect(screen.getByText(/gentle exfoliant/)).toBeTruthy();
   expect(screen.getByText(/looks.*not medical advice/i)).toBeTruthy();
 });
+
+test('marks emphasized steps with a Focus today label', async () => {
+  const routine = {
+    version: 'skincare-1',
+    am: [
+      { category: 'gentle hydrating cleanser', habit: 'h', rationale: 'r', dimensions: [], emphasized: true },
+      { category: 'a broad-spectrum SPF 30+ sunscreen', habit: 'h', rationale: 'r', dimensions: [] },
+    ],
+    pm: [],
+    notes: [],
+  };
+  await render(<RoutineView routine={routine} />);
+  expect(screen.getAllByText(/focus today/i)).toHaveLength(1);
+});
+
+test('renders no Focus label when nothing is emphasized', async () => {
+  const routine = {
+    version: 'skincare-1',
+    am: [{ category: 'gentle hydrating cleanser', habit: 'h', rationale: 'r', dimensions: [] }],
+    pm: [],
+    notes: [],
+  };
+  await render(<RoutineView routine={routine} />);
+  expect(screen.queryByText(/focus today/i)).toBeNull();
+});
