@@ -1,6 +1,7 @@
 import { render, screen, waitFor, fireEvent } from '@testing-library/react-native';
 import { DIMENSIONS } from '../../src/content/cosmetic-vocab';
 import type { ScoreVector } from '../../src/features/read/read-types';
+import { setEntitlementSource, localStubEntitlement } from '../../src/features/premium/entitlement';
 
 const mockFetchScanHistory = jest.fn();
 const mockSetRoutineFeedback = jest.fn();
@@ -106,6 +107,26 @@ test('stub priors never teach the baseline (no personal card)', async () => {
   await render(<ResultRoute />);
   await waitFor(() => expect(screen.getByText(/not a medical diagnosis/i)).toBeTruthy());
   expect(screen.queryByText(/compared to your usual/i)).toBeNull();
+});
+
+test('trend card receives at most 5 scans even when more history is fetched', async () => {
+  // AgeTrendCard is gated behind premium entitlement; unlock it so the trend headline renders.
+  setEntitlementSource(localStubEntitlement(true));
+  try {
+    // 7 scans; the 6th and 7th have extreme hydration that WOULD flip the aggregate trend
+    // if they entered the freshness baseline — the cap keeps them out.
+    mockFetchScanHistory.mockResolvedValue([
+      scan('s1'), scan('s2'), scan('s3'), scan('s4'), scan('s5'),
+      scan('s6', { scores: { ...scores, hydration: 0.0 } }),
+      scan('s7', { scores: { ...scores, hydration: 0.0 } }),
+    ]);
+    await render(<ResultRoute />);
+    await waitFor(() => expect(screen.getByText(/not a medical diagnosis/i)).toBeTruthy());
+    // All 5 in-window scans are identical → freshness delta 0 → steady headline.
+    expect(screen.getByText(/looks steady/i)).toBeTruthy();
+  } finally {
+    setEntitlementSource(localStubEntitlement(false));
+  }
 });
 
 test('shows the feedback prompt when a prior scan exists and feedback is unanswered', async () => {

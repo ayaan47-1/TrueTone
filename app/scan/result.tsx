@@ -47,8 +47,10 @@ export default function ResultRoute() {
         setScores(latest.scores);
         setSkinType(toSkinTypeFeel(latest.skinType));
         setPrev(history[1]?.scores ?? null);
-        // Build ScoreSnapshot[] (newest-first) for the age/trend card.
-        setTrendHistory(history.map((s) => ({ capturedAt: s.capturedAt, scores: s.scores })));
+        // Build ScoreSnapshot[] (newest-first) for the age/trend card. Capped at the
+        // pre-personalization window of 5 so the trend baseline semantics are unchanged
+        // (the wider fetch exists only to feed the personal baseline below).
+        setTrendHistory(history.slice(0, 5).map((s) => ({ capturedAt: s.capturedAt, scores: s.scores })));
         setSkinAge(latest.skinAge ?? null);
         // Personalization: relative to the user's own prior scans (spec §4.1).
         // Cold start (baseline null) → no messages → today's UI exactly.
