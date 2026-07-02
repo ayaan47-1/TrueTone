@@ -9,6 +9,7 @@ import { Screen, GlassCard, Display, Eyebrow, Body, Caption } from '../../compon
 import { palette, bandTint, type BandTone } from '../../theme/tokens';
 import { AgeTrendCard } from '../age/AgeTrendCard';
 import type { ScoreSnapshot } from '../age/age-types';
+import { PersonalCard } from '../personalize/PersonalCard';
 
 interface ResultProps {
   scores: ScoreVector;
@@ -16,6 +17,7 @@ interface ResultProps {
   prev: ScoreVector | null; // previous scan for trend arrows (null on first scan)
   history?: ScoreSnapshot[]; // newest-first snapshots for the age/trend card (default: [])
   skinAge?: number | null;   // appearance-age estimate from the latest scan (default: null)
+  personalMessages?: string[]; // "compared to your usual" lines (default: none — cold start)
   footer?: ReactNode;        // actions rendered inside the scroll, below the read (e.g. Scan again)
 }
 
@@ -73,7 +75,7 @@ function Section({ title, dims, scores, prev }: { title: string; dims: Dimension
   );
 }
 
-export function Result({ scores, skinType, prev, history = [], skinAge = null, footer }: ResultProps) {
+export function Result({ scores, skinType, prev, history = [], skinAge = null, personalMessages = [], footer }: ResultProps) {
   return (
     <Screen className="px-6" topGap={8} bottomGap={32}>
       <GlassCard flat intensity={26} radius={20} className="px-4 py-3 mb-5 mt-2">
@@ -93,6 +95,8 @@ export function Result({ scores, skinType, prev, history = [], skinAge = null, f
         <Section title="Skin qualities" dims={QUALITY_DIMS} scores={scores} prev={prev} />
         <Section title="Appearance of" dims={APPEARANCE_DIMS} scores={scores} prev={prev} />
       </View>
+
+      <PersonalCard messages={personalMessages} />
 
       <AgeTrendCard history={history} skinAge={skinAge} />
 
