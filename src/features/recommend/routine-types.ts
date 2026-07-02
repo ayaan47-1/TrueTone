@@ -6,6 +6,7 @@ export interface RoutineStep {
   habit: string;      // approved habit, e.g. "use lukewarm water, pat dry"
   rationale: string;  // approved phrasing, e.g. "for the appearance of dryness"
   dimensions: Dimension[]; // which scores drove this step (audit/UX)
+  emphasized?: boolean; // display-time personalization flag (never persisted; absent = false)
 }
 
 export interface Routine {
