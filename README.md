@@ -330,6 +330,18 @@ Parallel tracks:
   real CV read via a synthetic tone-invariance self-test (still synthetic — real-data validation is
   gated on counsel-approved images; no equity claim ships from synthetic results).
 
+Designed / next (approved direction, **not yet built** — specs in `docs/superpowers/`):
+
+- 📐 **Per-user personalization** ("it learns from you") — learn each user's per-dimension *personal
+  normal* from their own scan history and frame the latest read **relative to their own baseline** +
+  emphasize the routine steps most off that baseline. **Within-user/relative only** — it does *not*
+  re-scale the displayed 0–1 scores, so no new compliance gate. Spec + 8-task TDD plan on file.
+- 📐 **Trained on-device model track** — replace the heuristic `CvReadEngine` (`cv-1`) with a neural
+  model **trained offline by us** on a consented/licensed dataset (never on users' images), shipped
+  as fixed ExecuTorch `.pte` weights running on-device, and **tone-fairness-validated on the existing
+  harness before it becomes the default**. **HARD-GATED** on a consented/licensed dataset + founder/
+  legal sign-off (`CLAUDE.md` §6) — no training, and no user data, without it.
+
 Plans and specs: [`docs/superpowers/`](./docs/superpowers/).
 
 ---
