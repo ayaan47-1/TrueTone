@@ -1,8 +1,12 @@
 import { useEffect, useState } from 'react';
 import { View } from 'react-native';
 import { useRouter } from 'expo-router';
-import { fetchLatestScan, type Scan } from '../../src/lib/scans';
+import { fetchScanHistory, type Scan } from '../../src/lib/scans';
 import { RoutineView } from '../../src/features/recommend/RoutineView';
+import { computePersonalBaseline } from '../../src/features/personalize/personal-baseline';
+import { computePersonalDeviation } from '../../src/features/personalize/personal-deviation';
+import { emphasizeRoutine } from '../../src/features/recommend/emphasize-routine';
+import type { Routine } from '../../src/features/recommend/routine-types';
 import { MistBackground, GlassCard, Body } from '../../src/components/ui';
 
 function StateCard({ children }: { children: React.ReactNode }) {
@@ -25,22 +29,45 @@ function StateCard({ children }: { children: React.ReactNode }) {
 export default function RoutineRoute() {
   const router = useRouter();
   const [scan, setScan] = useState<Scan | null>(null);
+  const [routine, setRoutine] = useState<Routine | null>(null);
   const [loading, setLoading] = useState(true);
   const [failed, setFailed] = useState(false);
 
   useEffect(() => {
-    fetchLatestScan()
-      .then(setScan)
-      .catch(() => setFailed(true))
-      .finally(() => setLoading(false));
+    let active = true; // guard against setState after unmount
+    void (async () => {
+      try {
+        const history = await fetchScanHistory(10);
+        if (!active) return;
+        const latest = history[0] ?? null;
+        setScan(latest);
+        if (latest) {
+          // Display-time emphasis from the personal baseline; the stored routine stays
+          // canonical. Cold start (baseline null) → the plain routine, exactly as today.
+          const baseline = computePersonalBaseline(
+            history.map((s) => ({ scores: s.scores, isStub: s.isStub })),
+          );
+          setRoutine(
+            baseline
+              ? emphasizeRoutine(latest.routine, computePersonalDeviation(latest.scores, baseline))
+              : latest.routine,
+          );
+        }
+      } catch {
+        if (active) setFailed(true);
+      } finally {
+        if (active) setLoading(false);
+      }
+    })();
+    return () => { active = false; };
   }, []);
 
   if (loading) return <StateCard>Loading…</StateCard>;
   if (failed) return <StateCard>Couldn&rsquo;t load your routine. Pull to retry.</StateCard>;
-  if (!scan) return <StateCard>No scan yet — run a scan to see your routine.</StateCard>;
+  if (!scan || !routine) return <StateCard>No scan yet — run a scan to see your routine.</StateCard>;
   return (
     <RoutineView
-      routine={scan.routine}
+      routine={routine}
       onAsk={() => router.push({ pathname: '/scan/chat', params: { scanId: scan.id } })}
     />
   );

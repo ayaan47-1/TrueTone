@@ -197,6 +197,7 @@ src/
     age/                 within-user trend card + skin-age engine (absolute gated dark by age-flags)
     feedback/            "did this help?" routine-feedback prompt (step 7)
     premium/             display-only entitlement seam (RevenueCat deferred; no biometric data)
+    personalize/         per-user baseline (median+MAD) + "compared to your usual" copy; emphasizes routine (step 8)
   content/               policy manifest (version source of truth) + markdown/bodies
 supabase/
   migrations/            0001 schema → 0012 routine feedback (scans, RPCs, backup purge, routine, skin-age)

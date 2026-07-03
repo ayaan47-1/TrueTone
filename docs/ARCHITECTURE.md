@@ -163,6 +163,12 @@ The deterministic chat logic lives in `src/`; the Edge Function imports byte-ide
 `run-read.ts` also computes the (gated) skin-age in the same on-device pass as the read; only the
 derived number (or `null`) is persisted via `record_scan`, never the image.
 
+### Personalization — `personalize/` (step 8)
+
+| Module | What it does | Compliance-critical behavior |
+|--------|--------------|------------------------------|
+| `personalize/` | Per-user personal baseline (median+MAD over the user's own non-stub scan history), deviation classification vs `FRESHNESS_POLARITY`, and relative "compared to your usual" copy; `recommend/emphasize-routine.ts` applies display-time routine emphasis. | **Pure client-side; derived scores only**; cold start (< 3 priors) falls back to the aggregate freshness trend. |
+
 ### Today dashboard + skin-feel diary — `today/`, `diary/`
 
 The Today tab's content. The **skin-feel diary** is new user data; per `CLAUDE.md` it is stored

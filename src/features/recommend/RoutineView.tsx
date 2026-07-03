@@ -5,6 +5,11 @@ import { Screen, GlassCard, Display, Subheading, Eyebrow, Body, Caption, Primary
 function Step({ step }: { step: RoutineStep }) {
   return (
     <View className="mb-3 last:mb-0">
+      {step.emphasized ? (
+        <Caption className="text-[10px] uppercase tracking-wide text-ink-muted mb-0.5">
+          Focus today
+        </Caption>
+      ) : null}
       <Body className="font-body-semibold text-ink">{step.category}</Body>
       <Caption className="text-[13px] text-ink-muted mt-0.5">{step.habit} — {step.rationale}</Caption>
     </View>
