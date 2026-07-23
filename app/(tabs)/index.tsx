@@ -4,12 +4,10 @@ import { useRouter, useFocusEffect } from 'expo-router';
 import {
   Screen,
   Display,
-  Eyebrow,
   Body,
   Caption,
   GlassCard,
   PrimaryButton,
-  SectionLabel,
   Disclaimer,
   TAB_BAR_CLEARANCE,
 } from '../../src/components/ui';
@@ -66,31 +64,63 @@ export default function TodayScreen() {
   };
 
   const scanDateKeys = history.map((s) => toDateKey(s.capturedAt));
+  const now = new Date();
+  const dateLabel = now.toLocaleDateString('en-US', {
+    weekday: 'long',
+    month: 'long',
+    day: 'numeric',
+  });
+  const greeting = now.getHours() < 12 ? 'Good morning' : now.getHours() < 18 ? 'Good afternoon' : 'Good evening';
 
   return (
-    <Screen className="px-6" topGap={8} bottomGap={TAB_BAR_CLEARANCE}>
+    <Screen className="px-6" topGap={22} bottomGap={TAB_BAR_CLEARANCE}>
       <View className="gap-1 mt-2 mb-5">
-        <Eyebrow>Skin, honestly</Eyebrow>
-        <Display className="text-[44px]">Today</Display>
+        <Caption className="text-[14px] text-ink-muted">{dateLabel}</Caption>
+        <Display className="text-[30px] leading-[36px]">{greeting}</Display>
       </View>
 
       <WeekStrip scanDateKeys={scanDateKeys} />
 
-      <View className="mt-6 mb-1">
-        <PrimaryButton label="Start your read" fullWidth onPress={() => router.push('/scan')} />
+      <View className="mt-7">
+        <AffirmationCard />
       </View>
 
-      <SectionLabel>Today’s routine</SectionLabel>
+      <View className="mt-7 gap-3">
+        <Body className="font-semibold text-ink">How does your skin feel?</Body>
+        <MoodPicker value={mood} onSelect={onPickMood} />
+      </View>
+
+      <Pressable
+        accessibilityRole="button"
+        accessibilityLabel="Ready for today's scan?"
+        onPress={() => router.push('/scan')}
+        className="mt-7"
+      >
+        <GlassCard flat radius={22} className="px-5 py-5 flex-row items-center gap-4">
+          <View className="h-12 w-12 rounded-full bg-sage items-center justify-center">
+            <View className="h-5 w-5 rounded-full border-2 border-white items-center justify-center">
+              <View className="h-2 w-2 rounded-full border border-white" />
+            </View>
+          </View>
+          <View className="flex-1">
+            <Body className="font-semibold text-ink">Ready for today&apos;s scan?</Body>
+            <Caption className="text-[14px] text-ink-muted">Takes about 20 seconds</Caption>
+          </View>
+          <Caption className="text-xl text-sage">›</Caption>
+        </GlassCard>
+      </Pressable>
+
+      <View className="mt-6">
       {latest ? (
         <Pressable accessibilityRole="button" accessibilityLabel="Open your routine" onPress={() => router.push('/routine')}>
-          <GlassCard flat intensity={26} radius={24} className="px-5 py-4 flex-row items-center justify-between">
+          <GlassCard flat intensity={24} radius={22} className="px-5 py-4 flex-row items-center justify-between">
             <View className="gap-0.5">
               <Body className="font-body-semibold text-ink">Your routine is ready</Body>
               <Caption className="text-ink-muted">
                 {latest.routine.am.length} morning · {latest.routine.pm.length} evening steps
               </Caption>
             </View>
-            <Caption className="text-mauve-600 text-lg">›</Caption>
+            <Caption className="text-sage text-lg">›</Caption>
           </GlassCard>
         </Pressable>
       ) : loadFailed ? (
@@ -105,18 +135,9 @@ export default function TodayScreen() {
           </Caption>
         </GlassCard>
       )}
-
-      <SectionLabel>Skin diary</SectionLabel>
-      <GlassCard flat intensity={26} radius={24} className="px-5 py-5 gap-4">
-        <Body className="font-body-semibold text-ink">How does your skin feel today?</Body>
-        <MoodPicker value={mood} onSelect={onPickMood} />
-      </GlassCard>
-
-      <View className="mt-6 mb-6">
-        <AffirmationCard />
       </View>
 
-      <Disclaimer />
+      <View className="mt-6"><Disclaimer /></View>
     </Screen>
   );
 }

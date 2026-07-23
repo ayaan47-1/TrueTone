@@ -30,7 +30,7 @@ const RIGHT: readonly TabDef[] = [
   { key: 'you', label: 'You', Glyph: YouGlyph },
 ];
 
-const ACTIVE = palette.mauve600;
+const ACTIVE = palette.sage;
 const INACTIVE = palette.inkMuted;
 
 interface GlassTabBarProps {
@@ -54,7 +54,7 @@ export function GlassTabBar({ activeKey, onSelect, onScanPress }: GlassTabBarPro
     <View style={[styles.dock, { paddingBottom: insets.bottom + 10, pointerEvents: 'box-none' }]}>
       <GlassCard
         intensity={42}
-        radius={30}
+        radius={24}
         className="px-3 pt-2.5 pb-3.5 flex-row items-center"
         style={styles.pill}
       >
@@ -124,10 +124,10 @@ const styles = StyleSheet.create({
     marginTop: -22,
     alignItems: 'center',
     justifyContent: 'center',
-    backgroundColor: palette.mauve500,
+    backgroundColor: palette.sage,
     borderWidth: 2,
     borderColor: 'rgba(255,255,255,0.65)',
     ...softShadow,
   },
-  centerLabel: { fontSize: 10, letterSpacing: 0.2, color: palette.mauve600 },
+  centerLabel: { fontSize: 10, letterSpacing: 0.2, color: palette.sageInk },
 });

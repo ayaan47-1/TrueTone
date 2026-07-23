@@ -12,6 +12,7 @@ interface ListRowProps {
   caption?: string;
   /** Hide the trailing chevron (e.g. for a terminal action). */
   hideChevron?: boolean;
+  destructive?: boolean;
 }
 
 /**
@@ -19,7 +20,7 @@ interface ListRowProps {
  * optional leading icon, a label (+ optional caption), and a trailing chevron.
  * Glassy hairline styling that sits inside a GlassCard list.
  */
-export function ListRow({ label, onPress, icon, caption, hideChevron }: ListRowProps) {
+export function ListRow({ label, onPress, icon, caption, hideChevron, destructive }: ListRowProps) {
   return (
     <Pressable
       accessibilityRole="button"
@@ -29,7 +30,7 @@ export function ListRow({ label, onPress, icon, caption, hideChevron }: ListRowP
     >
       {icon ? <View style={styles.icon}>{icon}</View> : null}
       <View style={styles.text}>
-        <Body className="text-ink">{label}</Body>
+        <Body className="text-ink" style={destructive ? { color: palette.danger } : undefined}>{label}</Body>
         {caption ? <Caption className="text-ink-muted">{caption}</Caption> : null}
       </View>
       {!hideChevron ? <View style={styles.chevron} /> : null}

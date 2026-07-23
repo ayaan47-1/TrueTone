@@ -4,12 +4,12 @@ import { supabase } from '../../lib/supabase';
 import { computeIs18Plus } from './age';
 import {
   MistBackground,
-  GlassSheet,
+  Screen,
+  GlassCard,
   Display,
   Heading,
   Body,
   Caption,
-  Eyebrow,
   PrimaryButton,
 } from '../../components/ui';
 import { palette } from '../../theme/tokens';
@@ -30,33 +30,49 @@ export function AgeGate({ userId, onPass }: { userId: string; onPass: () => void
   if (blocked)
     return (
       <MistBackground>
-        <GlassSheet className="px-7 py-9 items-center gap-3">
-          <Eyebrow>Sorry</Eyebrow>
-          <Display className="text-center text-3xl">Adults only</Display>
-          <Body className="text-center">TrueTone is available to adults 18 and over.</Body>
-        </GlassSheet>
+        <View className="flex-1 items-center justify-center px-6">
+          <GlassCard className="px-7 py-9 items-center gap-3">
+            <Display className="text-center text-3xl">Adults only</Display>
+            <Body className="text-center">TrueTone is available to adults 18 and over.</Body>
+          </GlassCard>
+        </View>
       </MistBackground>
     );
 
   return (
-    <MistBackground>
-      <GlassSheet className="px-7 py-8 gap-5">
-        <View className="gap-2">
-          <Eyebrow>A quick check</Eyebrow>
-          <Heading>Enter your date of birth</Heading>
-          <Caption>TrueTone is for adults 18 and over. We use this only to confirm your age.</Caption>
+    <Screen className="px-6" scroll={false} topGap={56} bottomGap={24}>
+      <View className="flex-1">
+        <View className="gap-1 mb-8">
+          <Display className="text-[30px]">Before we begin</Display>
+          <Body className="text-ink-muted">Quick, one-time essentials.</Body>
         </View>
-        <TextInput
-          testID="dob-input"
-          placeholder="YYYY-MM-DD"
-          placeholderTextColor={palette.inkFaint}
-          value={value}
-          onChangeText={setValue}
-          autoCapitalize="none"
-          className="rounded-2xl border border-white/70 bg-white/60 px-4 py-3.5 text-base font-body text-ink"
-        />
-        <PrimaryButton testID="dob-submit" label="Continue" fullWidth onPress={submit} />
-      </GlassSheet>
-    </MistBackground>
+
+        <GlassCard flat radius={22} className="px-5 py-5 mb-3 flex-row items-center gap-4">
+          <View className="h-12 w-12 rounded-2xl bg-mist-300 items-center justify-center"><Body>US</Body></View>
+          <View className="flex-1"><Body className="font-semibold text-ink">United States</Body><Caption>TrueTone is available in your region</Caption></View>
+          <View className="h-5 w-5 rounded-full bg-sage" />
+        </GlassCard>
+
+        <GlassCard flat radius={22} className="px-5 py-5 gap-4">
+          <Heading className="text-[19px]">Confirm your date of birth</Heading>
+          <TextInput
+            testID="dob-input"
+            placeholder="YYYY-MM-DD"
+            placeholderTextColor={palette.inkFaint}
+            value={value}
+            onChangeText={setValue}
+            autoCapitalize="none"
+            accessibilityLabel="Date of birth"
+            className="rounded-[18px] bg-white/80 px-5 py-4 text-center text-base text-ink"
+          />
+          <Caption>Must be 18+. We don&apos;t store this date — only that you&apos;re eligible.</Caption>
+        </GlassCard>
+
+        <View className="mt-auto pt-7">
+          <PrimaryButton testID="dob-submit" label="Continue" fullWidth onPress={submit} />
+          <Caption className="mt-4 text-center">Privacy Policy · Terms</Caption>
+        </View>
+      </View>
+    </Screen>
   );
 }

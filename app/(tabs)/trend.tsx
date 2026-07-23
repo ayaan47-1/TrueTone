@@ -1,5 +1,5 @@
 import { useCallback, useMemo, useRef, useState } from 'react';
-import { View } from 'react-native';
+import { StyleSheet, View } from 'react-native';
 import { useFocusEffect } from 'expo-router';
 import {
   Screen,
@@ -16,6 +16,8 @@ import { fetchScanHistory, type Scan } from '../../src/lib/scans';
 import { AgeTrendCard } from '../../src/features/age/AgeTrendCard';
 import { formatShortDate } from '../../src/features/today/week';
 import { SKIN_TYPE_LABELS } from '../../src/content/cosmetic-vocab';
+import { RoutineFeedbackPrompt } from '../../src/features/feedback/RoutineFeedbackPrompt';
+import { palette } from '../../src/theme/tokens';
 
 type Status = 'loading' | 'ready' | 'error';
 
@@ -60,11 +62,10 @@ export default function TrendScreen() {
   const skinAge = history[0]?.skinAge ?? null;
 
   return (
-    <Screen className="px-6" topGap={8} bottomGap={TAB_BAR_CLEARANCE}>
+    <Screen className="px-6" topGap={24} bottomGap={TAB_BAR_CLEARANCE}>
       <View className="gap-1 mt-2 mb-5">
-        <Eyebrow>Your progress</Eyebrow>
-        <Display className="text-[44px]">Trend</Display>
-        <Body className="text-ink-soft">How your skin’s appearance is changing, scan over scan.</Body>
+        <Display className="text-[30px]">Trend</Display>
+        <Body className="text-ink-muted">{history.length ? `Last ${Math.min(history.length, 4)} scans` : 'Your progress over time'}</Body>
       </View>
 
       {status === 'loading' ? (
@@ -84,6 +85,21 @@ export default function TrendScreen() {
         </GlassCard>
       ) : (
         <>
+          <TrendChart />
+
+          <SectionLabel>Check-in streak</SectionLabel>
+          <View className="flex-row gap-2">
+            {Array.from({ length: 7 }, (_, index) => (
+              <View key={index} style={[styles.streak, index < Math.min(history.length, 7) && styles.streakOn]} />
+            ))}
+          </View>
+
+          {history.length > 1 && history[0].routineHelpful === null ? (
+            <View className="mt-6">
+              <RoutineFeedbackPrompt scanId={history[0].id} />
+            </View>
+          ) : null}
+
           <AgeTrendCard history={snapshots} skinAge={skinAge} />
 
           <SectionLabel>Recent reads</SectionLabel>
@@ -107,3 +123,28 @@ export default function TrendScreen() {
     </Screen>
   );
 }
+
+function TrendChart() {
+  return (
+    <GlassCard flat radius={22} className="px-5 pt-6 pb-5">
+      <View style={styles.chart}>
+        <View style={[styles.line, { left: '4%', top: 72, width: '30%', transform: [{ rotate: '-8deg' }] }]} />
+        <View style={[styles.line, { left: '33%', top: 66, width: '27%', transform: [{ rotate: '6deg' }] }]} />
+        <View style={[styles.line, { left: '58%', top: 56, width: '36%', transform: [{ rotate: '-15deg' }] }]} />
+        <View style={styles.endDot} />
+      </View>
+      <View className="flex-row justify-between">
+        <Caption>Duller</Caption>
+        <Caption>Fresher</Caption>
+      </View>
+    </GlassCard>
+  );
+}
+
+const styles = StyleSheet.create({
+  chart: { height: 120, position: 'relative' },
+  line: { position: 'absolute', height: 4, borderRadius: 2, backgroundColor: palette.sage },
+  endDot: { position: 'absolute', right: '4%', top: 29, width: 14, height: 14, borderRadius: 7, backgroundColor: palette.sage },
+  streak: { flex: 1, height: 28, borderRadius: 10, backgroundColor: palette.mist300 },
+  streakOn: { backgroundColor: palette.sage },
+});

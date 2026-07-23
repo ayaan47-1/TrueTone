@@ -171,7 +171,7 @@ export function Capture({ onCaptured, onCancel }: CaptureProps) {
 
       {/* top scrim + guidance hint */}
       <View style={[styles.topScrim, { paddingTop: insets.top + 12 }]}>
-        <Text style={styles.wordmark}>TrueTone</Text>
+        <Text style={styles.wordmark}>Hold steady</Text>
         <View style={[styles.hintPill, allPass && styles.hintPillPass]}>
           <Text style={[styles.hintText, allPass && styles.hintTextPass]}>{quality.hint}</Text>
         </View>
@@ -212,6 +212,8 @@ export function Capture({ onCaptured, onCancel }: CaptureProps) {
 
       {/* bottom: privacy reassurance + cancel */}
       <View style={[styles.bottomBar, { paddingBottom: insets.bottom + 16 }]}>
+        <Text style={styles.lightHint}>Natural light works best</Text>
+        <View style={styles.shutter}><View style={styles.shutterInner} /></View>
         <Text style={styles.privacy}>{PRIVACY_LINE}</Text>
         <Pressable style={styles.cancelBtn} onPress={onCancel} disabled={counting}>
           <Text style={[styles.cancelText, counting && styles.cancelTextDim]}>Cancel</Text>
@@ -268,7 +270,7 @@ function MetricsDebug({
 }
 
 const styles = StyleSheet.create({
-  root: { flex: 1, backgroundColor: '#000' },
+  root: { flex: 1, backgroundColor: '#111111' },
   topScrim: {
     position: 'absolute',
     top: 0,
@@ -276,9 +278,9 @@ const styles = StyleSheet.create({
     right: 0,
     alignItems: 'center',
     paddingBottom: 18,
-    backgroundColor: 'rgba(0,0,0,0.35)',
+    backgroundColor: 'rgba(17,17,17,0.24)',
   },
-  wordmark: { color: 'rgba(255,255,255,0.7)', fontSize: 13, fontWeight: '600', letterSpacing: 2, marginBottom: 10 },
+  wordmark: { color: '#fff', fontSize: 22, fontWeight: '700', marginBottom: 10 },
   hintPill: {
     paddingHorizontal: 16,
     paddingVertical: 9,
@@ -291,9 +293,10 @@ const styles = StyleSheet.create({
   centerArea: { position: 'absolute', top: 0, left: 0, right: 0, bottom: 0, alignItems: 'center', justifyContent: 'center' },
   ovalGlow: {
     position: 'absolute',
-    backgroundColor: 'rgba(255,255,255,0.06)',
-    borderWidth: 1,
-    borderColor: 'rgba(255,255,255,0.18)',
+    backgroundColor: 'transparent',
+    borderWidth: 2,
+    borderStyle: 'dashed',
+    borderColor: 'rgba(126,145,116,0.72)',
   },
   oval: {
     borderWidth: 3,
@@ -319,7 +322,10 @@ const styles = StyleSheet.create({
   chipDotOk: { backgroundColor: PASS_GREEN },
   chipText: { color: 'rgba(255,255,255,0.7)', fontSize: 13, fontWeight: '600' },
   chipTextOk: { color: '#bbf7d0' },
-  bottomBar: { position: 'absolute', left: 0, right: 0, bottom: 0, alignItems: 'center', gap: 14, paddingHorizontal: 24 },
+  bottomBar: { position: 'absolute', left: 0, right: 0, bottom: 0, alignItems: 'center', gap: 12, paddingHorizontal: 24 },
+  lightHint: { color: 'rgba(255,255,255,0.62)', fontSize: 14, marginBottom: 2 },
+  shutter: { width: 72, height: 72, borderRadius: 36, borderWidth: 4, borderColor: '#fff', alignItems: 'center', justifyContent: 'center', marginBottom: 2 },
+  shutterInner: { width: 56, height: 56, borderRadius: 28, backgroundColor: 'rgba(255,255,255,0.18)' },
   privacy: { color: 'rgba(255,255,255,0.62)', fontSize: 12, textAlign: 'center' },
   cancelBtn: { paddingHorizontal: 28, paddingVertical: 12, borderRadius: 999, backgroundColor: 'rgba(255,255,255,0.12)' },
   cancelText: { color: '#fff', fontSize: 15, fontWeight: '600' },

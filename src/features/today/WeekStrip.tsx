@@ -17,17 +17,22 @@ export function WeekStrip({ scanDateKeys, today = new Date() }: WeekStripProps) 
   return (
     <View className="flex-row justify-between">
       {days.map((d) => {
-        const fg = d.isToday ? palette.mauve600 : d.isFuture ? palette.inkFaint : palette.inkSoft;
+        const fg = d.isToday ? palette.white : d.isFuture ? palette.inkFaint : palette.inkMuted;
         return (
-          <View key={d.key} style={styles.col}>
-            <Caption style={{ fontSize: 10, color: d.isFuture ? palette.inkFaint : palette.inkMuted }}>
-              {d.label}
+          <View
+            key={d.key}
+            testID={`week-day-${d.key}`}
+            accessibilityLabel={`${d.label}${d.isToday ? ', today' : ''}`}
+            style={styles.col}
+          >
+            <Caption style={{ fontSize: 12, color: d.isToday ? palette.ink : d.isFuture ? palette.inkFaint : palette.inkMuted }}>
+              {d.label.slice(0, 1)}
             </Caption>
             <View style={[styles.cell, d.isToday && styles.cellToday]}>
               {d.hasScan ? (
                 <View style={[styles.check, { borderColor: fg }]} />
               ) : (
-                <Caption style={[styles.num, { color: fg }]}>{d.dayOfMonth}</Caption>
+                <View style={[styles.dot, { backgroundColor: d.isToday ? palette.white : palette.mist400 }]} />
               )}
             </View>
           </View>
@@ -40,20 +45,17 @@ export function WeekStrip({ scanDateKeys, today = new Date() }: WeekStripProps) 
 const styles = StyleSheet.create({
   col: { flex: 1, alignItems: 'center', gap: 6 },
   cell: {
-    width: 38,
-    height: 38,
-    borderRadius: 19,
+    width: 32,
+    height: 32,
+    borderRadius: 16,
     alignItems: 'center',
     justifyContent: 'center',
-    backgroundColor: 'rgba(255,255,255,0.5)',
-    borderWidth: StyleSheet.hairlineWidth * 2,
-    borderColor: 'rgba(255,255,255,0.7)',
+    backgroundColor: 'transparent',
   },
   cellToday: {
-    backgroundColor: 'rgba(255,255,255,0.85)',
-    borderColor: palette.mauve400,
+    backgroundColor: palette.sage,
   },
-  num: { fontFamily: 'Mulish_600SemiBold', fontSize: 14 },
+  dot: { width: 8, height: 8, borderRadius: 4 },
   // A small check drawn as a rotated corner.
   check: {
     width: 12,
