@@ -1,7 +1,8 @@
 import { Pressable, View, StyleSheet } from 'react-native';
+import { GlassCard } from './GlassCard';
 import { Caption } from './Typography';
 import { useInsets } from './use-insets';
-import { glass, palette, softShadow } from '../../theme/tokens';
+import { palette, softShadow } from '../../theme/tokens';
 import { TodayGlyph, RoutineGlyph, TrendGlyph, YouGlyph, ScanGlyph, type GlyphProps } from './tab-icons';
 
 /** Route keys for the four real tab screens (the center Scan is a separate action). */
@@ -59,7 +60,12 @@ export function GlassTabBar({ activeKey, onSelect, onScanPress }: GlassTabBarPro
   return (
     <View style={[styles.dock, { paddingBottom: insets.bottom + 10, pointerEvents: 'box-none' }]}>
       <View style={styles.stack} pointerEvents="box-none">
-        <View style={styles.pill}>
+        <GlassCard
+          intensity={42}
+          radius={24}
+          className="px-3 pt-2.5 pb-3.5 flex-row items-center"
+          style={styles.pill}
+        >
           {LEFT.map((t) => (
             <TabButton key={t.key} def={t} active={activeKey === t.key} onPress={() => onSelect(t.key)} />
           ))}
@@ -77,7 +83,7 @@ export function GlassTabBar({ activeKey, onSelect, onScanPress }: GlassTabBarPro
           {RIGHT.map((t) => (
             <TabButton key={t.key} def={t} active={activeKey === t.key} onPress={() => onSelect(t.key)} />
           ))}
-        </View>
+        </GlassCard>
 
         {/* Deliberately a sibling of the pill, not a child: GlassCard clips its blurred surface
             with overflow:'hidden', so an elevated button that protrudes from inside it gets cut
@@ -128,23 +134,7 @@ const styles = StyleSheet.create({
   // pill stays centered (not edge-to-edge) on wide/unfolded screens. `stack` is the
   // positioning context the floating Scan button anchors to.
   stack: { width: '100%', maxWidth: 460, alignSelf: 'center' },
-  // A plain clipped View rather than GlassCard: expo-blur's Android surface renders as a
-  // mis-sized white band that ignores the radius. Same fill/edge/shadow values as the glass
-  // cards, minus the BlurView — visually equivalent on Android, reliably rounded.
-  pill: {
-    width: '100%',
-    flexDirection: 'row',
-    alignItems: 'center',
-    paddingHorizontal: 12,
-    paddingTop: 10,
-    paddingBottom: 14,
-    borderRadius: 24,
-    overflow: 'hidden',
-    backgroundColor: glass.fill,
-    borderWidth: StyleSheet.hairlineWidth * 2,
-    borderColor: glass.edge,
-    ...softShadow,
-  },
+  pill: { width: '100%' },
   tab: { flex: 1, alignItems: 'center', justifyContent: 'center', gap: 3, paddingVertical: 2 },
   label: { fontSize: 10, letterSpacing: 0.2 },
   centerSlot: { width: 64, alignItems: 'center', justifyContent: 'center', gap: 3, paddingVertical: 2 },
