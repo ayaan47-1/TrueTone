@@ -2,7 +2,7 @@ import { Pressable, View, StyleSheet } from 'react-native';
 import { GlassCard } from './GlassCard';
 import { Caption } from './Typography';
 import { useInsets } from './use-insets';
-import { palette, softShadow } from '../../theme/tokens';
+import { glass, palette, softShadow } from '../../theme/tokens';
 import { TodayGlyph, RoutineGlyph, TrendGlyph, YouGlyph, ScanGlyph, type GlyphProps } from './tab-icons';
 
 /** Route keys for the four real tab screens (the center Scan is a separate action). */
@@ -134,7 +134,11 @@ const styles = StyleSheet.create({
   // pill stays centered (not edge-to-edge) on wide/unfolded screens. `stack` is the
   // positioning context the floating Scan button anchors to.
   stack: { width: '100%', maxWidth: 460, alignSelf: 'center' },
-  pill: { width: '100%' },
+  // This is the only elevated GlassCard in the app. Android builds an elevated view's shadow from
+  // its outline, and derives that outline from the background drawable — with a transparent
+  // background it falls back to a rectangle and paints a light box that ignores the radius. Giving
+  // the elevated wrapper the glass fill (and clipping it) restores the rounded outline.
+  pill: { width: '100%', backgroundColor: glass.fill, borderRadius: 24, overflow: 'hidden' },
   tab: { flex: 1, alignItems: 'center', justifyContent: 'center', gap: 3, paddingVertical: 2 },
   label: { fontSize: 10, letterSpacing: 0.2 },
   centerSlot: { width: 64, alignItems: 'center', justifyContent: 'center', gap: 3, paddingVertical: 2 },
