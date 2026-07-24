@@ -30,8 +30,11 @@ Single source for timing so values don't scatter as magic numbers.
 - `useCalm(): boolean` — wraps Reanimated's `useReducedMotion()`. `true` means "skip motion":
   entrances render at final state, presses do not scale.
 
-### 2. `src/components/ui/FadeInUp.tsx`
-`FadeInUp({ children, index = 0, style })` — on mount, animates `opacity 0→1` and
+### 2. `src/components/ui/Rise.tsx`
+Named `Rise`, not `FadeInUp`: Reanimated already exports a `FadeInUp` layout animation (which this
+wraps), so sharing the name would be a footgun at import sites.
+
+`Rise({ children, index = 0, style })` — on mount, animates `opacity 0→1` and
 `translateY ENTER_OFFSET→0` over `DURATION.base` with `EASE`, delayed by
 `min(index, STAGGER_MAX) * STAGGER_MS`.
 
@@ -47,7 +50,7 @@ Single source for timing so values don't scatter as magic numbers.
 
 ## Application
 
-- **Today / Trend / You / Routine:** wrap top-level cards and list rows in `<FadeInUp index={i}>`
+- **Today / Trend / You / Routine:** wrap top-level cards and list rows in `<Rise index={i}>`
   so content settles in on mount.
 - **`PressableScale`:** the Today mood chips, `ListRow`, and `PrimaryButton` press targets.
 - Existing layout, copy, and colors are unchanged — this pass adds motion only.
@@ -65,8 +68,8 @@ Single source for timing so values don't scatter as magic numbers.
 jest + jest-expo, `@testing-library/react-native`, colocated `__tests__`.
 
 - `motion.ts`: token values and shape.
-- `FadeInUp`: renders children; computes the expected staggered delay per `index`; caps at
-  `STAGGER_MAX`; renders final-state with reduce-motion on (mock `useReducedMotion`).
+- `Rise`: renders children at any index; attaches an entrance animation, and none under
+  reduce-motion (spy on our own `useCalm`). Delay maths is covered by `staggerDelay`'s tests.
 - `PressableScale`: forwards `onPress` and `Pressable` props; press in/out does not throw;
   reduce-motion path renders and still fires `onPress`.
 - Existing suites must stay green (the tab screens gain wrappers, so their queries must still match).
