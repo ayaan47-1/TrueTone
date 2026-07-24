@@ -54,6 +54,9 @@ export const mistGradient = {
 // Frosted-glass surface tints layered over the mesh.
 export const glass = {
   fill: 'rgba(255,255,255,0.65)',
+  // For surfaces that sit *under* a real backdrop blur (iOS), where the blur itself supplies most
+  // of the frosting — stacking the full `fill` there reads as opaque.
+  fillSoft: 'rgba(255,255,255,0.42)',
   fillStrong: 'rgba(255,255,255,0.82)',
   edge: 'rgba(255,255,255,0.80)',
   edgeSoft: 'rgba(255,255,255,0.55)',
