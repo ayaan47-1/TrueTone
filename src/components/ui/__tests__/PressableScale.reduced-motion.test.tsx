@@ -1,4 +1,4 @@
-import { render, screen, fireEvent } from '@testing-library/react-native';
+import { render, screen, fireEvent, act } from '@testing-library/react-native';
 import { Text } from 'react-native';
 import { PressableScale } from '../PressableScale';
 import * as motion from '../../../theme/motion';
@@ -20,8 +20,12 @@ describe('PressableScale with reduced motion', () => {
       </PressableScale>,
     );
     const node = screen.getByText('calm tap');
-    fireEvent(node, 'pressIn');
-    fireEvent.press(node);
+    await act(async () => {
+      fireEvent(node, 'pressIn');
+    });
+    await act(async () => {
+      fireEvent.press(node);
+    });
     expect(onPress).toHaveBeenCalledTimes(1);
   });
 });

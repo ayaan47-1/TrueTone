@@ -1,6 +1,7 @@
 import type { ReactNode } from 'react';
-import { Pressable, View, StyleSheet } from 'react-native';
+import { View, StyleSheet } from 'react-native';
 import { Body, Caption } from './Typography';
+import { PressableScale } from './PressableScale';
 import { palette } from '../../theme/tokens';
 
 interface ListRowProps {
@@ -22,7 +23,7 @@ interface ListRowProps {
  */
 export function ListRow({ label, onPress, icon, caption, hideChevron, destructive }: ListRowProps) {
   return (
-    <Pressable
+    <PressableScale
       accessibilityRole="button"
       accessibilityLabel={label}
       onPress={onPress}
@@ -34,7 +35,7 @@ export function ListRow({ label, onPress, icon, caption, hideChevron, destructiv
         {caption ? <Caption className="text-ink-muted">{caption}</Caption> : null}
       </View>
       {!hideChevron ? <View style={styles.chevron} /> : null}
-    </Pressable>
+    </PressableScale>
   );
 }
 

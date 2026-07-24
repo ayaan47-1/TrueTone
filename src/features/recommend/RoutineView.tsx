@@ -1,7 +1,7 @@
 import { useState } from 'react';
 import { Pressable, StyleSheet, View } from 'react-native';
 import type { Routine, RoutineStep } from './routine-types';
-import { Screen, GlassCard, Display, Body, Caption } from '../../components/ui';
+import { Screen, GlassCard, Display, Body, Caption, Rise, PressableScale } from '../../components/ui';
 import { palette } from '../../theme/tokens';
 
 const STEP_TINTS = ['#DCE6D7', '#EDDDCB', '#D9E5EC'] as const;
@@ -36,13 +36,16 @@ export function RoutineView({ routine, onAsk }: { routine: Routine; onAsk?: () =
   const steps = period === 'am' ? routine.am : routine.pm;
   return (
     <Screen className="px-6" topGap={24} bottomGap={120}>
-      <View className="mb-6 mt-2">
-        <Display className="text-[30px]">Your routine</Display>
-      </View>
+      <Rise>
+        <View className="mb-6 mt-2">
+          <Display className="text-[30px]">Your routine</Display>
+        </View>
+      </Rise>
 
+      <Rise index={1}>
       <View style={styles.segment}>
         {(['am', 'pm'] as const).map((value) => (
-          <Pressable
+          <PressableScale
             key={value}
             accessibilityRole="button"
             accessibilityLabel={value === 'am' ? 'Morning routine' : 'Evening routine'}
@@ -53,19 +56,25 @@ export function RoutineView({ routine, onAsk }: { routine: Routine; onAsk?: () =
             <Body className={period === value ? 'font-semibold text-ink' : 'text-ink-muted'}>
               {value === 'am' ? 'Morning' : 'Evening'}
             </Body>
-          </Pressable>
+          </PressableScale>
         ))}
       </View>
+      </Rise>
 
       <View className="mt-5">
-        {steps.map((step, index) => <Step key={`${period}-${index}`} step={step} index={index} />)}
+        {steps.map((step, index) => (
+          // Keyed by period so switching AM/PM re-runs the staggered entrance.
+          <Rise key={`${period}-${index}`} index={index + 2}>
+            <Step step={step} index={index} />
+          </Rise>
+        ))}
       </View>
 
       {routine.notes.map((n, i) => (
         <Body key={`note-${i}`} className="mt-4 px-1 font-display-italic text-ink-soft">{n}</Body>
       ))}
 
-      {onAsk ? <Pressable accessibilityRole="button" onPress={onAsk} className="mt-5 self-center px-4 py-3"><Body className="font-semibold text-sage">Why these? →</Body></Pressable> : null}
+      {onAsk ? <PressableScale accessibilityRole="button" onPress={onAsk} className="mt-5 self-center px-4 py-3"><Body className="font-semibold text-sage">Why these? →</Body></PressableScale> : null}
 
       <Caption className="mt-6 px-1 text-[11px]">
         This describes how your skin looks and suggests cosmetic habits — it is not medical advice.

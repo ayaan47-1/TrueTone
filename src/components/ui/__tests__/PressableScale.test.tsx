@@ -1,7 +1,14 @@
-import { render, screen, fireEvent } from '@testing-library/react-native';
+import { render, screen, fireEvent, act } from '@testing-library/react-native';
 import { Text } from 'react-native';
 import { PressableScale } from '../PressableScale';
-import * as motion from '../../../theme/motion';
+
+// RN's Pressability schedules internal state async, so each dispatched press event is flushed
+// inside act() — otherwise React logs overlapping-act() warnings for interleaved events.
+const flush = async (fn: () => void) => {
+  await act(async () => {
+    fn();
+  });
+};
 
 describe('PressableScale', () => {
   it('renders children and fires onPress', async () => {
@@ -11,7 +18,7 @@ describe('PressableScale', () => {
         <Text>tap me</Text>
       </PressableScale>,
     );
-    fireEvent.press(screen.getByText('tap me'));
+    await flush(() => fireEvent.press(screen.getByText('tap me')));
     expect(onPress).toHaveBeenCalledTimes(1);
   });
 
@@ -24,7 +31,7 @@ describe('PressableScale', () => {
     );
     const node = screen.getByRole('button');
     expect(node).toBeTruthy();
-    fireEvent.press(node);
+    await flush(() => fireEvent.press(node));
     expect(onPress).not.toHaveBeenCalled();
   });
 
@@ -36,11 +43,9 @@ describe('PressableScale', () => {
       </PressableScale>,
     );
     const node = screen.getByText('cycle');
-    expect(() => {
-      fireEvent(node, 'pressIn');
-      fireEvent(node, 'pressOut');
-    }).not.toThrow();
-    fireEvent.press(node);
+    await flush(() => fireEvent(node, 'pressIn'));
+    await flush(() => fireEvent(node, 'pressOut'));
+    await flush(() => fireEvent.press(node));
     expect(onPress).toHaveBeenCalledTimes(1);
   });
 });

@@ -11,6 +11,7 @@ import {
   PrimaryButton,
   SectionLabel,
   TAB_BAR_CLEARANCE,
+  Rise,
 } from '../../src/components/ui';
 import { fetchScanHistory, type Scan } from '../../src/lib/scans';
 import { AgeTrendCard } from '../../src/features/age/AgeTrendCard';
@@ -63,10 +64,12 @@ export default function TrendScreen() {
 
   return (
     <Screen className="px-6" topGap={24} bottomGap={TAB_BAR_CLEARANCE}>
-      <View className="gap-1 mt-2 mb-5">
+      <Rise>
+        <View className="gap-1 mt-2 mb-5">
         <Display className="text-[30px]">Trend</Display>
         <Body className="text-ink-muted">{history.length ? `Last ${Math.min(history.length, 4)} scans` : 'Your progress over time'}</Body>
-      </View>
+        </View>
+      </Rise>
 
       {status === 'loading' ? (
         <GlassCard className="px-6 py-8 items-center" radius={28}>
@@ -85,14 +88,18 @@ export default function TrendScreen() {
         </GlassCard>
       ) : (
         <>
-          <TrendChart />
+          <Rise index={1}>
+            <TrendChart />
+          </Rise>
 
+          <Rise index={2}>
           <SectionLabel>Check-in streak</SectionLabel>
           <View className="flex-row gap-2">
             {Array.from({ length: 7 }, (_, index) => (
               <View key={index} style={[styles.streak, index < Math.min(history.length, 7) && styles.streakOn]} />
             ))}
           </View>
+          </Rise>
 
           {history.length > 1 && history[0].routineHelpful === null ? (
             <View className="mt-6">
@@ -100,8 +107,11 @@ export default function TrendScreen() {
             </View>
           ) : null}
 
-          <AgeTrendCard history={snapshots} skinAge={skinAge} />
+          <Rise index={3}>
+            <AgeTrendCard history={snapshots} skinAge={skinAge} />
+          </Rise>
 
+          <Rise index={4}>
           <SectionLabel>Recent reads</SectionLabel>
           <GlassCard flat intensity={26} radius={24} className="px-5 py-1">
             {history.map((s, i) => (
@@ -118,6 +128,7 @@ export default function TrendScreen() {
               </View>
             ))}
           </GlassCard>
+          </Rise>
         </>
       )}
     </Screen>

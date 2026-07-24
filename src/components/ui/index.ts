@@ -11,3 +11,5 @@ export { GlassTabBar, TAB_BAR_CLEARANCE, type TabKey } from './GlassTabBar';
 export { ListRow } from './ListRow';
 export { Disclaimer } from './Disclaimer';
 export { SectionLabel } from './SectionLabel';
+export { Rise } from './Rise';
+export { PressableScale } from './PressableScale';

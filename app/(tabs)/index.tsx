@@ -1,5 +1,5 @@
 import { useCallback, useRef, useState } from 'react';
-import { View, Pressable } from 'react-native';
+import { View } from 'react-native';
 import { useRouter, useFocusEffect } from 'expo-router';
 import {
   Screen,
@@ -10,6 +10,8 @@ import {
   PrimaryButton,
   Disclaimer,
   TAB_BAR_CLEARANCE,
+  Rise,
+  PressableScale,
 } from '../../src/components/ui';
 import { fetchScanHistory, type Scan } from '../../src/lib/scans';
 import { toDateKey } from '../../src/features/today/week';
@@ -74,23 +76,32 @@ export default function TodayScreen() {
 
   return (
     <Screen className="px-6" topGap={22} bottomGap={TAB_BAR_CLEARANCE}>
-      <View className="gap-1 mt-2 mb-5">
-        <Caption className="text-[14px] text-ink-muted">{dateLabel}</Caption>
-        <Display className="text-[30px] leading-[36px]">{greeting}</Display>
-      </View>
+      <Rise>
+        <View className="gap-1 mt-2 mb-5">
+          <Caption className="text-[14px] text-ink-muted">{dateLabel}</Caption>
+          <Display className="text-[30px] leading-[36px]">{greeting}</Display>
+        </View>
+      </Rise>
 
-      <WeekStrip scanDateKeys={scanDateKeys} />
+      <Rise index={1}>
+        <WeekStrip scanDateKeys={scanDateKeys} />
+      </Rise>
 
-      <View className="mt-7">
-        <AffirmationCard />
-      </View>
+      <Rise index={2}>
+        <View className="mt-7">
+          <AffirmationCard />
+        </View>
+      </Rise>
 
-      <View className="mt-7 gap-3">
-        <Body className="font-semibold text-ink">How does your skin feel?</Body>
-        <MoodPicker value={mood} onSelect={onPickMood} />
-      </View>
+      <Rise index={3}>
+        <View className="mt-7 gap-3">
+          <Body className="font-semibold text-ink">How does your skin feel?</Body>
+          <MoodPicker value={mood} onSelect={onPickMood} />
+        </View>
+      </Rise>
 
-      <Pressable
+      <Rise index={4}>
+      <PressableScale
         accessibilityRole="button"
         accessibilityLabel="Ready for today's scan?"
         onPress={() => router.push('/scan')}
@@ -108,11 +119,13 @@ export default function TodayScreen() {
           </View>
           <Caption className="text-xl text-sage">›</Caption>
         </GlassCard>
-      </Pressable>
+      </PressableScale>
+      </Rise>
 
+      <Rise index={5}>
       <View className="mt-6">
       {latest ? (
-        <Pressable accessibilityRole="button" accessibilityLabel="Open your routine" onPress={() => router.push('/routine')}>
+        <PressableScale accessibilityRole="button" accessibilityLabel="Open your routine" onPress={() => router.push('/routine')}>
           <GlassCard flat intensity={24} radius={22} className="px-5 py-4 flex-row items-center justify-between">
             <View className="gap-0.5">
               <Body className="font-body-semibold text-ink">Your routine is ready</Body>
@@ -122,7 +135,7 @@ export default function TodayScreen() {
             </View>
             <Caption className="text-sage text-lg">›</Caption>
           </GlassCard>
-        </Pressable>
+        </PressableScale>
       ) : loadFailed ? (
         <GlassCard flat intensity={24} radius={24} className="px-5 py-5 items-center gap-4">
           <Caption className="text-center text-ink-muted">Couldn’t load your scans.</Caption>
@@ -136,8 +149,11 @@ export default function TodayScreen() {
         </GlassCard>
       )}
       </View>
+      </Rise>
 
-      <View className="mt-6"><Disclaimer /></View>
+      <Rise index={6}>
+        <View className="mt-6"><Disclaimer /></View>
+      </Rise>
     </Screen>
   );
 }
