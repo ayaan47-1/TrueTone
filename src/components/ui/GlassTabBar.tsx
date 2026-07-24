@@ -1,8 +1,8 @@
-import { Platform, Pressable, View, StyleSheet } from 'react-native';
-import { BlurView } from 'expo-blur';
+import { Pressable, View, StyleSheet } from 'react-native';
+import { GlassCard } from './GlassCard';
 import { Caption } from './Typography';
 import { useInsets } from './use-insets';
-import { glass, palette, softShadow } from '../../theme/tokens';
+import { palette, softShadow } from '../../theme/tokens';
 import { TodayGlyph, RoutineGlyph, TrendGlyph, YouGlyph, ScanGlyph, type GlyphProps } from './tab-icons';
 
 /** Route keys for the four real tab screens (the center Scan is a separate action). */
@@ -60,13 +60,12 @@ export function GlassTabBar({ activeKey, onSelect, onScanPress }: GlassTabBarPro
   return (
     <View style={[styles.dock, { paddingBottom: insets.bottom + 10, pointerEvents: 'box-none' }]}>
       <View style={styles.stack} pointerEvents="box-none">
-        <View style={styles.pill}>
-          {/* Real backdrop blur only where it composites correctly. On Android expo-blur renders a
-              flat overlay that ignores the radius, so the translucent fill below carries the glass
-              look instead — same intent, but it actually clips to the rounded corners. */}
-          {Platform.OS === 'ios' ? (
-            <BlurView intensity={42} tint="light" style={StyleSheet.absoluteFill} pointerEvents="none" />
-          ) : null}
+        <GlassCard
+          intensity={42}
+          radius={24}
+          className="px-3 pt-2.5 pb-3.5 flex-row items-center"
+          style={styles.pill}
+        >
           {LEFT.map((t) => (
             <TabButton key={t.key} def={t} active={activeKey === t.key} onPress={() => onSelect(t.key)} />
           ))}
@@ -84,10 +83,11 @@ export function GlassTabBar({ activeKey, onSelect, onScanPress }: GlassTabBarPro
           {RIGHT.map((t) => (
             <TabButton key={t.key} def={t} active={activeKey === t.key} onPress={() => onSelect(t.key)} />
           ))}
-        </View>
+        </GlassCard>
 
-        {/* Deliberately a sibling of the pill, not a child: the pill clips to its radius with
-            overflow:'hidden', so a button protruding from inside it would be cut off. */}
+        {/* Deliberately a sibling of the pill, not a child: GlassCard clips its blurred surface
+            with overflow:'hidden', so an elevated button that protrudes from inside it gets cut
+            off and (on Android) makes the surface itself render as an unclipped box. */}
         <Pressable
           accessibilityRole="button"
           accessibilityLabel="Scan"
@@ -134,25 +134,7 @@ const styles = StyleSheet.create({
   // pill stays centered (not edge-to-edge) on wide/unfolded screens. `stack` is the
   // positioning context the floating Scan button anchors to.
   stack: { width: '100%', maxWidth: 460, alignSelf: 'center' },
-  // The bar owns its surface rather than using GlassCard: it is the app's only elevated glass
-  // panel, and on Android an elevated view's shadow outline comes from its background drawable —
-  // a transparent one degrades to a rectangle. A single translucent fill on a clipped plain View
-  // gives a reliable rounded edge and one predictable alpha (stacking a fill under BlurView's own
-  // fill is what made it read as opaque).
-  pill: {
-    width: '100%',
-    flexDirection: 'row',
-    alignItems: 'center',
-    paddingHorizontal: 12,
-    paddingTop: 10,
-    paddingBottom: 14,
-    borderRadius: 24,
-    overflow: 'hidden',
-    backgroundColor: Platform.OS === 'ios' ? glass.fillSoft : glass.fill,
-    borderWidth: StyleSheet.hairlineWidth * 2,
-    borderColor: glass.edge,
-    ...softShadow,
-  },
+  pill: { width: '100%' },
   tab: { flex: 1, alignItems: 'center', justifyContent: 'center', gap: 3, paddingVertical: 2 },
   label: { fontSize: 10, letterSpacing: 0.2 },
   centerSlot: { width: 64, alignItems: 'center', justifyContent: 'center', gap: 3, paddingVertical: 2 },
