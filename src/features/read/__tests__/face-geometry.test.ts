@@ -10,6 +10,18 @@ const contoursFor = (g = { scale: 1, dx: 0, dy: 0 }) => syntheticContours(faceEl
 // what the code actually checks.
 const inside = (r: any, poly: any[]) => rectCornersInPolygon(r, poly);
 
+// Local bbox/centroid helpers for the placement-sensitivity assertions below — mirrors the
+// production box() function's min/max logic, kept separate so the test doesn't depend on an
+// unexported production helper.
+const boxOf = (poly: { x: number; y: number }[]) => {
+  const xs = poly.map((p) => p.x);
+  const ys = poly.map((p) => p.y);
+  const x = Math.min(...xs);
+  const y = Math.min(...ys);
+  return { x, y, w: Math.max(...xs) - x, h: Math.max(...ys) - y };
+};
+const centroid = (r: { x: number; y: number; w: number; h: number }) => ({ x: r.x + r.w / 2, y: r.y + r.h / 2 });
+
 describe('scaleRect', () => {
   it('is identity when the sizes match', () => {
     const r = { x: 10, y: 20, w: 30, h: 40 };
@@ -72,6 +84,76 @@ describe('regionsFromContours', () => {
   it('returns null when a required contour is missing', () => {
     const { LEFT_CHEEK, ...rest } = contoursFor();
     expect(regionsFromContours(rest as any, SIZE)).toBeNull();
+  });
+});
+
+// Every prior assertion in this file checks Y-orderings or width/height comparisons, none of
+// which are sensitive to an X shift. A mirrored L/R landmark mixup, or an off-by-one contour
+// index, could move a region sideways by a large amount and still pass all of them. These
+// centroid-based checks are X- AND Y-sensitive for every region, tight enough that a 20%-of-
+// face-width shift (~35px at this fixture's scale) fails — verified by temporarily injecting
+// exactly that shift into forehead/periocularL/infraorbitalL and confirming the relevant
+// assertions below failed, before removing the injection (see task-10-report.md fix round).
+describe('regionsFromContours - placement is X- and Y-sensitive per region', () => {
+  const TOL = 8; // px — well under a 20% face-width shift (~35px here)
+
+  it('cheeks are centred on their own cheek contour (symmetric inset preserves the centroid)', () => {
+    const c = contoursFor();
+    const r = regionsFromContours(c, SIZE)!;
+    const cl = centroid(boxOf(c.LEFT_CHEEK!));
+    const cr = centroid(boxOf(c.RIGHT_CHEEK!));
+    expect(Math.abs(centroid(r.cheekL).x - cl.x)).toBeLessThan(TOL);
+    expect(Math.abs(centroid(r.cheekL).y - cl.y)).toBeLessThan(TOL);
+    expect(Math.abs(centroid(r.cheekR).x - cr.x)).toBeLessThan(TOL);
+    expect(Math.abs(centroid(r.cheekR).y - cr.y)).toBeLessThan(TOL);
+  });
+
+  it('forehead is centred on the face horizontal midline, above the eyebrows', () => {
+    const c = contoursFor();
+    const r = regionsFromContours(c, SIZE)!;
+    const faceMid = centroid(boxOf(c.FACE!)).x;
+    const browTop = Math.min(boxOf(c.LEFT_EYEBROW_TOP!).y, boxOf(c.RIGHT_EYEBROW_TOP!).y);
+    expect(Math.abs(centroid(r.forehead).x - faceMid)).toBeLessThan(TOL);
+    expect(centroid(r.forehead).y).toBeLessThan(browTop);
+  });
+
+  it('tZone is centred on the nose bridge, spanning down to the nose', () => {
+    const c = contoursFor();
+    const r = regionsFromContours(c, SIZE)!;
+    const bridgeMid = centroid(boxOf(c.NOSE_BRIDGE!)).x;
+    const noseBBox = boxOf(c.NOSE_BOTTOM!);
+    expect(Math.abs(centroid(r.tZone).x - bridgeMid)).toBeLessThan(TOL);
+    expect(centroid(r.tZone).y).toBeLessThan(noseBBox.y + noseBBox.h);
+  });
+
+  it('infraorbital bands sit directly under their own eye (same X centroid), below it', () => {
+    const c = contoursFor();
+    const r = regionsFromContours(c, SIZE)!;
+    const eyeL = boxOf(c.LEFT_EYE!);
+    const eyeR = boxOf(c.RIGHT_EYE!);
+    expect(Math.abs(centroid(r.infraorbitalL).x - centroid(eyeL).x)).toBeLessThan(TOL);
+    expect(Math.abs(centroid(r.infraorbitalR).x - centroid(eyeR).x)).toBeLessThan(TOL);
+    expect(centroid(r.infraorbitalL).y).toBeGreaterThan(centroid(eyeL).y);
+    expect(centroid(r.infraorbitalR).y).toBeGreaterThan(centroid(eyeR).y);
+  });
+
+  it('periocular bands sit laterally offset from their own eye by a bounded amount', () => {
+    const c = contoursFor();
+    const r = regionsFromContours(c, SIZE)!;
+    const eyeL = boxOf(c.LEFT_EYE!);
+    const eyeR = boxOf(c.RIGHT_EYE!);
+    const eyeLc = centroid(eyeL);
+    const eyeRc = centroid(eyeR);
+    const pcL = centroid(r.periocularL);
+    const pcR = centroid(r.periocularR);
+    // Lateral (outward) offset from the eye's own centroid — bounded to a fraction of eye width,
+    // large enough to sit outside the eye, small enough that a face-width-scale shift is caught.
+    expect(eyeLc.x - pcL.x).toBeGreaterThan(0.2 * eyeL.w);
+    expect(eyeLc.x - pcL.x).toBeLessThan(1.2 * eyeL.w);
+    expect(pcR.x - eyeRc.x).toBeGreaterThan(0.2 * eyeR.w);
+    expect(pcR.x - eyeRc.x).toBeLessThan(1.2 * eyeR.w);
+    expect(Math.abs(pcL.y - eyeLc.y)).toBeLessThan(eyeL.h);
+    expect(Math.abs(pcR.y - eyeRc.y)).toBeLessThan(eyeR.h);
   });
 });
 
