@@ -165,24 +165,45 @@ describe('makeRng', () => {
 });
 
 describe('valueNoise2d', () => {
+  // Mean-centering and peak-normalization are GUARANTEED by the implementation, not hoped for.
+  // A coarse base lattice is only 3x3 = 9 random values, and every pixel interpolates those same
+  // nine — so without explicit centering the field carries a large arbitrary DC offset no matter
+  // how many pixels it has. In the renderer that offset would systematically brighten or darken
+  // the skin, leaking into tone.
+  const meanOf = (n: Float32Array) => n.reduce((s, v) => s + v, 0) / n.length;
+  // High-frequency energy: mean absolute difference between horizontally adjacent samples.
+  // This is what "more octaves = more detail" actually means. Global variance is NOT the right
+  // measure — adding finer octaves at halved amplitude lowers global variance while raising detail.
+  const hfEnergy = (n: Float32Array, w: number, h: number) => {
+    let s = 0, c = 0;
+    for (let y = 0; y < h; y++) for (let x = 1; x < w; x++) { s += Math.abs(n[y * w + x] - n[y * w + x - 1]); c++; }
+    return s / c;
+  };
+
   it('returns one sample per pixel', () => {
     expect(valueNoise2d(makeRng(1), 16, 8, 3)).toHaveLength(128);
   });
 
-  it('is roughly zero-mean', () => {
-    const n = valueNoise2d(makeRng(3), 64, 64, 4);
-    const mean = n.reduce((s, v) => s + v, 0) / n.length;
-    expect(Math.abs(mean)).toBeLessThan(0.1);
+  it('is zero-mean by construction', () => {
+    expect(meanOf(valueNoise2d(makeRng(3), 64, 64, 4))).toBeCloseTo(0, 5);
   });
 
-  it('produces higher local variation with more octaves', () => {
-    const varOf = (n: Float32Array) => {
-      const m = n.reduce((s, v) => s + v, 0) / n.length;
-      return n.reduce((s, v) => s + (v - m) ** 2, 0) / n.length;
-    };
-    const low = varOf(valueNoise2d(makeRng(5), 64, 64, 1));
-    const high = varOf(valueNoise2d(makeRng(5), 64, 64, 5));
-    expect(high).toBeGreaterThan(low);
+  it('is zero-mean even at a single coarse octave, where lattice bias is worst', () => {
+    expect(meanOf(valueNoise2d(makeRng(11), 64, 64, 1))).toBeCloseTo(0, 5);
+  });
+
+  it('is normalized to a peak amplitude of exactly 1', () => {
+    // The renderer applies this as `1 + noise * amplitude`, so a predictable peak is what makes
+    // the amplitude parameters mean the same thing at every octave count.
+    const n = valueNoise2d(makeRng(5), 64, 64, 4);
+    expect(Math.max(...Array.from(n).map(Math.abs))).toBeCloseTo(1, 5);
+  });
+
+  it('produces more high-frequency detail with more octaves', () => {
+    const at = (oct: number) => hfEnergy(valueNoise2d(makeRng(5), 64, 64, oct), 64, 64);
+    const [o1, o3, o5] = [at(1), at(3), at(5)];
+    expect(o3).toBeGreaterThan(o1);
+    expect(o5).toBeGreaterThan(o3);
   });
 });
 ```
@@ -241,9 +262,9 @@ export function planckianRgb(tempK: number): [number, number, number] {
 export function makeRng(seed: number): () => number {
   let s = (seed >>> 0) || 1;
   return () => {
-    // xorshift32
+    // xorshift32. Every shift is unsigned: `>>` would sign-extend once s exceeds 2^31.
     s ^= s << 13; s >>>= 0;
-    s ^= s >> 17;
+    s ^= s >>> 17;
     s ^= s << 5; s >>>= 0;
     return s / 4294967296;
   };
@@ -256,6 +277,14 @@ function lattice(rng: () => number, w: number, h: number): Float32Array {
 }
 
 // Multi-octave value noise, bilinearly interpolated from progressively finer lattices.
+//
+// The trailing centre-and-normalize step is load-bearing, not tidying:
+//   - CENTERING: the coarsest octave draws only (cells+1)^2 = 9 lattice values, and every pixel
+//     interpolates those same nine. The field's mean is therefore small-sample lattice noise —
+//     typically ±0.2 — and adding pixels does not reduce it. Uncentered, that DC offset would
+//     systematically brighten or darken rendered skin and leak into tone.
+//   - PEAK NORMALIZATION: the renderer applies this as `1 + noise * amplitude`, so pinning the
+//     peak to 1 makes an amplitude parameter mean the same thing regardless of octave count.
 export function valueNoise2d(
   rng: () => number,
   width: number,
@@ -264,7 +293,6 @@ export function valueNoise2d(
 ): Float32Array {
   const out = new Float32Array(width * height);
   let amp = 1;
-  let total = 0;
   for (let o = 0; o < octaves; o++) {
     const cells = Math.max(2, 2 << o);
     const g = lattice(rng, cells + 1, cells + 1);
@@ -282,10 +310,21 @@ export function valueNoise2d(
         out[y * width + x] += (top * (1 - ty) + bot * ty) * amp;
       }
     }
-    total += amp;
     amp *= 0.5;
   }
-  for (let i = 0; i < out.length; i++) out[i] /= total;
+
+  let mean = 0;
+  for (let i = 0; i < out.length; i++) mean += out[i];
+  mean /= out.length;
+
+  let peak = 0;
+  for (let i = 0; i < out.length; i++) {
+    out[i] -= mean;
+    const a = Math.abs(out[i]);
+    if (a > peak) peak = a;
+  }
+  if (peak > 0) for (let i = 0; i < out.length; i++) out[i] /= peak;
+
   return out;
 }
 ```
