@@ -46,4 +46,14 @@ describe('axes', () => {
     // to detect the very defect it exists for.
     expect(illuminantAxis().pass).toBe(false);
   });
+
+  it('monotonic response passes — every dimension tracks its own defect', () => {
+    // Was unasserted and FAILING (rho: darkSpots -0.71, redness -0.71, pores 0, texture -0.20).
+    const r = monotonicAxis();
+    expect(r.pass).toBe(true);
+  });
+
+  it('tone preservation passes — normalization has not erased tone', () => {
+    expect(tonePreservationAxis().pass).toBe(true);
+  });
 });

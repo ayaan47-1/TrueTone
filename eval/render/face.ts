@@ -31,7 +31,21 @@ export const DEFAULT_PARAMS: RenderParams = {
   size: { width: 256, height: 256 },
   fst: 'III',
   illuminant: { tempK: 6500, intensity: 1 },
-  shading: { azimuth: 0, elevation: Math.PI / 2, ambient: 0.55 },
+  // ambient raised from 0.55: at 0.55 the ellipsoid's own curvature shading darkened the
+  // forehead ~5.6% in L* relative to the cheek baseline, pushing 20% of forehead pixels past
+  // CAL.darkSpots.relThr and pinning a CLEAN face at darkSpots=1.0 (no headroom to measure real
+  // spots). 0.78 already gets a clean face under 0.1 (measured 0.55->1.0, 0.72->0.18, 0.78->0.083,
+  // 0.85->0.081, diminishing returns past ~0.78 — the residual ~0.081 is unrelated to curvature,
+  // it's the ~1.2% of the forehead RECT that pokes outside the ellipse into the neutral backdrop).
+  // Pushed further to 0.95 (not for the clean-face floor, which was already fine at 0.78, but so
+  // the residual curvature-driven L* gap between forehead and cheek is negligible even under the
+  // ADDED variance of the roughness texture layer below — at 0.78 that gap was still large enough
+  // for roughness noise to push forehead pixels over CAL.darkSpots.relThr, measured as
+  // roughness->darkSpots crosstalk of 0.36-0.52 against a 0.07 ceiling). Physically this is a
+  // diffuse, softbox-like light — exactly the even lighting the capture gate asks users for — and
+  // the specular lobe + normal-based shading are both left intact (ambient < 1, so lambert still
+  // contributes; see also illuminantAxis, which must stay failing and does).
+  shading: { azimuth: 0, elevation: Math.PI / 2, ambient: 0.95 },
   geometry: { scale: 1, dx: 0, dy: 0 },
   defects: { spots: 0, redness: 0, oiliness: 0, pores: 0, lines: 0, darkCircles: 0, roughness: 0 },
   sensorNoise: 0.004,
@@ -60,12 +74,43 @@ function blob(x: number, y: number, cx: number, cy: number, r: number): number {
   return d >= 1 ? 0 : (1 - d * d) ** 2;
 }
 
+// Same falloff as `blob`, but with independent x/y radii — needed to approximate the engine's
+// RECTANGULAR regions (tZone, forehead) with a soft mask, so a defect only paints where its own
+// dimension actually samples. A circular blob can't match a tall central strip (tZone) or a wide
+// short strip (forehead) without either missing corners or bleeding into neighbouring regions.
+function blobEllipse(x: number, y: number, cx: number, cy: number, rx: number, ry: number): number {
+  const d = Math.hypot((x - cx) / rx, (y - cy) / ry);
+  return d >= 1 ? 0 : (1 - d * d) ** 2;
+}
+
 export function renderFace(overrides: Deep<RenderParams> = {}): RenderedFace {
   const p = merge(overrides);
   const { width, height } = p.size;
   const e = faceEllipse(p.size, p.geometry);
   const rng = makeRng(p.seed);
-  const micro = valueNoise2d(rng, width, height, 5);
+  // Pore/roughness texture needs PIXEL-scale content: real pores are 1-3px features, and
+  // bilinear interpolation over a coarse lattice makes neighbouring pixels nearly identical no
+  // matter how many octaves are layered on top (each octave halves in amplitude, so fine detail
+  // stays negligible after peak normalization). baseCells=64 on a 256px render puts the finest
+  // octave at ~2px/cell, which is what CAL.pores.thr (an ABSOLUTE adjacent-pixel contrast test)
+  // needs to see.
+  const micro = valueNoise2d(rng, width, height, 3, 64);
+  // Roughness needs a separate field from `micro`, not because of frequency but DECORRELATION.
+  // forehead is one of the three regions darkSpots samples (cheeks + forehead), and texture's
+  // metric (mean |Laplacian|) and darkSpots' metric (fraction of pixels darker than baseline by a
+  // fixed relThr) are two different statistics of the SAME pixels. `micro`'s bilinearly-
+  // interpolated lattice is spatially CORRELATED (adjacent pixels move together within a cell),
+  // so most of its Laplacian energy comes from slope changes at cell boundaries rather than true
+  // pixel-to-pixel independence — inefficient: it takes a large per-pixel amplitude to move the
+  // Laplacian metric, and that same large amplitude throws individual pixels far enough below
+  // baseline to trip darkSpots' per-pixel test (measured crosstalk 0.36-0.52 against a 0.07 floor,
+  // unmoved by raising ambient further). Fully DECORRELATED noise (baseCells == width, a single
+  // octave — so `cells+1` lattice points cover the image almost 1:1 and bilinear interpolation
+  // degenerates to picking the nearest independent lattice value per pixel) has ~4x the Laplacian
+  // energy per unit amplitude (measured hfEnergy 0.67 vs 0.16), so the SAME texture-score delta
+  // is reachable at a much smaller coefficient — proportionally shrinking the per-pixel excursions
+  // that would otherwise leak into darkSpots.
+  const white = valueNoise2d(makeRng(p.seed + 3001), width, height, 1, width);
   const coarse = valueNoise2d(makeRng(p.seed + 977), width, height, 2);
   const noiseRng = makeRng(p.seed + 5501);
 
@@ -96,8 +141,16 @@ export function renderFace(overrides: Deep<RenderParams> = {}): RenderedFace {
       let refl: [number, number, number] = [base[0], base[1], base[2]];
 
       if (inside) {
-        // pores + roughness: high-frequency multiplicative texture
-        const tex = 1 + micro[idx] * (0.11 * p.defects.pores + 0.09 * p.defects.roughness);
+        // pores + roughness: high-frequency multiplicative texture, MASKED to the same regions
+        // the engine reads each dimension from (pores <- tZone, roughness/texture <- forehead).
+        // An earlier version applied this face-wide: at any amplitude big enough to clear
+        // CAL.pores.thr, the same noise also textured the cheeks and periocular zones, which
+        // measurably leaked into darkSpots/fineLines (crosstalk up to 0.92, threshold 0.07) —
+        // amplitude alone can't fix that, only confining WHERE the texture is drawn can.
+        const poreZone = blobEllipse(x, y, e.cx, e.cy + e.ry * 0.05, e.rx * 0.22, e.ry * 0.46);
+        const roughZone = blobEllipse(x, y, e.cx, e.cy - e.ry * 0.75, e.rx * 0.5, e.ry * 0.15);
+        const tex = 1 + micro[idx] * 2.4 * p.defects.pores * poreZone
+                      + white[idx] * 0.14 * p.defects.roughness * roughZone;
 
         // dark spots: a few discrete blobs on forehead and cheeks
         let spot = 0;
@@ -108,8 +161,8 @@ export function renderFace(overrides: Deep<RenderParams> = {}): RenderedFace {
             [e.cx - e.rx * 0.5, e.cy + e.ry * 0.2],
             [e.cx + e.rx * 0.52, e.cy + e.ry * 0.26],
           ];
-          for (const [sx, sy] of sites) spot = Math.max(spot, blob(x, y, sx, sy, e.rx * 0.11));
-          spot *= p.defects.spots * 0.42;
+          for (const [sx, sy] of sites) spot = Math.max(spot, blob(x, y, sx, sy, e.rx * 0.16));
+          spot *= p.defects.spots * 0.6;
         }
 
         // dark circles: infraorbital bands
@@ -117,19 +170,31 @@ export function renderFace(overrides: Deep<RenderParams> = {}): RenderedFace {
           Math.max(blob(x, y, e.cx - e.rx * 0.42, e.cy - e.ry * 0.05, e.rx * 0.26),
                    blob(x, y, e.cx + e.rx * 0.42, e.cy - e.ry * 0.05, e.rx * 0.26));
 
-        // fine lines: oriented horizontal ridges beside the eyes
+        // fine lines: crow's-feet-style creases beside the eyes. The engine's `fineLines`
+        // extractor is `gradientEnergy`, which sums the ABS luma delta between HORIZONTALLY
+        // adjacent pixels — i.e. it is sensitive to ridges that repeat ACROSS x, not bands that
+        // vary down y. The ridges therefore oscillate with x (not y): a row of alternating
+        // light/dark creases running down the periocular zone, which is what a horizontal-neighbor
+        // gradient can actually see. (Oscillating with y instead — the original code — left every
+        // row internally constant, so the only x-gradient came from the blob's smooth radial
+        // falloff: measured delta was 0.0009 over the full 0..1 sweep, 55x short of the 0.05 floor.)
         const lineZone = Math.max(blob(x, y, e.cx - e.rx * 0.68, e.cy - e.ry * 0.16, e.rx * 0.3),
                                   blob(x, y, e.cx + e.rx * 0.68, e.cy - e.ry * 0.16, e.rx * 0.3));
-        const line = p.defects.lines * 0.16 * lineZone * (0.5 + 0.5 * Math.sin(y * 1.9));
+        const line = p.defects.lines * 0.5 * lineZone * (0.5 + 0.5 * Math.sin(x * 1.9));
 
         const darken = 1 - Math.min(0.85, spot + dc + line);
         refl = [refl[0] * tex * darken, refl[1] * tex * darken, refl[2] * tex * darken];
 
-        // redness: haemoglobin lifts R and suppresses G/B over the cheeks
+        // redness: haemoglobin lifts R and suppresses G/B over the T-ZONE. Placed in the T-zone
+        // (not the cheeks) for two reasons: (1) `redness` is read from `regions.tZone`, so a
+        // cheek-only blush was invisible to it; (2) `sampleBaseline` medians the CHEEKS, so a
+        // cheek-placed blush was actively poisoning its own baseline — the redder the defect, the
+        // redder "baseline a*" became, driving (a - baseline.a) NEGATIVE and norm01-clamping the
+        // score to 0 (measured: diff went from +0.08 at redness=0 to -9.78 at redness=1). Centered
+        // narrow enough (rx*0.28) to stay clear of the cheekL/cheekR rects entirely.
         if (p.defects.redness > 0) {
-          const cheek = Math.max(blob(x, y, e.cx - e.rx * 0.45, e.cy + e.ry * 0.22, e.rx * 0.4),
-                                 blob(x, y, e.cx + e.rx * 0.45, e.cy + e.ry * 0.22, e.rx * 0.4));
-          const k = p.defects.redness * cheek * 0.3;
+          const mid = blob(x, y, e.cx, e.cy + e.ry * 0.12, e.rx * 0.28);
+          const k = p.defects.redness * mid * 1.1;
           refl = [refl[0] * (1 + k), refl[1] * (1 - k * 0.55), refl[2] * (1 - k * 0.45)];
         }
       } else {

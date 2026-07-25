@@ -63,3 +63,29 @@ describe('valueNoise2d', () => {
     expect(o5).toBeGreaterThan(o3);
   });
 });
+
+describe('valueNoise2d baseCells', () => {
+  const hfEnergy = (n: Float32Array, w: number, h: number) => {
+    let s = 0, c = 0;
+    for (let y = 0; y < h; y++) for (let x = 1; x < w; x++) { s += Math.abs(n[y * w + x] - n[y * w + x - 1]); c++; }
+    return s / c;
+  };
+
+  it('defaults to the previous behaviour when baseCells is omitted', () => {
+    const a = valueNoise2d(makeRng(4), 32, 32, 3);
+    const b = valueNoise2d(makeRng(4), 32, 32, 3, 2);
+    expect(Array.from(a)).toEqual(Array.from(b));
+  });
+
+  it('produces far more pixel-scale detail at a high baseCells', () => {
+    const coarse = hfEnergy(valueNoise2d(makeRng(7), 128, 128, 2, 2), 128, 128);
+    const fine = hfEnergy(valueNoise2d(makeRng(7), 128, 128, 2, 64), 128, 128);
+    expect(fine).toBeGreaterThan(coarse * 5);
+  });
+
+  it('is still zero-mean and peak-normalized at a high baseCells', () => {
+    const n = valueNoise2d(makeRng(9), 128, 128, 2, 64);
+    expect(n.reduce((s, v) => s + v, 0) / n.length).toBeCloseTo(0, 5);
+    expect(Math.max(...Array.from(n).map(Math.abs))).toBeCloseTo(1, 5);
+  });
+});

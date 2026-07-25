@@ -1,5 +1,6 @@
 import { renderFace, DEFAULT_PARAMS } from '../face';
 import { lumaAt, clampRect } from '../../../src/features/read/cv/sampling';
+import { scoreFromRgb } from '../../../src/features/read/cv/score-from-rgb';
 
 const meanLumaOf = (rgb: any, r: any) => {
   const c = clampRect(r, rgb.width, rgb.height);
@@ -88,5 +89,33 @@ describe('renderFace', () => {
       return (clean - spotted) / clean;
     };
     expect(rel('II')).toBeCloseTo(rel('V'), 2);
+  });
+});
+
+describe('renderer dynamic range (calibration)', () => {
+  // Each dimension must respond across its defect sweep WITHOUT hitting a floor or ceiling,
+  // or the invariance axes cannot measure whether a later fix improved anything.
+  const KNOB: Record<string, string> = {
+    darkSpots: 'spots', redness: 'redness', oiliness: 'oiliness',
+    pores: 'pores', fineLines: 'lines', darkCircles: 'darkCircles', texture: 'roughness',
+  };
+  const D0 = { spots: 0, redness: 0, oiliness: 0, pores: 0, lines: 0, darkCircles: 0, roughness: 0 };
+  const scoreAt = (knob: string, v: number) => {
+    const { rgb, bbox } = renderFace({ defects: { ...D0, [knob]: v } });
+    return (scoreFromRgb(rgb, bbox).scores as Record<string, number>);
+  };
+
+  it.each(Object.entries(KNOB))('%s responds to its defect without saturating', (dim, knob) => {
+    const lo = scoreAt(knob, 0)[dim];
+    const hi = scoreAt(knob, 1)[dim];
+    expect(hi - lo).toBeGreaterThan(0.05);   // real dynamic range, not noise
+    expect(lo).toBeLessThan(0.9);            // not pinned at the ceiling when clean
+    expect(hi).toBeGreaterThan(0.02);        // not dead at full defect
+  });
+
+  it('renders a clean face without spurious dark spots', () => {
+    // Ellipsoid curvature must not read as blemishes: with zero defects the score must be low.
+    const { rgb, bbox } = renderFace({ defects: D0 });
+    expect(scoreFromRgb(rgb, bbox).scores.darkSpots).toBeLessThan(0.3);
   });
 });

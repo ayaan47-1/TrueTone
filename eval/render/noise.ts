@@ -32,11 +32,12 @@ export function valueNoise2d(
   width: number,
   height: number,
   octaves: number,
+  baseCells = 2,
 ): Float32Array {
   const out = new Float32Array(width * height);
   let amp = 1;
   for (let o = 0; o < octaves; o++) {
-    const cells = Math.max(2, 2 << o);
+    const cells = Math.max(2, baseCells << o);
     const g = lattice(rng, cells + 1, cells + 1);
     for (let y = 0; y < height; y++) {
       const fy = (y / height) * cells;
