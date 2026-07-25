@@ -1,6 +1,6 @@
 // Wires the pure CV read into the fairness harness over the synthetic self-test set — no
 // device, no real faces. Real consented images are the separate, legally-gated sub-project D.
-import { scoreFromRgb } from '../../src/features/read/cv/score-from-rgb';
+import { scoreFromBbox } from '../../src/features/read/cv/score-from-rgb';
 import type { QualityReport } from '../../src/features/capture/quality-gate';
 import type { Extractor } from './run-eval';
 import type { ManifestEntry } from './manifest';
@@ -11,7 +11,7 @@ const PASS_GATE: QualityReport = { face: true, lighting: true, focus: true, dist
 
 export const cvSelfTestExtractor: Extractor = async (entry) => {
   const { rgb, bbox } = renderSelfTestFace(entry.fst);
-  return { gate: PASS_GATE, scores: scoreFromRgb(rgb, bbox).scores };
+  return { gate: PASS_GATE, scores: scoreFromBbox(rgb, bbox).scores };
 };
 
 export function buildSelfTestManifest(subjectsPerFst: number): ManifestEntry[] {

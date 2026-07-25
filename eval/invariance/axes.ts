@@ -4,7 +4,7 @@
 // NOT an accuracy measure. Passing means the pipeline is self-consistent and physically sensible;
 // it certifies nothing about real faces and licenses no claim (CLAUDE.md §1, spec §6a).
 import { renderFace } from '../render/face';
-import { scoreFromRgb } from '../../src/features/read/cv/score-from-rgb';
+import { scoreFromBbox } from '../../src/features/read/cv/score-from-rgb';
 import { DIMENSIONS, type Dimension } from '../../src/content/cosmetic-vocab';
 import { FITZPATRICK } from '../fairness/fst';
 import { INVARIANCE_THRESHOLDS, type InvarianceThresholds } from './thresholds';
@@ -14,7 +14,7 @@ type Params = Parameters<typeof renderFace>[0];
 
 function scoresFor(p: Params): Record<Dimension, number> {
   const { rgb, bbox } = renderFace(p);
-  return scoreFromRgb(rgb, bbox).scores;
+  return scoreFromBbox(rgb, bbox).scores;
 }
 
 function spread(runs: Array<Record<Dimension, number>>): Record<Dimension, number> {

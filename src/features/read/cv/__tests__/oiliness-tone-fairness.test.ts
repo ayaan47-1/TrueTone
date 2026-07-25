@@ -1,11 +1,11 @@
 import { renderFace } from '../../../../../eval/render/face';
-import { scoreFromRgb } from '../score-from-rgb';
+import { scoreFromBbox } from '../score-from-rgb';
 
 const D0 = { spots: 0, redness: 0, oiliness: 0, pores: 0, lines: 0, darkCircles: 0, roughness: 0 };
 const FST = ['I', 'II', 'III', 'IV', 'V', 'VI'] as const;
 const oilinessAt = (fst: (typeof FST)[number], v: number) => {
   const { rgb, bbox } = renderFace({ fst, defects: { ...D0, oiliness: v } });
-  return scoreFromRgb(rgb, bbox).scores.oiliness;
+  return scoreFromBbox(rgb, bbox).scores.oiliness;
 };
 
 describe('oiliness is detectable on every skin tone', () => {

@@ -5,11 +5,9 @@
 // a centered box over the middle of the working image is a reasonable first bbox. It needs no new
 // face-detection vendor (CLAUDE.md §6) and is fully pure/host-testable.
 //
-// Upgrade paths when sharper region placement is wanted (both deferred, each is a founder decision):
-//   1. Thread the capture-time detector bbox (already computed live by use-frame-metrics) through to
-//      the read, scaled to the working image — reuses the already-approved on-device detector.
-//   2. Add an on-device still-image face detector (e.g. MLKit) — a new face-data dependency that
-//      needs sign-off per CLAUDE.md §6.
+// Fallback only. The read now detects on the captured still via detect-faces-still.ts
+// (spec §3a, founder-approved 2026-07-25); this centered approximation is what the fallback
+// chain in face-geometry.ts lands on when no face is detected at all.
 import type { Rect, RgbImage } from './cv/types';
 
 const FACE_W_FRACTION = 0.7; // approximate share of the frame width a framed selfie face occupies

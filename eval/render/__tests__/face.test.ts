@@ -1,6 +1,6 @@
 import { renderFace, DEFAULT_PARAMS } from '../face';
 import { lumaAt, clampRect } from '../../../src/features/read/cv/sampling';
-import { scoreFromRgb } from '../../../src/features/read/cv/score-from-rgb';
+import { scoreFromBbox } from '../../../src/features/read/cv/score-from-rgb';
 
 const meanLumaOf = (rgb: any, r: any) => {
   const c = clampRect(r, rgb.width, rgb.height);
@@ -102,7 +102,7 @@ describe('renderer dynamic range (calibration)', () => {
   const D0 = { spots: 0, redness: 0, oiliness: 0, pores: 0, lines: 0, darkCircles: 0, roughness: 0 };
   const scoreAt = (knob: string, v: number) => {
     const { rgb, bbox } = renderFace({ defects: { ...D0, [knob]: v } });
-    return (scoreFromRgb(rgb, bbox).scores as Record<string, number>);
+    return (scoreFromBbox(rgb, bbox).scores as Record<string, number>);
   };
 
   it.each(Object.entries(KNOB))('%s responds to its defect without saturating', (dim, knob) => {
@@ -116,6 +116,6 @@ describe('renderer dynamic range (calibration)', () => {
   it('renders a clean face without spurious dark spots', () => {
     // Ellipsoid curvature must not read as blemishes: with zero defects the score must be low.
     const { rgb, bbox } = renderFace({ defects: D0 });
-    expect(scoreFromRgb(rgb, bbox).scores.darkSpots).toBeLessThan(0.3);
+    expect(scoreFromBbox(rgb, bbox).scores.darkSpots).toBeLessThan(0.3);
   });
 });
