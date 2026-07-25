@@ -50,11 +50,18 @@ function metricsForElapsed(ms: number): FrameMetrics {
   return SIM_TIMELINE[SIM_TIMELINE.length - 1][1];
 }
 
-// Real frame processors (face detector + luma) require react-native-vision-camera-worklets, which
-// is a NATIVE module — installing it needs a rebuild. Flip this to true only in a dev build that
-// has it. Until then the frame-processor hooks are skipped and the gate runs on the scripted
-// simulation, so the camera screen renders without that native dependency.
-const FRAME_PROCESSORS_INSTALLED = false;
+// Real frame processors (face detector + luma) need native modules, so they only exist in a DEV
+// BUILD — never in Expo Go. All of them are already declared in package.json and ship with
+// vision-camera v5: `useFrameOutput` is exported by react-native-vision-camera itself, backed by
+// react-native-nitro-modules + react-native-nitro-image + react-native-worklets.
+//
+// (An earlier note here named `react-native-vision-camera-worklets` as a missing prerequisite. That
+// package belongs to the v3/v4 worklets-core model and does not apply to v5 — nothing is missing.)
+//
+// When true the gate runs on the REAL camera signals; when false it falls back to SIM_TIMELINE, a
+// scripted sequence that auto-advances to "well framed" regardless of what the camera sees. Sim mode
+// is for rendering the capture screen without native modules — it must never drive a real read.
+const FRAME_PROCESSORS_INSTALLED = true;
 
 export interface UseFrameMetricsOptions {
   /** Drive metrics from the scripted simulation instead of the real on-device signals. */
@@ -72,9 +79,9 @@ export function useFrameMetrics({ simulate = !FRAME_PROCESSORS_INSTALLED }: UseF
     if (!simulate) setMetrics({ ...faceRef.current, ...lumaRef.current });
   }, [simulate]);
 
-  // FACE + LUMA come from real frame processors, which need react-native-vision-camera-worklets
-  // (native). Gate the hook calls on a module CONSTANT so React's hook order stays stable across
-  // renders despite the conditional call (the lint rule is safe to suppress here for that reason).
+  // FACE + LUMA come from real frame processors, which are native and exist only in a dev build.
+  // Gate the hook calls on a module CONSTANT so React's hook order stays stable across renders
+  // despite the conditional call (the lint rule is safe to suppress here for that reason).
   /* eslint-disable react-hooks/rules-of-hooks */
   // FACE signal -------------------------------------------------------------
   const faceOutput = FRAME_PROCESSORS_INSTALLED
