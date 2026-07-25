@@ -1796,10 +1796,31 @@ Update the `oiliness` call in `src/features/read/cv/score-from-rgb.ts` — note 
 Run: `npx jest relative-measures --verbose` → Expected: PASS (8 tests).
 Run: `npx jest src/features/read eval/ --verbose` → Expected: PASS. Existing dimension tests asserting the old absolute behaviour will fail; update **those tests' expectations** to the relative measures — the old expectations encoded the defect. Do not revert the implementation.
 
-- [ ] **Step 5: Verify the axis flipped, then commit**
+- [ ] **Step 5: Verify the three target dimensions, then commit**
 
 Run: `npm run eval:invariance`
-Expected: `illuminant` now **PASS**. Update `eval/invariance/__tests__/axes.test.ts` — the test asserting `illuminantAxis().pass === false` must now assert `true`, with its comment updated to record that Task 7 fixed it.
+
+**Corrected expectation (2026-07-25, after measurement).** An earlier draft of this plan said the
+illuminant axis would flip to PASS here. That was wrong, and the committed baseline proves it: the
+axis reports only its single *worst* dimension, and `oiliness` (0.3632) masked the fact that
+`darkSpots` (0.1115) and `redness` (0.0875) were **already** breaching their 0.08 epsilon before this
+task began.
+
+So the correct expectation for Task 7 is per-dimension, not axis-level:
+
+| dimension | before | after must be | epsilon |
+|---|---|---|---|
+| `oiliness` | 0.3632 | under bound | 0.12 |
+| `pores` | 0.0143 | under bound | 0.12 |
+| `fineLines` | 0.0208 | under bound | 0.10 |
+
+`darkSpots` and `redness` are untouched by this task — they are chromaticity- and lightness-drift
+defects, which is what **Task 12's** illuminant normalization targets. The axis-level flip to PASS is
+therefore Task 12's milestone. Do not chase it here, and do not widen scope to reach it.
+
+Update `eval/invariance/__tests__/axes.test.ts` to assert the *true* verdict plus explicit
+per-dimension epsilon checks for the three dimensions this task fixed, so the improvement is locked
+in even while the axis as a whole still fails.
 
 ```bash
 git add src/features/read/cv/ eval/reports/ eval/invariance/__tests__/axes.test.ts
@@ -2933,7 +2954,24 @@ Run: `npm test` → Expected: PASS.
 - [ ] **Step 5: Verify the axes, then commit**
 
 Run: `npm run eval:invariance`
-Expected: all four PASS, with `illuminant` spreads **lower** than the Task 7 report. Compare against the committed `eval/reports/invariance.json` before overwriting it.
+
+**This task owns the illuminant axis's flip to PASS** (reassigned from Task 7 on 2026-07-25 after
+measurement — see Task 7 Step 5). After Task 7, `oiliness`/`pores`/`fineLines` are all comfortably
+under their bounds, and the only remaining breaches are:
+
+| dimension | spread after Task 7 | epsilon |
+|---|---|---|
+| `darkSpots` | 0.1115 | 0.08 |
+| `redness` | 0.0875 | 0.08 |
+
+Both are exactly what this task addresses: `darkSpots` drifts with lightness and `redness` with
+chroma, and `normalizeIlluminant` targets both. Flip the `illuminantAxis().pass` assertion in
+`eval/invariance/__tests__/axes.test.ts` from `false` to `true` here, and record the before/after.
+
+If normalization does NOT bring both under bound, report the measured spreads rather than widening
+epsilon or altering the renderer — the bound is the contract.
+
+Compare against the committed `eval/reports/invariance.json` before overwriting it.
 
 ```bash
 git add src/features/read/cv/illuminant.ts src/features/read/cv/__tests__/illuminant.test.ts \
