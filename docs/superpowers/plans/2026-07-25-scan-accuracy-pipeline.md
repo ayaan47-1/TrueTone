@@ -1315,10 +1315,12 @@ describe('invariance report writer', () => {
     for (const r of results) expect(typeof r.pass).toBe('boolean');
   });
 
-  it('prints the axis verdicts so the run is readable in CI output', () => {
+  it('produces a report naming every axis and carrying the not-an-accuracy-claim disclaimer', () => {
+    const md = renderInvarianceMarkdown(results, stamp);
+    for (const r of results) expect(md).toContain(r.name);
+    expect(md).toMatch(/not an accuracy claim/i);
     // eslint-disable-next-line no-console
-    console.log(renderInvarianceMarkdown(results, stamp));
-    expect(true).toBe(true);
+    console.log(md); // surfaces the verdicts in CI output
   });
 });
 ```
