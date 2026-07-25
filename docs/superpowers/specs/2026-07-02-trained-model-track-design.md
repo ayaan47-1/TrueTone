@@ -66,10 +66,10 @@ Replace the heuristic classical-CV read (`CvReadEngine`, `cv-1`) with a neural m
 2. **Training-repo scaffold** — training/export/eval script skeletons pinned to the
    `[1, 12]` output contract, plus a contract test asserting any exported `.pte` matches
    `MODEL_OUTPUT_LENGTH` and the `decodeModelOutput` layout.
-3. **`decodeToRgb` device contract** — confirm the native decode+resize API (Context7:
-   vision-camera resize plugin vs executorch image util) and implement it; verifiable on a
-   physical iPhone independently of the model (it also unblocks general dev-build
-   verification). Wrong-length buffers are already caught by `normalizeToTensor`'s guard.
+3. ~~**`decodeToRgb` device contract**~~ — **DONE.** Implemented as `decodeJpegToRgb`
+   (`src/features/read/decode-rgb.ts`): pure-JS `jpeg-js` decode, EXIF-orientation corrected, and
+   area-averaged downscale to a 512 px working edge. See
+   `docs/superpowers/specs/2026-07-25-scan-accuracy-pipeline-design.md` F4/F5.
 4. **Fairness-harness adapter for `ExecutorchEngine`** — so the day a real `.pte` exists,
    validation is one command.
 

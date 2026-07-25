@@ -5,6 +5,7 @@
 import { Platform } from 'react-native';
 import type { RgbImage } from './cv/types';
 import { areaDownscale } from './cv/resample';
+import { applyOrientation, readExifOrientation } from './exif-orientation';
 
 export const WORKING_EDGE = 512;
 
@@ -65,5 +66,9 @@ export async function decodeJpegToRgb(uri: string): Promise<RgbImage> {
     height: number;
     data: Uint8Array;
   };
-  return downscaleRgba(decoded, WORKING_EDGE);
+  const upright = applyOrientation(
+    { width: decoded.width, height: decoded.height, data: new Uint8ClampedArray(decoded.data) },
+    readExifOrientation(bytes),
+  );
+  return areaDownscale(upright, WORKING_EDGE);
 }
