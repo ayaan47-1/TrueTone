@@ -3119,6 +3119,153 @@ and a tone-preservation test guards against normalizing the tone axis away."
 
 ---
 
+## Task 12b: Make darkSpots and redness exposure-invariant
+
+**Added 2026-07-25 after Task 12 measured the actual cause.** This task, not Task 12, owns the
+illuminant axis's flip to PASS.
+
+### Why Task 12 could not do it
+
+Task 12 was designed against the assumption that the illuminant axis fails because of **colour
+cast**. Measurement disproves that. Decomposing the 18-condition sweep into its two factors:
+
+| dimension | temperature-only | intensity-only | combined | epsilon |
+|---|---|---|---|---|
+| `darkSpots` | 0.0139 | **0.1069** | 0.1115 | 0.08 |
+| `redness` | 0.0083 | **0.0787** | 0.0875 | 0.08 |
+| `oiliness` | 0.0001 | 0.0533 | 0.0688 | 0.12 |
+| `pores` | 0.0051 | 0.0265 | 0.0326 | 0.12 |
+
+**~92% of the failure is exposure, not colour.** Temperature-only spread was already well under
+bound before any of this work. A chroma-ratio illuminant estimator is exposure-invariant *by
+construction*, so it structurally cannot move these numbers — which is exactly what Task 12 measured
+when it tried (`darkSpots` 0.1115 → 0.2462 wired, i.e. worse).
+
+Task 12's `illuminant.ts` remains as a tested, documented, **unwired** primitive. Its value is real
+but marginal here, and wiring it regresses the metric.
+
+### The actual defect — measuring in a perceptually-warped space
+
+Both dimensions compute a difference in CIELAB coordinates, which are nonlinear in luminance:
+
+- `darkSpots` (`cv/dimensions/darkSpots.ts`) thresholds `(baselineL - L*) / baselineL`. L\* is
+  roughly a cube root of luminance, so scaling luminance by *k* does not scale L\* by *k*. The file's
+  own comment shows the author reasoned about L\*'s nonlinearity for **tone** bias and applied a
+  relative threshold — which fixes tone but leaves exposure sensitivity untouched.
+- `redness` (`cv/dimensions/redness.ts`) uses absolute `Δa*`. Under exposure scaling both X and Y
+  scale, preserving their ratio — but `a*` applies a nonlinear transform to each *before*
+  subtracting, so the difference drifts.
+
+This is the same defect class as Task 7 (absolute → Weber-relative) and Task 7b (multiplicative L\*
+lift → chroma drop): arithmetic performed in a space where it does not mean what it appears to.
+
+### The fix — ratios of linear quantities
+
+- **`darkSpots`:** threshold on the **linear luminance ratio**, `1 - Y/Y_baseline > relThr`, where
+  `Y` is relative luminance before the sRGB transfer function is undone into L\*. Under `Y → kY`
+  both numerator and denominator scale, so the ratio is *exactly* exposure-invariant. It stays
+  baseline-relative, so tone-cancellation is preserved.
+- **`redness`:** use the log-chromaticity difference `log(R/G) - log(R/G)_baseline` instead of
+  `Δa*`. `log(R/G)` is exactly exposure-invariant because a gain cancels in the ratio. This is
+  essentially the dermatological erythema index, and it remains baseline-relative.
+
+**Interfaces:**
+- `SkinBaseline` gains the two baseline quantities these need — linear luminance and `log(R/G)` —
+  or `sampleBaseline` returns them alongside `{L, a, b}`. Keep `L`/`a`/`b`: other dimensions use them.
+- `CAL.darkSpots.relThr` and `CAL.redness.{lo,hi}` are re-ranged for the new units. Derive
+  empirically; the existing values are in the wrong units for the new measures.
+
+- [ ] **Step 1: Write the failing tests**
+
+Add to `src/features/read/cv/__tests__/relative-measures.test.ts` (or a sibling file):
+
+```ts
+describe('exposure invariance of darkSpots and redness', () => {
+  // Scaling every pixel by k simulates a brighter or darker exposure of the SAME scene.
+  const scaleImg = (img: any, k: number) => ({
+    width: img.width, height: img.height,
+    data: new Uint8ClampedArray(Array.from(img.data).map((v: any, i: number) => (i % 4 === 3 ? v : v * k))),
+  });
+
+  it('darkSpots is stable across a 2x exposure change', () => {
+    const { rgb, bbox } = renderFace({ defects: { spots: 0.5 } });
+    const dim = scoreFromBbox(scaleImg(rgb, 0.7), bbox).scores.darkSpots;
+    const bright = scoreFromBbox(scaleImg(rgb, 1.4), bbox).scores.darkSpots;
+    expect(Math.abs(bright - dim)).toBeLessThan(0.05);
+  });
+
+  it('redness is stable across a 2x exposure change', () => {
+    const { rgb, bbox } = renderFace({ defects: { redness: 0.6 } });
+    const dim = scoreFromBbox(scaleImg(rgb, 0.7), bbox).scores.redness;
+    const bright = scoreFromBbox(scaleImg(rgb, 1.4), bbox).scores.redness;
+    expect(Math.abs(bright - dim)).toBeLessThan(0.05);
+  });
+
+  it('both still respond to their own defect', () => {
+    // Exposure-invariance must not be bought by making the measure inert.
+    const at = (d: any, k: string) => {
+      const { rgb, bbox } = renderFace({ defects: d });
+      return (scoreFromBbox(rgb, bbox).scores as Record<string, number>)[k];
+    };
+    expect(at({ spots: 1 }, 'darkSpots') - at({ spots: 0 }, 'darkSpots')).toBeGreaterThan(0.1);
+    expect(at({ redness: 1 }, 'redness') - at({ redness: 0 }, 'redness')).toBeGreaterThan(0.1);
+  });
+});
+```
+
+- [ ] **Step 2: Run — confirm both invariance tests fail, and record the actual deltas**
+
+- [ ] **Step 3: Implement the linear-ratio measures**
+
+Rewrite both dimensions per the fix above, extend the baseline, and re-range `CAL`. Update the file
+comments to explain *why* linear ratios rather than CIELAB differences — the next reader needs to
+know that the perceptual space was the bug.
+
+- [ ] **Step 4: Fix the one failing test left by Task 12**
+
+`illuminant.test.ts`'s `pulls warm and cool captures closer together in chroma` currently fails and
+was deliberately left failing rather than weakened. It encodes an expectation that cannot hold: this
+renderer's illuminant and melanin axes are ~93% collinear in log-chromaticity, and the estimator
+deliberately projects out the melanin direction for fairness, so only a small orthogonal sliver of
+the cast is recoverable.
+
+**That collinearity is physically real, not a renderer artifact** — melanin absorbs short wavelengths
+so deeper skin is relatively redder, and warm light shifts chromaticity the same way. It is why
+melanin-orthogonal estimation has limited corrective power on faces.
+
+Replace the assertion with what is actually true and worth guarding: that normalization is
+**non-destructive** (does not *increase* the warm/cool chroma gap) and **tone-preserving**. Add a
+comment recording the collinearity measurement and why full convergence is unattainable under the
+fairness constraint. Do not delete the test.
+
+- [ ] **Step 5: Verify and flip the axis**
+
+`npm test` fully green (no known failures) · `npx tsc --noEmit` clean ·
+`npm run eval:invariance` → **`illuminant` PASSES**, with `darkSpots` and `redness` under 0.08.
+
+Flip `illuminantAxis().pass` in `eval/invariance/__tests__/axes.test.ts` from `false` to `true`,
+with a comment recording that Task 12b fixed it via exposure-invariance.
+
+If either dimension stays over bound, report the measured spreads rather than widening epsilon or
+touching the renderer.
+
+- [ ] **Step 6: Commit**
+
+```bash
+git add src/features/read/cv/ eval/invariance/ eval/reports/
+git commit -m "fix(read): measure darkSpots and redness in exposure-invariant ratios
+
+The illuminant axis was ~92% exposure-driven, not colour-driven: temperature-only
+spread was already under bound (darkSpots 0.014, redness 0.008) while intensity
+alone accounted for 0.107 and 0.079.
+
+Both dimensions differenced CIELAB coordinates, which are nonlinear in luminance,
+so a gain change moved them. Linear-luminance ratio and log-chromaticity difference
+are exactly invariant to a gain while staying baseline-relative, so tone still cancels."
+```
+
+---
+
 ## Task 13: Chroma metrics, head pose, and gate hardening (spec §5)
 
 **Files:**
