@@ -41,20 +41,28 @@ describe('axes', () => {
     expect(geometricAxis().pass).toBe(true);
   });
 
-  it('illuminant invariance still FAILS overall — but for a DIFFERENT reason after Task 7', () => {
+  it('illuminant invariance PASSES — Task 12b fixed the remaining darkSpots/redness breach', () => {
     // Task 7 made pores/fineLines/oiliness Weber-/baseline-relative (spec F3). That fix worked:
     // measured illuminant spreads dropped from {oiliness: 0.3632, pores: 0.0143, fineLines: 0.0208}
     // to {oiliness: 0.0396, pores: 0.0327, fineLines: 0.0080} — all comfortably under their
     // epsilons (oiliness/pores 0.12, fineLines 0.10).
     //
-    // The axis still reports FAIL because TWO dimensions outside Task 7's scope were already
-    // over their own epsilon in the pre-Task-7 baseline, just invisible because oiliness's much
-    // larger breach (0.3632) was picked as "worst": darkSpots (0.1115 vs 0.08 epsilon) and redness
-    // (0.0875 vs 0.08 epsilon) — both unchanged by this task (their dimension files were not
-    // touched). Per the runbook: do not force this to pass by touching thresholds.ts, the
-    // renderer, or out-of-scope dimensions — report it. See task-7-report.md.
+    // The axis kept reporting FAIL after Task 7 because TWO dimensions outside its scope were
+    // already over their own epsilon, just invisible because oiliness's much larger breach
+    // (0.3632) was picked as "worst": darkSpots (0.1115 vs 0.08 epsilon) and redness (0.0875 vs
+    // 0.08 epsilon). Task 12 measured that ~92% of that breach was driven by the INTENSITY
+    // (exposure) sweep, not illuminant colour — darkSpots and redness each differenced CIELAB
+    // coordinates (L*, a*), which are nonlinear in luminance, so a uniform exposure gain moved
+    // them even though nothing about the face changed. Task 12b (this task) replaced both with
+    // ratios of LINEAR quantities that are exactly gain-invariant while staying baseline-relative
+    // (darkSpots: 1 - Y/baselineY on linear relative luminance; redness: Δlog(ΣR/ΣG) on linear
+    // channel sums) — see cv/dimensions/darkSpots.ts and redness.ts. Measured illuminant-axis
+    // spreads after the fix: darkSpots 0.0307 (was 0.1115), redness 0.0742 (was 0.0875), both
+    // under the 0.08 epsilon. The axis now passes in full.
     const r = illuminantAxis();
-    expect(r.pass).toBe(false);
+    expect(r.pass).toBe(true);
+    expect(r.detail.darkSpots).toBeLessThan(INVARIANCE_THRESHOLDS.epsilon.darkSpots);
+    expect(r.detail.redness).toBeLessThan(INVARIANCE_THRESHOLDS.epsilon.redness);
     expect(r.detail.oiliness).toBeLessThan(INVARIANCE_THRESHOLDS.epsilon.oiliness);
     expect(r.detail.pores).toBeLessThan(INVARIANCE_THRESHOLDS.epsilon.pores);
     expect(r.detail.fineLines).toBeLessThan(INVARIANCE_THRESHOLDS.epsilon.fineLines);

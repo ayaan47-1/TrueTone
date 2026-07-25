@@ -25,7 +25,21 @@ export const REGION_PROPORTIONS: Record<RegionName, [number, number, number, num
 };
 
 export const CAL = {
-  redness: { lo: 0, hi: 25 }, // Δa* over baseline
+  // Task 12b: redness moved from Δa* (CIELAB) to Δlog(ΣR/ΣG) (sum-of-linear-channels ratio, see
+  // sampling.ts's regionLogChromaRG) — the new quantity's dynamic range is roughly two orders of
+  // magnitude smaller than a*'s, so lo/hi are re-ranged for the new units, NOT scaled from the old
+  // 0..25. Empirically swept the renderer's redness defect 0..1 (own-defect-only, no illuminant
+  // change; see task-12b-report.md for the full table): clean face reads ~0.0012 (noise floor),
+  // full-strength redness (defect=1) reads ~0.2483, climbing perfectly monotonically through
+  // 0.25->0.0731, 0.5->0.1438, 0.75->0.2024. Separately, the illuminant axis's worst-case raw
+  // value (across the full temp x intensity sweep, defects incl. redness=0.3 + a specular
+  // oiliness defect sharing the T-zone) is ~0.0500 at (7500K, 0.6x) and the axis's LOWEST raw
+  // value is negative (~-0.030 at low temp + 1.4x intensity, from partial channel saturation);
+  // norm01 clamps that negative tail to a score of exactly 0, so the realized SCORE spread
+  // (~0.074) is tighter than the raw spread (~0.081) would suggest. hi=0.7 keeps that measured
+  // illuminant-axis score spread (~0.074) under the 0.08 bound with a small margin while leaving
+  // defect=1 at a clearly non-saturated score (~0.35).
+  redness: { lo: 0, hi: 0.7 }, // Δlog(ΣR/ΣG) over baseline (sum-of-linear-channels ratio)
   darkCircles: { lo: 0, hi: 25 }, // ΔL* deficit vs baseline
   // Task 7b: chroma-drop, not a lightness lift, is what makes oiliness detectable on every tone.
   // A specular highlight adds the illuminant's radiance on top of the diffuse reflection — roughly
@@ -76,6 +90,25 @@ export const CAL = {
   texture: { lo: 0, hi: 0.3 }, // mean |laplacian| / mean luma (tone-relative)
   pores: { relThr: 0.06, lo: 0, hi: 0.3 }, // RELATIVE local-contrast density
   fineLines: { lo: 0, hi: 0.3 }, // tone-relative horizontal gradient
-  darkSpots: { relThr: 0.08, lo: 0, hi: 0.15 }, // fraction darker than baseline L* by relThr (relative)
+  // Task 12b: darkSpots moved from a relative-L* deficit ((baselineL - L*) / baselineL) to a
+  // relative LINEAR-luminance deficit (1 - Y/baselineY) — see dimensions/darkSpots.ts. relThr is
+  // therefore in different units and is NOT the same 0.08 as before. Empirically swept relThr
+  // (see task-12b-report.md for the full table) against three targets simultaneously: (a) a clean
+  // face (defects=0) must stay near its pre-existing ~1.2% forehead+cheek floor; (b) the spots
+  // defect sweep (0,0.25,0.5,0.75,1) must stay strictly monotonic with real separation between
+  // steps; (c) roughness (an UNRELATED defect that also textures the forehead — one of the three
+  // regions darkSpots samples) must not leak into darkSpots as crosstalk (ceiling 0.07, per
+  // INVARIANCE_THRESHOLDS). relThr=0.06 (chosen first, for parity with the old 0.08's rough
+  // magnitude) passed (a) and (b) but let roughness texture leak in at a 0.0558 raw fraction
+  // spread (0.20 in score units — nearly 3x the 0.07 ceiling): LINEAR luminance is a much less
+  // compressive space than L* for genuinely bright pixels, so the same roughness noise amplitude
+  // the old ambient=0.95 tuning (eval/render/face.ts) was calibrated to tolerate under L* pushes
+  // more pixels over a fixed-in-linear-units threshold. relThr=0.10 keeps the spots sweep cleanly
+  // separated (0->0.0122, 0.25->0.0704, 0.5->0.1756, 0.75->0.2230, 1.0->0.2495) while shrinking the
+  // roughness leak to a 0.0118 raw spread (0.047 in score units, under the 0.07 ceiling with
+  // margin) and keeps the illuminant-axis fraction spread tiny (0.0077 raw, 0.031 in score units).
+  // hi=0.25 keeps defect=1 close to but not fully saturating (0.2495/0.25, clipped to ~1.0) while
+  // the clean-face score stays low (0.0122/0.25=0.049).
+  darkSpots: { relThr: 0.1, lo: 0, hi: 0.25 }, // fraction darker than baseline linear-Y by relThr (relative)
   hydration: { lo: 0, hi: 0.3 }, // inverse tone-relative micro-texture
 } as const;

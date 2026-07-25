@@ -1,21 +1,21 @@
 {
-  "generatedAt": "2026-07-25T22:14:30.889Z",
-  "pass": false,
+  "generatedAt": "2026-07-25T23:42:51.446Z",
+  "pass": true,
   "axes": [
     {
       "name": "illuminant",
-      "pass": false,
+      "pass": true,
       "worst": {
-        "dimension": "darkSpots",
-        "value": 0.11149825783972123
+        "dimension": "redness",
+        "value": 0.07417987815761608
       },
       "detail": {
         "hydration": 0.02983190686396986,
         "oiliness": 0.06883447433629078,
         "texture": 0.0298319068639699,
         "pores": 0.03264972961942659,
-        "darkSpots": 0.11149825783972123,
-        "redness": 0.08748556746992776,
+        "darkSpots": 0.030662020905923404,
+        "redness": 0.07417987815761608,
         "fineLines": 0.008008567546025136,
         "darkCircles": 0.03375986072673584
       }
@@ -25,15 +25,15 @@
       "pass": true,
       "worst": {
         "dimension": "darkSpots",
-        "value": 0.012565288560153764
+        "value": 0.026918084306893464
       },
       "detail": {
         "hydration": 0.005570568577520141,
         "oiliness": 0.0006842819156881022,
         "texture": 0.005570568577520217,
         "pores": 0.02058177112289667,
-        "darkSpots": 0.012565288560153764,
-        "redness": 0.007450245562019758,
+        "darkSpots": 0.026918084306893464,
+        "redness": 0.009938254785162616,
         "fineLines": 0.003981846725577394,
         "darkCircles": 0.003915768906060185
       }
@@ -42,16 +42,16 @@
       "name": "monotonic",
       "pass": true,
       "worst": {
-        "dimension": "darkSpots",
+        "dimension": "oiliness",
         "value": 0.9746794344808964
       },
       "detail": {
-        "rho:darkSpots": 0.9746794344808964,
+        "rho:darkSpots": 1,
         "crosstalk:spots->hydration": 0.000011079053227169844,
         "crosstalk:spots->oiliness": 0,
         "crosstalk:spots->texture": 0.000011079053227149027,
         "crosstalk:spots->pores": 0,
-        "crosstalk:spots->redness": 0.005128911269718586,
+        "crosstalk:spots->redness": 0.000025154207034210844,
         "crosstalk:spots->fineLines": 0.0005393976474955065,
         "crosstalk:spots->darkCircles": 0,
         "rho:redness": 1,
@@ -67,7 +67,7 @@
         "crosstalk:oiliness->texture": 0.00010922885967772772,
         "crosstalk:oiliness->pores": 0,
         "crosstalk:oiliness->darkSpots": 0,
-        "crosstalk:oiliness->redness": 0.00042186639383750445,
+        "crosstalk:oiliness->redness": 0.0017821665540795897,
         "crosstalk:oiliness->fineLines": 0.00010221789198981007,
         "crosstalk:oiliness->darkCircles": 0,
         "rho:pores": 1,
@@ -75,7 +75,7 @@
         "crosstalk:pores->oiliness": 0.0029523075423825112,
         "crosstalk:pores->texture": 0,
         "crosstalk:pores->darkSpots": 0,
-        "crosstalk:pores->redness": 0.00042186639383750445,
+        "crosstalk:pores->redness": 0.0017821665540795897,
         "crosstalk:pores->fineLines": 0,
         "crosstalk:pores->darkCircles": 0,
         "rho:fineLines": 1,
@@ -92,12 +92,12 @@
         "crosstalk:darkCircles->texture": 0,
         "crosstalk:darkCircles->pores": 0,
         "crosstalk:darkCircles->darkSpots": 0,
-        "crosstalk:darkCircles->redness": 0.00011056960854254782,
+        "crosstalk:darkCircles->redness": 0.00006635167458651,
         "crosstalk:darkCircles->fineLines": 0.000679677919109738,
         "rho:texture": 1,
         "crosstalk:roughness->oiliness": 0,
         "crosstalk:roughness->pores": 0,
-        "crosstalk:roughness->darkSpots": 0,
+        "crosstalk:roughness->darkSpots": 0.04732927653820149,
         "crosstalk:roughness->redness": 0,
         "crosstalk:roughness->fineLines": 0,
         "crosstalk:roughness->darkCircles": 0

@@ -1,6 +1,6 @@
 // Pure pixel/region readers over an RGBA RgbImage. All region functions clamp to bounds.
 import type { RgbImage, Rect, Lab, SkinBaseline } from './types';
-import { srgbToLab } from './color';
+import { srgbToLab, srgbToLinear } from './color';
 
 export function clampRect(r: Rect, w: number, h: number): Rect {
   const x = Math.max(0, Math.min(Math.round(r.x), w - 1));
@@ -37,6 +37,39 @@ export function meanLab(img: RgbImage, rect: Rect): Lab {
     }
   }
   return { L: L / n, a: a / n, b: b / n };
+}
+
+// Region redness statistic: log(ΣR / ΣG) over LINEAR (gamma-decoded) channel sums — a ratio of
+// SUMS, not a mean of per-pixel log(R/G). redness (Task 12b) differences this against the
+// person's own baseline logRG.
+//
+// This is deliberately NOT "average the per-pixel log ratio", and NOT that average with clipped
+// pixels excluded/down-weighted (both were tried — see task-12b-report.md for the full sweep).
+// Averaging per-pixel logs is fragile under 8-bit channel saturation: excluding or down-weighting
+// near-255 pixels to curb EXPOSURE-driven bias changes which population the average is taken
+// over, and a stronger redness defect saturates its OWN reddest pixels first — so the same
+// exclusion that helps exposure-invariance actively suppresses the signal exactly where the
+// defect is strongest, breaking monotonicity (measured Spearman rho 0.6 against a 0.9 floor).
+// A ratio of channel SUMS degrades gracefully instead: a saturated pixel still contributes its
+// true (capped, i.e. slightly-too-low) value to the sum rather than being dropped or reweighted,
+// so growing saturation shrinks the signal smoothly rather than shifting between populations.
+// Measured: sum-of-channels gives an illuminant-axis redness spread of ~0.074 (under the 0.08
+// bound) AND a perfectly monotonic own-defect sweep (rho 1.0), where every per-pixel-averaging
+// variant tried failed one or the other.
+export function regionLogChromaRG(img: RgbImage, rect: Rect): number {
+  const r = clampRect(rect, img.width, img.height);
+  let sumR = 0;
+  let sumG = 0;
+  for (let y = r.y; y < r.y + r.h; y++) {
+    for (let x = r.x; x < r.x + r.w; x++) {
+      const [rr, gg, bb] = rgbAt(img, x, y);
+      const { R, G } = srgbToLinear(rr, gg, bb);
+      sumR += R;
+      sumG += G;
+    }
+  }
+  const EPS = 1e-6; // guards log(0) / divide-by-zero on a pure-black region; negligible otherwise
+  return Math.log((sumR + EPS) / (sumG + EPS));
 }
 
 export function median(xs: number[]): number {
