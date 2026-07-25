@@ -21,7 +21,7 @@ export function scoreFromRgb(rgb: RgbImage, bbox: Rect): ReadResult {
   const baseline = sampleBaseline(rgb, regions);
   const scores: ScoreVector = {
     hydration: hydration(rgb, regions),
-    oiliness: oiliness(rgb, regions),
+    oiliness: oiliness(rgb, regions, baseline),
     texture: texture(rgb, regions),
     pores: pores(rgb, regions),
     darkSpots: darkSpots(rgb, regions, baseline),

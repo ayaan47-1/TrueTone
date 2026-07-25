@@ -1,4 +1,5 @@
 import { spearman, illuminantAxis, geometricAxis, monotonicAxis, tonePreservationAxis, runAllAxes } from '../axes';
+import { INVARIANCE_THRESHOLDS } from '../thresholds';
 
 describe('spearman', () => {
   it('is 1 for a perfectly increasing relationship', () => {
@@ -40,11 +41,23 @@ describe('axes', () => {
     expect(geometricAxis().pass).toBe(true);
   });
 
-  it('illuminant invariance FAILS on the current engine (the defect this track fixes)', () => {
-    // pores/fineLines/oiliness use absolute thresholds (spec F3), so changing the light changes
-    // the scores. Task 7 flips this to passing; until then a pass here means the axis is too loose
-    // to detect the very defect it exists for.
-    expect(illuminantAxis().pass).toBe(false);
+  it('illuminant invariance still FAILS overall — but for a DIFFERENT reason after Task 7', () => {
+    // Task 7 made pores/fineLines/oiliness Weber-/baseline-relative (spec F3). That fix worked:
+    // measured illuminant spreads dropped from {oiliness: 0.3632, pores: 0.0143, fineLines: 0.0208}
+    // to {oiliness: 0.0396, pores: 0.0327, fineLines: 0.0080} — all comfortably under their
+    // epsilons (oiliness/pores 0.12, fineLines 0.10).
+    //
+    // The axis still reports FAIL because TWO dimensions outside Task 7's scope were already
+    // over their own epsilon in the pre-Task-7 baseline, just invisible because oiliness's much
+    // larger breach (0.3632) was picked as "worst": darkSpots (0.1115 vs 0.08 epsilon) and redness
+    // (0.0875 vs 0.08 epsilon) — both unchanged by this task (their dimension files were not
+    // touched). Per the runbook: do not force this to pass by touching thresholds.ts, the
+    // renderer, or out-of-scope dimensions — report it. See task-7-report.md.
+    const r = illuminantAxis();
+    expect(r.pass).toBe(false);
+    expect(r.detail.oiliness).toBeLessThan(INVARIANCE_THRESHOLDS.epsilon.oiliness);
+    expect(r.detail.pores).toBeLessThan(INVARIANCE_THRESHOLDS.epsilon.pores);
+    expect(r.detail.fineLines).toBeLessThan(INVARIANCE_THRESHOLDS.epsilon.fineLines);
   });
 
   it('monotonic response passes — every dimension tracks its own defect', () => {

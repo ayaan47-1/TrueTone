@@ -113,3 +113,54 @@ export function localContrastDensity(img: RgbImage, rect: Rect, thr: number): nu
   }
   return n ? count / n : 0;
 }
+
+// Weber-relative contrast density: |luma - localMean| / localMean, so the threshold means "this
+// pixel differs from its neighbours by X PERCENT" rather than "by X absolute luma". The absolute
+// form under-detects on deep tones and over-detects on bright exposures (spec F3).
+export function relativeContrastDensity(img: RgbImage, rect: Rect, relThr: number): number {
+  const r = clampRect(rect, img.width, img.height);
+  let count = 0;
+  let n = 0;
+  for (let y = r.y + 1; y < r.y + r.h - 1; y++) {
+    for (let x = r.x + 1; x < r.x + r.w - 1; x++) {
+      const localMean =
+        (lumaAt(img, x - 1, y) + lumaAt(img, x + 1, y) + lumaAt(img, x, y - 1) + lumaAt(img, x, y + 1)) / 4;
+      if (localMean > 0 && Math.abs(lumaAt(img, x, y) - localMean) / localMean > relThr) count++;
+      n++;
+    }
+  }
+  return n ? count / n : 0;
+}
+
+// Mean horizontal gradient divided by mean luma — same Weber normalization as microContrast.
+export function relativeGradientEnergy(img: RgbImage, rect: Rect): number {
+  const lum = meanLuma(img, rect);
+  return lum > 0 ? gradientEnergy(img, rect) / lum : 0;
+}
+
+// Specular highlight fraction relative to the person's own skin baseline L*, not an absolute luma.
+// A highlight is a large RELATIVE lift above baseline lightness AND near-neutral in saturation
+// (specular reflection carries the illuminant's colour, not the skin's).
+export function specularFraction(
+  img: RgbImage,
+  rect: Rect,
+  baselineL: number,
+  relLift: number,
+  satThr: number,
+): number {
+  const r = clampRect(rect, img.width, img.height);
+  const floorL = baselineL * (1 + relLift);
+  let hi = 0;
+  let n = 0;
+  for (let y = r.y; y < r.y + r.h; y++) {
+    for (let x = r.x; x < r.x + r.w; x++) {
+      const [R, G, B] = rgbAt(img, x, y);
+      const mx = Math.max(R, G, B);
+      const mn = Math.min(R, G, B);
+      const sat = mx === 0 ? 0 : (mx - mn) / mx;
+      if (srgbToLab(R, G, B).L > floorL && sat < satThr) hi++;
+      n++;
+    }
+  }
+  return n ? hi / n : 0;
+}
