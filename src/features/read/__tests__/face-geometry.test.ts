@@ -56,6 +56,12 @@ describe('regionsFromContours', () => {
     expect(r.tZone.x + r.tZone.w).toBeLessThanOrEqual(r.cheekR.x + 1);
   });
 
+  it('keeps periocular from overlapping infraorbital vertically (both fed to different dimensions)', () => {
+    const r = regionsFromContours(contoursFor(), SIZE)!;
+    expect(r.periocularL.y + r.periocularL.h).toBeLessThanOrEqual(r.infraorbitalL.y + 1);
+    expect(r.periocularR.y + r.periocularR.h).toBeLessThanOrEqual(r.infraorbitalR.y + 1);
+  });
+
   it('tracks a shifted, smaller face', () => {
     const wide = regionsFromContours(contoursFor(), SIZE)!;
     const small = regionsFromContours(contoursFor({ scale: 0.6, dx: 0.1, dy: 0 }), SIZE)!;

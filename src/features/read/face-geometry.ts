@@ -143,9 +143,14 @@ export function regionsFromContours(
     infraorbitalR: { x: eyeR.x, y: eyeR.y + eyeR.h, w: eyeR.w, h: Math.max(2, cheekR.y - (eyeR.y + eyeR.h)) },
     // Above the brows, clipped to the FACE polygon.
     forehead: { x: face.x + face.w * 0.22, y: foreheadTop, w: face.w * 0.56, h: Math.max(2, browTop - foreheadTop) },
-    // Outer margin of each eye — where crow's feet sit.
-    periocularL: { x: eyeL.x - eyeL.w * 0.5, y: eyeL.y - eyeL.h * 0.6, w: eyeL.w * 0.75, h: eyeL.h * 2.4 },
-    periocularR: { x: eyeR.x + eyeR.w * 0.75, y: eyeR.y - eyeR.h * 0.6, w: eyeR.w * 0.75, h: eyeR.h * 2.4 },
+    // Outer margin of each eye — where crow's feet sit. Height is capped at 1.4x the eye height
+    // (vs. an eye that starts 0.6x above eye-top) so periocular's bottom edge stays at
+    // eyeL.y + 0.8*eyeL.h — short of infraorbital's top at eyeL.y + 1.0*eyeL.h, leaving a
+    // 0.2*eyeL.h margin. Crow's feet are lateral to the eye, so capping vertical reach costs
+    // nothing anatomically; the alternative (2.4x) reached eyeL.y + 1.8*eyeL.h, deep into the
+    // infraorbital band (measured: 84px^2 / 17.6% of infraorbitalL's area on the standard fixture).
+    periocularL: { x: eyeL.x - eyeL.w * 0.5, y: eyeL.y - eyeL.h * 0.6, w: eyeL.w * 0.75, h: eyeL.h * 1.4 },
+    periocularR: { x: eyeR.x + eyeR.w * 0.75, y: eyeR.y - eyeR.h * 0.6, w: eyeR.w * 0.75, h: eyeR.h * 1.4 },
     // Nose bridge through nose bottom, widened — plus the forehead strip above it.
     tZone: {
       x: bridge.x - bridge.w * 0.6,
