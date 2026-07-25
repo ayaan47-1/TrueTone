@@ -42,6 +42,75 @@ const inset = (r: Rect, k: number): Rect => ({
   x: r.x + r.w * k, y: r.y + r.h * k, w: r.w * (1 - 2 * k), h: r.h * (1 - 2 * k),
 });
 
+// Standard ray-casting point-in-polygon test. A face outline narrows toward the hairline, so its
+// bounding box is a poor stand-in for containment — a rect can sit inside the box and still be
+// outside the actual face (sampling hair/background). This tests the real polygon.
+export function pointInPolygon(pt: Point, poly: Point[]): boolean {
+  let inside = false;
+  for (let i = 0, j = poly.length - 1; i < poly.length; j = i++) {
+    const xi = poly[i].x;
+    const yi = poly[i].y;
+    const xj = poly[j].x;
+    const yj = poly[j].y;
+    const crosses = yi > pt.y !== yj > pt.y && pt.x < ((xj - xi) * (pt.y - yi)) / (yj - yi) + xi;
+    if (crosses) inside = !inside;
+  }
+  return inside;
+}
+
+// The FACE contour is convex-ish (an oval), so all four corners of a rect lying inside it is a
+// sufficient condition for the whole rect lying inside it.
+export function rectCornersInPolygon(r: Rect, poly: Point[]): boolean {
+  const corners: Point[] = [
+    { x: r.x, y: r.y },
+    { x: r.x + r.w, y: r.y },
+    { x: r.x, y: r.y + r.h },
+    { x: r.x + r.w, y: r.y + r.h },
+  ];
+  return corners.every((pt) => pointInPolygon(pt, poly));
+}
+
+// Horizontal extent of `poly` at height `y`, via scanline: intersect every edge crossing y and
+// take the min/max x. Returns null if y falls outside the polygon's vertical extent entirely.
+function xRangeAtY(poly: Point[], y: number): { min: number; max: number } | null {
+  const xs: number[] = [];
+  for (let i = 0, j = poly.length - 1; i < poly.length; j = i++) {
+    const yi = poly[i].y;
+    const yj = poly[j].y;
+    if ((yi <= y && yj > y) || (yj <= y && yi > y)) {
+      const t = (y - yi) / (yj - yi);
+      xs.push(poly[i].x + t * (poly[j].x - poly[i].x));
+    }
+  }
+  return xs.length ? { min: Math.min(...xs), max: Math.max(...xs) } : null;
+}
+
+const FIT_MARGIN_PX = 1;
+
+// Shrinks r horizontally so all four corners sit inside `poly`. Samples the polygon's x-extent at
+// several heights spanning the rect and takes the tightest (intersection) band — this is what
+// makes a region that starts too wide near a narrowing hairline shrink to fit, rather than being
+// waved through on a bounding-box check. Returns null if the rect's height range falls outside the
+// polygon, or the fitted band would be degenerate (a region that genuinely cannot fit).
+function fitRectXToPolygon(r: Rect, poly: Point[]): Rect | null {
+  const samples = [r.y, r.y + r.h * 0.25, r.y + r.h * 0.5, r.y + r.h * 0.75, r.y + r.h];
+  let left = -Infinity;
+  let right = Infinity;
+  for (const y of samples) {
+    const range = xRangeAtY(poly, y);
+    if (!range) return null;
+    left = Math.max(left, range.min);
+    right = Math.min(right, range.max);
+  }
+  left += FIT_MARGIN_PX;
+  right -= FIT_MARGIN_PX;
+  if (right - left < 2) return null;
+  const x = Math.max(r.x, left);
+  const w = Math.min(r.x + r.w, right) - x;
+  if (w < 2) return null;
+  return { ...r, x, w };
+}
+
 const REQUIRED: Array<keyof FaceContours> = [
   'FACE', 'LEFT_CHEEK', 'RIGHT_CHEEK', 'LEFT_EYE', 'RIGHT_EYE',
   'LEFT_EYEBROW_TOP', 'RIGHT_EYEBROW_TOP', 'NOSE_BRIDGE', 'NOSE_BOTTOM',
@@ -86,16 +155,27 @@ export function regionsFromContours(
     },
   };
 
+  // Fit each rect's horizontal extent to the real FACE polygon before clamping to image bounds —
+  // a fixed-fraction rect (e.g. forehead, tZone) can be wider than the face is at that height
+  // near the hairline, and this is what shrinks it back to something that samples only face.
+  const facePoly = c.FACE as Point[];
+  const fitted: Partial<Record<RegionName, Rect>> = {};
+  for (const n of REGION_NAMES) {
+    const f = fitRectXToPolygon(raw[n], facePoly);
+    if (!f) return null;
+    fitted[n] = f;
+  }
+
   const out = Object.fromEntries(
-    REGION_NAMES.map((n) => [n, clampRect(raw[n], size.width, size.height)]),
+    REGION_NAMES.map((n) => [n, clampRect(fitted[n]!, size.width, size.height)]),
   ) as Regions;
 
-  // Validity: every region must be non-degenerate and sit inside the FACE polygon's bounds.
+  // Validity: every region must be non-degenerate and have all four corners inside the real FACE
+  // polygon — not just its bounding box, which a narrowing hairline makes an unsafe stand-in.
   for (const n of REGION_NAMES) {
     const r = out[n];
     if (r.w < 2 || r.h < 2) return null;
-    if (r.x < face.x - 1 || r.y < face.y - 1) return null;
-    if (r.x + r.w > face.x + face.w + 1 || r.y + r.h > face.y + face.h + 1) return null;
+    if (!rectCornersInPolygon(r, facePoly)) return null;
   }
   return out;
 }

@@ -1,14 +1,14 @@
-import { scaleRect, regionsFromContours, deriveRegionsForFace } from '../face-geometry';
+import { scaleRect, regionsFromContours, deriveRegionsForFace, rectCornersInPolygon } from '../face-geometry';
 import { faceEllipse, syntheticContours } from '../../../../eval/render/geometry';
 import { REGION_NAMES } from '../cv/types';
 
 const SIZE = { width: 256, height: 256 };
 const contoursFor = (g = { scale: 1, dx: 0, dy: 0 }) => syntheticContours(faceEllipse(SIZE, g));
-const inside = (r: any, poly: any[]) => {
-  const xs = poly.map((p) => p.x), ys = poly.map((p) => p.y);
-  return r.x >= Math.min(...xs) - 1 && r.x + r.w <= Math.max(...xs) + 1 &&
-         r.y >= Math.min(...ys) - 1 && r.y + r.h <= Math.max(...ys) + 1;
-};
+// Real point-in-polygon containment (all four corners), not a bounding-box approximation — a
+// face narrows toward the hairline, so the bbox is not a safe stand-in for the polygon. Reuses
+// the exact same implementation the production validity guard uses, so the test can't drift from
+// what the code actually checks.
+const inside = (r: any, poly: any[]) => rectCornersInPolygon(r, poly);
 
 describe('scaleRect', () => {
   it('is identity when the sizes match', () => {
