@@ -4,6 +4,7 @@
 // (CLAUDE.md §1, §3). jpeg-js is a pure-function codec (no network, no SDK/vendor that exfiltrates).
 import { Platform } from 'react-native';
 import type { RgbImage } from './cv/types';
+import { areaDownscale } from './cv/resample';
 
 export const WORKING_EDGE = 512;
 
@@ -35,30 +36,8 @@ export function base64ToBytes(b64: string): Uint8Array {
   return out.subarray(0, oi);
 }
 
-// Pure nearest-neighbour downscale of an RGBA buffer to a target longest edge. Upscaling is never
-// done (scale is clamped to 1) — the working image is at most WORKING_EDGE on its long side.
-export function downscaleRgba(
-  src: { width: number; height: number; data: Uint8Array | Uint8ClampedArray },
-  edge: number,
-): RgbImage {
-  const scale = Math.min(1, edge / Math.max(src.width, src.height));
-  const w = Math.max(1, Math.round(src.width * scale));
-  const h = Math.max(1, Math.round(src.height * scale));
-  const data = new Uint8ClampedArray(w * h * 4);
-  for (let y = 0; y < h; y++) {
-    const sy = Math.min(src.height - 1, Math.floor(y / scale));
-    for (let x = 0; x < w; x++) {
-      const sx = Math.min(src.width - 1, Math.floor(x / scale));
-      const si = (sy * src.width + sx) * 4;
-      const di = (y * w + x) * 4;
-      data[di] = src.data[si];
-      data[di + 1] = src.data[si + 1];
-      data[di + 2] = src.data[si + 2];
-      data[di + 3] = src.data[si + 3];
-    }
-  }
-  return { width: w, height: h, data };
-}
+// Retained as a named export for existing call sites; area-averaged since 2026-07-25 (spec F4).
+export const downscaleRgba = areaDownscale;
 
 // DEVICE: reads the captured JPEG and decodes it to a fixed working-size RGBA RgbImage.
 // Web preview has no native file read → throw so the __DEV__ stub fallback in run-read takes over.
