@@ -39,8 +39,15 @@ Each is a verified fact about `main` as of 2026-07-25, not an assumption.
 `src/features/capture/use-frame-metrics.ts:57` sets `FRAME_PROCESSORS_INSTALLED = false`, and
 `useFrameMetrics` defaults to `simulate: !FRAME_PROCESSORS_INSTALLED`. Both real signals — the
 `react-native-vision-camera-face-detector` output and the luma worklet — are switched off. The
-quality gate currently runs on `SIM_TIMELINE`, a scripted three-step sequence. It needs
-`react-native-vision-camera-worklets` (a native module) installed in a dev build.
+quality gate currently runs on `SIM_TIMELINE`, a scripted three-step sequence.
+
+**No missing package blocks this.** The in-file comment (`use-frame-metrics.ts:53-56`) says the real
+frame processors need `react-native-vision-camera-worklets`; that is stale, describing the
+vision-camera v3/v4 `worklets-core` model. On the installed v5.0.11, `useFrameOutput` is exported by
+vision-camera itself, and every native dependency it requires is already in `package.json`:
+`react-native-nitro-modules`, `react-native-nitro-image`, `react-native-worklets`. Enabling the real
+signals is a flag flip plus a fresh dev build — the rebuild is required because these are native
+modules, not because anything must be added. The stale comment should be corrected in the same change.
 
 **Everything else in this spec depends on turning this on first.**
 
@@ -376,8 +383,9 @@ maintained.
 
 ## 9. Sequencing
 
-1. **Enable the real signals** (F1) — install `react-native-vision-camera-worklets`, flip
-   `FRAME_PROCESSORS_INSTALLED`, re-tune `THRESHOLDS` and `SHARPNESS_SCALE` on the Fold 7. *(device)*
+1. **Enable the real signals** (F1) — flip `FRAME_PROCESSORS_INSTALLED`, correct the stale comment,
+   rebuild, then re-tune `THRESHOLDS` and `SHARPNESS_SCALE` on the Fold 7. No package install.
+   *(device)*
 2. **Renderer + the four axes** (§6) — build the instrument before changing what it measures, so
    every subsequent step has a documented delta.
 3. **Relative dimensions** (4a) — the biggest win, pure, immediately measurable on the new axes.
