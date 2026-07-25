@@ -3628,6 +3628,83 @@ than averaging a bad scan into the personal baseline."
 
 ---
 
+## Task 14b: Make the monotonic axis measure monotonicity, not tie counts
+
+**Added 2026-07-25 after Task 7b's review.** Run this after Task 14 and before the final review. It
+depends on nothing and blocks nothing, but it determines whether one of the four axes is measuring
+what it claims.
+
+**Files:**
+- Modify: `eval/invariance/axes.ts` (the `levels` array in `monotonicAxis`)
+- Test: `eval/invariance/__tests__/axes.test.ts`
+
+### The problem
+
+`monotonicAxis` sweeps each defect at 5 levels: `[0, 0.25, 0.5, 0.75, 1]`. Against a sharply-peaked
+specular lobe (`ndh^28` in the renderer), a threshold-based detector produces a run of exact zeros at
+the low end, and Spearman's ρ then becomes a function of the **tie count** rather than of curve shape.
+Reconstructed values for `oiliness` at FST III:
+
+| gate | raw values across the sweep | zero-ties | ρ |
+|---|---|---|---|
+| hard cutoff | `[0, 0, 0, 0.0116, 0.0441]` | 3 | 0.8944 (= 2/√5, exactly) |
+| smooth ramp (shipped) | `[0, 0, 0.0012, 0.055, 0.170]` | 2 | 0.9747 (exactly) |
+
+Both values are algebraic consequences of the tie pattern. The 0.9 floor therefore currently
+partitions "3 ties" from "2 ties" — it does not measure how monotonically a dimension responds. A
+detector could pass by shedding one tie and fail despite a smooth underlying curve.
+
+This also means Task 7b's `chromaDrop`/`lift` band widths are tuned against *this specific sweep
+density*. If the sweep changes, that calibration must be re-verified rather than assumed durable.
+
+- [ ] **Step 1: Raise the sweep density and record what changes**
+
+In `monotonicAxis`, change `levels` from 5 points to a denser sweep — 11 evenly spaced points
+(`0, 0.1, … 1.0`) is a reasonable starting choice. Before changing anything, record the current ρ for
+every tracked dimension so you have a before/after.
+
+Note the cost: the monotonic axis renders `levels.length` images per dimension, so 5 → 11 roughly
+doubles that axis's runtime. Measure it. If the suite becomes impractically slow (say, beyond a few
+minutes), report the timing and use the densest sweep that stays practical rather than silently
+reverting to 5.
+
+- [ ] **Step 2: Re-measure and judge**
+
+Run `npm run eval:invariance` and record ρ per dimension at the new density.
+
+Two outcomes, both acceptable — report which one you got:
+
+- **ρ for `oiliness` stays comfortably above 0.9.** The monotonic response is real and the Task 7b
+  calibration is durable. Say so, with the numbers.
+- **ρ for `oiliness` drops below 0.9.** Then the previous pass WAS a tie artifact, and the smooth gate
+  does not produce a genuinely monotonic response. **Do not fix this by reverting the sweep or
+  lowering the floor.** Report it — it means `oiliness` needs a detector that responds continuously at
+  low shine levels, which is a design question for the plan owner, not a tuning exercise.
+
+- [ ] **Step 3: Add a test that pins the finding**
+
+Whichever outcome you get, assert it. If ρ is healthy, assert `monotonicAxis().pass === true` still
+holds at the new density and add a comment recording that the density was raised specifically to
+defeat tie-count sensitivity. If ρ is not healthy, leave the axis honest — assert the true verdict and
+document why, exactly as earlier tasks in this plan did rather than forcing a green.
+
+- [ ] **Step 4: Verify and commit**
+
+`npx jest eval/invariance --testTimeout=300000` · `npm test` · `npx tsc --noEmit` clean. Commit the
+regenerated `eval/reports/invariance.{md,json}`.
+
+```bash
+git add eval/invariance/ eval/reports/
+git commit -m "test(eval): denser monotonic sweep so rho measures shape, not tie count
+
+At 5 sample points a threshold detector against a peaked specular lobe produces a
+run of exact zeros, and Spearman's rho becomes a function of how many ties there
+are: 3 ties gives exactly 2/sqrt(5)=0.8944, 2 ties gives exactly 0.9747. The 0.9
+floor was partitioning tie counts rather than measuring monotonic response."
+```
+
+---
+
 ## Task 15: Device verification (dev overlay + on-device tuning)
 
 **Files:**
