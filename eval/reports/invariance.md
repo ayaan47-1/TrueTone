@@ -1,4 +1,4 @@
-# Invariance eval — 2026-07-25T19:15:55.326Z
+# Invariance eval — 2026-07-25T19:29:55.226Z
 
 > Synthetic harness. Measures self-consistency of the pipeline under simulated lighting,
 > geometry and defect sweeps. It is **not an accuracy claim** and is not validation data on
