@@ -199,4 +199,30 @@ describe('deriveRegionsForFace', () => {
       }
     }
   });
+
+  // Regression pin: fitRectXToPolygon fits a rect in sub-pixel space, but clampRect used to round
+  // x/y/w/h to integers independently (Math.round on each), which can round an edge outward by up
+  // to 0.5px and push a corner that legitimately passed containment back outside the polygon —
+  // silently dropping a valid contour-based face to the coarser 'bounds' rung. Sweep a grid of
+  // scales and offsets (the same shape the reviewer used: 9 scales x 6 dx x 6 dy = 324 combos) and
+  // assert every one stays on the 'contours' rung. Before the inward-rounding fix this failed 16/324
+  // times (4.9%), always on forehead; see task-10-report.md fix-round-2 for the measurement.
+  it('never spuriously drops from contours to bounds due to rounding, across a scale/offset sweep', () => {
+    const scales = Array.from({ length: 9 }, (_, i) => 0.5 + (i * (1.4 - 0.5)) / 8);
+    const offsets = Array.from({ length: 6 }, (_, i) => -0.15 + (i * 0.3) / 5);
+    let total = 0;
+    let dropped = 0;
+    for (const scale of scales) {
+      for (const dx of offsets) {
+        for (const dy of offsets) {
+          total++;
+          const contours = syntheticContours(faceEllipse(SIZE, { scale, dx, dy }));
+          const out = deriveRegionsForFace({ bounds, contours }, SIZE);
+          if (out.source !== 'contours') dropped++;
+        }
+      }
+    }
+    expect(total).toBe(324);
+    expect(dropped).toBe(0);
+  });
 });

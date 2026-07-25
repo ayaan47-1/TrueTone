@@ -111,6 +111,20 @@ function fitRectXToPolygon(r: Rect, poly: Point[]): Rect | null {
   return { ...r, x, w };
 }
 
+// Rounds a sub-pixel rect to integer coordinates WITHOUT ever growing it: left/top round up
+// (Math.ceil), right/bottom round down (Math.floor), so the integer rect is always a subset of
+// the float one. `clampRect` rounds x/y/w/h independently via Math.round, which can round each
+// edge outward by up to 0.5px and push a corner that legitimately passed rectCornersInPolygon
+// back outside the polygon after rounding — this is what fitRectXToPolygon's fitted (but still
+// fractional) rect must go through before it ever reaches clampRect.
+function roundRectInward(r: Rect): Rect {
+  const left = Math.ceil(r.x);
+  const top = Math.ceil(r.y);
+  const right = Math.floor(r.x + r.w);
+  const bottom = Math.floor(r.y + r.h);
+  return { x: left, y: top, w: right - left, h: bottom - top };
+}
+
 const REQUIRED: Array<keyof FaceContours> = [
   'FACE', 'LEFT_CHEEK', 'RIGHT_CHEEK', 'LEFT_EYE', 'RIGHT_EYE',
   'LEFT_EYEBROW_TOP', 'RIGHT_EYEBROW_TOP', 'NOSE_BRIDGE', 'NOSE_BOTTOM',
@@ -174,7 +188,12 @@ export function regionsFromContours(
   for (const n of REGION_NAMES) {
     const f = fitRectXToPolygon(raw[n], facePoly);
     if (!f) return null;
-    fitted[n] = f;
+    // Round inward here, before clampRect, so clampRect's independent Math.round on x/y/w/h
+    // (which can round an edge outward) never gets a chance to expand a rect past the polygon
+    // it was just fitted to.
+    const rounded = roundRectInward(f);
+    if (rounded.w < 2 || rounded.h < 2) return null;
+    fitted[n] = rounded;
   }
 
   const out = Object.fromEntries(
