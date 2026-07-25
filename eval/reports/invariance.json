@@ -1,5 +1,5 @@
 {
-  "generatedAt": "2026-07-25T19:29:55.226Z",
+  "generatedAt": "2026-07-25T20:35:58.702Z",
   "pass": false,
   "axes": [
     {
@@ -11,7 +11,7 @@
       },
       "detail": {
         "hydration": 0.02983190686396986,
-        "oiliness": 0.039603960396039604,
+        "oiliness": 0.06883447433629078,
         "texture": 0.0298319068639699,
         "pores": 0.03264972961942659,
         "darkSpots": 0.11149825783972123,
@@ -29,7 +29,7 @@
       },
       "detail": {
         "hydration": 0.005570568577520141,
-        "oiliness": 0.030595484797649203,
+        "oiliness": 0.0006842819156881022,
         "texture": 0.005570568577520217,
         "pores": 0.02058177112289667,
         "darkSpots": 0.012565288560153764,
@@ -72,7 +72,7 @@
         "crosstalk:oiliness->darkCircles": 0,
         "rho:pores": 1,
         "crosstalk:pores->hydration": 0,
-        "crosstalk:pores->oiliness": 0.030551626591230552,
+        "crosstalk:pores->oiliness": 0.0029523075423825112,
         "crosstalk:pores->texture": 0,
         "crosstalk:pores->darkSpots": 0,
         "crosstalk:pores->redness": 0.00042186639383750445,

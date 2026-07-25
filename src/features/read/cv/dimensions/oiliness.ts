@@ -6,6 +6,6 @@ import { specularFraction } from '../sampling';
 import { norm01, CAL } from '../calibration';
 
 export function oiliness(img: RgbImage, regions: Regions, baseline: SkinBaseline): number {
-  const f = specularFraction(img, regions.tZone, baseline.L, CAL.oiliness.relLift, CAL.oiliness.satThr);
+  const f = specularFraction(img, regions.tZone, baseline, CAL.oiliness.chromaDrop, CAL.oiliness.lift);
   return norm01(f, CAL.oiliness.lo, CAL.oiliness.hi);
 }

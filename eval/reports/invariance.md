@@ -1,4 +1,4 @@
-# Invariance eval — 2026-07-25T19:29:55.226Z
+# Invariance eval — 2026-07-25T20:35:58.702Z
 
 > Synthetic harness. Measures self-consistency of the pipeline under simulated lighting,
 > geometry and defect sweeps. It is **not an accuracy claim** and is not validation data on
@@ -9,7 +9,7 @@ Overall: FAIL
 ## illuminant — FAIL
 - worst: darkSpots = 0.1115
 - hydration: 0.0298
-- oiliness: 0.0396
+- oiliness: 0.0688
 - texture: 0.0298
 - pores: 0.0326
 - darkSpots: 0.1115
@@ -20,7 +20,7 @@ Overall: FAIL
 ## geometric — PASS
 - worst: darkSpots = 0.0126
 - hydration: 0.0056
-- oiliness: 0.0306
+- oiliness: 0.0007
 - texture: 0.0056
 - pores: 0.0206
 - darkSpots: 0.0126
@@ -56,7 +56,7 @@ Overall: FAIL
 - crosstalk:oiliness->darkCircles: 0.0000
 - rho:pores: 1.0000
 - crosstalk:pores->hydration: 0.0000
-- crosstalk:pores->oiliness: 0.0306
+- crosstalk:pores->oiliness: 0.0030
 - crosstalk:pores->texture: 0.0000
 - crosstalk:pores->darkSpots: 0.0000
 - crosstalk:pores->redness: 0.0004

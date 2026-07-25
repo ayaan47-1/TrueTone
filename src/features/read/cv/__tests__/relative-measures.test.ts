@@ -1,5 +1,9 @@
 import { solidRgb, addNoise, vStripes, fillRect } from '../fixtures';
 import { relativeContrastDensity, relativeGradientEnergy, specularFraction } from '../sampling';
+import { srgbToLab } from '../color';
+import type { SkinBaseline } from '../types';
+
+const baselineOf = ([r, g, b]: [number, number, number]): SkinBaseline => srgbToLab(r, g, b);
 
 const RECT = { x: 10, y: 10, w: 60, h: 60 };
 const scaleImg = (img: any, k: number) => ({
@@ -46,37 +50,41 @@ describe('relativeGradientEnergy', () => {
 });
 
 describe('specularFraction', () => {
-  it('detects highlights on a dark face that an absolute 0.8 luma threshold would miss', () => {
-    const base = solidRgb(96, 96, [60, 45, 38]);            // deep tone, dim exposure
+  it('detects highlights on a dark face via chroma drop, not a proportional lightness floor', () => {
+    // deep tone, dim exposure — baseline L*≈19.95, C*≈9.14 (a*=5.66, b*=7.17). A proportional
+    // lightness floor (baselineL * (1+relLift)) is structurally unreachable for light skin (Task
+    // 7b); chroma drop + an additive lift is tone-invariant instead.
+    const base = solidRgb(96, 96, [60, 45, 38]);
     const withGlare = fillRect(base, { x: 20, y: 20, w: 20, h: 20 }, [150, 148, 146]);
-    // baseline L* of the dark skin is low; the patch is a large RELATIVE lift and near-neutral.
-    expect(specularFraction(withGlare, RECT, 22, 0.5, 0.15)).toBeGreaterThan(0.05);
+    // Glare patch: L*≈61.43, C*≈1.35 — far brighter and far less chromatic than the baseline.
+    expect(specularFraction(withGlare, RECT, baselineOf([60, 45, 38]), 0.5, 10)).toBeGreaterThan(0.05);
   });
 
   it('is ~0 on an evenly lit face with no highlights', () => {
-    expect(specularFraction(solidRgb(96, 96, [160, 130, 110]), RECT, 58, 0.5, 0.15)).toBeLessThan(0.01);
+    const flat = solidRgb(96, 96, [160, 130, 110]);
+    expect(specularFraction(flat, RECT, baselineOf([160, 130, 110]), 0.5, 10)).toBeLessThan(0.01);
   });
 
   it('ignores bright but SATURATED regions (coloured, not specular)', () => {
-    // Fixture note (fix-round, post-review): the original fixture here used a saturated-red patch
-    // ([250,60,60], L*≈56) against floorL = baselineL(52) * (1+relLift(0.5)) = 78. Since the
-    // patch's L* was already BELOW floorL, the lightness gate rejected it before the saturation
-    // check (sat < satThr) ever ran — disabling saturation entirely (satThr=1.01) left the result
-    // unchanged, proving the test was vacuous. This fixture uses a bright SATURATED yellow
-    // ([255,255,0], L*≈97, sat=1.0) whose lightness comfortably clears floorL=78, so only the
-    // saturation gate can be what excludes it.
+    // Fixture note (Task 7b, chroma-drop gate): specular reflection carries the illuminant's
+    // near-neutral colour, so a highly chromatic patch is never specular regardless of how bright
+    // it is. Baseline L*≈48.95, C*≈16.06 (a*=9.58, b*=12.89). The saturated-yellow patch
+    // (L*≈97.14, C*≈96.91) clears the additive lightness floor easily but its chroma is nowhere
+    // near a "drop" relative to baseline — it's a huge chroma INCREASE — so the chroma gate
+    // excludes it.
     const base = solidRgb(96, 96, [140, 110, 95]);
     const yellow = fillRect(base, { x: 20, y: 20, w: 20, h: 20 }, [255, 255, 0]);
-    expect(specularFraction(yellow, RECT, 52, 0.5, 0.15)).toBeLessThan(0.01);
+    expect(specularFraction(yellow, RECT, baselineOf([140, 110, 95]), 0.5, 10)).toBeLessThan(0.01);
   });
 
   it('counts a near-neutral patch at the SAME lightness the saturated patch cleared', () => {
-    // Mirror of the case above: a near-white neutral patch ([247,247,247], L*≈97, sat≈0) — matched
-    // in lightness to the yellow patch, so it clears the identical floorL=78 — but near-neutral
-    // instead of saturated. It IS counted. Together the pair isolates saturation, not lightness,
-    // as the discriminator: same floor, same lightness, opposite verdict.
+    // Mirror of the case above: a near-white neutral patch ([247,247,247], L*≈97.23, C*≈0.01) —
+    // matched in lightness to the yellow patch, so it clears the identical additive lightness
+    // floor — but near-neutral instead of saturated, so its chroma DOES drop relative to baseline.
+    // It IS counted. Together the pair isolates chroma, not lightness, as the discriminator: same
+    // floor, same lightness, opposite verdict.
     const base = solidRgb(96, 96, [140, 110, 95]);
     const brightNeutral = fillRect(base, { x: 20, y: 20, w: 20, h: 20 }, [247, 247, 247]);
-    expect(specularFraction(brightNeutral, RECT, 52, 0.5, 0.15)).toBeGreaterThan(0.05);
+    expect(specularFraction(brightNeutral, RECT, baselineOf([140, 110, 95]), 0.5, 10)).toBeGreaterThan(0.05);
   });
 });

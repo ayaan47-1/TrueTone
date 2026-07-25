@@ -1,5 +1,5 @@
 // Pure pixel/region readers over an RGBA RgbImage. All region functions clamp to bounds.
-import type { RgbImage, Rect, Lab } from './types';
+import type { RgbImage, Rect, Lab, SkinBaseline } from './types';
 import { srgbToLab } from './color';
 
 export function clampRect(r: Rect, w: number, h: number): Rect {
@@ -138,29 +138,66 @@ export function relativeGradientEnergy(img: RgbImage, rect: Rect): number {
   return lum > 0 ? gradientEnergy(img, rect) / lum : 0;
 }
 
-// Specular highlight fraction relative to the person's own skin baseline L*, not an absolute luma.
-// A highlight is a large RELATIVE lift above baseline lightness AND near-neutral in saturation
-// (specular reflection carries the illuminant's colour, not the skin's).
+// Smooth 0..1 ramp (Hermite), 0 at t<=0, 1 at t>=1. Used to turn a hard threshold into a soft one.
+const smoothstep01 = (t: number): number => {
+  const c = Math.min(1, Math.max(0, t));
+  return c * c * (3 - 2 * c);
+};
+
+// Specular highlight fraction relative to the person's own skin baseline, not an absolute or
+// proportional lightness threshold.
+//
+// A specular highlight adds the illuminant's radiance on top of the diffuse skin reflection —
+// approximately a constant increment in LINEAR luminance for a given light. L* is a compressive
+// (roughly cube-root) transform, so that constant linear increment maps to a SMALLER L* delta as
+// L* rises. A proportional lightness floor (baselineL * (1 + relLift)) therefore demands the most
+// headroom exactly where the least exists: for light skin (high baseline L*) the floor can exceed
+// CIELAB's L*=100 ceiling, making the gate structurally unreachable.
+//
+// Chroma is the fix. Specular reflection carries the ILLUMINANT's colour, not the skin's, so a
+// specular pixel is markedly LESS chromatic than the surrounding skin on every tone — deep skin
+// has high chroma, light skin lower, but a highlight drives both toward the illuminant's
+// near-neutral. Chroma drop measured against the subject's own baseline chroma is therefore
+// tone-invariant, where a lightness threshold (absolute or proportional) is not.
+//
+// Gate on both, each relative to the subject's own baseline:
+//   1. Chroma drop:  C* < baselineC* * (1 - chromaDrop), where C* = hypot(a*, b*).
+//   2. Lightness lift: L* > baselineL* + lift — ADDITIVE, not multiplicative, and small enough to
+//      stay reachable at FST I's baseline of ~88.
+//
+// Each gate is a SMOOTH ramp centred on its threshold, not a hard 0/1 cut. The rendered specular
+// lobe (eval/render/face.ts's ndh^28 term) is extremely concentrated in angle, so at a hard cutoff
+// the fraction of qualifying pixels is exactly zero until the defect magnitude first lets ANY
+// pixel cross both thresholds, then jumps — a real plateau-then-jump, not noise, that defeats
+// monotonic tracking at coarse defect steps. A smooth ramp accumulates partial credit from
+// near-threshold pixels before any pixel fully qualifies, restoring a monotonic response, without
+// changing what is being measured (still both quantities, still relative to the subject's own
+// baseline — see task-7b-report.md for the measured before/after).
 export function specularFraction(
   img: RgbImage,
   rect: Rect,
-  baselineL: number,
-  relLift: number,
-  satThr: number,
+  baseline: SkinBaseline,
+  chromaDrop: number,
+  lift: number,
 ): number {
   const r = clampRect(rect, img.width, img.height);
-  const floorL = baselineL * (1 + relLift);
-  let hi = 0;
+  const baselineC = Math.hypot(baseline.a, baseline.b);
+  const chromaCeiling = baselineC * (1 - chromaDrop);
+  const floorL = baseline.L + lift;
+  const chromaBand = Math.max(1e-6, baselineC * chromaDrop);
+  const liftBand = Math.max(1e-6, lift);
+  let sum = 0;
   let n = 0;
   for (let y = r.y; y < r.y + r.h; y++) {
     for (let x = r.x; x < r.x + r.w; x++) {
       const [R, G, B] = rgbAt(img, x, y);
-      const mx = Math.max(R, G, B);
-      const mn = Math.min(R, G, B);
-      const sat = mx === 0 ? 0 : (mx - mn) / mx;
-      if (srgbToLab(R, G, B).L > floorL && sat < satThr) hi++;
+      const lab = srgbToLab(R, G, B);
+      const chroma = Math.hypot(lab.a, lab.b);
+      const chromaWeight = smoothstep01((chromaCeiling - chroma) / chromaBand + 0.5);
+      const liftWeight = smoothstep01((lab.L - floorL) / liftBand + 0.5);
+      sum += chromaWeight * liftWeight;
       n++;
     }
   }
-  return n ? hi / n : 0;
+  return n ? sum / n : 0;
 }
