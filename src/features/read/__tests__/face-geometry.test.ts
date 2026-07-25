@@ -74,6 +74,20 @@ describe('regionsFromContours', () => {
     expect(r.periocularR.y + r.periocularR.h).toBeLessThanOrEqual(r.infraorbitalR.y + 1);
   });
 
+  // tZone and forehead share a top strip BY DESIGN (a T-zone conventionally includes the
+  // forehead), unlike the periocular/infraorbital overlap above, which was a bug. Pin the
+  // intended overlap explicitly so a future reader can't confuse the two: this test documents
+  // and bounds it (tZone's x-range nested inside forehead's, over their shared top band), rather
+  // than leaving undocumented shared pixels indistinguishable from a defect.
+  it('tZone intentionally overlaps the top of the forehead, nested inside it there', () => {
+    const r = regionsFromContours(contoursFor(), SIZE)!;
+    const overlapTop = Math.max(r.tZone.y, r.forehead.y);
+    const overlapBottom = Math.min(r.tZone.y + r.tZone.h, r.forehead.y + r.forehead.h);
+    expect(overlapBottom).toBeGreaterThan(overlapTop); // there IS a shared band, by design
+    expect(r.tZone.x).toBeGreaterThanOrEqual(r.forehead.x - 1);
+    expect(r.tZone.x + r.tZone.w).toBeLessThanOrEqual(r.forehead.x + r.forehead.w + 1);
+  });
+
   it('tracks a shifted, smaller face', () => {
     const wide = regionsFromContours(contoursFor(), SIZE)!;
     const small = regionsFromContours(contoursFor({ scale: 0.6, dx: 0.1, dy: 0 }), SIZE)!;

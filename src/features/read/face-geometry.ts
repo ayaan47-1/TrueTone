@@ -151,7 +151,13 @@ export function regionsFromContours(
     // infraorbital band (measured: 84px^2 / 17.6% of infraorbitalL's area on the standard fixture).
     periocularL: { x: eyeL.x - eyeL.w * 0.5, y: eyeL.y - eyeL.h * 0.6, w: eyeL.w * 0.75, h: eyeL.h * 1.4 },
     periocularR: { x: eyeR.x + eyeR.w * 0.75, y: eyeR.y - eyeR.h * 0.6, w: eyeR.w * 0.75, h: eyeR.h * 1.4 },
-    // Nose bridge through nose bottom, widened — plus the forehead strip above it.
+    // Nose bridge through nose bottom, widened — plus the forehead strip above it. tZone
+    // INTENTIONALLY overlaps the top of `forehead` (both start at foreheadTop, and tZone's
+    // x-range sits inside forehead's there): a T-zone conventionally includes the forehead's
+    // centre strip. This is the one region pair allowed to share pixels — see the pinning test
+    // "tZone intentionally overlaps..." in face-geometry.test.ts, which documents and bounds it
+    // so it isn't mistaken for the periocular/infraorbital overlap bug this file also guards
+    // against.
     tZone: {
       x: bridge.x - bridge.w * 0.6,
       y: foreheadTop,
