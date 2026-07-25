@@ -1222,6 +1222,200 @@ is too loose to detect it."
 
 ---
 
+## Task 5b: Calibrate the instrument so every dimension is measurable
+
+**Added 2026-07-25 after Task 5's review.** Not in the original plan — inserted because the axes,
+though correctly implemented, cannot currently *see* most of what they are supposed to measure.
+
+**Files:**
+- Modify: `eval/render/noise.ts`, `eval/render/face.ts`, `eval/invariance/axes.ts`
+- Test: `eval/render/__tests__/noise.test.ts`, `eval/render/__tests__/face.test.ts`,
+  `eval/invariance/__tests__/axes.test.ts`
+
+### Why this task exists — measured evidence
+
+Running the committed engine over the committed renderer:
+
+| dimension | response across its defect sweep 0→1 | state |
+|---|---|---|
+| `pores` | 0.0000 at every level | dead |
+| `darkSpots` | 1.0000, 1.0000, 1.0000, 1.0000, 0.9804 | ceiling-saturated, ρ = −0.71 |
+| `redness` | 0.0092, 0, 0, 0, 0 | dead, ρ = −0.71 |
+| `texture` | 0.0367 → 0.0366 | flat, ρ = −0.20 |
+| `fineLines` | 0.0165 → 0.0182 | monotonic but negligible range |
+| `oiliness` | 0.0000 → 0.3825 | healthy |
+| `darkCircles` | 0.0000 → 0.2708 | healthy |
+
+`monotonicAxis().pass` is therefore **`false` today**, and no test asserts it, so CI is green over a
+failing axis.
+
+**Two root causes, both renderer calibration — the axes code is correct:**
+
+1. **`darkSpots` saturates from ellipsoid curvature, not from spots.** The forehead region sits near
+   the top of the ellipsoid where the surface normal tilts away from the viewer, so it renders 5.6%
+   darker in L\* than the cheek baseline. That pushes **20.2%** of forehead pixels past
+   `CAL.darkSpots.relThr` (0.08), and `CAL.darkSpots.hi` (0.15) pins the score at 1.0. A face with
+   zero spots reads as maximum dark spots, leaving no headroom to measure anything.
+   *(Region placement was investigated and is NOT the cause — measured 1.2% background overlap on
+   `forehead` and 0% on every other region.)*
+
+2. **`pores` has no pixel-scale content to detect.** `valueNoise2d`'s finest octave is a 32-cell
+   lattice over a 256 px image — about 8 px per cell — and bilinear interpolation makes neighbouring
+   pixels nearly identical. Measured adjacent-pixel luma delta in the T-zone is 0.0016 **and does not
+   change with the pores parameter at all** (0.00160 → 0.00157 → 0.00156 at pores 0 / 0.5 / 1).
+   `CAL.pores.thr` is 0.06, so the threshold is never approached. Real pores are 1–3 px features.
+
+**Interfaces:**
+- Produces: `valueNoise2d(rng, width, height, octaves, baseCells?)` — new optional final parameter,
+  defaulting to `2` so every existing call site is unchanged. Octave `o` uses `baseCells << o`
+  cells, so a high `baseCells` yields fine features at full amplitude, which is what pore-scale
+  texture needs (many octaves alone will not do it — each successive octave is halved in amplitude,
+  so high-frequency content stays negligible after peak normalization).
+
+- [ ] **Step 1: Write the failing tests**
+
+Add to `eval/render/__tests__/noise.test.ts`:
+
+```ts
+describe('valueNoise2d baseCells', () => {
+  const hfEnergy = (n: Float32Array, w: number, h: number) => {
+    let s = 0, c = 0;
+    for (let y = 0; y < h; y++) for (let x = 1; x < w; x++) { s += Math.abs(n[y * w + x] - n[y * w + x - 1]); c++; }
+    return s / c;
+  };
+
+  it('defaults to the previous behaviour when baseCells is omitted', () => {
+    const a = valueNoise2d(makeRng(4), 32, 32, 3);
+    const b = valueNoise2d(makeRng(4), 32, 32, 3, 2);
+    expect(Array.from(a)).toEqual(Array.from(b));
+  });
+
+  it('produces far more pixel-scale detail at a high baseCells', () => {
+    const coarse = hfEnergy(valueNoise2d(makeRng(7), 128, 128, 2, 2), 128, 128);
+    const fine = hfEnergy(valueNoise2d(makeRng(7), 128, 128, 2, 64), 128, 128);
+    expect(fine).toBeGreaterThan(coarse * 5);
+  });
+
+  it('is still zero-mean and peak-normalized at a high baseCells', () => {
+    const n = valueNoise2d(makeRng(9), 128, 128, 2, 64);
+    expect(n.reduce((s, v) => s + v, 0) / n.length).toBeCloseTo(0, 5);
+    expect(Math.max(...Array.from(n).map(Math.abs))).toBeCloseTo(1, 5);
+  });
+});
+```
+
+Add to `eval/render/__tests__/face.test.ts`:
+
+```ts
+describe('renderer dynamic range (calibration)', () => {
+  // Each dimension must respond across its defect sweep WITHOUT hitting a floor or ceiling,
+  // or the invariance axes cannot measure whether a later fix improved anything.
+  const KNOB: Record<string, string> = {
+    darkSpots: 'spots', redness: 'redness', oiliness: 'oiliness',
+    pores: 'pores', fineLines: 'lines', darkCircles: 'darkCircles', texture: 'roughness',
+  };
+  const D0 = { spots: 0, redness: 0, oiliness: 0, pores: 0, lines: 0, darkCircles: 0, roughness: 0 };
+  const scoreAt = (knob: string, v: number) => {
+    const { rgb, bbox } = renderFace({ defects: { ...D0, [knob]: v } });
+    return (scoreFromRgb(rgb, bbox).scores as Record<string, number>);
+  };
+
+  it.each(Object.entries(KNOB))('%s responds to its defect without saturating', (dim, knob) => {
+    const lo = scoreAt(knob, 0)[dim];
+    const hi = scoreAt(knob, 1)[dim];
+    expect(hi - lo).toBeGreaterThan(0.05);   // real dynamic range, not noise
+    expect(lo).toBeLessThan(0.9);            // not pinned at the ceiling when clean
+    expect(hi).toBeGreaterThan(0.02);        // not dead at full defect
+  });
+
+  it('renders a clean face without spurious dark spots', () => {
+    // Ellipsoid curvature must not read as blemishes: with zero defects the score must be low.
+    const { rgb, bbox } = renderFace({ defects: D0 });
+    expect(scoreFromRgb(rgb, bbox).scores.darkSpots).toBeLessThan(0.3);
+  });
+});
+```
+
+Add to `eval/invariance/__tests__/axes.test.ts` — closing the coverage gap the review found:
+
+```ts
+  it('monotonic response passes — every dimension tracks its own defect', () => {
+    // Was unasserted and FAILING (rho: darkSpots -0.71, redness -0.71, pores 0, texture -0.20).
+    const r = monotonicAxis();
+    expect(r.pass).toBe(true);
+  });
+
+  it('tone preservation passes — normalization has not erased tone', () => {
+    expect(tonePreservationAxis().pass).toBe(true);
+  });
+```
+
+- [ ] **Step 2: Run the tests and confirm they fail for the right reasons**
+
+Run: `npx jest eval/render eval/invariance --testTimeout=180000`
+
+Expected failures: the `baseCells` tests (parameter does not exist), several dynamic-range cases
+(`pores`, `redness`, `texture`, `darkSpots`), the clean-face dark-spots case, and
+`monotonicAxis().pass`. Record the actual starting numbers before changing anything.
+
+- [ ] **Step 3: Implement — calibrate until the tests pass**
+
+Three changes, in this order. **The exact constants are yours to derive empirically** — this task is
+tuning, and the plan cannot specify numbers that were never measured. Change the minimum needed and
+justify each in a comment.
+
+1. **`noise.ts` — add the `baseCells` parameter** (default `2`), replacing `2 << o` with
+   `baseCells << o`. Keep the existing centre-and-peak-normalize step exactly as it is.
+
+2. **`face.ts` — give pores and roughness a fine-grained noise field.** Draw the micro-texture layer
+   with a high `baseCells` (start around 64 for a 256 px render and adjust) so adjacent pixels
+   actually differ. Keep the coarse field for the backdrop. Raise the pore/roughness amplitude
+   coefficients if the measured adjacent-pixel delta still falls short of `CAL.pores.thr` (0.06).
+
+3. **`face.ts` — flatten the curvature shading in `DEFAULT_PARAMS`.** Raise `shading.ambient` from
+   0.55 until a clean face stops reading as dark spots. This is physically honest: high ambient is a
+   diffuse, softbox-like light, which is exactly the even lighting the capture gate asks users for.
+   Do **not** remove the specular lobe or the normal-based shading — later work depends on both.
+
+4. **`face.ts` — raise the `redness` coefficient** until redness shows real dynamic range against
+   `CAL.redness` (`hi: 25`, i.e. Δa\* over baseline).
+
+**Constraints on tuning:**
+- Do NOT change anything under `src/` — the engine and its `CAL` constants are the thing being
+  measured. Changing them to make the instrument agree would defeat the entire exercise.
+- Do NOT weaken `INVARIANCE_THRESHOLDS`.
+- `illuminantAxis().pass` MUST remain `false`. It is the pre-approved baseline that a later task
+  flips to `true` as proof its fix worked. If your calibration accidentally makes it pass, the
+  instrument has stopped detecting a defect that is definitely still present — investigate and
+  report rather than accepting it.
+
+- [ ] **Step 4: Verify**
+
+Run: `npx jest eval/render eval/invariance --testTimeout=180000` → all pass.
+Run: `npx tsc --noEmit` → clean.
+Run: `npm test` → no regressions elsewhere.
+
+Record the final per-dimension response table (score at defect 0 and at 1) in your report. That table
+is the evidence the instrument can now see, and Task 7 is measured against it.
+
+- [ ] **Step 5: Commit**
+
+```bash
+git add eval/render/ eval/invariance/
+git commit -m "fix(eval): calibrate the renderer so every dimension is measurable
+
+The axes were correct but blind: pores read 0.0000 at every defect level, darkSpots
+sat pinned at 1.0000 from ellipsoid curvature rather than from spots, and redness and
+texture were flat. monotonicAxis was failing with four dimensions below the floor and
+nothing asserting it.
+
+Adds a baseCells parameter so pore texture has pixel-scale content, flattens the
+curvature shading so a clean face no longer reads as blemished, and asserts the two
+axis verdicts that previously had no assertion at all."
+```
+
+---
+
 ## Task 6: Baseline report + npm script
 
 **Files:**
