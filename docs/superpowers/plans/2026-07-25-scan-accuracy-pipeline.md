@@ -1836,6 +1836,139 @@ PASS; report committed."
 
 ---
 
+## Task 7b: Make oiliness detectable across every skin tone
+
+**Added 2026-07-25 after Task 7's review.** Not in the original plan. This is a tone-fairness defect
+introduced by the multiplicative-lift formulation in Task 7's brief — my error, not the Task 7
+implementer's, who measured it, chose the best available constant, and disclosed the residual in code.
+
+**Files:**
+- Modify: `src/features/read/cv/sampling.ts` (`specularFraction`), `src/features/read/cv/calibration.ts`
+- Test: `src/features/read/cv/__tests__/relative-measures.test.ts`, plus a new tone-sweep test
+
+### The defect, measured
+
+`specularFraction` gates on `L* > baselineL* × (1 + relLift)`. CIELAB L\* is capped at 100, so a
+*proportional* lift demands the most absolute headroom exactly where the least exists:
+
+| FST | cheek baseline L\* | required floor (×1.2) | oiliness at max defect |
+|---|---|---|---|
+| I | 87.8 | **105.4 — unreachable, above the L\* ceiling** | **0.0000** |
+| II | 83.0 | 99.6 | 0.3361 |
+| III | 74.7 | 89.7 | 0.3825 |
+| IV | 63.7 | 76.5 | 0.3338 |
+| V | 51.3 | 61.5 | 0.4028 |
+| VI | 38.8 | 46.6 | 0.5511 |
+
+**On Fitzpatrick I, oiliness is structurally undetectable at every defect level**, and sensitivity
+rises monotonically as skin darkens. This is the same class of defect Task 7 fixed, pointing the
+other way. Raising or lowering `relLift` cannot fix it — at any proportional lift there is a baseline
+above which the floor exceeds 100, and lowering it enough to rescue FST I makes the gate fire on
+ordinary bright skin for deep tones.
+
+### Why the formulation is wrong
+
+A specular highlight adds the illuminant's radiance on top of the diffuse reflection — approximately
+a **constant increment in linear luminance** for a given light. L\* is a compressive (roughly cube-root)
+transform of luminance, so that constant linear increment maps to a *smaller* L\* delta as L\* rises.
+Requiring a proportional L\* lift therefore asks for the most where physics delivers the least.
+
+### The fix — chroma-drop, which is tone-invariant by construction
+
+Specular reflection carries the **illuminant's** colour, not the skin's. So on every tone a specular
+pixel is markedly less chromatic than the surrounding skin: deep skin has high chroma and light skin
+lower, but both are driven toward the illuminant's near-neutral. Chroma *drop relative to the
+person's own baseline* is therefore a tone-independent discriminator, where an absolute-lightness
+lift is not.
+
+Gate on **both**, each measured relative to the subject's own baseline:
+1. **Chroma drop:** `C* < baselineC* × (1 - chromaDrop)`, where `C* = hypot(a*, b*)` and `baselineC*`
+   comes from the existing `sampleBaseline` result (which already carries `a` and `b`).
+2. **A modest lightness lift, additive not multiplicative:** `L* > baselineL* + lift`, with `lift`
+   small enough to stay reachable at FST I's baseline of ~88 (so meaningfully below 12).
+
+**Interfaces:**
+- `specularFraction(img, rect, baseline: SkinBaseline, chromaDrop: number, lift: number): number` —
+  note the third parameter becomes the whole `SkinBaseline` (it needs `a`/`b` for chroma), not just
+  `baselineL`. Update `oiliness.ts` and any call site accordingly.
+- `CAL.oiliness` becomes `{ chromaDrop, lift, lo, hi }`.
+
+- [ ] **Step 1: Write the failing test — a tone sweep is the point**
+
+```ts
+// src/features/read/cv/__tests__/oiliness-tone-fairness.test.ts
+import { renderFace } from '../../../../../eval/render/face';
+import { scoreFromRgb } from '../score-from-rgb';
+
+const D0 = { spots: 0, redness: 0, oiliness: 0, pores: 0, lines: 0, darkCircles: 0, roughness: 0 };
+const FST = ['I', 'II', 'III', 'IV', 'V', 'VI'] as const;
+const oilinessAt = (fst: (typeof FST)[number], v: number) => {
+  const { rgb, bbox } = renderFace({ fst, defects: { ...D0, oiliness: v } });
+  return scoreFromRgb(rgb, bbox).scores.oiliness;
+};
+
+describe('oiliness is detectable on every skin tone', () => {
+  it.each(FST)('registers real shine on Fitzpatrick %s', (fst) => {
+    // Before this task, FST I scored exactly 0.0000 at every level because the specular floor
+    // (baselineL* x 1.2 = 105.4) sat above CIELAB's ceiling of 100.
+    expect(oilinessAt(fst, 1)).toBeGreaterThan(0.1);
+  });
+
+  it.each(FST)('reads a clean face as not oily on Fitzpatrick %s', (fst) => {
+    expect(oilinessAt(fst, 0)).toBeLessThan(0.05);
+  });
+
+  it('has no strong monotonic sensitivity gradient across tones', () => {
+    // The fairness property: the SAME simulated shine must read similarly on every tone.
+    // Before this task the spread across FST I-VI was 0.0000..0.5511.
+    const vals = FST.map((f) => oilinessAt(f, 1));
+    const spread = Math.max(...vals) - Math.min(...vals);
+    expect(spread).toBeLessThan(0.25);
+  });
+});
+```
+
+- [ ] **Step 2: Run it — confirm FST I fails at 0.0000 and the spread assertion fails**
+
+Record the actual per-tone numbers before changing anything.
+
+- [ ] **Step 3: Implement the chroma-drop gate**
+
+Rewrite `specularFraction` to take the full `SkinBaseline` and gate on chroma drop plus an additive
+lightness lift. Derive `chromaDrop` and `lift` empirically — sweep both until every tone passes the
+tests above. Update `CAL.oiliness`, `oiliness.ts`, and replace the stale `relLift` comment block in
+`calibration.ts` with one explaining the chroma-drop rationale.
+
+**Constraints:**
+- Do NOT modify `eval/render/` — the renderer is the instrument.
+- Do NOT weaken `INVARIANCE_THRESHOLDS`.
+- Keep oiliness's illuminant spread under its 0.12 epsilon; re-run `npm run eval:invariance` and
+  confirm you have not regressed Task 7's gain (it was 0.0396).
+- Keep monotonic response: oiliness must still rise with the defect (Spearman ρ ≥ 0.9).
+
+- [ ] **Step 4: Verify**
+
+`npx jest src/features/read` green · `npm test` green · `npx tsc --noEmit` clean ·
+`npm run eval:invariance` — oiliness still under epsilon, monotonic axis still PASS.
+
+- [ ] **Step 5: Commit**
+
+```bash
+git add src/features/read/cv/ eval/reports/
+git commit -m "fix(read): detect oiliness on every skin tone via chroma drop
+
+The multiplicative specular floor (baselineL* x 1.2) exceeded CIELAB's L*=100
+ceiling for light skin, so Fitzpatrick I scored exactly 0.0000 at every defect
+level and sensitivity rose monotonically toward deeper tones — the same defect
+class the relative-measures work fixed, pointing the other way.
+
+Specular reflection carries the illuminant's colour, not the skin's, so chroma
+drop relative to the subject's own baseline discriminates shine on any tone,
+where a proportional lightness lift cannot."
+```
+
+---
+
 ## Task 8: Area-averaged resampling (spec F4)
 
 **Files:**
