@@ -350,7 +350,7 @@ git commit -m "feat(eval): renderer foundations — skin reflectance, Planckian 
 - Test: `eval/render/__tests__/geometry.test.ts`
 
 **Interfaces:**
-- Consumes: `Rect`, `Regions` from `src/features/read/cv/types.ts`
+- Consumes: nothing — this module is self-contained (it is the *producer* of contours; `Rect`/`Regions` belong to their *consumer*, Task 10)
 - Produces:
   - `faceEllipse(size, geometry): { cx, cy, rx, ry }`
   - `surfaceNormal(x, y, e): [number, number, number]` — unit vector; `[0,0,1]` outside the ellipse
