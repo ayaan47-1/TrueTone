@@ -51,7 +51,7 @@ modules, not because anything must be added. The stale comment should be correct
 
 **Everything else in this spec depends on turning this on first.**
 
-### F2 — The detected face rect is computed and discarded
+### F2 — The face is never actually located for the read
 
 `facesToMetrics()` (`src/features/capture/face-metrics.ts:44`) receives real detector bounds and
 returns only `faceCenteredness` and `faceFraction`. The rect itself is dropped.
@@ -59,6 +59,22 @@ returns only `faceCenteredness` and `faceFraction`. The rect itself is dropped.
 Consequently `detectFaceBbox()` (`src/features/read/detect-bbox.ts:26`) returns a hardcoded centered
 rectangle — 70% × 85% of the frame — and every region (forehead, cheeks, periocular, infraorbital,
 T-zone) is placed by fixed proportion off that guess (`cv/calibration.ts` `REGION_PROPORTIONS`).
+
+**The installed detector package already solves this, via an API the project has not used.**
+`react-native-vision-camera-face-detector@2.0.1` exports `useImageFaceDetector` /
+`createImageFaceDetector`, whose `detectFaces(image: string | { uri: string }): Face[]` runs on a
+**still image** — the captured photo — not a preview frame. Each returned `Face` carries:
+
+- `bounds` in the photo's own coordinate space (no preview→photo transform needed);
+- `contours` — `FACE`, `LEFT_CHEEK`, `RIGHT_CHEEK`, `LEFT_EYE`, `RIGHT_EYE`, `NOSE_BRIDGE`,
+  `NOSE_BOTTOM`, eyebrow and lip polygons — gated behind `runContours` (**default `false`**);
+- `landmarks` — single points for eyes, cheeks, nose base, mouth, ears (`runLandmarks`, default
+  `false`);
+- `pitchAngle`, `rollAngle`, `yawAngle` — head pose, always present.
+
+`detect-bbox.ts:14-16` records this upgrade path as deferred, describing it as "a new face-data
+dependency that needs sign-off per CLAUDE.md §6". **That description is inaccurate and the item is
+now resolved** — see §3a.
 
 ### F3 — Three dimensions use absolute thresholds
 
@@ -118,32 +134,32 @@ preview → useFrameMetrics (SIMULATED) → evaluateQuality → captureReducer �
 
 ```
 preview → useFrameMetrics (REAL: face detector + luma/chroma worklet)
-    ├→ facesToMetrics → FrameMetrics + faceRect (preview space)      ← rect RETAINED
+    ├→ facesToMetrics → FrameMetrics (+ pose: yaw, roll)             ← bounds only, 'fast'
     └→ computeLumaStats + computeChromaStats                          ← clipping, colour temp, balance
   → evaluateQuality (hardened) → captureReducer → takePhoto
-  → CaptureContext { faceRect, previewSize, photoSize, mirrored, orientation, lightStats }
+  → CaptureContext { lightStats }
   → runRead(uri, ctx)
+      → detectFacesOnStill(uri)   ── device ── MLKit still detector, runContours: true
       → decodeJpegToRgb  [AREA-AVERAGED → 512px, EXIF orientation applied]
-      → mapFaceRect(ctx)          ── pure ── preview → photo → working space
+      → faceGeometry(face, photoSize, workingSize)
+                                  ── pure ── contours → Regions; uniform scale to working space
       → normalizeIlluminant(rgb)  ── pure ── skin-locus estimate → adapt to D65 → flatten shading
-      → scoreFromRgb(canonical, bbox) → ReadResult + captureQuality band
+      → scoreFromRgb(canonical, regions) → ReadResult + captureQuality band
       → recordScan
 ```
 
 The compliance boundary is unchanged. All new processing is on-device inside `withImageCleanup`; no
-new vendor; the raw image still dies on the phone.
+new vendor (§3a); the raw image still dies on the phone.
 
 ### The `CaptureContext` contract
 
-The value carried from capture to read. Everything `mapFaceRect` needs, and nothing more:
+Detecting on the still collapses this to almost nothing — the geometry fields the analytic transform
+needed (`faceRect`, `previewSize`, `photoSize`, `mirrored`, `orientation`) are all obsolete, because
+the detector reports in the photo's own space. What remains is the lighting summary the gate already
+computed, carried forward so the read can band its own quality without recomputing it:
 
 ```ts
 interface CaptureContext {
-  faceRect: Rect;                      // detector bounds, PREVIEW/screen space
-  previewSize: { width: number; height: number };
-  photoSize: { width: number; height: number };
-  mirrored: boolean;                   // front camera: is the saved JPEG mirrored?
-  orientation: 0 | 90 | 180 | 270;     // EXIF orientation of the saved JPEG
   lightStats: { clipping: number; cct: number; imbalance: number };
 }
 ```
@@ -156,12 +172,13 @@ It is optional at the `runRead` boundary — `runRead(uri, ctx?)` — so the exi
 
 | Module | Kind | Purpose |
 |---|---|---|
-| `capture/face-metrics.ts` | modify, pure | retain the detector rect alongside the derived scalars |
+| `capture/face-metrics.ts` | modify, pure | surface head pose (yaw, roll) alongside the derived scalars |
 | `capture/chroma-metrics.ts` | new, pure | clipping fraction, colour temperature, shading imbalance |
-| `capture/quality-gate.ts` | modify, pure | three new checks + hints |
-| `capture/use-frame-metrics.ts` | modify, device | enable frame processors; publish chroma; carry the rect |
-| `read/map-face-rect.ts` | new, pure | preview → photo → working-image transform |
-| `read/detect-bbox.ts` | modify, pure | consume the mapped rect; fall back to `approximateFaceBbox` |
+| `capture/quality-gate.ts` | modify, pure | four new checks (three light, one pose) + hints |
+| `capture/use-frame-metrics.ts` | modify, device | ✅ frame processors enabled; publish chroma + pose |
+| `read/detect-faces-still.ts` | new, device | `createImageFaceDetector` on the photo, `runContours: true` |
+| `read/face-geometry.ts` | new, pure | contours → `Regions`; uniform scale photo → working space |
+| `read/detect-bbox.ts` | modify, pure | consume detected bounds; keep `approximateFaceBbox` as fallback |
 | `read/decode-rgb.ts` | modify | area-averaged resample; apply EXIF orientation |
 | `read/cv/resample.ts` | new, pure | area-averaged downscale (extracted from `decode-rgb`) |
 | `read/cv/illuminant.ts` | new, pure | skin-locus estimation, chromatic adaptation, shading flattening |
@@ -172,18 +189,77 @@ It is optional at the `runRead` boundary — `runRead(uri, ctx?)` — so the exi
 | `supabase/migrations/0013_capture_quality.sql` | new | quality-band column + `record_scan` RPC change (§5a) |
 | `lib/scans.ts` | modify | pass and read back the quality band |
 
-### Design decision — the transform is analytic, not re-detected
+### 3a. Design decision — detect on the still, with contours
 
-`react-native-vision-camera-face-detector` operates on live frames, not stills. Re-detecting on the
-captured photo would require a still-image detector (ML Kit) — a new face-data dependency requiring
-§6 sign-off, which is out of scope by founder decision.
+**Founder decision, 2026-07-25: approved.** Run `createImageFaceDetector` on the captured photo with
+`runContours: true`, and derive regions from the returned contour polygons.
 
-So `mapFaceRect` models the geometry explicitly: preview aspect-fill crop → photo frame → uniform
-downscale, accounting for front-camera mirroring and EXIF orientation.
+**Why this is not a CLAUDE.md §6 crossing.** §6 gates adding "any SDK, vendor, or API that can access
+face / skin / score / health data". Google MLKit is already in the bundle and already processing face
+data on-device through the live `useFaceDetectorOutput` path. This is an unused API surface of a
+vendor that already holds exactly this access, reading a file instead of a frame buffer — same
+library, same device, same data, no new party. Nothing leaves the phone; the call sits inside
+`withImageCleanup` and the photo is deleted immediately after. No new dependency is added to
+`package.json`. The note at `detect-bbox.ts:14-16` calling it "a new face-data dependency" was
+written before the package exposed this API and should be corrected when the code changes.
 
-A coordinate transform that cannot be seen cannot be trusted, so the dev-only overlay screen — which
-draws the mapped bbox and derived regions back onto the captured photo — is **part of the work, not
-an optional extra**. Validating it by eye on the Fold 7 is the acceptance criterion for piece 2.
+**What this replaces.** The earlier draft of this spec modelled the geometry analytically — preview
+aspect-fill crop → photo frame → uniform downscale, with front-camera mirroring and EXIF rotation —
+because the detector was believed to work only on live frames. That transform composed four
+error-prone steps, each capable of mis-placing regions silently, and it was the highest-risk item in
+the design. Detecting on the still removes it: bounds and contours arrive in the photo's own
+coordinate space, leaving a single uniform scale to the 512 px working image.
+
+**Division of labour between the two detectors:**
+
+| | Live preview (`useFaceDetectorOutput`) | Captured still (`createImageFaceDetector`) |
+|---|---|---|
+| Purpose | drive the quality gate in real time | locate the face and its regions for the read |
+| Options | bounds only, `performanceMode: 'fast'` | `runContours: true` |
+| Why | contours are documented as more expensive and single-face-only; the gate needs only presence, centering, distance, and pose | one-shot cost is irrelevant post-capture, and precision is the entire point |
+
+Head pose (`yawAngle`, `rollAngle`) is available on the live path at no extra cost and feeds the
+hardened gate (§5).
+
+**EXIF consistency is now the load-bearing detail** (F5). MLKit resolves orientation when reading an
+image URI; `jpeg-js` does not. If the detector reports coordinates in EXIF-corrected space while our
+decoded buffer is in raw space, every region lands wrong — and, as before, silently. The decode and
+the detector **must** be made to agree, and that agreement is verified on-device by the overlay, not
+assumed. This is the single most important thing to check on the first physical run.
+
+The dev-only overlay screen therefore remains **part of the work, not an optional extra**: it draws
+the detected bounds, the contour polygons, and the derived regions back onto the captured photo.
+Seeing them land correctly on the Fold 7 is the acceptance criterion for piece 2.
+
+### 3b. Region derivation from contours
+
+`deriveRegions` gains a contour-driven path and keeps the proportional one as fallback. Both return
+the same `Regions` shape, so `score-from-rgb.ts` and every dimension are unchanged — the improvement
+is entirely in *where* the rectangles land.
+
+| Region | From contours | Today |
+|---|---|---|
+| `cheekL` / `cheekR` | inset bounding box of `LEFT_CHEEK` / `RIGHT_CHEEK` polygons | fixed 20%×18% at (15%, 55%) of the bbox |
+| `forehead` | above `LEFT_EYEBROW_TOP` ∪ `RIGHT_EYEBROW_TOP`, clipped to the `FACE` polygon | fixed 50%×15% at (25%, 5%) |
+| `periocularL/R` | outer margin of `LEFT_EYE` / `RIGHT_EYE` | fixed 20%×12% |
+| `infraorbitalL/R` | below `LEFT_EYE` / `RIGHT_EYE`, above the cheek polygon | fixed 18%×8% |
+| `tZone` | `NOSE_BRIDGE` → `NOSE_BOTTOM` span, widened, unioned with the forehead strip | fixed central 20%×45% strip |
+
+Two properties must hold, and both are unit-testable against synthetic contour inputs:
+
+1. **Every derived region stays inside the `FACE` polygon.** A region that spills onto hair,
+   background, or a shadowed jaw edge poisons the measurement it feeds — and `sampleBaseline` in
+   particular must sample skin, since every tone-relative dimension is defined against it.
+2. **Regions remain non-overlapping where the current proportions are non-overlapping** (`tZone` is a
+   central strip; cheeks flank it; infraorbital sits above the cheeks — `cv/calibration.ts:14`).
+
+**Fallback chain**, each step failing open to the next: contours present and valid → contour regions;
+face detected but no contours → proportional regions off the detected bounds; no face detected →
+`approximateFaceBbox` and today's behaviour exactly.
+
+This is where the accuracy gain actually lands. A cheek rectangle placed by fixed proportion on a
+narrow, wide, or off-centre face samples partly non-skin, and every tone-relative dimension inherits
+that error through the baseline.
 
 ## 4. Illumination design
 
@@ -245,6 +321,12 @@ Three new `evaluateQuality` checks, with copy that is strictly about *light*, ne
 | clipping above threshold | "Too much glare — turn away from the light" |
 | colour temperature outside ≈[2700, 7500] K | "Try more neutral light" |
 | shading imbalance beyond threshold | "Light's coming from one side" |
+| \|`yawAngle`\| or \|`rollAngle`\| beyond threshold | "Face the camera straight on" |
+
+The pose check comes free: `yawAngle` and `rollAngle` are on every `Face` the live detector already
+returns, with no extra option and no extra cost. It matters because a turned head foreshortens one
+cheek — which both skews `sampleBaseline` and makes the left/right shading imbalance check fire for
+geometric rather than lighting reasons.
 
 The gate **fails closed**: refusing to scan is the safe direction for a user-facing reading.
 
@@ -328,10 +410,9 @@ that a dimension actually responds to the thing it is named after, which today i
 the variable name.
 
 **What these axes do *not* cover:** the renderer has no preview space, so the geometric axis
-exercises `deriveRegions` and scoring under a varying face position — it cannot exercise
-`mapFaceRect`'s preview→photo→working transform. That transform has two independent defences of its
-own: the algebraic unit tests (§8) and the device overlay (§3). Neither substitutes for the other,
-and neither is optional.
+exercises `deriveRegions` and scoring under a varying face position, driven by synthetic contours —
+it cannot exercise the real MLKit detector or its EXIF handling. Those have their own defence: the
+device overlay (§3a). It does not substitute for the axis, and the axis does not substitute for it.
 
 ### 6c. Thresholds
 
@@ -353,7 +434,8 @@ and it never crashes on a device quirk.
 
 | Stage | Sanity check | Fallback |
 |---|---|---|
-| `mapFaceRect` | rect within image bounds; aspect ratio ∈ [0.6, 1.6]; area fraction ∈ [0.05, 0.95] | `approximateFaceBbox` |
+| still detection | at least one face; bounds within image; aspect ∈ [0.6, 1.6]; area fraction ∈ [0.05, 0.95] | `approximateFaceBbox` |
+| contour regions | every region inside the `FACE` polygon; non-overlap preserved | proportional regions off detected bounds |
 | illuminant estimate | implied CCT ∈ [2000, 10000] K; bounded adaptation matrix | identity adaptation |
 | shading fit | residual within bound | skip flattening |
 | EXIF orientation | readable | assume 0 (the gate's centeredness check limits damage) |
@@ -368,8 +450,10 @@ The single exception is the hardened quality gate, which fails **closed** — se
 TDD throughout, per the project mandate — a failing test first on every pure module, ≥80% coverage
 maintained.
 
-- **`map-face-rect`** gets algebraic coverage beyond example tests: mirroring is an involution, four
-  rotations compose to identity, transformed rects satisfy round-trip containment.
+- **`face-geometry`** is pure and tested against synthetic contour inputs — narrow, wide, off-centre,
+  and partially-occluded faces — asserting the two §3b properties (containment in the `FACE` polygon,
+  preserved non-overlap) and the fallback chain at each step. `detect-faces-still.ts` is the thin
+  device shell around it and carries `// DEVICE-ONLY`.
 - **`illuminant`** is tested against renderer output at known illuminants — recovery error bounded —
   plus the tone-preservation property as a direct unit test.
 - **The three re-based dimensions** get before/after tests demonstrating exposure-invariance that the
@@ -383,19 +467,21 @@ maintained.
 
 ## 9. Sequencing
 
-1. **Enable the real signals** (F1) — flip `FRAME_PROCESSORS_INSTALLED`, correct the stale comment,
-   rebuild, then re-tune `THRESHOLDS` and `SHARPNESS_SCALE` on the Fold 7. No package install.
-   *(device)*
+1. ✅ **Enable the real signals** (F1) — `FRAME_PROCESSORS_INSTALLED` flipped, stale comments
+   corrected, static guard test added (commit `8940828`). Re-tuning `THRESHOLDS` and
+   `SHARPNESS_SCALE` on the Fold 7 remains open, pending the dev build. *(device)*
 2. **Renderer + the four axes** (§6) — build the instrument before changing what it measures, so
    every subsequent step has a documented delta.
 3. **Relative dimensions** (4a) — the biggest win, pure, immediately measurable on the new axes.
 4. **Area-averaged resample + EXIF orientation** (F4, F5) — pure, measurable on the same axes.
-5. **Rect threading + `mapFaceRect` + overlay** (F2) — pure transform, device-verified by eye.
+5. **Still detection + contour regions + overlay** (F2, §3a, §3b) — device shell plus pure geometry;
+   the overlay is how EXIF agreement gets verified.
 6. **Illuminant normalization + shading flattening** (4b, 4c).
 7. **Gate hardening + quality band** (§5, §5a — includes migration `0013` and the RPC change).
    *(device tuning)*
 
-Step 1 gates steps 5 and 7. Steps 2–4 and 6 are pure and can proceed without a device.
+Steps 2–4 and 6 are pure and need no device. Steps 5 and 7 need the dev build; step 1's tuning does
+too, but only the tuning — the code change is already landed.
 
 Steps 3, 4, and 6 each change scores, so each must be landed with its axis report committed — that
 is what makes "this improved the read" a measured statement rather than an assertion.
@@ -405,7 +491,9 @@ is what makes "this improved the read" a measured statement rather than an asser
 - **No accuracy, efficacy, or skin-tone-equity claim** arises from this work. Synthetic invariance is
   not validation data on file (CLAUDE.md §1, §7).
 - **No new cosmetic dimensions** — the wider vocabulary is the follow-on sub-project.
-- **No new face-data vendor** — no ML Kit still-image detector, no new SDK (§6).
+- **No new face-data vendor and no new dependency.** The still-image detector approved in §3a is an
+  unused API of `react-native-vision-camera-face-detector`, already installed and already processing
+  face data on-device. `package.json` does not change.
 - **No trained model and no dataset** — the trained-model track stays gated on the founder/legal
   dataset decision (`docs/compliance/dataset-requirements-brief.md`).
 - **No change to the compliance boundary** beyond persisting a coarse capture-quality band.
@@ -419,9 +507,17 @@ is what makes "this improved the read" a measured statement rather than an asser
   The chroma grid inherits this risk; the existing per-frame try/catch degradation pattern applies.
 - **The renderer is a model, not reality.** See the circularity caveat in §6a. Passing all four axes
   means the pipeline is self-consistent and physically sensible — nothing more.
-- **`mapFaceRect` is silent when wrong.** A subtly incorrect transform mis-places regions without
-  erroring. The overlay screen and the geometric-invariance axis are the two independent defences;
-  neither is optional.
+- **EXIF disagreement is silent when wrong** (§3a). MLKit resolves orientation from the image URI;
+  `jpeg-js` does not. If the two disagree, every region lands wrong with no error raised. This is now
+  the highest-risk item in the design and the first thing to check on the overlay.
+- **Contour availability is not guaranteed.** `runContours` yields contours "for only the most
+  prominent face", and MLKit may return none on a poorly-lit or steeply-angled capture. The §3b
+  fallback chain is therefore load-bearing, not defensive boilerplate — and the proportional path it
+  falls back to must stay tested, not bit-rot.
+- **MLKit has no arm64 iOS-simulator slice.** This is what forced the uncommitted `dev-stubs/` +
+  `react-native.config.js` workaround. The still detector inherits it: capture and read work on
+  physical devices and on Android, never in the iOS Simulator. The stub must keep the *still*
+  detector inert too, or simulator runs will crash rather than degrade.
 
 ---
 
