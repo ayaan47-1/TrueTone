@@ -1,5 +1,5 @@
 {
-  "generatedAt": "2026-07-25T23:42:51.446Z",
+  "generatedAt": "2026-07-26T01:39:23.200Z",
   "pass": true,
   "axes": [
     {
@@ -43,15 +43,15 @@
       "pass": true,
       "worst": {
         "dimension": "oiliness",
-        "value": 0.9746794344808964
+        "value": 0.9534625892455922
       },
       "detail": {
-        "rho:darkSpots": 1,
-        "crosstalk:spots->hydration": 0.000011079053227169844,
+        "rho:darkSpots": 0.9977246841962694,
+        "crosstalk:spots->hydration": 0.000012499054465653359,
         "crosstalk:spots->oiliness": 0,
-        "crosstalk:spots->texture": 0.000011079053227149027,
+        "crosstalk:spots->texture": 0.000012499054465653359,
         "crosstalk:spots->pores": 0,
-        "crosstalk:spots->redness": 0.000025154207034210844,
+        "crosstalk:spots->redness": 0.000040041495461789426,
         "crosstalk:spots->fineLines": 0.0005393976474955065,
         "crosstalk:spots->darkCircles": 0,
         "rho:redness": 1,
@@ -62,15 +62,15 @@
         "crosstalk:redness->darkSpots": 0,
         "crosstalk:redness->fineLines": 0,
         "crosstalk:redness->darkCircles": 0,
-        "rho:oiliness": 0.9746794344808964,
-        "crosstalk:oiliness->hydration": 0.00010922885967779017,
-        "crosstalk:oiliness->texture": 0.00010922885967772772,
+        "rho:oiliness": 0.9534625892455922,
+        "crosstalk:oiliness->hydration": 0.0001324615506409499,
+        "crosstalk:oiliness->texture": 0.00013246155064090132,
         "crosstalk:oiliness->pores": 0,
         "crosstalk:oiliness->darkSpots": 0,
         "crosstalk:oiliness->redness": 0.0017821665540795897,
-        "crosstalk:oiliness->fineLines": 0.00010221789198981007,
+        "crosstalk:oiliness->fineLines": 0.00011974967653318857,
         "crosstalk:oiliness->darkCircles": 0,
-        "rho:pores": 1,
+        "rho:pores": 0.9977246841962694,
         "crosstalk:pores->hydration": 0,
         "crosstalk:pores->oiliness": 0.0029523075423825112,
         "crosstalk:pores->texture": 0,
@@ -92,7 +92,7 @@
         "crosstalk:darkCircles->texture": 0,
         "crosstalk:darkCircles->pores": 0,
         "crosstalk:darkCircles->darkSpots": 0,
-        "crosstalk:darkCircles->redness": 0.00006635167458651,
+        "crosstalk:darkCircles->redness": 0.00007543081322566479,
         "crosstalk:darkCircles->fineLines": 0.000679677919109738,
         "rho:texture": 1,
         "crosstalk:roughness->oiliness": 0,

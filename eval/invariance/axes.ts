@@ -112,7 +112,13 @@ const EXPECTED_COUPLING: Partial<Record<Knob, Dimension[]>> = {
 };
 
 export function monotonicAxis(t: InvarianceThresholds = INVARIANCE_THRESHOLDS): AxisResult {
-  const levels = [0, 0.25, 0.5, 0.75, 1];
+  // 11 evenly-spaced points, not 5. At 5 points a threshold-gated detector against a sharply
+  // peaked specular lobe (ndh^28 in the renderer) produces a run of exact zeros at the low end,
+  // and Spearman's rho becomes a function of the TIE COUNT rather than of curve shape: 3 ties
+  // gives exactly 2/sqrt(5)=0.8944, 2 ties gives exactly 0.9747 (Task 14b). Doubling the density
+  // to 11 halves the weight any single tie run carries and forces rho to actually reflect whether
+  // the response is monotonically increasing across the swept range.
+  const levels = [0, 0.1, 0.2, 0.3, 0.4, 0.5, 0.6, 0.7, 0.8, 0.9, 1];
   const detail: Record<string, number> = {};
   let pass = true;
   let worst: AxisResult['worst'] = null;

@@ -70,8 +70,22 @@ describe('axes', () => {
 
   it('monotonic response passes — every dimension tracks its own defect', () => {
     // Was unasserted and FAILING (rho: darkSpots -0.71, redness -0.71, pores 0, texture -0.20).
+    //
+    // Task 14b: the sweep was raised from 5 points ([0, 0.25, 0.5, 0.75, 1]) to 11
+    // ([0, 0.1, ..., 1]) specifically to defeat tie-count sensitivity. At 5 points, Spearman's
+    // rho for a threshold-gated dimension is largely a function of HOW MANY exact-zero ties sit
+    // at the low end of the sweep, not of the underlying curve shape — 3 ties gives exactly
+    // 2/sqrt(5)=0.8944, 2 ties gives exactly 0.9747. oiliness (gated by ndh^28, the sharpest
+    // specular lobe in the renderer) sat right on that artifact: rho:oiliness measured 0.9747 at
+    // 5 points. At 11 points the real tie run is now visible — oiliness is exactly 0 across
+    // levels 0, 0.1, 0.2, 0.3, 0.4 (raw: [0,0,0,0,0,0.0012,0.0129,0.0344,0.0813,0.1286,0.1703])
+    // — and rho:oiliness drops to 0.9535. It still clears the 0.9 floor, so the underlying
+    // response, while flat for the first half of the sweep, is genuinely monotonic non-decreasing
+    // and the Task 7b calibration holds at the higher density. See
+    // eval/reports/invariance.json for the full per-dimension rho table at 11 points.
     const r = monotonicAxis();
     expect(r.pass).toBe(true);
+    expect(r.detail['rho:oiliness']).toBeGreaterThanOrEqual(INVARIANCE_THRESHOLDS.spearmanFloor);
   });
 
   it('tone preservation passes — normalization has not erased tone', () => {
