@@ -181,10 +181,18 @@ export function tonePreservationAxis(t: InvarianceThresholds = INVARIANCE_THRESH
   };
 }
 
-// Fixed mid-strength defect used by defectToneFairnessAxis. Deliberately non-zero — the existing
+// Defect strengths swept by defectToneFairnessAxis. All non-zero — the existing
 // tonePreservationAxis already covers defect=0 (tone must not vanish); this axis asks the
-// complementary question at a real defect strength.
-const TONE_RESPONSE_DEFECT = 0.5;
+// complementary question at real defect strengths.
+//
+// This was a single fixed 0.5 until 2026-07-26, and that was a blind spot in the instrument: it
+// measured fairness at exactly ONE shine/blemish strength, so a change could leave the reported
+// number untouched while damaging fairness everywhere else. Measured case — excluding saturated
+// pixels from specularFraction held the 0.5 oiliness spread at exactly 0.1188 (looking neutral)
+// while pushing the max-defect spread from ~0.20 to 0.291. The axis would have called that
+// harmless. Fairness that only holds at mid-strength is not fairness, so the gate is now the WORST
+// level, not a representative one.
+const TONE_RESPONSE_DEFECTS = [0.25, 0.5, 0.75, 1] as const;
 
 export function defectToneFairnessAxis(t: InvarianceThresholds = INVARIANCE_THRESHOLDS): AxisResult {
   // The actual fairness claim: the SAME blemish, the SAME shine, the SAME redness should read as
@@ -203,12 +211,25 @@ export function defectToneFairnessAxis(t: InvarianceThresholds = INVARIANCE_THRE
   // Records both the raw per-tone scores (so a reader can see WHICH direction tone biases the
   // response, not just its magnitude — mirrors tonePreservationAxis's lum:${fst} convention) and
   // the spread that actually gates pass/fail.
-  const record = (dim: Dimension, byTone: number[]): void => {
-    FITZPATRICK.forEach((fst, i) => {
-      detail[`${dim}:${fst}`] = byTone[i];
+  // Records the spread at EVERY swept level (`dim@level`), the per-tone scores at the worst level
+  // (`dim:FST` — so a reader sees which direction tone biases the response, and at which strength),
+  // and gates on the worst level.
+  const record = (dim: Dimension, byToneByLevel: number[][]): void => {
+    const spreads = byToneByLevel.map((byTone) => Math.max(...byTone) - Math.min(...byTone));
+    TONE_RESPONSE_DEFECTS.forEach((lvl, i) => {
+      detail[`${dim}@${lvl}`] = spreads[i];
     });
-    const dimSpread = Math.max(...byTone) - Math.min(...byTone);
+
+    let worstIdx = 0;
+    for (let i = 1; i < spreads.length; i++) if (spreads[i] > spreads[worstIdx]) worstIdx = i;
+    const dimSpread = spreads[worstIdx];
+
+    FITZPATRICK.forEach((fst, i) => {
+      detail[`${dim}:${fst}`] = byToneByLevel[worstIdx][i];
+    });
     detail[dim] = dimSpread;
+    detail[`${dim}@worstLevel`] = TONE_RESPONSE_DEFECTS[worstIdx];
+
     if (dimSpread > t.toneResponseSpread) {
       pass = false;
       breaches.push({ key: dim, value: dimSpread, limit: t.toneResponseSpread });
@@ -217,9 +238,10 @@ export function defectToneFairnessAxis(t: InvarianceThresholds = INVARIANCE_THRE
   };
 
   for (const [dim, knob] of Object.entries(DEFECT_FOR) as Array<[Dimension, Knob]>) {
-    const defects = { ...DEFAULT_DEFECTS, [knob]: TONE_RESPONSE_DEFECT };
-    const runs = FITZPATRICK.map((fst) => scoresFor({ fst, defects }));
-    record(dim, runs.map((r) => r[dim]));
+    const runsByLevel = TONE_RESPONSE_DEFECTS.map((lvl) =>
+      FITZPATRICK.map((fst) => scoresFor({ fst, defects: { ...DEFAULT_DEFECTS, [knob]: lvl } })),
+    );
+    record(dim, runsByLevel.map((runs) => runs.map((r) => r[dim])));
 
     // hydration has no defect knob of its own (cv/dimensions/hydration.ts defines it as
     // 1 - microContrast, the inverse of texture — see EXPECTED_COUPLING above), so it never gets
@@ -227,7 +249,7 @@ export function defectToneFairnessAxis(t: InvarianceThresholds = INVARIANCE_THRE
     // drives texture, so read its cross-tone response off that same sweep rather than a separate
     // render pass.
     if (knob === 'roughness') {
-      record('hydration', runs.map((r) => r.hydration));
+      record('hydration', runsByLevel.map((runs) => runs.map((r) => r.hydration)));
     }
   }
 

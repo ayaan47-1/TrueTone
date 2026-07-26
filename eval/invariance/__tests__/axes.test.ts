@@ -93,19 +93,48 @@ describe('axes', () => {
     expect(tonePreservationAxis().pass).toBe(true);
   });
 
-  it('defect-tone-fairness FAILS — six of eight dimensions respond unevenly across skin tone', () => {
+  it('sweeps the defect level and gates on the WORST level, not a single mid-strength one', () => {
+    // A single defect level is a blind spot: a change can leave the spread at 0.5 untouched while
+    // damaging fairness at 0.25 or 1.0. Measured case — excluding fully-saturated pixels held the
+    // 0.5 spread at exactly 0.1188 while widening the max-defect spread from 0.20 to 0.291.
+    const r = defectToneFairnessAxis();
+    const LEVELS = [0.25, 0.5, 0.75, 1];
+    for (const dim of ['oiliness', 'darkSpots', 'redness', 'pores', 'fineLines', 'darkCircles', 'texture', 'hydration'] as Dimension[]) {
+      const perLevel = LEVELS.map((v) => r.detail[`${dim}@${v}`]);
+      for (const s of perLevel) expect(typeof s).toBe('number');
+      // The gating number must be the worst level, so a dimension cannot pass by being fair at
+      // exactly one shine strength.
+      expect(r.detail[dim]).toBeCloseTo(Math.max(...perLevel), 10);
+    }
+  });
+
+  it('defect-tone-fairness FAILS — seven of eight dimensions respond unevenly across skin tone', () => {
     // Task 14c: tonePreservationAxis only ever renders at defect=0 (tone must not vanish). This
-    // axis is the complement — does the SAME defect strength (0.5, see TONE_RESPONSE_DEFECT) read
+    // axis is the complement — does the SAME defect strength (see TONE_RESPONSE_DEFECTS) read
     // as the SAME score on every Fitzpatrick tone? That is the actual fairness claim. Measured
     // spread (max-min across FST I..VI), full per-tone table in eval/reports/invariance.json:
-    //   fineLines    0.0209  flat 0.058 -> 0.079                             PASS
-    //   darkSpots    0.0334  flat 0.711 -> 0.677                             PASS
-    //   texture      0.0632  flat I-V, jump at VI (0.09 -> 0.15)             FAIL
-    //   hydration    0.0632  mirrors texture (drop at VI)                    FAIL
-    //   redness      0.0651  rises 0.146 -> 0.211 (over-reads deep skin)     FAIL
-    //   pores        0.0724  rises 0.178 -> 0.250 (over-reads deep skin)     FAIL
-    //   darkCircles  0.0758  falls 0.162 -> 0.086 (under-reads deep skin)    FAIL
-    //   oiliness     0.1188  U-SHAPED: I=0.071, dips near 0 at II-IV, VI=0.120  FAIL, worst overall
+    // RE-BASELINED 2026-07-26: the axis used to sweep the single level 0.5, which was a blind spot.
+    // It now sweeps {0.25, 0.5, 0.75, 1.0} and gates on the WORST level. Spread per level:
+    //
+    //   dim          @0.25   @0.5    @0.75   @1.0    MAX     worst-at
+    //   fineLines    0.0215  0.0209  0.0224  0.0248  0.0248  1.00   PASS  (only genuine pass)
+    //   darkSpots    0.0530  0.0334  0.0223  0.0216  0.0530  0.25   FAIL  <- passed at 0.5 ONLY
+    //   texture      0.0739  0.0632  0.0615  0.0594  0.0739  0.25   FAIL
+    //   hydration    0.0739  0.0632  0.0615  0.0594  0.0739  0.25   FAIL
+    //   darkCircles  0.0361  0.0758  0.1200  0.1660  0.1660  1.00   FAIL
+    //   pores        0.0306  0.0724  0.1082  0.1704  0.1704  1.00   FAIL
+    //   redness      0.0165  0.0651  0.1197  0.1744  0.1744  1.00   FAIL
+    //   oiliness     0.0296  0.1188  0.1885  0.2035  0.2035  1.00   FAIL, worst overall
+    //
+    // Two structurally different failure shapes, which the single-level axis could not distinguish:
+    //   - worst at HIGH defect (oiliness, redness, pores, darkCircles): tone-dependent SENSITIVITY,
+    //     so the gap widens as the defect grows.
+    //   - worst at LOW defect (darkSpots, texture, hydration): a tone-dependent FLOOR, which
+    //     dominates when the true signal is small and is swamped once it is large.
+    //
+    // darkSpots is the headline correction: it read 0.0334 at 0.5 and was recorded as PASSING.
+    // At 0.25 it is 0.0530, over the limit. That pass was an artefact of sampling one strength.
+    // SEVEN of eight dimensions now fail, not six.
     //
     // The plan anticipated redness (~0.065) as the worst dimension. Measurement shows oiliness is
     // actually worse (0.1188) and non-monotonic in tone, not merely biased in one direction — a
@@ -117,7 +146,9 @@ describe('axes', () => {
     const r = defectToneFairnessAxis();
     expect(r.pass).toBe(false);
     expect(r.worst?.dimension).toBe('oiliness');
-    expect(r.detail.darkSpots).toBeLessThan(INVARIANCE_THRESHOLDS.toneResponseSpread);
+    // Was toBeLessThan until the multi-level sweep landed. NOT a loosened bound — the limit is
+    // untouched at 0.05; the measurement got honest and darkSpots stopped clearing it.
+    expect(r.detail.darkSpots).toBeGreaterThan(INVARIANCE_THRESHOLDS.toneResponseSpread);
     expect(r.detail.fineLines).toBeLessThan(INVARIANCE_THRESHOLDS.toneResponseSpread);
     expect(r.detail.redness).toBeGreaterThan(INVARIANCE_THRESHOLDS.toneResponseSpread);
     expect(r.detail.pores).toBeGreaterThan(INVARIANCE_THRESHOLDS.toneResponseSpread);
@@ -125,9 +156,10 @@ describe('axes', () => {
     expect(r.detail.oiliness).toBeGreaterThan(INVARIANCE_THRESHOLDS.toneResponseSpread);
     expect(r.detail.texture).toBeGreaterThan(INVARIANCE_THRESHOLDS.toneResponseSpread);
     expect(r.detail.hydration).toBeGreaterThan(INVARIANCE_THRESHOLDS.toneResponseSpread);
-    // Task 18: the masking bug this task fixes — six of eight dimensions breach, but the report
-    // used to only ever show the single `worst` one (oiliness). `breaches` must surface all of them.
-    expect(r.breaches.length).toBeGreaterThanOrEqual(6);
+    // Task 18: the masking bug this task fixes — the report used to only ever show the single
+    // `worst` dimension (oiliness). `breaches` must surface all of them. Seven since the
+    // multi-level sweep exposed darkSpots.
+    expect(r.breaches.length).toBeGreaterThanOrEqual(7);
   });
 
   it('verdict-based axes report every dimension over its epsilon, not just the worst', () => {

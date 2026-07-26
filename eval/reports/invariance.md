@@ -1,4 +1,4 @@
-# Invariance eval — 2026-07-26T03:55:58.429Z
+# Invariance eval — 2026-07-26T18:44:26.827Z
 
 > Synthetic harness. Measures self-consistency of the pipeline under simulated lighting,
 > geometry and defect sweeps. It is **not an accuracy claim** and is not validation data on
@@ -100,67 +100,108 @@ Overall: FAIL
 - lum:VI: 0.3809
 
 ## defect-tone-fairness — FAIL
-- worst: oiliness = 0.1188
-- over-epsilon (6):
-  - redness: 0.0651 (limit 0.0500)
-  - oiliness: 0.1188 (limit 0.0500)
-  - pores: 0.0724 (limit 0.0500)
-  - darkCircles: 0.0758 (limit 0.0500)
-  - texture: 0.0632 (limit 0.0500)
-  - hydration: 0.0632 (limit 0.0500)
-- darkSpots:I: 0.7108
-- darkSpots:II: 0.6941
-- darkSpots:III: 0.7024
-- darkSpots:IV: 0.6913
-- darkSpots:V: 0.6774
-- darkSpots:VI: 0.6774
-- darkSpots: 0.0334
-- redness:I: 0.1463
-- redness:II: 0.1752
-- redness:III: 0.2054
-- redness:IV: 0.2020
-- redness:V: 0.1980
-- redness:VI: 0.2114
-- redness: 0.0651
-- oiliness:I: 0.0707
-- oiliness:II: 0.0106
-- oiliness:III: 0.0012
-- oiliness:IV: 0.0035
-- oiliness:V: 0.0324
-- oiliness:VI: 0.1200
-- oiliness: 0.1188
-- pores:I: 0.1775
-- pores:II: 0.1939
-- pores:III: 0.2112
-- pores:IV: 0.2204
-- pores:V: 0.2347
-- pores:VI: 0.2500
-- pores: 0.0724
-- fineLines:I: 0.0581
-- fineLines:II: 0.0586
-- fineLines:III: 0.0598
-- fineLines:IV: 0.0619
-- fineLines:V: 0.0672
-- fineLines:VI: 0.0791
-- fineLines: 0.0209
-- darkCircles:I: 0.1620
-- darkCircles:II: 0.1589
-- darkCircles:III: 0.1418
-- darkCircles:IV: 0.1245
-- darkCircles:V: 0.1047
-- darkCircles:VI: 0.0862
-- darkCircles: 0.0758
-- texture:I: 0.0911
-- texture:II: 0.0905
-- texture:III: 0.0907
-- texture:IV: 0.0930
-- texture:V: 0.1019
-- texture:VI: 0.1537
-- texture: 0.0632
-- hydration:I: 0.9089
-- hydration:II: 0.9095
-- hydration:III: 0.9093
-- hydration:IV: 0.9070
-- hydration:V: 0.8981
-- hydration:VI: 0.8463
-- hydration: 0.0632
+- worst: oiliness = 0.2035
+- over-epsilon (7):
+  - darkSpots: 0.0530 (limit 0.0500)
+  - redness: 0.1744 (limit 0.0500)
+  - oiliness: 0.2035 (limit 0.0500)
+  - pores: 0.1704 (limit 0.0500)
+  - darkCircles: 0.1660 (limit 0.0500)
+  - texture: 0.0739 (limit 0.0500)
+  - hydration: 0.0739 (limit 0.0500)
+- darkSpots@0.25: 0.0530
+- darkSpots@0.5: 0.0334
+- darkSpots@0.75: 0.0223
+- darkSpots@1: 0.0216
+- darkSpots:I: 0.2955
+- darkSpots:II: 0.2704
+- darkSpots:III: 0.2815
+- darkSpots:IV: 0.2676
+- darkSpots:V: 0.2592
+- darkSpots:VI: 0.2425
+- darkSpots: 0.0530
+- darkSpots@worstLevel: 0.2500
+- redness@0.25: 0.0165
+- redness@0.5: 0.0651
+- redness@0.75: 0.1197
+- redness@1: 0.1744
+- redness:I: 0.2347
+- redness:II: 0.2779
+- redness:III: 0.3547
+- redness:IV: 0.4001
+- redness:V: 0.3958
+- redness:VI: 0.4091
+- redness: 0.1744
+- redness@worstLevel: 1.0000
+- oiliness@0.25: 0.0296
+- oiliness@0.5: 0.1188
+- oiliness@0.75: 0.1885
+- oiliness@1: 0.2035
+- oiliness:I: 0.3131
+- oiliness:II: 0.2534
+- oiliness:III: 0.1703
+- oiliness:IV: 0.1145
+- oiliness:V: 0.1367
+- oiliness:VI: 0.3180
+- oiliness: 0.2035
+- oiliness@worstLevel: 1.0000
+- pores@0.25: 0.0306
+- pores@0.5: 0.0724
+- pores@0.75: 0.1082
+- pores@1: 0.1704
+- pores:I: 0.5316
+- pores:II: 0.5714
+- pores:III: 0.6173
+- pores:IV: 0.6469
+- pores:V: 0.6673
+- pores:VI: 0.7020
+- pores: 0.1704
+- pores@worstLevel: 1.0000
+- fineLines@0.25: 0.0215
+- fineLines@0.5: 0.0209
+- fineLines@0.75: 0.0224
+- fineLines@1: 0.0248
+- fineLines:I: 0.1233
+- fineLines:II: 0.1240
+- fineLines:III: 0.1255
+- fineLines:IV: 0.1286
+- fineLines:V: 0.1348
+- fineLines:VI: 0.1481
+- fineLines: 0.0248
+- fineLines@worstLevel: 1.0000
+- darkCircles@0.25: 0.0361
+- darkCircles@0.5: 0.0758
+- darkCircles@0.75: 0.1200
+- darkCircles@1: 0.1660
+- darkCircles:I: 0.3511
+- darkCircles:II: 0.3358
+- darkCircles:III: 0.3072
+- darkCircles:IV: 0.2701
+- darkCircles:V: 0.2273
+- darkCircles:VI: 0.1851
+- darkCircles: 0.1660
+- darkCircles@worstLevel: 1.0000
+- texture@0.25: 0.0739
+- texture@0.5: 0.0632
+- texture@0.75: 0.0615
+- texture@1: 0.0594
+- texture:I: 0.0598
+- texture:II: 0.0596
+- texture:III: 0.0603
+- texture:IV: 0.0634
+- texture:V: 0.0746
+- texture:VI: 0.1335
+- texture: 0.0739
+- texture@worstLevel: 0.2500
+- hydration@0.25: 0.0739
+- hydration@0.5: 0.0632
+- hydration@0.75: 0.0615
+- hydration@1: 0.0594
+- hydration:I: 0.9402
+- hydration:II: 0.9404
+- hydration:III: 0.9397
+- hydration:IV: 0.9366
+- hydration:V: 0.9254
+- hydration:VI: 0.8665
+- hydration: 0.0739
+- hydration@worstLevel: 0.2500
