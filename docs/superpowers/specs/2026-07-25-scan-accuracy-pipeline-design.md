@@ -592,3 +592,57 @@ Applied so far:
 - Verdicts known to be condition-bound and not yet widened: `monotonic` sweeps defects at FST III
   only; `illuminant` and `geometric` sweep at FST III only; `tone-preservation` renders one fixed
   mid-strength defect blend. None of these has been checked across tone.
+
+---
+
+## Open decision (2026-07-26): does the renderer's roughness model need to change?
+
+**Blocks:** the group-2 fairness fix (texture/hydration noise floor). **Needs a human call**, because
+the only way forward touches `eval/render/`, which has stayed byte-identical through every review on
+this branch and is the reason its passing axes mean anything.
+
+### The finding
+
+`texture` carries a tone-dependent floor from additive sensor noise measured against a
+tone-proportional reference. It is worst on perfectly clean skin — spread 0.0897 at defect 0, rising
+FST I 0.0361 → VI 0.1258 — so darker tones read as rougher, and (hydration being `1 − texture`) as
+less hydrated, with no defect present. Mechanism confirmed analytically: the Weber ratio `δY/Y` is
+0.56% at FST I against 3.79% at FST VI, a 6.8× gap. Signal enters as `γ·p` (tone-free), noise as
+`γ·δ/Y` (an offset). Offsets subtract.
+
+### Why the fix could not be validated
+
+Subtracting an image-estimated noise floor (Immerkaer, constants derived not tuned) worked exactly as
+specified: texture spread collapsed 0.0897 → 0.0006. It also read **0.0000 at defect 1.0**, and
+`rho:texture` went to 0 — the dimension died and the monotonic axis failed.
+
+Cause is in the renderer, not the fix. `eval/render/face.ts:113` synthesizes roughness from a field
+its own comment calls *"fully DECORRELATED noise (baseCells == width … bilinear interpolation
+degenerates to picking the nearest independent lattice value per pixel)"*. That is per-pixel
+independent noise — spectrally identical to sensor noise — so any estimator removing one necessarily
+removes the other. It was chosen for a documented convenience reason (≈4× the Laplacian energy per
+unit amplitude, so a smaller amplitude moves texture without tripping `darkSpots`), not for physical
+realism. Real skin roughness has structure at pore/wrinkle scale, several px at working resolution.
+
+### The options
+
+1. **Leave it.** Current state. The tone bias stands and ships; `texture`/`hydration` remain the
+   worst-at-defect-0 failure. Recorded at point of use in `skincare/rules.ts`.
+2. **Give roughness a physically plausible correlation scale** (a few px, not 1) in the renderer,
+   then re-run the group-2 fix. This is the honest fix and the recommended one.
+3. Accept a dead `texture`. Rejected — silently zero is worse than biased.
+
+### If option 2 is taken, expect this
+
+The decorrelated field was chosen *specifically* to avoid roughness→darkSpots crosstalk, measured at
+**0.36–0.52 against a 0.07 ceiling** and described as "unmoved by raising ambient further". Making
+roughness correlated again will likely reintroduce it and fail the monotonic axis's crosstalk check.
+This is not a one-line swap; it probably needs the ambient/amplitude retuning already done once in
+Task 5b. Re-verify all five axes after, and state the renderer diff explicitly in the commit — the
+byte-identical guarantee ends there and every later reader needs to know when and why.
+
+### The caveat that survives either choice
+
+The noise-subtraction fix may be **correct for real devices and simply unverifiable here**. A
+self-consistency harness cannot settle a question about real skin. See
+`docs/training-approach-brief.md`.
