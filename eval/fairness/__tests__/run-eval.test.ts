@@ -10,7 +10,11 @@ const entry = (id: string): ManifestEntry => ({
   source: 'fixture', consentRef: 'c1', fstProvenance: 'annotated',
 });
 const extract: Extractor = async () => ({
-  gate: { face: true, lighting: true, focus: true, distance: true, allPass: true, hint: '' },
+  gate: {
+    face: true, lighting: true, focus: true, distance: true,
+    glare: true, colour: true, evenness: true, pose: true,
+    allPass: true, hint: '',
+  },
   scores,
 });
 

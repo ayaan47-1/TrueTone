@@ -5,7 +5,11 @@ import type { Observation } from '../types';
 import type { Fitzpatrick } from '../fst';
 import type { ScoreVector } from '../../../src/features/read/read-types';
 
-const gate = { face: true, lighting: true, focus: true, distance: true, allPass: true, hint: '' };
+const gate = {
+  face: true, lighting: true, focus: true, distance: true,
+  glare: true, colour: true, evenness: true, pose: true,
+  allPass: true, hint: '',
+};
 function scores(v: number): ScoreVector {
   return Object.fromEntries(DIMENSIONS.map((d) => [d, v])) as ScoreVector;
 }

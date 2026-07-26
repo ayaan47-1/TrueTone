@@ -10,7 +10,11 @@ function scores(v: number): ScoreVector {
 }
 function obs(fst: Fitzpatrick, subjectId: string, allPass: boolean, v: number): Observation {
   return { fst, subjectId, scores: scores(v),
-    gate: { face: true, lighting: true, focus: true, distance: true, allPass, hint: '' } };
+    gate: {
+      face: true, lighting: true, focus: true, distance: true,
+      glare: true, colour: true, evenness: true, pose: true,
+      allPass, hint: '',
+    } };
 }
 // loose thresholds so a tiny synthetic set can exercise pass/fail deterministically
 const t = { minSamplesPerFst: 1, minSubjectsPerFst: 1, gateFloor: 0.9, gateMaxGap: 0.05,

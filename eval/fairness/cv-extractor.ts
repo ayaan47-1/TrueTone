@@ -7,7 +7,11 @@ import type { ManifestEntry } from './manifest';
 import { FITZPATRICK } from './fst';
 import { renderSelfTestFace } from './self-test-images';
 
-const PASS_GATE: QualityReport = { face: true, lighting: true, focus: true, distance: true, allPass: true, hint: '' };
+const PASS_GATE: QualityReport = {
+  face: true, lighting: true, focus: true, distance: true,
+  glare: true, colour: true, evenness: true, pose: true,
+  allPass: true, hint: '',
+};
 
 export const cvSelfTestExtractor: Extractor = async (entry) => {
   const { rgb, bbox } = renderSelfTestFace(entry.fst);

@@ -6,7 +6,11 @@ import type { Fitzpatrick } from '../fst';
 const emptyScores = {} as Observation['scores'];
 function obs(fst: Fitzpatrick, allPass: boolean): Observation {
   return { fst, subjectId: `${fst}-${Math.random()}`, scores: emptyScores,
-    gate: { face: true, lighting: true, focus: true, distance: true, allPass, hint: '' } };
+    gate: {
+      face: true, lighting: true, focus: true, distance: true,
+      glare: true, colour: true, evenness: true, pose: true,
+      allPass, hint: '',
+    } };
 }
 
 test('computes per-FST pass rate and the best-worst gap above min samples', () => {

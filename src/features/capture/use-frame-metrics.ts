@@ -25,22 +25,32 @@ import { runOnJS } from 'react-native-worklets';
 import type { FrameMetrics } from './quality-gate';
 import { facesToMetrics, ASSUMED_BRIGHTNESS, ASSUMED_SHARPNESS } from './face-metrics';
 import { computeLumaStats } from './luma-metrics';
+import { computeChromaStats } from './chroma-metrics';
 
-type FaceMetrics = Pick<FrameMetrics, 'faceDetected' | 'faceCenteredness' | 'faceFraction'>;
+type FaceMetrics = Pick<FrameMetrics, 'faceDetected' | 'faceCenteredness' | 'faceFraction' | 'yaw' | 'roll'>;
 type LumaMetrics = Pick<FrameMetrics, 'brightness' | 'sharpness'>;
+type ChromaMetrics = Pick<FrameMetrics, 'clipping' | 'cct' | 'imbalance'>;
 
-const BLANK_FACE: FaceMetrics = { faceDetected: false, faceCenteredness: 0, faceFraction: 0 };
+const BLANK_FACE: FaceMetrics = {
+  faceDetected: false, faceCenteredness: 0, faceFraction: 0, yaw: 0, roll: 0,
+};
 const NEUTRAL_LUMA: LumaMetrics = { brightness: ASSUMED_BRIGHTNESS, sharpness: ASSUMED_SHARPNESS };
+const NEUTRAL_CHROMA: ChromaMetrics = { clipping: 0, cct: 6500, imbalance: 0 };
 
 // Luma downsample grid — small enough to pass to the JS thread cheaply each processed frame.
 const LUMA_COLS = 32;
 const LUMA_ROWS = 44;
 
+// Coarse RGB downsample grid for chroma stats (glare/colour-cast/side-light) — deliberately much
+// smaller than the luma grid since chroma only needs coarse, global statistics.
+const CHROMA_COLS = 12;
+const CHROMA_ROWS = 16;
+
 // Scripted simulation story: searching → aligned-but-too-far → well-framed. [untilElapsedMs, metrics].
 const SIM_TIMELINE: ReadonlyArray<readonly [number, FrameMetrics]> = [
-  [1200, { faceDetected: false, faceCenteredness: 0, brightness: 0, sharpness: 0, faceFraction: 0 }],
-  [2400, { faceDetected: true, faceCenteredness: 0.82, brightness: 0.58, sharpness: 0.72, faceFraction: 0.15 }],
-  [Infinity, { faceDetected: true, faceCenteredness: 0.88, brightness: 0.6, sharpness: 0.74, faceFraction: 0.42 }],
+  [1200, { faceDetected: false, faceCenteredness: 0, brightness: 0, sharpness: 0, faceFraction: 0, yaw: 0, roll: 0, clipping: 0, cct: 6500, imbalance: 0 }],
+  [2400, { faceDetected: true, faceCenteredness: 0.82, brightness: 0.58, sharpness: 0.72, faceFraction: 0.15, yaw: 0, roll: 0, clipping: 0.01, cct: 5200, imbalance: 0.05 }],
+  [Infinity, { faceDetected: true, faceCenteredness: 0.88, brightness: 0.6, sharpness: 0.74, faceFraction: 0.42, yaw: 0, roll: 0, clipping: 0.01, cct: 5200, imbalance: 0.05 }],
 ];
 
 function metricsForElapsed(ms: number): FrameMetrics {
@@ -70,13 +80,14 @@ export interface UseFrameMetricsOptions {
 
 export function useFrameMetrics({ simulate = !FRAME_PROCESSORS_INSTALLED }: UseFrameMetricsOptions = {}) {
   const { width, height } = useWindowDimensions();
-  const [metrics, setMetrics] = useState<FrameMetrics>({ ...BLANK_FACE, ...NEUTRAL_LUMA });
+  const [metrics, setMetrics] = useState<FrameMetrics>({ ...BLANK_FACE, ...NEUTRAL_LUMA, ...NEUTRAL_CHROMA });
 
   const faceRef = useRef<FaceMetrics>(BLANK_FACE);
   const lumaRef = useRef<LumaMetrics>(NEUTRAL_LUMA);
+  const chromaRef = useRef<ChromaMetrics>(NEUTRAL_CHROMA);
 
   const publish = useCallback(() => {
-    if (!simulate) setMetrics({ ...faceRef.current, ...lumaRef.current });
+    if (!simulate) setMetrics({ ...faceRef.current, ...lumaRef.current, ...chromaRef.current });
   }, [simulate]);
 
   // FACE + LUMA come from real frame processors, which are native and exist only in a dev build.
@@ -94,7 +105,13 @@ export function useFrameMetrics({ simulate = !FRAME_PROCESSORS_INSTALLED }: UseF
         outputResolution: 'preview',
         onFacesDetected: (faces: Face[]) => {
           const m = facesToMetrics(faces, width, height);
-          faceRef.current = { faceDetected: m.faceDetected, faceCenteredness: m.faceCenteredness, faceFraction: m.faceFraction };
+          faceRef.current = {
+            faceDetected: m.faceDetected,
+            faceCenteredness: m.faceCenteredness,
+            faceFraction: m.faceFraction,
+            yaw: m.yaw,
+            roll: m.roll,
+          };
           publish();
         },
         onError: () => {
@@ -113,6 +130,15 @@ export function useFrameMetrics({ simulate = !FRAME_PROCESSORS_INSTALLED }: UseF
     [publish],
   );
 
+  // GLARE + COLOUR CAST + SIDE LIGHT signal ----------------------------------
+  const onChromaGrid = useCallback(
+    (rgbGrid: number[], cols: number, rows: number) => {
+      chromaRef.current = computeChromaStats(rgbGrid, cols, rows);
+      publish();
+    },
+    [publish],
+  );
+
   const lumaOutput = !FRAME_PROCESSORS_INSTALLED
     ? undefined
     : useFrameOutput({
@@ -121,7 +147,8 @@ export function useFrameMetrics({ simulate = !FRAME_PROCESSORS_INSTALLED }: UseF
       'worklet';
       try {
         if (!frame.isPlanar) return;
-        const plane = frame.getPlanes()[0]; // Y (luma)
+        const planes = frame.getPlanes();
+        const plane = planes[0]; // Y (luma)
         const y = new Uint8Array(plane.getPixelBuffer()); // view — no copy
         const w = plane.width;
         const h = plane.height;
@@ -140,6 +167,50 @@ export function useFrameMetrics({ simulate = !FRAME_PROCESSORS_INSTALLED }: UseF
           }
         }
         runOnJS(onLumaGrid)(grid, cols, rows);
+
+        // Coarse RGB grid for chroma stats (glare / colour cast / side light). DEVICE-ONLY: whether
+        // U/V arrive as separate planar planes or one interleaved semi-planar plane (and their
+        // subsampling) varies by device/codec — this best-effort YUV->RGB conversion, like the luma
+        // plane layout above, needs on-device confirmation.
+        if (planes.length >= 2) {
+          const uPlane = planes[1];
+          const vPlane = planes.length >= 3 ? planes[2] : planes[1];
+          const uBuf = new Uint8Array(uPlane.getPixelBuffer());
+          const vBuf = new Uint8Array(vPlane.getPixelBuffer());
+          const uStride = uPlane.bytesPerRow;
+          const vStride = vPlane.bytesPerRow;
+          const interleaved = planes.length === 2;
+          const chromaPixelStride = interleaved ? 2 : 1;
+          const vByteOffset = interleaved ? 1 : 0;
+          const chromaW = uPlane.width;
+          const chromaH = uPlane.height;
+          const cStepX = Math.max(1, Math.floor(chromaW / CHROMA_COLS));
+          const cStepY = Math.max(1, Math.floor(chromaH / CHROMA_ROWS));
+          const rgbGrid: number[] = [];
+          let cCols = 0;
+          let cRows = 0;
+          for (let r = 0; r < chromaH; r += cStepY) {
+            cRows += 1;
+            cCols = 0;
+            for (let c = 0; c < chromaW; c += cStepX) {
+              // U/V planes are typically half-resolution (4:2:0) — sample luma at 2x the chroma
+              // coordinate to align them.
+              const yy = y[Math.min(h - 1, r * 2) * stride + Math.min(w - 1, c * 2)];
+              const uu = uBuf[r * uStride + c * chromaPixelStride] - 128;
+              const vv = vBuf[r * vStride + c * chromaPixelStride + vByteOffset] - 128;
+              const rr = yy + 1.402 * vv;
+              const gg = yy - 0.344136 * uu - 0.714136 * vv;
+              const bb = yy + 1.772 * uu;
+              rgbGrid.push(
+                Math.max(0, Math.min(255, rr)),
+                Math.max(0, Math.min(255, gg)),
+                Math.max(0, Math.min(255, bb)),
+              );
+              cCols += 1;
+            }
+          }
+          runOnJS(onChromaGrid)(rgbGrid, cCols, cRows);
+        }
       } catch {
         // DEVICE-ONLY: plane layout varies by device; skip a frame we can't read.
       } finally {
