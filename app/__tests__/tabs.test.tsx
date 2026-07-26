@@ -28,7 +28,7 @@ beforeEach(() => jest.clearAllMocks());
 test('Today shows the disclaimer and starts a scan', async () => {
   const view = await render(<TodayScreen />);
   expect(view.getByText(/not a medical device/i)).toBeTruthy();
-  fireEvent.press(view.getByRole('button', { name: 'Start your read' }));
+  fireEvent.press(view.getByRole('button', { name: /ready for today.s scan/i }));
   expect(mockPush).toHaveBeenCalledWith('/scan');
   await flush();
 });

@@ -3,12 +3,12 @@ import { View, Text, Pressable, StyleSheet } from 'react-native';
 import { supabase } from '../../lib/supabase';
 import { CONSENT_COPY as C } from './consent-copy';
 import {
-  MistBackground,
-  GlassSheet,
+  Screen,
+  GlassCard,
+  Display,
   Heading,
   Body,
   Caption,
-  Eyebrow,
   PrimaryButton,
 } from '../../components/ui';
 import { palette } from '../../theme/tokens';
@@ -26,12 +26,14 @@ export function Consent({
     if (!error) onConsent();
   }
   return (
-    <MistBackground>
-      <GlassSheet className="px-7 py-8 gap-4">
-        <View className="gap-2">
-          <Eyebrow>Biometric consent</Eyebrow>
-          <Heading>{C.title}</Heading>
-        </View>
+    <Screen className="px-6" topGap={56} bottomGap={24}>
+      <View className="gap-1 mb-7">
+        <Display className="text-[30px]">Your photo stays yours</Display>
+        <Body className="text-ink-muted">Review and choose before any scan can begin.</Body>
+      </View>
+
+      <GlassCard flat radius={22} className="px-5 py-5 gap-4">
+        <Heading className="text-[20px]">{C.title}</Heading>
         <Body>{C.what}</Body>
         <Body>{C.purpose}</Body>
         <Body className="text-ink-muted">{C.retention}</Body>
@@ -41,7 +43,7 @@ export function Consent({
           accessibilityRole="checkbox"
           accessibilityState={{ checked }}
           onPress={() => setChecked((v) => !v)}
-          className="flex-row items-start gap-3 mt-1"
+          className="flex-row items-start gap-3 mt-2 rounded-[18px] bg-white/60 px-4 py-4"
         >
           <View style={[styles.box, checked && styles.boxOn]}>
             {checked ? <Text style={styles.tick}>✓</Text> : null}
@@ -49,7 +51,9 @@ export function Consent({
           <Caption className="flex-1 text-[13px] leading-[19px] text-ink-soft">{C.checkbox}</Caption>
         </Pressable>
 
-        <View className="flex-row gap-3 mt-3">
+      </GlassCard>
+
+        <View className="flex-row gap-3 mt-6">
           <View className="flex-1">
             <PrimaryButton label="Decline" variant="ghost" fullWidth onPress={onDecline} />
           </View>
@@ -64,8 +68,8 @@ export function Consent({
             />
           </View>
         </View>
-      </GlassSheet>
-    </MistBackground>
+      <Caption className="mt-5 text-center">Privacy Policy · Biometric Data Policy · Terms</Caption>
+    </Screen>
   );
 }
 
@@ -75,11 +79,11 @@ const styles = StyleSheet.create({
     height: 24,
     borderRadius: 8,
     borderWidth: 2,
-    borderColor: palette.mauve400,
+    borderColor: palette.sage,
     backgroundColor: 'rgba(255,255,255,0.6)',
     alignItems: 'center',
     justifyContent: 'center',
   },
-  boxOn: { backgroundColor: palette.mauve500, borderColor: palette.mauve500 },
+  boxOn: { backgroundColor: palette.sage, borderColor: palette.sage },
   tick: { color: '#fff', fontSize: 14, fontWeight: '700', lineHeight: 16 },
 });

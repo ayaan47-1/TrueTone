@@ -63,7 +63,7 @@ test('when the scan fetch fails, shows a distinct error (not the empty state)', 
 test('logging a skin-feel mood persists it on-device', async () => {
   mockFetchHistory.mockResolvedValue([]);
   const view = await render(<TodayScreen />);
-  fireEvent.press(view.getByRole('button', { name: 'Good' }));
-  expect(mockSetMood).toHaveBeenCalledWith('good');
+  fireEvent.press(view.getByRole('button', { name: 'Glowy' }));
+  expect(mockSetMood).toHaveBeenCalledWith('glowy');
   await flush();
 });

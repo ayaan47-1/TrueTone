@@ -1,4 +1,4 @@
-import { render, screen } from '@testing-library/react-native';
+import { fireEvent, render, screen, waitFor } from '@testing-library/react-native';
 import { RoutineView } from '../RoutineView';
 import type { Routine } from '../routine-types';
 
@@ -12,7 +12,8 @@ const routine: Routine = {
 test('renders AM and PM steps and the disclaimer', async () => {
   await render(<RoutineView routine={routine} />);
   expect(screen.getByText(/broad-spectrum SPF/)).toBeTruthy();
-  expect(screen.getByText(/gentle exfoliant/)).toBeTruthy();
+  fireEvent.press(screen.getByRole('button', { name: 'Evening routine' }));
+  await waitFor(() => expect(screen.getByText(/gentle exfoliant/)).toBeTruthy());
   expect(screen.getByText(/looks.*not medical advice/i)).toBeTruthy();
 });
 

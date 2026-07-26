@@ -14,23 +14,23 @@ test('returns null when no mood is logged today', async () => {
 });
 
 test('persists and reads back today’s mood', async () => {
-  await setMood('good', new Date(2026, 5, 24));
-  expect(await getMood(new Date(2026, 5, 24))).toBe('good');
+  await setMood('glowy', new Date(2026, 5, 24));
+  expect(await getMood(new Date(2026, 5, 24))).toBe('glowy');
 });
 
 test('keeps moods per-day (a different day is independent)', async () => {
-  await setMood('good', new Date(2026, 5, 24));
+  await setMood('calm', new Date(2026, 5, 24));
   expect(await getMood(new Date(2026, 5, 25))).toBeNull();
 });
 
 test('overwrites the same day', async () => {
-  await setMood('okay', new Date(2026, 5, 24));
-  await setMood('awesome', new Date(2026, 5, 24));
-  expect(await getMood(new Date(2026, 5, 24))).toBe('awesome');
+  await setMood('tired', new Date(2026, 5, 24));
+  await setMood('dry', new Date(2026, 5, 24));
+  expect(await getMood(new Date(2026, 5, 24))).toBe('dry');
 });
 
 test('clearDiary erases everything (delete-everything wiring)', async () => {
-  await setMood('good', new Date(2026, 5, 24));
+  await setMood('calm', new Date(2026, 5, 24));
   await clearDiary();
   expect(await getMood(new Date(2026, 5, 24))).toBeNull();
 });

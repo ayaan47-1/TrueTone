@@ -28,8 +28,8 @@ interface GlassCardProps extends ViewProps {
 export function GlassCard({
   children,
   className,
-  intensity = 36,
-  radius = 30,
+  intensity = 28,
+  radius = 22,
   flat = false,
   style,
   ...rest

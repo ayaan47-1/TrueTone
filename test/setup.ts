@@ -7,11 +7,22 @@ jest.mock('react-native-reanimated', () => {
   const { View } = require('react-native');
   // Chainable no-op for `FadeIn.duration(220)`, `FadeInDown.springify().damping(20)`, etc.
   const builder = () => new Proxy(() => builder(), { get: () => () => builder() });
+  const easing = () => easing;
   return {
     __esModule: true,
     default: { View, createAnimatedComponent: (c: unknown) => c },
     FadeIn: builder(),
     FadeInDown: builder(),
+    FadeInUp: builder(),
+    // Motion primitives (src/theme/motion.ts, Rise, PressableScale). The worklet layer never runs
+    // under Jest, so animations resolve to their target value synchronously.
+    Easing: { out: easing, in: easing, inOut: easing, cubic: easing, bezier: () => easing },
+    useReducedMotion: () => false,
+    useSharedValue: (initial: unknown) => ({ value: initial }),
+    useAnimatedStyle: (fn: () => unknown) => fn(),
+    withTiming: (to: unknown) => to,
+    withSpring: (to: unknown) => to,
+    withDelay: (_ms: number, animation: unknown) => animation,
   };
 });
 

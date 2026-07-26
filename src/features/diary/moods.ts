@@ -2,11 +2,10 @@
 // a subjective wellness check-in, not a clinical assessment. No disease terms.
 
 export const MOODS = [
-  { value: 'bad', label: 'Bad' },
-  { value: 'not_great', label: 'Not great' },
-  { value: 'okay', label: 'Okay' },
-  { value: 'good', label: 'Good' },
-  { value: 'awesome', label: 'Awesome' },
+  { value: 'calm', label: 'Calm' },
+  { value: 'glowy', label: 'Glowy' },
+  { value: 'dry', label: 'Dry' },
+  { value: 'tired', label: 'Tired' },
 ] as const;
 
 export type MoodValue = (typeof MOODS)[number]['value'];

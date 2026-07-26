@@ -19,7 +19,7 @@ function cx(base: string, extra?: string): string {
 export function Display({ className, ...rest }: Props) {
   return (
     <Text
-      className={cx('font-display-md text-4xl leading-[1.02] tracking-[-0.6px] text-ink', className)}
+      className={cx('text-[28px] font-bold leading-[34px] tracking-[-0.5px] text-ink', className)}
       {...rest}
     />
   );
@@ -29,7 +29,7 @@ export function Display({ className, ...rest }: Props) {
 export function Heading({ className, ...rest }: Props) {
   return (
     <Text
-      className={cx('font-display-md text-2xl leading-[1.12] tracking-[-0.3px] text-ink', className)}
+      className={cx('text-2xl font-bold leading-[30px] tracking-[-0.3px] text-ink', className)}
       {...rest}
     />
   );
@@ -37,14 +37,14 @@ export function Heading({ className, ...rest }: Props) {
 
 /** Smaller heading for dense surfaces. */
 export function Subheading({ className, ...rest }: Props) {
-  return <Text className={cx('font-display-md text-lg leading-snug text-ink', className)} {...rest} />;
+  return <Text className={cx('text-lg font-semibold leading-snug text-ink', className)} {...rest} />;
 }
 
 /** All-caps eyebrow label. */
 export function Eyebrow({ className, ...rest }: Props) {
   return (
     <Text
-      className={cx('font-body-semibold text-[11px] uppercase tracking-[2px] text-mauve-500', className)}
+      className={cx('text-[11px] font-semibold uppercase tracking-[1.6px] text-sage', className)}
       {...rest}
     />
   );
@@ -52,10 +52,10 @@ export function Eyebrow({ className, ...rest }: Props) {
 
 /** Default body copy. */
 export function Body({ className, ...rest }: Props) {
-  return <Text className={cx('font-body text-[15px] leading-[22px] text-ink-soft', className)} {...rest} />;
+  return <Text className={cx('text-[15px] leading-[22px] text-ink-soft', className)} {...rest} />;
 }
 
 /** Quiet secondary copy. */
 export function Caption({ className, ...rest }: Props) {
-  return <Text className={cx('font-body text-xs leading-[18px] text-ink-muted', className)} {...rest} />;
+  return <Text className={cx('text-xs leading-[18px] text-ink-muted', className)} {...rest} />;
 }
