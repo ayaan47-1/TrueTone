@@ -12,13 +12,17 @@ export interface DetectedFaceBounds {
 }
 
 /**
- * Minimal shape of a vision-camera-face-detector `Face`. `yawAngle`/`rollAngle` are always present
- * on MLKit's `Face` (no detector option needed, no extra cost) — surfaced here for the pose check.
+ * Minimal shape of a vision-camera-face-detector `Face`. `yawAngle`/`rollAngle` are REQUIRED here
+ * because they are required on MLKit's real `Face` type (`Face.nitro.ts`: `readonly yawAngle:
+ * number`, no detector option needed, no extra cost) — surfaced here for the pose check. Required,
+ * not optional: the gate fails closed (CLAUDE.md — refusing to scan is the safe direction), and an
+ * optional field defaulting to 0 would silently read as "dead straight" for any caller that omits
+ * it, clearing a check that was supposed to block capture.
  */
 export interface DetectedFace {
   bounds: DetectedFaceBounds;
-  yawAngle?: number;
-  rollAngle?: number;
+  yawAngle: number;
+  rollAngle: number;
 }
 
 // The face detector reports presence/position/size but NOT exposure or focus. Until a luma-based
@@ -72,8 +76,8 @@ export function facesToMetrics(
     brightness: ASSUMED_BRIGHTNESS,
     sharpness: ASSUMED_SHARPNESS,
     faceFraction: clamp01(b.height / windowHeight),
-    yaw: face.yawAngle ?? 0,
-    roll: face.rollAngle ?? 0,
+    yaw: face.yawAngle,
+    roll: face.rollAngle,
     // The face detector doesn't measure exposure/colour — chroma stats are merged in separately
     // (use-frame-metrics.ts) from the RGB-grid worklet. Neutral-pass defaults here.
     clipping: 0,

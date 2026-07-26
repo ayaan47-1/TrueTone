@@ -4,7 +4,7 @@ import { evaluateQuality } from '../quality-gate';
 const W = 400;
 const H = 800;
 // A well-framed, centered face: ~42% of frame height, centered horizontally + vertically.
-const centered = { bounds: { x: 116, y: 232, width: 168, height: 336 } };
+const centered = { bounds: { x: 116, y: 232, width: 168, height: 336 }, yawAngle: 0, rollAngle: 0 };
 
 describe('facesToMetrics', () => {
   it('reports no face for an empty list', () => {
@@ -34,7 +34,7 @@ describe('facesToMetrics', () => {
   });
 
   it('a small, far face fails the distance gate', () => {
-    const far = { bounds: { x: 180, y: 360, width: 40, height: 80 } }; // height fraction 0.1
+    const far = { bounds: { x: 180, y: 360, width: 40, height: 80 }, yawAngle: 0, rollAngle: 0 }; // height fraction 0.1
     const m = facesToMetrics([far], W, H);
     expect(m.faceDetected).toBe(true);
     const q = evaluateQuality(m);
@@ -43,14 +43,14 @@ describe('facesToMetrics', () => {
   });
 
   it('an off-center face has lower centeredness and fails the face gate', () => {
-    const offset = { bounds: { x: 0, y: 0, width: 168, height: 336 } }; // top-left corner
+    const offset = { bounds: { x: 0, y: 0, width: 168, height: 336 }, yawAngle: 0, rollAngle: 0 }; // top-left corner
     const m = facesToMetrics([offset], W, H);
     expect(m.faceCenteredness).toBeLessThan(0.6);
     expect(evaluateQuality(m).face).toBe(false);
   });
 
   it('picks the largest face when several are present', () => {
-    const small = { bounds: { x: 10, y: 10, width: 30, height: 30 } };
+    const small = { bounds: { x: 10, y: 10, width: 30, height: 30 }, yawAngle: 0, rollAngle: 0 };
     const m = facesToMetrics([small, centered, small], W, H);
     expect(m.faceFraction).toBeCloseTo(336 / 800, 5);
   });

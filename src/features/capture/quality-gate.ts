@@ -28,6 +28,9 @@ export const THRESHOLDS = {
   cctMin: 2700, cctMax: 7500,
   imbalanceMax: 0.35,
   poseMax: 20, // degrees of yaw or roll
+  // How close to a threshold (as a fraction of headroom) still counts as "fair" rather than "good"
+  // in qualityBand. PROVISIONAL — must be re-tuned on a physical device (spec §11).
+  qualityBandMargin: 0.15,
 } as const;
 
 export function evaluateQuality(m: FrameMetrics): QualityReport {
@@ -67,5 +70,5 @@ export function qualityBand(m: FrameMetrics): 'good' | 'fair' | 'poor' {
     1 - Math.abs(m.yaw) / THRESHOLDS.poseMax,
     1 - Math.abs(m.roll) / THRESHOLDS.poseMax,
   ];
-  return Math.min(...margins) < 0.15 ? 'fair' : 'good';
+  return Math.min(...margins) < THRESHOLDS.qualityBandMargin ? 'fair' : 'good';
 }
