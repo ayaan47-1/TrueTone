@@ -5,7 +5,10 @@ import { join, extname } from 'node:path';
 // Tokens that would mean an image/photo path is leaving the device from the scan pipeline.
 const FORBIDDEN = ['.storage', 'upload', 'imageUri', 'photo.path', 'FormData'];
 // Directories that must never touch the network with image data.
-const GUARDED_DIRS = ['src/features/capture', 'src/features/read'];
+// `app/(dev)` holds dev-only diagnostic screens that display the captured still (bbox-overlay).
+// They are the most likely place for a debugging shortcut to leak an image, so they are guarded
+// like the pipeline itself rather than trusted for being dev-only.
+const GUARDED_DIRS = ['src/features/capture', 'src/features/read', 'app/(dev)'];
 // image-lifecycle + preprocess legitimately reference the uri locally; allow file-system + tensor ops.
 const ALLOW = ['deleteAsync', 'FileSystem', 'normalizeToTensor', 'readAsStringAsync'];
 
