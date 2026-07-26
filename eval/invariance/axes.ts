@@ -168,6 +168,55 @@ export function tonePreservationAxis(t: InvarianceThresholds = INVARIANCE_THRESH
   };
 }
 
+// Fixed mid-strength defect used by defectToneFairnessAxis. Deliberately non-zero — the existing
+// tonePreservationAxis already covers defect=0 (tone must not vanish); this axis asks the
+// complementary question at a real defect strength.
+const TONE_RESPONSE_DEFECT = 0.5;
+
+export function defectToneFairnessAxis(t: InvarianceThresholds = INVARIANCE_THRESHOLDS): AxisResult {
+  // The actual fairness claim: the SAME blemish, the SAME shine, the SAME redness should read as
+  // the SAME score on any skin tone. tonePreservationAxis only ever renders at defect=0, so
+  // nothing previously asked whether a dimension's RESPONSE to its own defect is tone-consistent —
+  // this is the complement of eval/fairness's bias axis (tone alone, defect=0 there too).
+  //
+  // For each dimension with a defect knob (DEFECT_FOR), hold that knob at a fixed mid-strength
+  // defect and sweep Fitzpatrick I..VI under identical lighting; record the spread of THAT
+  // dimension's own score across tones.
+  const detail: Record<string, number> = {};
+  let pass = true;
+  let worst: AxisResult['worst'] = null;
+
+  // Records both the raw per-tone scores (so a reader can see WHICH direction tone biases the
+  // response, not just its magnitude — mirrors tonePreservationAxis's lum:${fst} convention) and
+  // the spread that actually gates pass/fail.
+  const record = (dim: Dimension, byTone: number[]): void => {
+    FITZPATRICK.forEach((fst, i) => {
+      detail[`${dim}:${fst}`] = byTone[i];
+    });
+    const dimSpread = Math.max(...byTone) - Math.min(...byTone);
+    detail[dim] = dimSpread;
+    if (dimSpread > t.toneResponseSpread) pass = false;
+    if (!worst || dimSpread > worst.value) worst = { dimension: dim, value: dimSpread };
+  };
+
+  for (const [dim, knob] of Object.entries(DEFECT_FOR) as Array<[Dimension, Knob]>) {
+    const defects = { ...DEFAULT_DEFECTS, [knob]: TONE_RESPONSE_DEFECT };
+    const runs = FITZPATRICK.map((fst) => scoresFor({ fst, defects }));
+    record(dim, runs.map((r) => r[dim]));
+
+    // hydration has no defect knob of its own (cv/dimensions/hydration.ts defines it as
+    // 1 - microContrast, the inverse of texture — see EXPECTED_COUPLING above), so it never gets
+    // its own iteration of this loop. It IS fully determined by the same roughness knob that
+    // drives texture, so read its cross-tone response off that same sweep rather than a separate
+    // render pass.
+    if (knob === 'roughness') {
+      record('hydration', runs.map((r) => r.hydration));
+    }
+  }
+
+  return { name: 'defect-tone-fairness', pass, worst, detail };
+}
+
 export function runAllAxes(t: InvarianceThresholds = INVARIANCE_THRESHOLDS): AxisResult[] {
-  return [illuminantAxis(t), geometricAxis(t), monotonicAxis(t), tonePreservationAxis(t)];
+  return [illuminantAxis(t), geometricAxis(t), monotonicAxis(t), tonePreservationAxis(t), defectToneFairnessAxis(t)];
 }

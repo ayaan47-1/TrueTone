@@ -20,6 +20,23 @@ export const INVARIANCE_THRESHOLDS = {
   // Min spread that tone-derived quantities must RETAIN across FST I..VI after normalization —
   // guards against achieving invariance by erasing tone (spec §6b).
   tonePreservationFloor: 0.05,
+  // Max allowed spread, across Fitzpatrick I..VI, of a dimension's score at a FIXED non-zero
+  // defect level (0.5). Complements tonePreservationFloor (defect=0: tone must not vanish) with
+  // the actual fairness claim: the SAME defect strength should read as the SAME score on every
+  // skin tone.
+  //
+  // Set from the Task 14c baseline measurement (defectToneFairnessAxis, TONE_RESPONSE_DEFECT=0.5),
+  // which falls into two clean clusters with a >2x gap between them — not tuned to flatter any
+  // dimension:
+  //   fineLines 0.0209, darkSpots 0.0334               <- low cluster
+  //   texture/hydration 0.0632, redness 0.0651, pores 0.0724, darkCircles 0.0758, oiliness 0.1188
+  //                                                      <- high cluster
+  // 0.05 sits in the gap: clears the low cluster with ~35-58% headroom, and is tight enough that
+  // SIX of eight dimensions genuinely fail, including redness (0.0651) AND oiliness (0.1188,
+  // worse than redness and NOT monotonic in tone — U-shaped, see axes.test.ts). This axis is
+  // therefore INTENTIONALLY LEFT FAILING, same precedent as the illuminant axis at the Task 6
+  // baseline: a passing axis here would hide a measured, real cross-tone response gap.
+  toneResponseSpread: 0.05,
 } as const;
 
 export type InvarianceThresholds = {
@@ -27,4 +44,5 @@ export type InvarianceThresholds = {
   crossTalk: number;
   spearmanFloor: number;
   tonePreservationFloor: number;
+  toneResponseSpread: number;
 };

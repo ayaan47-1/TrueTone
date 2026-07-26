@@ -22,7 +22,7 @@ describe('invariance report writer', () => {
   });
 
   it('reports a verdict for every axis', () => {
-    expect(results).toHaveLength(4);
+    expect(results).toHaveLength(5);
     for (const r of results) expect(typeof r.pass).toBe('boolean');
   });
 

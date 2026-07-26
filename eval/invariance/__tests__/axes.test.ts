@@ -1,4 +1,4 @@
-import { spearman, illuminantAxis, geometricAxis, monotonicAxis, tonePreservationAxis, runAllAxes } from '../axes';
+import { spearman, illuminantAxis, geometricAxis, monotonicAxis, tonePreservationAxis, defectToneFairnessAxis, runAllAxes } from '../axes';
 import { INVARIANCE_THRESHOLDS } from '../thresholds';
 
 describe('spearman', () => {
@@ -18,7 +18,7 @@ describe('spearman', () => {
 
 describe('axes', () => {
   it('each return a well-formed AxisResult', () => {
-    for (const axis of [illuminantAxis, geometricAxis, monotonicAxis, tonePreservationAxis]) {
+    for (const axis of [illuminantAxis, geometricAxis, monotonicAxis, tonePreservationAxis, defectToneFairnessAxis]) {
       const r = axis();
       expect(typeof r.name).toBe('string');
       expect(typeof r.pass).toBe('boolean');
@@ -26,9 +26,9 @@ describe('axes', () => {
     }
   });
 
-  it('runAllAxes reports all four', () => {
+  it('runAllAxes reports all five', () => {
     expect(runAllAxes().map((r) => r.name).sort())
-      .toEqual(['geometric', 'illuminant', 'monotonic', 'tone-preservation']);
+      .toEqual(['defect-tone-fairness', 'geometric', 'illuminant', 'monotonic', 'tone-preservation']);
   });
 
   it('are deterministic — the same run twice gives the same verdicts', () => {
@@ -90,5 +90,39 @@ describe('axes', () => {
 
   it('tone preservation passes — normalization has not erased tone', () => {
     expect(tonePreservationAxis().pass).toBe(true);
+  });
+
+  it('defect-tone-fairness FAILS — six of eight dimensions respond unevenly across skin tone', () => {
+    // Task 14c: tonePreservationAxis only ever renders at defect=0 (tone must not vanish). This
+    // axis is the complement — does the SAME defect strength (0.5, see TONE_RESPONSE_DEFECT) read
+    // as the SAME score on every Fitzpatrick tone? That is the actual fairness claim. Measured
+    // spread (max-min across FST I..VI), full per-tone table in eval/reports/invariance.json:
+    //   fineLines    0.0209  flat 0.058 -> 0.079                             PASS
+    //   darkSpots    0.0334  flat 0.711 -> 0.677                             PASS
+    //   texture      0.0632  flat I-V, jump at VI (0.09 -> 0.15)             FAIL
+    //   hydration    0.0632  mirrors texture (drop at VI)                    FAIL
+    //   redness      0.0651  rises 0.146 -> 0.211 (over-reads deep skin)     FAIL
+    //   pores        0.0724  rises 0.178 -> 0.250 (over-reads deep skin)     FAIL
+    //   darkCircles  0.0758  falls 0.162 -> 0.086 (under-reads deep skin)    FAIL
+    //   oiliness     0.1188  U-SHAPED: I=0.071, dips near 0 at II-IV, VI=0.120  FAIL, worst overall
+    //
+    // The plan anticipated redness (~0.065) as the worst dimension. Measurement shows oiliness is
+    // actually worse (0.1188) and non-monotonic in tone, not merely biased in one direction — a
+    // real finding this task exists to surface, not paper over. toneResponseSpread=0.05 was chosen
+    // from the natural >2x gap between the two clusters above (see thresholds.ts), not loosened to
+    // make any known breach pass. This axis is INTENTIONALLY LEFT FAILING, same precedent as the
+    // illuminant axis at the Task 6 baseline — redesigning redness/oiliness is explicitly out of
+    // scope for this task (Step 4); a later task earns the flip the way Task 12b earned illuminant's.
+    const r = defectToneFairnessAxis();
+    expect(r.pass).toBe(false);
+    expect(r.worst?.dimension).toBe('oiliness');
+    expect(r.detail.darkSpots).toBeLessThan(INVARIANCE_THRESHOLDS.toneResponseSpread);
+    expect(r.detail.fineLines).toBeLessThan(INVARIANCE_THRESHOLDS.toneResponseSpread);
+    expect(r.detail.redness).toBeGreaterThan(INVARIANCE_THRESHOLDS.toneResponseSpread);
+    expect(r.detail.pores).toBeGreaterThan(INVARIANCE_THRESHOLDS.toneResponseSpread);
+    expect(r.detail.darkCircles).toBeGreaterThan(INVARIANCE_THRESHOLDS.toneResponseSpread);
+    expect(r.detail.oiliness).toBeGreaterThan(INVARIANCE_THRESHOLDS.toneResponseSpread);
+    expect(r.detail.texture).toBeGreaterThan(INVARIANCE_THRESHOLDS.toneResponseSpread);
+    expect(r.detail.hydration).toBeGreaterThan(INVARIANCE_THRESHOLDS.toneResponseSpread);
   });
 });
