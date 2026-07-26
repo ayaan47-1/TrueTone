@@ -190,8 +190,54 @@ const smoothstep01 = (t: number): number => {
 // Chroma is the fix. Specular reflection carries the ILLUMINANT's colour, not the skin's, so a
 // specular pixel is markedly LESS chromatic than the surrounding skin on every tone — deep skin
 // has high chroma, light skin lower, but a highlight drives both toward the illuminant's
-// near-neutral. Chroma drop measured against the subject's own baseline chroma is therefore
-// tone-invariant, where a lightness threshold (absolute or proportional) is not.
+// near-neutral.
+//
+// *** CORRECTION (2026-07-26). The sentence that used to close this paragraph -- "Chroma drop
+// measured against the subject's own baseline chroma is therefore tone-invariant, where a
+// lightness threshold (absolute or proportional) is not" -- IS FALSE. It was measured false, then
+// proved false analytically. Do not restore it. ***
+//
+// Under the dichromatic reflection model a pixel is diffuse + specular, so its chroma is about
+// C_skin * D/(D+S) for diffuse radiance D and specular radiance S. Normalising by baseline chroma
+// removes the dependence on C_skin but NOT on D -- and D is precisely what skin tone is. The
+// relative chroma drop computed below is therefore an estimator of S/(D+S), which at a FIXED
+// specular radiance runs 0.278 (FST I) -> 0.795 (FST VI): a 2.9x climb with darkness.
+//
+// Worse than a bias, the gate is structurally UNREACHABLE on light skin. Firing requires
+// C_skin*D/(D+S) < C_skin*(1 - chromaDrop), i.e. S > D * chromaDrop/(1 - chromaDrop) = 1.857*D at
+// chromaDrop=0.65. But an 8-bit pixel caps at full white, so the available specular radiance is at
+// most 1 - D. Comparing the two, with D = ((baselineL* + 16)/116)^3:
+//
+//   FST   D        S required   S available   verdict
+//   I     0.7167   1.3309       0.2833        impossible -- needs 4.7x the range that exists
+//   II    0.6216   1.1543       0.3784        impossible -- 3.05x
+//   III   0.4787   0.8889       0.5213        impossible -- 1.71x
+//   IV    0.3250   0.6035       0.6750        marginal -- needs 89% of available range
+//   V     0.1951   0.3623       0.8049        reachable -- 45%
+//   VI    0.1055   0.1959       0.8945        reachable -- 22%
+//
+// So on FST I-III no unclipped pixel can EVER satisfy this gate, at any shine level. Measurement
+// agrees exactly: of the weight this gate admits at defect 0.5, the fraction carried by
+// fully-unclipped pixels is 0.0000 at FST I, II and III. Every count it returns on light skin comes
+// from a CLIPPED pixel, whose chroma reads as 0 only because the sensor ran out of range.
+//
+// Stated plainly: for FST I-III, `oiliness` is currently a saturation detector, not a shine
+// detector. It is not merely biased -- it measures a different physical quantity there. Any
+// user-facing oiliness claim is unsupported on light skin until the gate is replaced (tracked
+// separately: recover S and D under the dichromatic model and normalise S by an illuminant
+// estimate, not by (D+S)).
+//
+// Excluding clipped pixels does NOT fix this and was tried and reverted. Dropping any-channel-
+// clipped pixels (the capture gate's rule) removed 100% of the admitted weight at FST II/III and
+// collapsed the monotonic axis (Spearman rho 0.9535 -> 0.0000). Dropping only fully-white pixels
+// left the fairness axis unchanged at 0.1188 but made maximum shine unreadable on FST I-IV
+// (0.31 -> 0.027 at FST I, defect=1) and WIDENED the max-defect tone spread 0.20 -> 0.291. The
+// signal on light skin lives in the clipped pixels, so no exclusion rule can recover it.
+//
+// Harness note: the renderer (eval/render/face.ts:213) adds specularity as a channel-flat scalar
+// BEFORE the illuminant multiply, so the specular term carries the illuminant's chromaticity
+// exactly -- the dichromatic model, literally. A (skin, illuminant)-basis estimator would be
+// inverting the renderer's own generative model, so synthetic agreement proves less than it looks.
 //
 // Gate on both, each relative to the subject's own baseline:
 //   1. Chroma drop:  C* < baselineC* * (1 - chromaDrop), where C* = hypot(a*, b*).
