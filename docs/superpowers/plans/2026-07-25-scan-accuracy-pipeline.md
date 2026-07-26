@@ -4027,6 +4027,30 @@ export default function BboxOverlay() {
 
 Add to `jest.config.js` `coveragePathIgnorePatterns`: `'<rootDir>/app/(dev)/bbox-overlay.tsx'`.
 
+### ⚠️ Before you start: what the frame-consistency guard does NOT cover
+
+The final fix wave added a frame-consistency guard that rejects detector output which doesn't
+plausibly fit the decoded frame, degrading to the proportional fallback instead. An earlier note
+claimed this made orientation mismatch safe. **That was measured and is false.** Probe results:
+
+| input | guard |
+|---|---|
+| working-space coordinates | rejected → fallback ✓ |
+| normalized 0..1 coordinates | rejected → fallback ✓ |
+| bounds off the frame edge | rejected → fallback ✓ |
+| face at 4% of frame | rejected → fallback ✓ |
+| **EXIF 90° transposed** | **accepted** — plausibly shaped, wrongly placed |
+| **EXIF 180° flipped** | **accepted** |
+| **front-camera mirrored** | **accepted** |
+
+The guard catches coordinate **scale** mismatch and gross garbage. It does **not** catch coordinate
+**frame** mismatch. Orientation and mirroring remain exactly what spec §11 calls the highest-risk
+item, and they can only be settled on a physical device. **Do not skip steps 3.3 and 3.4 on the
+assumption that the guard covers them.**
+
+Also surface `deriveRegionsForFace`'s `source` value in the overlay — `cv-read-engine.ts` currently
+discards it, so a guard silently rejecting every real detection would otherwise be invisible.
+
 - [ ] **Step 3: Verify on the Fold 7**
 
 Install the EAS dev build, then run `npx expo start --dev-client` and check, in order:
