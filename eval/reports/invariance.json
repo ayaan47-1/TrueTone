@@ -1,5 +1,5 @@
 {
-  "generatedAt": "2026-07-26T01:56:53.986Z",
+  "generatedAt": "2026-07-26T03:55:58.429Z",
   "pass": false,
   "axes": [
     {
@@ -18,7 +18,8 @@
         "redness": 0.07417987815761608,
         "fineLines": 0.008008567546025136,
         "darkCircles": 0.03375986072673584
-      }
+      },
+      "breaches": []
     },
     {
       "name": "geometric",
@@ -36,7 +37,8 @@
         "redness": 0.009938254785162616,
         "fineLines": 0.003981846725577394,
         "darkCircles": 0.003915768906060185
-      }
+      },
+      "breaches": []
     },
     {
       "name": "monotonic",
@@ -101,7 +103,8 @@
         "crosstalk:roughness->redness": 0,
         "crosstalk:roughness->fineLines": 0,
         "crosstalk:roughness->darkCircles": 0
-      }
+      },
+      "breaches": []
     },
     {
       "name": "tone-preservation",
@@ -115,7 +118,8 @@
         "lum:IV": 0.5714663324668239,
         "lum:V": 0.4734536946585437,
         "lum:VI": 0.38086894189767906
-      }
+      },
+      "breaches": []
     },
     {
       "name": "defect-tone-fairness",
@@ -181,7 +185,39 @@
         "hydration:V": 0.8980516565582726,
         "hydration:VI": 0.8463005582674956,
         "hydration": 0.06315888917150991
-      }
+      },
+      "breaches": [
+        {
+          "key": "redness",
+          "value": 0.06508125218130509,
+          "limit": 0.05
+        },
+        {
+          "key": "oiliness",
+          "value": 0.1188334039127443,
+          "limit": 0.05
+        },
+        {
+          "key": "pores",
+          "value": 0.07244158759310276,
+          "limit": 0.05
+        },
+        {
+          "key": "darkCircles",
+          "value": 0.07575792393349161,
+          "limit": 0.05
+        },
+        {
+          "key": "texture",
+          "value": 0.06315888917150995,
+          "limit": 0.05
+        },
+        {
+          "key": "hydration",
+          "value": 0.06315888917150991,
+          "limit": 0.05
+        }
+      ]
     }
   ]
 }

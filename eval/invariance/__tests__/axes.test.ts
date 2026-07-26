@@ -1,5 +1,6 @@
 import { spearman, illuminantAxis, geometricAxis, monotonicAxis, tonePreservationAxis, defectToneFairnessAxis, runAllAxes } from '../axes';
 import { INVARIANCE_THRESHOLDS } from '../thresholds';
+import { DIMENSIONS, type Dimension } from '../../../src/content/cosmetic-vocab';
 
 describe('spearman', () => {
   it('is 1 for a perfectly increasing relationship', () => {
@@ -124,5 +125,19 @@ describe('axes', () => {
     expect(r.detail.oiliness).toBeGreaterThan(INVARIANCE_THRESHOLDS.toneResponseSpread);
     expect(r.detail.texture).toBeGreaterThan(INVARIANCE_THRESHOLDS.toneResponseSpread);
     expect(r.detail.hydration).toBeGreaterThan(INVARIANCE_THRESHOLDS.toneResponseSpread);
+    // Task 18: the masking bug this task fixes — six of eight dimensions breach, but the report
+    // used to only ever show the single `worst` one (oiliness). `breaches` must surface all of them.
+    expect(r.breaches.length).toBeGreaterThanOrEqual(6);
+  });
+
+  it('verdict-based axes report every dimension over its epsilon, not just the worst', () => {
+    const tinyEpsilon = {
+      ...INVARIANCE_THRESHOLDS,
+      epsilon: Object.fromEntries(DIMENSIONS.map((d) => [d, 0])) as Record<Dimension, number>,
+    };
+    const r = illuminantAxis(tinyEpsilon);
+    expect(r.pass).toBe(false);
+    expect(r.breaches.length).toBe(DIMENSIONS.length);
+    expect(r.breaches.map((b) => b.key)).toEqual(expect.arrayContaining(['darkSpots', 'redness', 'oiliness']));
   });
 });

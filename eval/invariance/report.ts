@@ -24,6 +24,14 @@ export function renderInvarianceMarkdown(results: AxisResult[], generatedAt: str
   for (const r of results) {
     lines.push(`## ${r.name} — ${r.pass ? 'PASS' : 'FAIL'}`);
     if (r.worst) lines.push(`- worst: ${r.worst.dimension} = ${r.worst.value.toFixed(4)}`);
+    if (r.breaches.length > 0) {
+      lines.push(`- over-epsilon (${r.breaches.length}):`);
+      for (const b of r.breaches) {
+        lines.push(`  - ${b.key}: ${b.value.toFixed(4)} (limit ${b.limit.toFixed(4)})`);
+      }
+    } else {
+      lines.push('- over-epsilon: none');
+    }
     for (const [k, v] of Object.entries(r.detail)) lines.push(`- ${k}: ${v.toFixed(4)}`);
     lines.push('');
   }

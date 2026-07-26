@@ -8,7 +8,7 @@ import { scoreFromBbox } from '../../src/features/read/cv/score-from-rgb';
 import { DIMENSIONS, type Dimension } from '../../src/content/cosmetic-vocab';
 import { FITZPATRICK } from '../fairness/fst';
 import { INVARIANCE_THRESHOLDS, type InvarianceThresholds } from './thresholds';
-import type { AxisResult } from './types';
+import type { AxisBreach, AxisResult } from './types';
 
 type Params = Parameters<typeof renderFace>[0];
 
@@ -29,13 +29,17 @@ function spread(runs: Array<Record<Dimension, number>>): Record<Dimension, numbe
 function verdict(name: string, spreads: Record<Dimension, number>, t: InvarianceThresholds): AxisResult {
   let worst: AxisResult['worst'] = null;
   let pass = true;
+  const breaches: AxisBreach[] = [];
   for (const d of DIMENSIONS) {
-    if (spreads[d] > t.epsilon[d]) pass = false;
+    if (spreads[d] > t.epsilon[d]) {
+      pass = false;
+      breaches.push({ key: d, value: spreads[d], limit: t.epsilon[d] });
+    }
     if (!worst || spreads[d] - t.epsilon[d] > worst.value - t.epsilon[worst.dimension]) {
       worst = { dimension: d, value: spreads[d] };
     }
   }
-  return { name, pass, worst, detail: { ...spreads } };
+  return { name, pass, worst, detail: { ...spreads }, breaches };
 }
 
 export function spearman(a: number[], b: number[]): number {
@@ -122,12 +126,16 @@ export function monotonicAxis(t: InvarianceThresholds = INVARIANCE_THRESHOLDS): 
   const detail: Record<string, number> = {};
   let pass = true;
   let worst: AxisResult['worst'] = null;
+  const breaches: AxisBreach[] = [];
 
   for (const [dim, knob] of Object.entries(DEFECT_FOR) as Array<[Dimension, Knob]>) {
     const runs = levels.map((v) => scoresFor({ defects: { ...DEFAULT_DEFECTS, [knob]: v } }));
     const rho = spearman(levels, runs.map((r) => r[dim]));
     detail[`rho:${dim}`] = rho;
-    if (rho < t.spearmanFloor) pass = false;
+    if (rho < t.spearmanFloor) {
+      pass = false;
+      breaches.push({ key: `rho:${dim}`, value: rho, limit: t.spearmanFloor });
+    }
     if (!worst || rho < worst.value) worst = { dimension: dim, value: rho };
 
     const exempt = new Set<Dimension>([dim, ...(EXPECTED_COUPLING[knob] ?? [])]);
@@ -136,10 +144,13 @@ export function monotonicAxis(t: InvarianceThresholds = INVARIANCE_THRESHOLDS): 
       const vs = runs.map((r) => r[other]);
       const drift = Math.max(...vs) - Math.min(...vs);
       detail[`crosstalk:${knob}->${other}`] = drift;
-      if (drift > t.crossTalk) pass = false;
+      if (drift > t.crossTalk) {
+        pass = false;
+        breaches.push({ key: `crosstalk:${knob}->${other}`, value: drift, limit: t.crossTalk });
+      }
     }
   }
-  return { name: 'monotonic', pass, worst, detail };
+  return { name: 'monotonic', pass, worst, detail, breaches };
 }
 
 export function tonePreservationAxis(t: InvarianceThresholds = INVARIANCE_THRESHOLDS): AxisResult {
@@ -160,11 +171,13 @@ export function tonePreservationAxis(t: InvarianceThresholds = INVARIANCE_THRESH
     return sum / n;
   });
   const separation = Math.max(...lums) - Math.min(...lums);
+  const pass = separation >= t.tonePreservationFloor;
   return {
     name: 'tone-preservation',
-    pass: separation >= t.tonePreservationFloor,
+    pass,
     worst: null,
     detail: { separation, ...Object.fromEntries(FITZPATRICK.map((f, i) => [`lum:${f}`, lums[i]])) },
+    breaches: pass ? [] : [{ key: 'separation', value: separation, limit: t.tonePreservationFloor }],
   };
 }
 
@@ -185,6 +198,7 @@ export function defectToneFairnessAxis(t: InvarianceThresholds = INVARIANCE_THRE
   const detail: Record<string, number> = {};
   let pass = true;
   let worst: AxisResult['worst'] = null;
+  const breaches: AxisBreach[] = [];
 
   // Records both the raw per-tone scores (so a reader can see WHICH direction tone biases the
   // response, not just its magnitude — mirrors tonePreservationAxis's lum:${fst} convention) and
@@ -195,7 +209,10 @@ export function defectToneFairnessAxis(t: InvarianceThresholds = INVARIANCE_THRE
     });
     const dimSpread = Math.max(...byTone) - Math.min(...byTone);
     detail[dim] = dimSpread;
-    if (dimSpread > t.toneResponseSpread) pass = false;
+    if (dimSpread > t.toneResponseSpread) {
+      pass = false;
+      breaches.push({ key: dim, value: dimSpread, limit: t.toneResponseSpread });
+    }
     if (!worst || dimSpread > worst.value) worst = { dimension: dim, value: dimSpread };
   };
 
@@ -214,7 +231,7 @@ export function defectToneFairnessAxis(t: InvarianceThresholds = INVARIANCE_THRE
     }
   }
 
-  return { name: 'defect-tone-fairness', pass, worst, detail };
+  return { name: 'defect-tone-fairness', pass, worst, detail, breaches };
 }
 
 export function runAllAxes(t: InvarianceThresholds = INVARIANCE_THRESHOLDS): AxisResult[] {
