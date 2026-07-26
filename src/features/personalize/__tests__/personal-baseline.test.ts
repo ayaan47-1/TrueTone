@@ -50,12 +50,27 @@ describe('computePersonalBaseline', () => {
     expect(computePersonalBaseline(history)).toBeNull();
   });
 
-  test('excludes priors with an unknown (null) capture-quality band', () => {
-    // pre-migration scans read back with a null band — treated as not-comparable
+  test('includes priors with an unknown (null) capture-quality band in the baseline', () => {
+    // pre-migration scans read back with a null band — now treated as usable and comparable
     const history = [
-      snap(0.5), snap(0.4), snap(0.4, {}, false, null), snap(0.4, {}, false, null), snap(0.4),
+      snap(0.5), snap(0.4, {}, false, null), snap(0.4, {}, false, null), snap(0.4, {}, false, null),
     ];
-    expect(computePersonalBaseline(history)).toBeNull();
+    const b = computePersonalBaseline(history);
+    expect(b).not.toBeNull();
+    expect(b!.hydration!.center).toBeCloseTo(0.4);
+  });
+
+  test('includes priors with an undefined capture-quality field in the baseline', () => {
+    // legacy scans may have the field missing entirely
+    const history: PersonalSnapshot[] = [
+      snap(0.5),
+      { scores: vec(0.4), isStub: false },
+      { scores: vec(0.4), isStub: false },
+      { scores: vec(0.4), isStub: false },
+    ];
+    const b = computePersonalBaseline(history);
+    expect(b).not.toBeNull();
+    expect(b!.hydration!.center).toBeCloseTo(0.4);
   });
 
   test('includes fair-quality-capture priors in the baseline', () => {

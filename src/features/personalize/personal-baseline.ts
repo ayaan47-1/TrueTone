@@ -20,7 +20,7 @@ function median(values: number[]): number {
  * Returns null on cold start (< MIN_SCANS usable priors).
  */
 export function computePersonalBaseline(history: PersonalSnapshot[]): PersonalBaseline | null {
-  const priors = history.slice(1).filter((s) => !s.isStub && s.captureQuality !== 'poor' && s.captureQuality != null);
+  const priors = history.slice(1).filter((s) => !s.isStub && s.captureQuality !== 'poor');
   if (priors.length < MIN_SCANS) return null;
   const baseline: PersonalBaseline = {};
   for (const d of DIMENSIONS) {
