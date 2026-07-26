@@ -29,6 +29,72 @@ export function scaleRect(r: Rect, from: { width: number; height: number }, to: 
   return { x: Math.round(r.x * sx), y: Math.round(r.y * sy), w: Math.round(r.w * sx), h: Math.round(r.h * sy) };
 }
 
+// Reuses the exact sanity bounds specified for still detection in the design spec (§7 Error
+// handling): aspect in [0.6, 1.6], area fraction in [0.05, 0.95], bounds within the frame (with a
+// little slop for rounding). A detection that fails this check is treated the same as no
+// detection — deriveRegionsForFace's existing fallback chain takes over — rather than trusted and
+// silently mis-scaled. This is what makes both the source/working coordinate-space mismatch (task
+// 16) AND an unverified EXIF-orientation mismatch degrade safely instead of producing a
+// wrong-but-plausible-looking read.
+const MIN_ASPECT = 0.6;
+const MAX_ASPECT = 1.6;
+const MIN_AREA_FRACTION = 0.05;
+const MAX_AREA_FRACTION = 0.95;
+const BOUNDS_SLOP_FRACTION = 0.02;
+
+export function isPlausibleFaceDetection(
+  bounds: Rect,
+  sourceSize: { width: number; height: number },
+): boolean {
+  if (sourceSize.width <= 0 || sourceSize.height <= 0) return false;
+  if (bounds.w <= 0 || bounds.h <= 0) return false;
+  const slopX = sourceSize.width * BOUNDS_SLOP_FRACTION;
+  const slopY = sourceSize.height * BOUNDS_SLOP_FRACTION;
+  if (bounds.x < -slopX || bounds.y < -slopY) return false;
+  if (bounds.x + bounds.w > sourceSize.width + slopX) return false;
+  if (bounds.y + bounds.h > sourceSize.height + slopY) return false;
+  const aspect = bounds.w / bounds.h;
+  if (aspect < MIN_ASPECT || aspect > MAX_ASPECT) return false;
+  const areaFraction = (bounds.w * bounds.h) / (sourceSize.width * sourceSize.height);
+  return areaFraction >= MIN_AREA_FRACTION && areaFraction <= MAX_AREA_FRACTION;
+}
+
+function scaleContours(
+  c: Partial<FaceContours>,
+  from: { width: number; height: number },
+  to: { width: number; height: number },
+): Partial<FaceContours> {
+  const sx = to.width / from.width;
+  const sy = to.height / from.height;
+  const out: Partial<FaceContours> = {};
+  for (const key of Object.keys(c) as Array<keyof FaceContours>) {
+    const pts = c[key];
+    if (pts) out[key] = pts.map((p) => ({ x: p.x * sx, y: p.y * sy }));
+  }
+  return out;
+}
+
+// Transforms a face detected in SOURCE (full-resolution) pixel space into WORKING-image pixel
+// space, and rejects a detection that doesn't plausibly fit the frame it claims to describe.
+// Returns null (never throws) on any implausible input — callers must treat null exactly like "no
+// face detected" and fall through to deriveRegionsForFace's proportional/approximate fallback.
+export function scaleFaceToWorkingSpace(
+  face: DetectedFace | null,
+  sourceSize: { width: number; height: number },
+  workingSize: { width: number; height: number },
+): DetectedFace | null {
+  if (!face) return null;
+  const bounds: Rect = {
+    x: face.bounds.x, y: face.bounds.y, w: face.bounds.width, h: face.bounds.height,
+  };
+  if (!isPlausibleFaceDetection(bounds, sourceSize)) return null;
+  const scaled = scaleRect(bounds, sourceSize, workingSize);
+  return {
+    bounds: { x: scaled.x, y: scaled.y, width: scaled.w, height: scaled.h },
+    contours: face.contours ? scaleContours(face.contours, sourceSize, workingSize) : undefined,
+  };
+}
+
 function box(pts: Point[] | undefined): Rect | null {
   if (!pts || pts.length < 3) return null;
   const xs = pts.map((p) => p.x);

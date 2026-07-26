@@ -1,4 +1,11 @@
-import { scaleRect, regionsFromContours, deriveRegionsForFace, rectCornersInPolygon } from '../face-geometry';
+import {
+  scaleRect,
+  regionsFromContours,
+  deriveRegionsForFace,
+  rectCornersInPolygon,
+  isPlausibleFaceDetection,
+  scaleFaceToWorkingSpace,
+} from '../face-geometry';
 import { faceEllipse, syntheticContours } from '../../../../eval/render/geometry';
 import { REGION_NAMES } from '../cv/types';
 
@@ -224,5 +231,110 @@ describe('deriveRegionsForFace', () => {
     }
     expect(total).toBe(324);
     expect(dropped).toBe(0);
+  });
+});
+
+// Task 16: the detector runs on the full-resolution source photo while scoring runs on the
+// downscaled working image; scaleFaceToWorkingSpace is the transform that makes those two
+// coordinate spaces agree, plus the frame-consistency guard (isPlausibleFaceDetection) that makes
+// a detection which doesn't plausibly belong to the frame it claims to describe degrade to "no
+// face" instead of being trusted and silently mis-scaled.
+describe('isPlausibleFaceDetection', () => {
+  const SOURCE = { width: 1000, height: 500 };
+
+  it('accepts a centred, reasonably-sized, roughly-square detection', () => {
+    expect(isPlausibleFaceDetection({ x: 300, y: 100, w: 300, h: 300 }, SOURCE)).toBe(true);
+  });
+
+  it('rejects a detection whose bounds fall outside the source frame', () => {
+    expect(isPlausibleFaceDetection({ x: 950, y: 100, w: 300, h: 300 }, SOURCE)).toBe(false);
+  });
+
+  it('rejects a degenerate (zero-width) detection', () => {
+    expect(isPlausibleFaceDetection({ x: 300, y: 100, w: 0, h: 300 }, SOURCE)).toBe(false);
+  });
+
+  it('rejects a detection whose aspect ratio is outside [0.6, 1.6]', () => {
+    expect(isPlausibleFaceDetection({ x: 300, y: 50, w: 100, h: 400 }, SOURCE)).toBe(false);
+  });
+
+  it('rejects a detection whose area fraction is outside [0.05, 0.95]', () => {
+    expect(isPlausibleFaceDetection({ x: 300, y: 100, w: 50, h: 50 }, SOURCE)).toBe(false);
+  });
+});
+
+describe('scaleFaceToWorkingSpace', () => {
+  // Deliberately non-square: source and working images have DIFFERENT aspect ratios (1000x500 vs
+  // 100x200), so sx (0.1) and sy (0.4) differ — this proves width and height are each scaled by
+  // their OWN ratio, not a single uniform factor (WORKING_EDGE's real downscale is aspect-
+  // preserving, so this case can't arise from decode-rgb.ts in practice, but the transform itself
+  // must not assume it does).
+  const SOURCE = { width: 1000, height: 500 };
+  const WORKING = { width: 100, height: 200 };
+  const bounds = { x: 300, y: 100, width: 300, height: 300 };
+
+  it('returns null when face is null', () => {
+    expect(scaleFaceToWorkingSpace(null, SOURCE, WORKING)).toBeNull();
+  });
+
+  it('scales bounds and every contour point by the source->working ratio', () => {
+    const face = {
+      bounds,
+      contours: {
+        FACE: [
+          { x: 300, y: 100 },
+          { x: 600, y: 100 },
+          { x: 450, y: 400 },
+        ],
+      },
+    };
+    const out = scaleFaceToWorkingSpace(face, SOURCE, WORKING);
+    expect(out).not.toBeNull();
+    // sx = 100/1000 = 0.1, sy = 200/500 = 0.4
+    expect(out!.bounds).toEqual({ x: 30, y: 40, width: 30, height: 120 });
+    expect(out!.contours!.FACE).toEqual([
+      { x: 30, y: 40 },
+      { x: 60, y: 40 },
+      { x: 45, y: 160 },
+    ]);
+  });
+
+  it('accepts and correctly scales a detection with no contours (bounds-only)', () => {
+    const out = scaleFaceToWorkingSpace({ bounds }, SOURCE, WORKING);
+    expect(out).not.toBeNull();
+    expect(out!.bounds).toEqual({ x: 30, y: 40, width: 30, height: 120 });
+    expect(out!.contours).toBeUndefined();
+  });
+
+  it('returns null (frame-consistency guard) when bounds fall outside the source frame', () => {
+    const outside = { x: 950, y: 100, width: 300, height: 300 };
+    expect(scaleFaceToWorkingSpace({ bounds: outside }, SOURCE, WORKING)).toBeNull();
+  });
+
+  it('returns null (frame-consistency guard) for a degenerate (zero-height) detection', () => {
+    const degenerate = { x: 300, y: 100, width: 300, height: 0 };
+    expect(scaleFaceToWorkingSpace({ bounds: degenerate }, SOURCE, WORKING)).toBeNull();
+  });
+
+  it('returns null (frame-consistency guard) when the aspect ratio is implausible', () => {
+    const tooNarrow = { x: 300, y: 50, width: 100, height: 400 };
+    expect(scaleFaceToWorkingSpace({ bounds: tooNarrow }, SOURCE, WORKING)).toBeNull();
+  });
+
+  it('returns null (frame-consistency guard) when the area fraction is implausible', () => {
+    const tooSmall = { x: 300, y: 100, width: 50, height: 50 };
+    expect(scaleFaceToWorkingSpace({ bounds: tooSmall }, SOURCE, WORKING)).toBeNull();
+  });
+
+  // This is the exact scenario from the final-review bug: bounds detected in full-resolution
+  // source space, handed unscaled to a much smaller working image — reproduces the collapse-to-
+  // corner failure mode this task fixes if the caller forgets to scale.
+  it('reproduces the realistic-resolution scaling case correctly (3024x4032 source -> 384x512 working)', () => {
+    const sourceSize = { width: 3024, height: 4032 };
+    const workingSize = { width: 384, height: 512 };
+    const face = { bounds: { x: 900, y: 1200, width: 1200, height: 1600 } };
+    const out = scaleFaceToWorkingSpace(face, sourceSize, workingSize);
+    expect(out).not.toBeNull();
+    expect(out!.bounds).toEqual({ x: 114, y: 152, width: 152, height: 203 });
   });
 });

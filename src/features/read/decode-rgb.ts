@@ -40,12 +40,23 @@ export function base64ToBytes(b64: string): Uint8Array {
 // Retained as a named export for existing call sites; area-averaged since 2026-07-25 (spec F4).
 export const downscaleRgba = areaDownscale;
 
-// DEVICE: reads the captured JPEG and decodes it to a fixed working-size RGBA RgbImage.
+// Carries both the downscaled working-size image AND the pre-downscale (post-EXIF-orientation)
+// source size. The still-image face detector (detect-faces-still.ts) runs on the ORIGINAL,
+// full-resolution file, so its bounds/contours come back in that same source-pixel space — the
+// caller (cv-read-engine.ts) needs sourceSize to scale a detection into the working image's space
+// before deriving regions (task 16; see face-geometry.ts's scaleFaceToWorkingSpace).
+export interface DecodedImage {
+  rgb: RgbImage;
+  sourceSize: { width: number; height: number };
+}
+
+// DEVICE: reads the captured JPEG and decodes it to a fixed working-size RGBA RgbImage, plus the
+// pre-downscale (upright) source size.
 // Web preview has no native file read → throw so the __DEV__ stub fallback in run-read takes over.
 // The expo-file-system + jpeg-js calls are lazy-required so they never enter the Jest module graph
 // (the engine's tests inject a fake decode; this body never runs under Jest). Verify the
 // readAsStringAsync base64 path + jpeg-js RGBA layout on the first physical-device run.
-export async function decodeJpegToRgb(uri: string): Promise<RgbImage> {
+export async function decodeJpegToRgb(uri: string): Promise<DecodedImage> {
   if (Platform.OS === 'web') {
     throw new Error('decodeJpegToRgb: native-only (no web pixel decode); web preview uses the dev stub');
   }
@@ -70,5 +81,7 @@ export async function decodeJpegToRgb(uri: string): Promise<RgbImage> {
     { width: decoded.width, height: decoded.height, data: new Uint8ClampedArray(decoded.data) },
     readExifOrientation(bytes),
   );
-  return areaDownscale(upright, WORKING_EDGE);
+  const sourceSize = { width: upright.width, height: upright.height };
+  const rgb = areaDownscale(upright, WORKING_EDGE);
+  return { rgb, sourceSize };
 }

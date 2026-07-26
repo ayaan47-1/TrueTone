@@ -27,15 +27,46 @@ function detector(): StillDetector {
   return cached as StillDetector;
 }
 
-const area = (f: any) => Math.max(0, f?.bounds?.width ?? 0) * Math.max(0, f?.bounds?.height ?? 0);
+interface RawFaceBounds {
+  x: number;
+  y: number;
+  width: number;
+  height: number;
+}
+
+// Runtime type guard: the native module's return shape is invisible to tsc, so a shape mismatch
+// (a renamed field, a null bounds) must be caught here rather than flowing through as `any`.
+function readBounds(f: unknown): RawFaceBounds | null {
+  if (!f || typeof f !== 'object') return null;
+  const b = (f as Record<string, unknown>).bounds;
+  if (!b || typeof b !== 'object') return null;
+  const r = b as Record<string, unknown>;
+  const { x, y, width, height } = r;
+  if (
+    typeof x === 'number' && Number.isFinite(x) &&
+    typeof y === 'number' && Number.isFinite(y) &&
+    typeof width === 'number' && Number.isFinite(width) &&
+    typeof height === 'number' && Number.isFinite(height)
+  ) {
+    return { x, y, width, height };
+  }
+  return null;
+}
+
+function area(f: unknown): number {
+  const b = readBounds(f);
+  return b ? Math.max(0, b.width) * Math.max(0, b.height) : 0;
+}
 
 export async function detectFacesOnStill(uri: string): Promise<DetectedFace | null> {
   try {
-    const faces = detector().detectFaces({ uri }) as any[];
+    const faces = detector().detectFaces({ uri }) as unknown[];
     if (!Array.isArray(faces) || faces.length === 0) return null;
     const face = faces.reduce((best, f) => (area(f) > area(best) ? f : best));
-    if (!face?.bounds || area(face) <= 0) return null;
-    return { bounds: face.bounds, contours: face.contours };
+    const bounds = readBounds(face);
+    if (!bounds || area(face) <= 0) return null;
+    const contours = (face as Record<string, unknown>).contours as DetectedFace['contours'];
+    return { bounds, contours };
   } catch {
     // Simulator, missing native module, unreadable file — fall back to the proportional path.
     return null;
