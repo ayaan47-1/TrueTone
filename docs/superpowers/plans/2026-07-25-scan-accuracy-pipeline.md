@@ -3852,6 +3852,91 @@ floor was partitioning tie counts rather than measuring monotonic response."
 
 ---
 
+## Task 14c: Add a defect-response-by-tone fairness axis
+
+**Added 2026-07-25 after the Task 12/12b review.** The harness has a hole in exactly the property
+this product's premise rests on.
+
+### The gap
+
+The `tone-preservation` axis checks that **lightness separation survives normalization** — i.e. that
+Fitzpatrick I and VI still differ after processing. That is a useful guard against invariance bought
+by destroying signal, but it only ever renders faces at **defect = 0**.
+
+**Nothing in the harness asks whether a dimension's response to its own defect is consistent across
+tones.** That is the actual fairness claim: the same blemish, the same shine, the same redness should
+read the same on any skin. The existing `bias` axis in `eval/fairness/` checks correlation between
+tone and score on flat synthetic faces; it does not sweep defect strength.
+
+Measured consequence, found only because the Task 12/12b review was explicitly asked to look:
+
+| dimension | measure | score at defect 0.5, FST I → VI | spread |
+|---|---|---|---|
+| `darkSpots` | old relative-L\* | 0.55 → 0.70 (rises with depth) | 0.144 |
+| `darkSpots` | **new linear-Y ratio** | flat | **0.033** |
+| `redness` | old Δa\* | 0.165 → 0.130 (under-reads deep skin) | 0.070 |
+| `redness` | **new log(ΣR/ΣG)** | 0.146 → 0.211 (**over-reads deep skin**) | 0.065 |
+
+`darkSpots` improved 4×. `redness` kept a comparable magnitude but flipped direction toward
+over-reading on deeper skin. Both changes were invisible to every existing test.
+
+**Files:**
+- Modify: `eval/invariance/axes.ts`, `eval/invariance/thresholds.ts`, `eval/invariance/__tests__/axes.test.ts`
+- Test: the new axis is itself the test
+
+**Interfaces:**
+- `defectToneFairnessAxis(t?): AxisResult` — added to `runAllAxes`, so it appears in the committed report.
+- `INVARIANCE_THRESHOLDS` gains `toneResponseSpread` — the maximum allowed spread, across Fitzpatrick
+  I–VI, of a dimension's score at a fixed non-zero defect level.
+
+- [ ] **Step 1: Write the axis and its test**
+
+For each dimension with a defect knob (the existing `DEFECT_FOR` map), render at a fixed mid
+defect level (0.5) across all six Fitzpatrick types under identical lighting, and record the spread
+of that dimension's score. Fail if any dimension exceeds `toneResponseSpread`.
+
+This is deliberately the complement of the existing `bias` axis: that one asks "does tone alone move
+the score?", this one asks "does tone change how strongly the score responds to a real defect?"
+
+- [ ] **Step 2: Run it and record the baseline for every dimension**
+
+Expect `redness` (~0.065) to be the worst. Record all eight numbers — this is the first time this
+property has been measured, so the numbers are the deliverable regardless of verdict.
+
+- [ ] **Step 3: Set the threshold honestly**
+
+Choose `toneResponseSpread` from the measured data, and **do not set it so loose that today's
+`redness` passes by construction.** If `redness` fails the honest threshold, that is the correct
+outcome: assert the true verdict, document it, and leave the axis failing — exactly as the illuminant
+axis was left failing from the baseline until a task earned the flip. Prior tasks in this plan
+established that precedent; follow it.
+
+- [ ] **Step 4: Do NOT redesign `redness` in this task**
+
+Scope is the measurement, not the fix. A `redness` measure that is both exposure-invariant and
+tone-consistent is a design question needing its own task and evidence. Adding the axis first is
+what makes that task measurable — the same sequencing the whole plan is built on.
+
+- [ ] **Step 5: Verify and commit**
+
+`npm test` green · `npx tsc --noEmit` clean · `npm run eval:invariance` regenerated and committed,
+now including the new axis.
+
+```bash
+git add eval/invariance/ eval/reports/
+git commit -m "test(eval): measure defect response consistency across skin tones
+
+The tone-preservation axis only rendered faces at defect 0, so nothing asked
+whether a dimension responds to its own defect equally on every skin tone —
+the property the product's fairness claim actually rests on.
+
+Measured: the exposure fix improved darkSpots' cross-tone spread 4x (0.144 ->
+0.033) while redness kept a comparable magnitude but flipped direction toward
+over-reading on deeper skin. Both were invisible to every existing test."
+```
+
+---
+
 ## Task 15: Device verification (dev overlay + on-device tuning)
 
 **Files:**
