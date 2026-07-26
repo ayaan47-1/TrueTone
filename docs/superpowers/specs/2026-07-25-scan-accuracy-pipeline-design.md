@@ -562,3 +562,33 @@ is what makes "this improved the read" a measured statement rather than an asser
 
 *Engineering design. Compliance posture per CLAUDE.md; nothing here changes what crosses the
 compliance boundary or what may be claimed publicly.*
+
+---
+
+## Addendum (2026-07-26): a pass is a claim about a condition
+
+Recorded because it cost real work to find, and because the failure mode is invisible by
+construction.
+
+`darkSpots` was reported as PASSING the `defect-tone-fairness` axis from Task 14c onward, and that
+pass was cited in the axis's own test comments and in the committed report. It was an artefact of
+the axis sampling **one** defect strength. At defect 0.5 it reads 0.0334, comfortably inside the
+0.05 limit. At defect 0.25 it reads 0.0530, outside it. The code never changed. The condition did.
+
+The same single-condition blindness nearly let a harmful change through in the other direction: an
+attempt to exclude saturated pixels from `specularFraction` left the oiliness spread at defect 0.5
+at exactly 0.1188 — the axis called it neutral — while pushing the max-defect spread from ~0.20 to
+0.291 and making maximum shine unreadable on FST I–IV.
+
+**Rule, in force from here:** every recorded result carries the conditions it was measured under.
+A verdict without its condition is not a result. When a sweep is widened and a previous pass
+disappears, that is the instrument improving, not a regression — record it as such.
+
+Applied so far:
+- `defect-tone-fairness` now sweeps {0, 0.1, 0.25, 0.5, 0.75, 1.0} and gates on the worst level,
+  recording spread per level and signed per-tone values.
+- `eval/reports/invariance.md` carries the rule in its header so a reader cannot take a verdict
+  out of its condition.
+- Verdicts known to be condition-bound and not yet widened: `monotonic` sweeps defects at FST III
+  only; `illuminant` and `geometric` sweep at FST III only; `tone-preservation` renders one fixed
+  mid-strength defect blend. None of these has been checked across tone.
