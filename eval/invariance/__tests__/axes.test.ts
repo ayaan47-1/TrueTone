@@ -98,7 +98,7 @@ describe('axes', () => {
     // damaging fairness at 0.25 or 1.0. Measured case — excluding fully-saturated pixels held the
     // 0.5 spread at exactly 0.1188 while widening the max-defect spread from 0.20 to 0.291.
     const r = defectToneFairnessAxis();
-    const LEVELS = [0.25, 0.5, 0.75, 1];
+    const LEVELS = [0, 0.1, 0.25, 0.5, 0.75, 1];
     for (const dim of ['oiliness', 'darkSpots', 'redness', 'pores', 'fineLines', 'darkCircles', 'texture', 'hydration'] as Dimension[]) {
       const perLevel = LEVELS.map((v) => r.detail[`${dim}@${v}`]);
       for (const s of perLevel) expect(typeof s).toBe('number');

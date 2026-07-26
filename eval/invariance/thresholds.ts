@@ -21,7 +21,8 @@ export const INVARIANCE_THRESHOLDS = {
   // guards against achieving invariance by erasing tone (spec §6b).
   tonePreservationFloor: 0.05,
   // Max allowed spread, across Fitzpatrick I..VI, of a dimension's score at a FIXED non-zero
-  // defect level (0.5). Complements tonePreservationFloor (defect=0: tone must not vanish) with
+  // defect level. Complements tonePreservationFloor (which renders a fixed mid-strength defect
+  // BLEND -- not defect=0 as this comment used to claim -- and floors mean IMAGE LUMA separation) with
   // the actual fairness claim: the SAME defect strength should read as the SAME score on every
   // skin tone.
   //

@@ -192,7 +192,11 @@ export function tonePreservationAxis(t: InvarianceThresholds = INVARIANCE_THRESH
 // while pushing the max-defect spread from ~0.20 to 0.291. The axis would have called that
 // harmless. Fairness that only holds at mid-strength is not fairness, so the gate is now the WORST
 // level, not a representative one.
-const TONE_RESPONSE_DEFECTS = [0.25, 0.5, 0.75, 1] as const;
+// Extended down to 0 and 0.1 on 2026-07-26: the group worst at LOW defect (darkSpots, texture,
+// hydration -- a tone-dependent noise FLOOR rather than tone-dependent sensitivity) was worst at
+// the bottom of the previous range, so its true worst case sat below the sweep. defect=0 is also
+// the most common real condition: near-clean skin.
+const TONE_RESPONSE_DEFECTS = [0, 0.1, 0.25, 0.5, 0.75, 1] as const;
 
 export function defectToneFairnessAxis(t: InvarianceThresholds = INVARIANCE_THRESHOLDS): AxisResult {
   // The actual fairness claim: the SAME blemish, the SAME shine, the SAME redness should read as
@@ -226,6 +230,14 @@ export function defectToneFairnessAxis(t: InvarianceThresholds = INVARIANCE_THRE
 
     FITZPATRICK.forEach((fst, i) => {
       detail[`${dim}:${fst}`] = byToneByLevel[worstIdx][i];
+    });
+    // Signed per-tone values at the low-defect end too. Spread is unsigned, so it cannot say
+    // WHICH tone over-reads -- and for a noise floor that direction is the product-relevant fact
+    // (false positives on clean dark skin read very differently from false negatives).
+    TONE_RESPONSE_DEFECTS.forEach((lvl, li) => {
+      FITZPATRICK.forEach((fst, i) => {
+        detail[`${dim}@${lvl}:${fst}`] = byToneByLevel[li][i];
+      });
     });
     detail[dim] = dimSpread;
     detail[`${dim}@worstLevel`] = TONE_RESPONSE_DEFECTS[worstIdx];
