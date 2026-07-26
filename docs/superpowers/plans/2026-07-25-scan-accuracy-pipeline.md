@@ -4078,6 +4078,69 @@ than assumed — a wrong transform mis-places every region without erroring."
 
 ---
 
+## Task 15b: The still arrives rotated — bake orientation into the pixels (device finding)
+
+**Status: built 2026-07-26. Needs one more device pass to confirm.**
+
+Step 3's check 3 fired, in its worst form. On the Fold 7 the still came back **3648×2736 landscape
+with EXIF orientation tag 1** for a portrait selfie. Nothing downstream could recover:
+
+- jpeg-js decoded a 90°-rotated face and `applyOrientation` correctly did nothing — there was no tag
+  to act on;
+- MLKit's still detector found **no face at all** (it is not rotation-invariant past roll);
+- `deriveRegionsForFace` fell through to `approximateFaceBbox`, the proportional guess;
+- regions landed on hair, background, and shoulder, and `scoreFromRgb` returned plausible numbers.
+
+No error, no exception, no failing test. Three consecutive device scans "gave different results each
+time", which reads as sensitivity and is in fact the fallback rect sampling different backgrounds.
+
+**Root cause:** `capturePhotoToFile` writes the raw sensor buffer. `PhotoFile` exposes only
+`filePath`, so orientation is discarded at the capture boundary and no later stage can reconstruct it.
+
+**Fix — move the guarantee upstream of the file.** Capture in memory with `capturePhoto()`, whose
+`Photo` carries `orientation`, `isMirrored`, `width`, `height`; convert with `toImageAsync()` (which
+applies both); write that with `Image.saveToTemporaryFileAsync('jpg', 100)`. The file on disk then
+holds **upright pixels**, so jpeg-js and MLKit agree by construction rather than by both honouring
+the same metadata convention — which was the fragile assumption all along.
+
+Consequences worth stating:
+- **The read pipeline is untouched.** `decode-rgb.ts`, `cv-read-engine.ts`, `run-read.ts` need no
+  changes, because the contract they consume (a file with upright pixels) is now actually met. The
+  earlier sketch of threading an orientation parameter through all four files is superseded.
+- **`exif-orientation.ts` becomes a no-op on our own captures**, and tag 1 becomes the *expected*
+  reading rather than the symptom. The overlay flags a non-1 tag as a regression.
+- **Double compression is unavoidable** — rotating means re-encoding. Quality is pinned at 100
+  because `microContrast` and the Immerkaer noise estimate read exactly the high-frequency energy
+  JPEG quantisation removes; a cheaper setting would bias the read, not just shrink a temp file.
+- **`containerFormat` pinned to `'jpeg'`** (was `'native'`): vision-camera documents `capturePhoto()`
+  as reliable for JPEG only on Android, and `'native'` is HEIC on iOS.
+
+**Files:** create `src/features/capture/photo-orientation.ts` (pure) and
+`src/features/capture/capture-upright.ts` (orchestration over structural interfaces, host-tested with
+fakes); modify `Capture.tsx` (`onCaptured` now `(uri, meta)`) and `app/(dev)/bbox-overlay.tsx`.
+
+**What is host-tested, and what is not.** 20 new tests cover the rotation arithmetic, the
+applied/not-applied/undetermined decision, the fallback when conversion fails, and native-handle
+release on every path including a throwing save. Three things remain device-only:
+
+1. Whether `toImageAsync()` applies the rotation. If it does, `correctedDegrees` is 0 and the
+   fallback rotation never runs. The overlay states which path was taken.
+2. **The sign of the fallback rotation.** `uprightRotationDegrees` follows vision-camera's own
+   definition of `CameraOrientation` ('left' = top now points left ⇒ correct clockwise), but
+   nitro-image does not document `rotate`'s direction. Only reachable if (1) fails; the overlay says
+   so explicitly, and a wrong sign is visible instantly as a sideways face.
+3. **Whether the re-encode re-attaches an orientation tag.** If it does, `applyOrientation` would
+   rotate an already-upright image. The overlay's EXIF line is the check.
+
+`allowFastFlagRotation` is passed as `false` and pinned by a test: the fast path rotates by writing a
+metadata flag instead of moving pixels, which reintroduces precisely this bug.
+
+- [ ] **Device pass:** capture through `truetone://bbox-overlay` and read the new
+  "capture (upright guarantee)" section. Expect written size portrait, EXIF tag 1, `source: contours`.
+  Record which of the three device-only branches was taken.
+
+---
+
 ## Final verification
 
 - [ ] `npx tsc --noEmit` — clean

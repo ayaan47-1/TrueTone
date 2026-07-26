@@ -19,6 +19,7 @@ import { Image, Pressable, ScrollView, StyleSheet, Text, View } from 'react-nati
 import { useLocalSearchParams } from 'expo-router';
 import * as FileSystem from 'expo-file-system';
 import { Capture } from '../../src/features/capture/Capture';
+import type { CaptureMeta } from '../../src/features/capture/capture-upright';
 import { decodeJpegToRgb, base64ToBytes } from '../../src/features/read/decode-rgb';
 import { detectFacesOnStill } from '../../src/features/read/detect-faces-still';
 import {
@@ -44,9 +45,10 @@ const REGION_COLORS: Record<(typeof REGION_NAMES)[number], string> = {
   tZone: '#ffffff',
 };
 
-// Which regions form left/right anatomical pairs. Mirroring cannot be detected in software — a
-// mirrored face is still a perfectly plausible face — so these are labelled ON the image and the
-// human settles it. See the "mirroring" note in the render.
+// Which regions form left/right anatomical pairs. Mirroring cannot be detected from the PIXELS —
+// a mirrored face is still a perfectly plausible face — so these are labelled ON the image and the
+// human settles it. The camera does report `isMirrored` though (see the mirroring section), so
+// unlike orientation this is a cross-check between two sources, not an eye test alone.
 const SIDE_LABEL: Partial<Record<RegionName, string>> = {
   cheekL: 'L',
   cheekR: 'R',
@@ -140,6 +142,8 @@ const rect = (r: { x: number; y: number; w: number; h: number }) =>
 export default function BboxOverlay() {
   const params = useLocalSearchParams<{ uri?: string }>();
   const [uri, setUri] = useState<string | null>(params.uri ?? null);
+  // Only present when this screen took the photo; a hand-passed URI carries no capture metadata.
+  const [captureMeta, setCaptureMeta] = useState<CaptureMeta | null>(null);
   // Only delete files this screen captured. A URI passed in by hand belongs to the caller.
   const ownsFile = useRef(!params.uri);
   const [analysis, setAnalysis] = useState<Analysis | null>(null);
@@ -176,6 +180,7 @@ export default function BboxOverlay() {
     discard(uri);
     ownsFile.current = true;
     setUri(null);
+    setCaptureMeta(null);
     setAnalysis(null);
     setError(null);
   }, [discard, uri]);
@@ -185,8 +190,9 @@ export default function BboxOverlay() {
   if (!uri) {
     return (
       <Capture
-        onCaptured={(photoUri) => {
+        onCaptured={(photoUri, meta) => {
           ownsFile.current = true;
+          setCaptureMeta(meta);
           setUri(photoUri);
         }}
         onCancel={() => {}}
@@ -286,12 +292,57 @@ export default function BboxOverlay() {
           </Text>
 
           {/* ---- The two checks this screen exists for (spec §11) ---- */}
+          <Text style={styles.section}>capture (upright guarantee)</Text>
+          {!captureMeta ? (
+            <Text style={styles.warn}>
+              No capture metadata — this URI was passed in rather than shot here, so nothing
+              guarantees the pixels are upright.
+            </Text>
+          ) : (
+            <>
+              <Text style={styles.body}>
+                camera reported: orientation “{captureMeta.orientation}”, mirrored{' '}
+                {captureMeta.isMirrored ? 'yes' : 'no'}
+              </Text>
+              <Text style={styles.body}>
+                sensor {captureMeta.sensorSize.width}×{captureMeta.sensorSize.height} → written{' '}
+                {captureMeta.uprightSize.width}×{captureMeta.uprightSize.height}
+              </Text>
+              {captureMeta.degradedReason ? (
+                <Text style={styles.bad}>
+                  DEGRADED: could not convert to an upright image ({captureMeta.degradedReason}), so
+                  the raw sensor buffer was written. Regions below are not trustworthy.
+                </Text>
+              ) : captureMeta.correctedDegrees !== 0 ? (
+                <Text style={styles.good}>
+                  Conversion did NOT apply orientation, so capture rotated the pixels{' '}
+                  {captureMeta.correctedDegrees}° itself. If the face below is sideways, the sign of
+                  that rotation is wrong — see uprightRotationDegrees.
+                </Text>
+              ) : captureMeta.orientationCheck.applied === true ? (
+                <Text style={styles.good}>
+                  Conversion applied orientation (the axes swapped). Pixels written upright.
+                </Text>
+              ) : (
+                <Text style={styles.warn}>
+                  UNDETERMINED: orientation “{captureMeta.orientation}” leaves no trace in the image
+                  size, so software cannot confirm the rotation. Settle it by eye below.
+                </Text>
+              )}
+            </>
+          )}
+
           <Text style={styles.section}>orientation / EXIF</Text>
           <Text style={styles.body}>
             EXIF tag: {analysis.exifOrientation ?? 'unreadable'}
             {analysis.exifOrientation && analysis.exifOrientation !== 1
               ? ' — the decode rotated the image. MLKit may or may not have.'
               : ' — no rotation applied by the decode.'}
+          </Text>
+          <Text style={styles.footnote}>
+            Tag 1 is now the EXPECTED reading: capture bakes the rotation into the pixels, so there
+            is nothing left for a tag to describe. A non-1 tag here means the re-encode re-attached
+            one, and the decode and MLKit could disagree again.
           </Text>
           {!analysis.rawFace ? (
             // Was previously printing the reassuring green line below even with NO bounds, which
@@ -316,10 +367,15 @@ export default function BboxOverlay() {
 
           <Text style={styles.section}>front-camera mirroring</Text>
           <Text style={styles.body}>
-            Not software-detectable: a mirrored face is still a plausible face, so no guard can catch
-            it. Verify by eye — touch your LEFT cheek. The box labelled “L” must be on the cheek you
-            touched. If “L” is on your right cheek, the still is mirrored relative to what the region
-            names assert.
+            Camera says isMirrored:{' '}
+            {captureMeta ? (captureMeta.isMirrored ? 'yes' : 'no') : 'unknown (no capture metadata)'}
+            . The conversion to an upright image is documented to un-mirror when that flag is set, so
+            the written pixels should read as un-mirrored either way.
+          </Text>
+          <Text style={styles.body}>
+            The pixels cannot confirm that — a mirrored face is still a plausible face — so verify by
+            eye: touch your LEFT cheek. The box labelled “L” must be on the cheek you touched. If “L”
+            is on your right cheek, the still is mirrored relative to what the region names assert.
           </Text>
           <Text style={styles.footnote}>
             A pure L/R swap does not change baseline (both cheeks are averaged), but it does swap

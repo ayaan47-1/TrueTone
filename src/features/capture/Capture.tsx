@@ -6,10 +6,17 @@
 // sent anywhere (CLAUDE.md §3; enforced by scripts/check-no-image-egress.mjs). The on-device read
 // (Task 4.2) consumes the URI, derives cosmetic scores, and deletes the image.
 //
-// Camera + capture use the vision-camera v5 outputs-based API (usePhotoOutput / capturePhotoToFile,
-// confirmed via Context7 2026-06-18). Quality metrics come from useFrameMetrics, backed by real
-// on-device signals — a face detector (presence / centering / distance) and a luma frame processor
-// (brightness / sharpness); see that file's header.
+// Camera + capture use the vision-camera v5 outputs-based API (usePhotoOutput). Quality metrics
+// come from useFrameMetrics, backed by real on-device signals — a face detector (presence /
+// centering / distance) and a luma frame processor (brightness / sharpness); see that file's header.
+//
+// Capture goes through capturePhoto() (in-memory) rather than capturePhotoToFile(), because the
+// latter writes the raw sensor buffer: on the Fold 7 that is a 3648x2736 LANDSCAPE frame carrying
+// EXIF orientation 1, for a portrait selfie. Every consumer downstream then reads a 90-degree
+// rotated face, MLKit finds nothing on it, and the read silently scores hair and background.
+// writeUprightStill bakes the rotation into the pixels before the file is written — see
+// capture-upright.ts. The CaptureMeta it returns is diagnostic only; the read needs nothing from
+// it, because the file it hands over is already upright.
 import { useCallback, useEffect, useReducer, useRef } from 'react';
 import {
   Animated,
@@ -36,13 +43,15 @@ import {
   initialCaptureState,
 } from './capture-controller';
 import { useFrameMetrics } from './use-frame-metrics';
+import { writeUprightStill, type CaptureMeta } from './capture-upright';
 
 const PRIVACY_LINE = 'Analyzed on your device · never leaves your phone · deleted after your read';
 const PASS_GREEN = '#34d399';
 const TICK_MS = 33; // ~30fps drive for the auto-capture state machine
 
 interface CaptureProps {
-  onCaptured: (photoUri: string) => void;
+  /** `meta` is diagnostic — the URI already points at an upright still (see capture-upright.ts). */
+  onCaptured: (photoUri: string, meta: CaptureMeta) => void;
   onCancel: () => void;
 }
 
@@ -56,7 +65,14 @@ export function Capture({ onCaptured, onCancel }: CaptureProps) {
   const isShort = window.height > 0 && window.height < SHORT_VIEWPORT_THRESHOLD;
   const { hasPermission, requestPermission } = useCameraPermission();
   const device = useCameraDevice('front');
-  const photoOutput = usePhotoOutput({ qualityPrioritization: 'balanced' });
+  // containerFormat is pinned to 'jpeg' rather than left at 'native': vision-camera documents
+  // capturePhoto() as reliable for JPEG only on Android (CameraX's in-memory support for other
+  // formats is incomplete), and 'native' resolves to HEIC on iOS, which would make the decode
+  // depend on HEIC support being present. Photos land as JPEG on both platforms this way.
+  const photoOutput = usePhotoOutput({
+    containerFormat: 'jpeg',
+    qualityPrioritization: 'balanced',
+  });
   const { metrics, lumaOutput } = useFrameMetrics();
   const [state, dispatch] = useReducer(captureReducer, initialCaptureState);
 
@@ -103,12 +119,14 @@ export function Capture({ onCaptured, onCancel }: CaptureProps) {
   const firedRef = useRef(false);
   const takePhoto = useCallback(async () => {
     try {
-      const { filePath } = await photoOutput.capturePhotoToFile({}, {});
+      const photo = await photoOutput.capturePhoto({}, {});
+      // writeUprightStill owns the Photo from here — it disposes it on every path.
+      const { uri, meta } = await writeUprightStill(photo);
       Animated.sequence([
         Animated.timing(flash, { toValue: 1, duration: 60, useNativeDriver: true }),
         Animated.timing(flash, { toValue: 0, duration: 380, useNativeDriver: true }),
       ]).start();
-      onCaptured(filePath.startsWith('file://') ? filePath : `file://${filePath}`);
+      onCaptured(uri, meta);
     } catch {
       firedRef.current = false; // allow a retry on a failed capture
       dispatch({ type: 'reset' });

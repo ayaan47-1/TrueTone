@@ -1,6 +1,12 @@
 // jpeg-js ignores EXIF orientation; MLKit's still detector honours it. If the decoded buffer and
 // the detector disagree about which way is up, every region lands wrong and nothing errors
 // (spec F5, §11). This module makes the decode agree with the detector.
+//
+// Since the capture fix (2026-07-26, capture-upright.ts) the still is written with the rotation
+// already baked into its PIXELS, so a well-behaved encoder leaves nothing for a tag to describe
+// and this module is a no-op on our own captures — tag 1 is the expected reading, and the dev
+// overlay flags a non-1 tag as a regression. It stays in place as the safety net for any other
+// source of a JPEG, and because a no-op is the correct behaviour for an upright file either way.
 import type { RgbImage } from './cv/types';
 
 const DEFAULT: 1 = 1;
