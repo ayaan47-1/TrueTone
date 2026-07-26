@@ -78,10 +78,19 @@ now resolved** — see §3a.
 
 ### F3 — Three dimensions use absolute thresholds
 
-Five of the eight dimensions are already illumination- and tone-relative by design:
-`redness`, `darkSpots`, `darkCircles` subtract the CIELAB cheek baseline (`cv/baseline.ts`), which
-cancels a *global* colour cast because the baseline is sampled under the same light; `hydration` and
-`texture` use `microContrast` = Laplacian ÷ mean luma (`cv/sampling.ts:88`), a Weber-relative measure.
+Two of the eight dimensions turned out, on measurement, to be the WORST illuminant-invariance
+offenders in the pipeline despite superficially "already" subtracting a baseline: `redness` and
+`darkSpots` originally subtracted the CIELAB (L*/a*) cheek baseline, which looks tone/illumination-
+relative but isn't exposure-invariant — L*/a* are nonlinear in luminance, so a uniform exposure
+gain moves them even when nothing about the face changed. Measured illuminant-axis spreads before
+the fix: darkSpots 0.1115, redness 0.0875 (against a 0.08 epsilon — the worst breaches in the axis).
+Task 12b (2026-07-25) replaced both with ratios of LINEAR quantities that are exactly gain-invariant
+while staying baseline-relative: `darkSpots` = 1 − Y / baselineY on linear relative luminance;
+`redness` = Δlog(ΣR / ΣG) on linear channel sums (see `cv/dimensions/darkSpots.ts`,
+`cv/dimensions/redness.ts`, and `cv/types.ts`'s `SkinBaseline.Y` / `SkinBaseline.logRG`). Measured
+after the fix: darkSpots 0.0307, redness 0.0742, both comfortably under the 0.08 epsilon.
+`darkCircles` (still CIELAB-baseline-relative) and `hydration`/`texture` (Weber-relative via
+`microContrast` = Laplacian ÷ mean luma, `cv/sampling.ts:88`) were not affected by this issue.
 
 Three did not get that treatment:
 
@@ -184,7 +193,7 @@ It is optional at the `runRead` boundary — `runRead(uri, ctx?)` — so the exi
 | `read/cv/illuminant.ts` | new, pure | skin-locus estimation, chromatic adaptation, shading flattening |
 | `read/cv/dimensions/{pores,fineLines,oiliness}.ts` | modify, pure | absolute → relative measures |
 | `eval/render/face.ts` | new, pure | physically-grounded synthetic face renderer |
-| `eval/invariance/` | new, pure | four fail-closed axes + report writer |
+| `eval/invariance/` | new, pure | five fail-closed axes + report writer |
 | `app/(dev)/bbox-overlay` | new, device, dev-only | draws mapped bbox + regions onto the captured photo |
 | `supabase/migrations/0013_capture_quality.sql` | new | quality-band column + `record_scan` RPC change (§5a) |
 | `lib/scans.ts` | modify | pass and read back the quality band |
@@ -267,8 +276,9 @@ that error through the baseline.
 
 - `pores` → Weber threshold: Δluma ÷ local luma, replacing the absolute `thr: 0.06`.
 - `fineLines` → gradient energy ÷ local luma.
-- `oiliness` → specular detection relative to the skin baseline L\* and the estimated illuminant
-  chromaticity, replacing the absolute `lumaThr: 0.8`.
+- `oiliness` → specular detection as a chroma-drop gate relative to the subject's OWN sampled skin
+  baseline (not an illuminant estimate — see Fix 1 above; no runtime illuminant-chromaticity
+  estimate exists in the shipped pipeline), replacing the absolute `lumaThr: 0.8`.
 
 Pure, host-testable, no device and no data required. This closes two live tone-fairness defects (F3)
 and is the highest value-per-unit-risk change in the track. `CAL` entries are re-ranged accordingly;
@@ -299,6 +309,27 @@ adaptation to D65. Pure math, tone-preserving by construction.
 Fit a low-order (planar, optionally quadratic) luminance field over the skin regions and divide it
 out, so a left-right lighting gradient stops masquerading as `darkCircles` and `darkSpots` on the
 shadowed side (F6).
+
+**Status (2026-07-25, Task 12/12b): built, but deliberately left unwired.**
+`read/cv/illuminant.ts` implements both the skin-locus chromatic-adaptation estimator (4b) and
+shading-field flattening (4c) described above, and is unit-tested against the renderer — but
+`cv-read-engine.ts` never calls it. Wiring it into the live scoring path was MEASURED to regress the
+axis it exists to fix: applying the estimator's chromatic adaptation moved the illuminant-invariance
+spread on `darkSpots` from 0.1115 (already failing the 0.08 epsilon) to 0.2462 — worse, not better.
+
+Task 12 diagnosed why: at that point, ~92% of the illuminant axis's failure was an EXPOSURE problem,
+not a colour problem. Decomposing the sweep showed temperature-only spread was already comfortably
+under bound (`darkSpots` 0.0139, `redness` 0.0083 against the 0.08 epsilon), while intensity
+(exposure) alone accounted for the bulk of the measured breach (`darkSpots` 0.1069, `redness`
+0.0787, out of totals of 0.1115 / 0.0875). A chroma-ratio chromatic-adaptation estimator is
+exposure-invariant by construction — it corrects colour cast, not exposure gain — so it could not
+touch the dominant failure mode, and the residual colour-cast correction it did apply introduced
+its own error.
+
+Task 12b fixed the actual cause instead, without touching this estimator — see the correction to
+§4a below. `illuminant.ts` remains in the tree, tested, and available for a future colour-cast-
+specific defect, but it is not part of the shipped pipeline. `docs/ARCHITECTURE.md`'s pipeline
+table should not list it as an active stage.
 
 ### What normalization cannot fix
 
@@ -392,7 +423,7 @@ fix testable — it is precisely why an absolute luma threshold is the wrong det
 > accuracy, and nothing in it licenses an accuracy or skin-tone-equity claim (CLAUDE.md §1). It is an
 > engineering instrument, not validation data on file.**
 
-### 6b. Four fail-closed axes (`eval/invariance/`)
+### 6b. Five fail-closed axes (`eval/invariance/`)
 
 | Axis | Sweep | Passes when |
 |---|---|---|
@@ -400,6 +431,13 @@ fix testable — it is precisely why an absolute luma threshold is the wrong det
 | **Geometric invariance** | scale, translation, small yaw | spread ≤ ε — validates that scoring is robust to where the face sits, given a correct bbox |
 | **Monotonic response** | each defect swept 0→1 in N steps | target score monotonically non-decreasing (Spearman ρ ≥ 0.9) **and** non-target scores within a cross-talk bound |
 | **Tone preservation** *(negative)* | FST I→VI, fixed light and defects | tone-derived quantities still **differ** |
+| **Defect-tone fairness** *(intentionally failing)* | fixed mid-strength defect (0.5), FST I→VI | each dimension's own score at that defect stays within a spread bound across tone — TODAY six of eight dimensions (texture, hydration, redness, pores, darkCircles, oiliness) do not, and this axis is deliberately left failing to surface that gap rather than hide it |
+
+**`Overall: FAIL` in the committed report is the expected baseline, not a regression.** The
+defect-tone-fairness axis is intentionally left failing (see the table above and
+`eval/invariance/thresholds.ts`'s `toneResponseSpread` comment) — the other four axes all pass.
+Anyone running `npm run eval:invariance` and seeing `Overall: FAIL` should check the per-axis
+breakdown, not assume the pipeline regressed.
 
 Tone preservation and the existing bias axis are complementary halves: the bias axis asserts that
 *defect scores must not vary with tone*; the preservation axis asserts that *tone itself must not be
@@ -470,7 +508,7 @@ maintained.
 1. ✅ **Enable the real signals** (F1) — `FRAME_PROCESSORS_INSTALLED` flipped, stale comments
    corrected, static guard test added (commit `8940828`). Re-tuning `THRESHOLDS` and
    `SHARPNESS_SCALE` on the Fold 7 remains open, pending the dev build. *(device)*
-2. **Renderer + the four axes** (§6) — build the instrument before changing what it measures, so
+2. **Renderer + the five axes** (§6) — build the instrument before changing what it measures, so
    every subsequent step has a documented delta.
 3. **Relative dimensions** (4a) — the biggest win, pure, immediately measurable on the new axes.
 4. **Area-averaged resample + EXIF orientation** (F4, F5) — pure, measurable on the same axes.
@@ -505,8 +543,9 @@ is what makes "this improved the read" a measured statement rather than an asser
   tuning pass when iOS comes online.
 - **Frame-processor plane layout varies by device** (already flagged at `use-frame-metrics.ts:15`).
   The chroma grid inherits this risk; the existing per-frame try/catch degradation pattern applies.
-- **The renderer is a model, not reality.** See the circularity caveat in §6a. Passing all four axes
-  means the pipeline is self-consistent and physically sensible — nothing more.
+- **The renderer is a model, not reality.** See the circularity caveat in §6a. Passing the invariance
+  axes means the pipeline is self-consistent and physically sensible — nothing more (and, as of
+  Task 14c, one of the five — defect-tone fairness — is intentionally left failing; see §6b).
 - **EXIF disagreement is silent when wrong** (§3a). MLKit resolves orientation from the image URI;
   `jpeg-js` does not. If the two disagree, every region lands wrong with no error raised. This is now
   the highest-risk item in the design and the first thing to check on the overlay.

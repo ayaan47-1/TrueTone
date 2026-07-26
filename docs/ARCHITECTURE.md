@@ -124,11 +124,14 @@ All real logic is **pure and Jest-tested**; the camera and native inference are 
 | `capture/use-frame-metrics.ts`, `Capture.tsx` | vision-camera v5 wiring + guided UI | **device-only shell**; URI handed to read **only**, never logged/uploaded |
 | `read/run-read.ts` | Orchestrates the live read: `new CvReadEngine().run(uri)` → persist scores | wires capture → engine → `record_scan`; image deleted inside the engine |
 | `read/read-engine.ts` | `ReadEngine` interface (no native dep) | pure contract — both engines implement it |
-| `read/cv-read-engine.ts` | **Shipped engine** — classical CV: decode → detect bbox → `scoreFromRgb` | runs inside `withImageCleanup`; **no network, no ML model**; `isStub: false` |
+| `read/cv-read-engine.ts` | **Shipped engine** — orchestrates: decode → detect → scale/validate → derive regions → `scoreFromRgb` | runs inside `withImageCleanup`; **no network, no ML model**; `isStub: false` |
+| `read/decode-rgb.ts` | Decodes + downscales the photo to the working image; also returns the pre-downscale source size | **device-only shell** |
+| `read/detect-faces-still.ts` | MLKit still-image face detection with contours, on the ORIGINAL (full-resolution) file | **device-only shell** |
+| `read/face-geometry.ts` | Scales the detected bounds/contours from source space into working-image space with a frame-consistency guard (`scaleFaceToWorkingSpace`, `isPlausibleFaceDetection`), then derives regions from contours — falling back to proportional regions off bounds, or `approximateFaceBbox`, per the fallback chain | pure; Jest-tested |
+| `read/detect-bbox.ts` | `approximateFaceBbox` — the last-resort fallback only (no longer the primary detection path) | pure; Jest-tested |
 | `read/cv/score-from-rgb.ts` | Core inference: 8 cosmetic dimensions from pixels | pure; Laplacian texture energy, CIELAB (`color.ts`) deltas vs a per-face skin baseline |
 | `read/cv/dimensions/*.ts` | One pure function per dimension (hydration, oiliness, texture, pores, darkSpots, redness, fineLines, darkCircles) | pure; baseline-normalized so the read holds across tones |
 | `read/cv/{sampling,regions,baseline,color,calibration,skin-type}.ts` | Region sampling, color-space math, calibration, skin-type classify | pure; Jest-tested |
-| `read/decode-rgb.ts`, `detect-bbox.ts` | Native JPEG decode + face bbox | **device-only shells** (the only non-host part of the CV path) |
 | `read/image-lifecycle.ts` | `withImageCleanup` — `try/finally` + retries | **deletes image on success OR failure**; cleanup never throws |
 | `read/bands.ts` | Numeric score → cosmetic **band label** | pure; non-diagnostic vocabulary only |
 | `read/stub-read.ts`, `run-stub-read.ts` | Deterministic placeholder scores (`isStub: true`) | **`__DEV__` web/Expo-Go preview only**, where native decode is unavailable — never the device read |
