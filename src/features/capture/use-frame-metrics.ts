@@ -20,7 +20,7 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { useWindowDimensions } from 'react-native';
 import { useFrameOutput, type Frame } from 'react-native-vision-camera';
-import { useFaceDetectorOutput, type Face } from 'react-native-vision-camera-face-detector';
+import { useFaceDetector } from 'react-native-vision-camera-face-detector';
 import { runOnJS } from 'react-native-worklets';
 import type { FrameMetrics } from './quality-gate';
 import { facesToMetrics, ASSUMED_BRIGHTNESS, ASSUMED_SHARPNESS } from './face-metrics';
@@ -61,12 +61,17 @@ function metricsForElapsed(ms: number): FrameMetrics {
 }
 
 // Real frame processors (face detector + luma) need native modules, so they only exist in a DEV
-// BUILD — never in Expo Go. All of them are already declared in package.json and ship with
-// vision-camera v5: `useFrameOutput` is exported by react-native-vision-camera itself, backed by
-// react-native-nitro-modules + react-native-nitro-image + react-native-worklets.
+// BUILD — never in Expo Go. `useFrameOutput` is exported by react-native-vision-camera itself,
+// backed by react-native-nitro-modules + react-native-nitro-image + react-native-worklets AND by
+// react-native-vision-camera-worklets.
 //
-// (An earlier note here named `react-native-vision-camera-worklets` as a missing prerequisite. That
-// package belongs to the v3/v4 worklets-core model and does not apply to v5 — nothing is missing.)
+// That last one matters, and an earlier version of this comment got it wrong. It claimed
+// `react-native-vision-camera-worklets` was stale v3/v4 `worklets-core` lore that did not apply to
+// v5, and that nothing needed installing. The Fold 7 threw on the first run of the scan screen:
+//   Cannot use Frame Processors - `react-native-vision-camera-worklets` is not installed!
+// It is a genuine peer of vision-camera v5 and was genuinely absent. The trap: react-native-worklets
+// (no `vision-camera-` prefix) IS installed and its libworklets.so loads at startup, which made the
+// prerequisite look satisfied. Two different packages, near-identical names.
 //
 // When true the gate runs on the REAL camera signals; when false it falls back to SIM_TIMELINE, a
 // scripted sequence that auto-advances to "well framed" regardless of what the camera sees. Sim mode
@@ -95,31 +100,45 @@ export function useFrameMetrics({ simulate = !FRAME_PROCESSORS_INSTALLED }: UseF
   // despite the conditional call (the lint rule is safe to suppress here for that reason).
   /* eslint-disable react-hooks/rules-of-hooks */
   // FACE signal -------------------------------------------------------------
-  const faceOutput = FRAME_PROCESSORS_INSTALLED
-    ? useFaceDetectorOutput({
+  // Deliberately `useFaceDetector` (a detector object callable inside a worklet) and NOT
+  // `useFaceDetectorOutput` (which owns its own camera output). DEVICE-ONLY finding, Fold 7:
+  //
+  //   IllegalArgumentException: No supported surface combination is found for camera device Id 1.
+  //   May be attempting to bind too many use cases.
+  //
+  // Each camera output is a CameraX use case. With photoOutput + faceDetectorOutput + frameOutput
+  // we bound Preview + ImageCapture + TWO ImageAnalysis (confirmed in logcat: four applyFeatures-
+  // ToConfig lines, two of them ImageAnalysis). CameraX only guarantees Preview + ImageCapture +
+  // ONE ImageAnalysis; a second concurrent ImageAnalysis is not a supported surface combination on
+  // this hardware. That is a platform constraint, not a tuning problem — no threshold fixes it.
+  //
+  // Running detection INSIDE the existing luma worklet keeps us at three use cases. autoMode +
+  // windowWidth/Height still apply, so bounds arrive in screen space exactly as before and
+  // facesToMetrics is unchanged.
+  const faceDetector = FRAME_PROCESSORS_INSTALLED
+    ? useFaceDetector({
         cameraFacing: 'front',
         performanceMode: 'fast',
         autoMode: true,
         windowWidth: width,
         windowHeight: height,
-        outputResolution: 'preview',
-        onFacesDetected: (faces: Face[]) => {
-          const m = facesToMetrics(faces, width, height);
-          faceRef.current = {
-            faceDetected: m.faceDetected,
-            faceCenteredness: m.faceCenteredness,
-            faceFraction: m.faceFraction,
-            yaw: m.yaw,
-            roll: m.roll,
-          };
-          publish();
-        },
-        onError: () => {
-          faceRef.current = BLANK_FACE;
-          publish();
-        },
       })
     : undefined;
+
+  const onFaces = useCallback(
+    (faces: Array<{ bounds: { x: number; y: number; width: number; height: number }; yawAngle: number; rollAngle: number }>) => {
+      const m = facesToMetrics(faces, width, height);
+      faceRef.current = {
+        faceDetected: m.faceDetected,
+        faceCenteredness: m.faceCenteredness,
+        faceFraction: m.faceFraction,
+        yaw: m.yaw,
+        roll: m.roll,
+      };
+      publish();
+    },
+    [width, height, publish],
+  );
 
   // LIGHT + FOCUS signal ----------------------------------------------------
   const onLumaGrid = useCallback(
@@ -146,6 +165,23 @@ export function useFrameMetrics({ simulate = !FRAME_PROCESSORS_INSTALLED }: UseF
     onFrame: (frame: Frame) => {
       'worklet';
       try {
+        // FACE first, on the same frame the luma/chroma grids come from — one ImageAnalysis for
+        // both signals (see the surface-combination note above). Copied into PLAIN objects before
+        // runOnJS: a Face is a Nitro HybridObject and does not survive the worklet->JS boundary.
+        if (faceDetector) {
+          const detected = faceDetector.detectFaces(frame);
+          const plain = [];
+          for (let i = 0; i < detected.length; i++) {
+            const f = detected[i];
+            plain.push({
+              bounds: { x: f.bounds.x, y: f.bounds.y, width: f.bounds.width, height: f.bounds.height },
+              yawAngle: f.yawAngle,
+              rollAngle: f.rollAngle,
+            });
+          }
+          runOnJS(onFaces)(plain);
+        }
+
         if (!frame.isPlanar) return;
         const planes = frame.getPlanes();
         const plane = planes[0]; // Y (luma)
@@ -229,5 +265,7 @@ export function useFrameMetrics({ simulate = !FRAME_PROCESSORS_INSTALLED }: UseF
     return () => clearInterval(id);
   }, [simulate]);
 
-  return { metrics, setMetrics, faceOutput, lumaOutput };
+  // No faceOutput any more — face detection runs inside lumaOutput's worklet so the camera binds
+  // only ONE ImageAnalysis use case (see the surface-combination note above).
+  return { metrics, setMetrics, lumaOutput };
 }

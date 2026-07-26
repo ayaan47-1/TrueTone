@@ -293,7 +293,16 @@ export default function BboxOverlay() {
               ? ' — the decode rotated the image. MLKit may or may not have.'
               : ' — no rotation applied by the decode.'}
           </Text>
-          {analysis.orientationAmbiguous ? (
+          {!analysis.rawFace ? (
+            // Was previously printing the reassuring green line below even with NO bounds, which
+            // is vacuously true and actively misleading — the first real device run hit exactly
+            // that case. No detection means the orientation check never ran.
+            <Text style={styles.bad}>
+              No detection, so the orientation check did NOT run. This is not a pass. A landscape
+              still (see the decoded/source sizes above) with a portrait face is the likely cause —
+              MLKit will usually miss a 90°-rotated face.
+            </Text>
+          ) : analysis.orientationAmbiguous ? (
             <Text style={styles.warn}>
               AMBIGUOUS: these bounds fit the frame both as-is and transposed, so the plausibility
               guard cannot rule out a 90° disagreement. Settle it by eye: the forehead box must sit

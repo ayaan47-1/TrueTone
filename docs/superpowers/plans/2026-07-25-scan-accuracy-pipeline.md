@@ -1421,7 +1421,7 @@ axis verdicts that previously had no assertion at all."
 **Files:**
 - Create: `eval/invariance/report.ts`, `eval/invariance/__tests__/report-writer.test.ts`
 - Test: `eval/invariance/__tests__/report.test.ts`
-- Modify: `package.json` (scripts only — **no dependency changes**)
+- Modify: `package.json` (scripts only at the time of writing — **superseded 2026-07-26**: the device pass required adding `react-native-vision-camera-worklets`, see the spec's F1 section)
 
 **Interfaces:**
 - Consumes: `AxisResult` (Task 4), `runAllAxes` (Task 5)
@@ -4085,6 +4085,13 @@ than assumed — a wrong transform mis-places every region without erroring."
 - [ ] `npm run eval:invariance` — all four axes PASS
 - [ ] `npm run check:compliance` — no forbidden SDKs
 - [ ] `npm run check:no-egress` — no image egress
-- [ ] `git diff main --stat -- package.json` — **no dependency changes** (scripts only)
+- [ ] ~~`git diff main --stat -- package.json` — **no dependency changes** (scripts only)~~
+      **NO LONGER HOLDS (2026-07-26).** The Fold 7 threw `Cannot use Frame Processors -
+      \`react-native-vision-camera-worklets\` is not installed!` on the scan screen. That package is a
+      real peer of vision-camera v5 and was absent; the spec's F1 section had wrongly argued it was
+      stale v3/v4 lore (`react-native-worklets`, a different package, IS installed and its
+      libworklets.so loads — which is what made the wrong claim look right). Added
+      `react-native-vision-camera-worklets@^5.1.1` with founder approval. Revised check:
+      `git diff main -- package.json` shows exactly ONE dependency added, and nothing else.
 - [ ] `eval/reports/invariance.{md,json}` committed, showing the improvement from the Task 6 baseline
 - [ ] No user-facing string added anywhere contains a disease term or an accuracy claim

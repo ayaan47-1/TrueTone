@@ -41,13 +41,37 @@ Each is a verified fact about `main` as of 2026-07-25, not an assumption.
 `react-native-vision-camera-face-detector` output and the luma worklet — are switched off. The
 quality gate currently runs on `SIM_TIMELINE`, a scripted three-step sequence.
 
-**No missing package blocks this.** The in-file comment (`use-frame-metrics.ts:53-56`) says the real
-frame processors need `react-native-vision-camera-worklets`; that is stale, describing the
-vision-camera v3/v4 `worklets-core` model. On the installed v5.0.11, `useFrameOutput` is exported by
-vision-camera itself, and every native dependency it requires is already in `package.json`:
-`react-native-nitro-modules`, `react-native-nitro-image`, `react-native-worklets`. Enabling the real
-signals is a flag flip plus a fresh dev build — the rebuild is required because these are native
-modules, not because anything must be added. The stale comment should be corrected in the same change.
+**~~No missing package blocks this.~~ WRONG — corrected 2026-07-26 on hardware.** This paragraph
+used to argue that the in-file comment naming `react-native-vision-camera-worklets` was stale v3/v4
+`worklets-core` lore, and that vision-camera v5.0.11 needed nothing added. The Fold 7 disproved it
+on the first run of the scan screen:
+
+```
+E ReactNativeJS: Cannot use Frame Processors -
+  `react-native-vision-camera-worklets` is not installed!
+    at Capture -> ScanRoute(./scan/index.tsx)
+```
+
+The package is real, is a genuine peer of vision-camera v5, and was NOT installed
+(`react-native-vision-camera-worklets@5.1.1`, peers: react-native-vision-camera, nitro-modules,
+react-native-worklets). What made the wrong claim look right: `react-native-worklets@0.8.3` IS
+installed and its `libworklets.so` loads at startup — a DIFFERENT package with a confusingly similar
+name. "A native lib called worklets loads" was mistaken for "the worklets prerequisite is satisfied".
+
+Consequences, recorded because both were stated as branch properties and are no longer true:
+- `package.json` now has a dependency change against `main`. The plan's final-verification line
+  "no dependency changes (scripts only)" no longer holds and is corrected there.
+- Enabling the real signals is NOT just a flag flip. It needs the package plus a fresh native EAS
+  build, because the package ships a `.so`.
+
+Founder note: this is not a new vendor. It is a required sub-package of `react-native-vision-camera`
+(same maintainer, already approved for exactly this purpose), runs on-device, and performs no
+network I/O. Approved by the founder on 2026-07-26 before install.
+
+**Method note.** This is the second time on this branch that a confident claim about the pipeline
+survived review and was falsified by the first contact with hardware (the first was the
+frame-consistency guard's coverage of EXIF orientation). Both were claims that something did NOT
+need checking. Treat "nothing is missing here" as an untested hypothesis, not a finding.
 
 **Everything else in this spec depends on turning this on first.**
 

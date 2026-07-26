@@ -57,7 +57,7 @@ export function Capture({ onCaptured, onCancel }: CaptureProps) {
   const { hasPermission, requestPermission } = useCameraPermission();
   const device = useCameraDevice('front');
   const photoOutput = usePhotoOutput({ qualityPrioritization: 'balanced' });
-  const { metrics, faceOutput, lumaOutput } = useFrameMetrics();
+  const { metrics, lumaOutput } = useFrameMetrics();
   const [state, dispatch] = useReducer(captureReducer, initialCaptureState);
 
   const quality = evaluateQuality(metrics);
@@ -164,7 +164,12 @@ export function Capture({ onCaptured, onCancel }: CaptureProps) {
         style={StyleSheet.absoluteFill}
         device={device}
         isActive
-        outputs={[photoOutput, faceOutput, lumaOutput].filter(
+        // Exactly TWO outputs besides Preview. Each output is a CameraX use case, and CameraX only
+        // guarantees Preview + ImageCapture + ONE ImageAnalysis — a second concurrent ImageAnalysis
+        // threw "No supported surface combination" on the Fold 7. Face detection therefore runs
+        // inside lumaOutput's worklet rather than owning an output (see use-frame-metrics.ts).
+        // Do not add a third output here without re-testing on hardware.
+        outputs={[photoOutput, lumaOutput].filter(
           (o): o is NonNullable<typeof o> => o != null,
         )}
       />
