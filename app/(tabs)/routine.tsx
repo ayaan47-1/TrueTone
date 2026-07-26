@@ -45,7 +45,7 @@ export default function RoutineRoute() {
           // Display-time emphasis from the personal baseline; the stored routine stays
           // canonical. Cold start (baseline null) → the plain routine, exactly as today.
           const baseline = computePersonalBaseline(
-            history.map((s) => ({ scores: s.scores, isStub: s.isStub })),
+            history.map((s) => ({ scores: s.scores, isStub: s.isStub, captureQuality: s.captureQuality })),
           );
           setRoutine(
             baseline

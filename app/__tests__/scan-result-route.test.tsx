@@ -29,6 +29,7 @@ function scan(id: string, overrides: Partial<Record<string, unknown>> = {}) {
     isStub: true,
     skinAge: null,
     skinAgeConfidence: null,
+    captureQuality: 'good',
     ...overrides,
   };
 }

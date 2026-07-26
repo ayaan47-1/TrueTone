@@ -7,8 +7,12 @@ import type { PersonalSnapshot } from '../types';
 const vec = (v: number, overrides: Partial<ScoreVector> = {}): ScoreVector =>
   ({ ...Object.fromEntries(DIMENSIONS.map((d) => [d, v])), ...overrides }) as ScoreVector;
 
-const snap = (v: number, overrides: Partial<ScoreVector> = {}, isStub = false): PersonalSnapshot =>
-  ({ scores: vec(v, overrides), isStub });
+const snap = (
+  v: number,
+  overrides: Partial<ScoreVector> = {},
+  isStub = false,
+  captureQuality: 'good' | 'fair' | 'poor' | null = 'good',
+): PersonalSnapshot => ({ scores: vec(v, overrides), isStub, captureQuality });
 
 // history is newest-first; index 0 (the latest) is excluded from the baseline.
 describe('computePersonalBaseline', () => {
@@ -36,6 +40,28 @@ describe('computePersonalBaseline', () => {
     // only 2 non-stub priors → null even though 4 priors exist
     const history = [snap(0.5), snap(0.4), snap(0.4, {}, true), snap(0.4, {}, true), snap(0.4)];
     expect(computePersonalBaseline(history)).toBeNull();
+  });
+
+  test('excludes poor-quality-capture priors from the baseline', () => {
+    // only 2 good-quality priors → null even though 4 priors exist
+    const history = [
+      snap(0.5), snap(0.4), snap(0.4, {}, false, 'poor'), snap(0.4, {}, false, 'poor'), snap(0.4),
+    ];
+    expect(computePersonalBaseline(history)).toBeNull();
+  });
+
+  test('excludes priors with an unknown (null) capture-quality band', () => {
+    // pre-migration scans read back with a null band — treated as not-comparable
+    const history = [
+      snap(0.5), snap(0.4), snap(0.4, {}, false, null), snap(0.4, {}, false, null), snap(0.4),
+    ];
+    expect(computePersonalBaseline(history)).toBeNull();
+  });
+
+  test('includes fair-quality-capture priors in the baseline', () => {
+    const history = [snap(0.9), snap(0.4, {}, false, 'fair'), snap(0.4), snap(0.4)];
+    const b = computePersonalBaseline(history)!;
+    expect(b.hydration!.center).toBeCloseTo(0.4);
   });
 
   test('median is robust to a single outlier prior', () => {

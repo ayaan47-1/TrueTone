@@ -9,4 +9,5 @@ export interface ReadResult {
   skinType: SkinTypeFeel;
   modelVersion: string;
   isStub: boolean;
+  captureQuality?: 'good' | 'fair' | 'poor';
 }

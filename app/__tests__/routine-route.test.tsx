@@ -27,6 +27,7 @@ function scan(id: string, overrides: Partial<Record<string, unknown>> = {}) {
     skinAge: null,
     skinAgeConfidence: null,
     routineHelpful: null,
+    captureQuality: 'good',
     routine: {
       version: 'skincare-1',
       am: [

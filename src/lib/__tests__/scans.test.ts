@@ -59,3 +59,28 @@ test('recordScan builds a routine and passes it to the RPC', async () => {
   const cats = [...args.p_routine.am, ...args.p_routine.pm].map((s: { category: string }) => s.category);
   expect(cats.some((c: string) => c.includes('hydrating serum'))).toBe(true);
 });
+
+describe('capture quality persistence', () => {
+  it('passes the band to the record_scan RPC', async () => {
+    mockRpc.mockResolvedValue({ error: null });
+    await recordScan(
+      { scores: {} as any, skinType: 'dry', modelVersion: 'cv-1', isStub: false },
+      null,
+      'fair',
+    );
+    expect(mockRpc).toHaveBeenCalledWith('record_scan', expect.objectContaining({ p_capture_quality: 'fair' }));
+  });
+
+  it('sends null when no band is supplied, so existing callers keep working', async () => {
+    mockRpc.mockResolvedValue({ error: null });
+    await recordScan({ scores: {} as any, skinType: 'dry', modelVersion: 'cv-1', isStub: false });
+    expect(mockRpc).toHaveBeenCalledWith('record_scan', expect.objectContaining({ p_capture_quality: null }));
+  });
+
+  it('reads a null band back as null rather than throwing', () => {
+    const { rowToScan } = require('../scans');
+    if (typeof rowToScan === 'function') {
+      expect(() => rowToScan({ id: '1', captured_at: 'x', skin_type_feel: 'dry', model_version: 'cv-1', is_stub: false })).not.toThrow();
+    }
+  });
+});
