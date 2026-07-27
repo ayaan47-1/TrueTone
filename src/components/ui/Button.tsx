@@ -1,5 +1,4 @@
 import { Pressable, Text, View, StyleSheet, type PressableProps } from 'react-native';
-import { LinearGradient } from 'expo-linear-gradient';
 import { BlurView } from 'expo-blur';
 import { palette, glass, softShadow } from '../../theme/tokens';
 
@@ -33,19 +32,10 @@ export function PrimaryButton({ label, variant = 'primary', fullWidth, disabled,
         ]}
         {...rest}
       >
-        {/* Clip the gradient to the pill radius in its own layer so the outer
-            Pressable can still cast the (un-clipped) mauve shadow. */}
-        <View style={styles.clip}>
-          <LinearGradient
-            colors={[palette.mauve400, palette.mauve600]}
-            start={{ x: 0, y: 0 }}
-            end={{ x: 1, y: 1 }}
-            style={StyleSheet.absoluteFill}
-          />
-        </View>
+        <View style={styles.clip} />
         <Text
           numberOfLines={1}
-          className="font-body-semibold text-[15px] tracking-[0.3px] text-white text-center"
+          className="text-[15px] font-semibold tracking-[0.2px] text-white text-center"
         >
           {label}
         </Text>
@@ -93,13 +83,13 @@ export function PrimaryButton({ label, variant = 'primary', fullWidth, disabled,
 const styles = StyleSheet.create({
   pill: {
     height: 56,
-    borderRadius: 999,
+    borderRadius: 20,
     alignItems: 'center',
     justifyContent: 'center',
     paddingHorizontal: 24,
   },
   block: { alignSelf: 'stretch', width: '100%' },
-  clip: { position: 'absolute', top: 0, left: 0, right: 0, bottom: 0, borderRadius: 999, overflow: 'hidden' },
+  clip: { position: 'absolute', top: 0, left: 0, right: 0, bottom: 0, borderRadius: 20, overflow: 'hidden', backgroundColor: palette.dark },
   glassFill: {
     backgroundColor: glass.fillStrong,
     borderRadius: 999,

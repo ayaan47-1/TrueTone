@@ -19,6 +19,8 @@ module.exports = {
     '<rootDir>/src/features/capture/Capture.tsx',
     '<rootDir>/src/features/capture/use-frame-metrics.ts',
     '<rootDir>/app/scan/index.tsx',
+    '<rootDir>/src/features/read/detect-faces-still.ts',
+    '<rootDir>/app/(dev)/bbox-overlay.tsx',
   ],
   coverageThreshold: { global: { lines: 80, statements: 80, branches: 70, functions: 80 } },
 };

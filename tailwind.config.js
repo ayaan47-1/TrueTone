@@ -14,34 +14,34 @@ module.exports = {
       colors: {
         // Dominant (60%) — mist lavender washing into white.
         mist: {
-          50: '#F8F7FF',
-          100: '#EFEDFB',
-          200: '#E6E6FA', // mist lavender
-          300: '#D8D5F2',
-          400: '#C4BFEA',
+          50: '#FFFCF8',
+          100: '#FBF7F2',
+          200: '#F3EDE3',
+          300: '#EBE2D3',
+          400: '#DED4C4',
         },
         // Secondary (30%) — washed rose warmth.
         rose: {
-          100: '#FDE2E4', // washed rose
-          200: '#F8D2D7',
-          300: '#F2BEC6',
+          100: '#F8EEE7',
+          200: '#EEDCCE',
+          300: '#DFC1AF',
         },
         // Accent (10%) — deep mauve for calls-to-action.
         mauve: {
-          400: '#9A6BAC',
-          500: '#7C4D8B',
-          600: '#653A73',
-          700: '#4E2C59',
+          400: '#A79E91',
+          500: '#8A8378',
+          600: '#6B655B',
+          700: '#3F3A33',
         },
         // Ink — aubergine-tinted neutrals for text.
         ink: {
-          DEFAULT: '#2A2640',
-          soft: '#5B5570',
-          muted: '#8C87A0',
-          faint: '#B7B3C6',
+          DEFAULT: '#221F1A',
+          soft: '#6B655B',
+          muted: '#8A8378',
+          faint: '#C5BDAF',
         },
-        sage: '#7FA88C', // gentle "looks settled" positive
-        clay: '#C9836B', // gentle "worth a look" caution
+        sage: '#7E9174',
+        clay: '#C1875F',
         // Inclusive Fitzpatrick I–VI scale (onboarding tone strip + fairness UI).
         // Mirrored in src/theme/tokens.ts as `fitzpatrick`.
         fitzpatrick: {

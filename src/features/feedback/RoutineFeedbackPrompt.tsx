@@ -29,11 +29,18 @@ export function RoutineFeedbackPrompt({ scanId, onDone }: { scanId: string; onDo
     }
   }
   return (
-    <GlassCard>
-      <Body>Did your routine help?</Body>
-      <View>
+    <GlassCard flat radius={22} className="px-5 py-5">
+      <Body className="mb-4 font-semibold text-ink">Did your routine help?</Body>
+      <View className="gap-2">
         {CHOICES.map((c) => (
-          <PrimaryButton key={c.value} label={c.label} disabled={busy} onPress={() => choose(c.value)} />
+          <PrimaryButton
+            key={c.value}
+            label={c.label}
+            variant={c.value === 'helped' ? 'primary' : 'ghost'}
+            fullWidth
+            disabled={busy}
+            onPress={() => choose(c.value)}
+          />
         ))}
       </View>
     </GlassCard>

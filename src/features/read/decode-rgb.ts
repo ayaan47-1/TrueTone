@@ -4,6 +4,8 @@
 // (CLAUDE.md §1, §3). jpeg-js is a pure-function codec (no network, no SDK/vendor that exfiltrates).
 import { Platform } from 'react-native';
 import type { RgbImage } from './cv/types';
+import { areaDownscale } from './cv/resample';
+import { applyOrientation, readExifOrientation } from './exif-orientation';
 
 export const WORKING_EDGE = 512;
 
@@ -35,37 +37,26 @@ export function base64ToBytes(b64: string): Uint8Array {
   return out.subarray(0, oi);
 }
 
-// Pure nearest-neighbour downscale of an RGBA buffer to a target longest edge. Upscaling is never
-// done (scale is clamped to 1) — the working image is at most WORKING_EDGE on its long side.
-export function downscaleRgba(
-  src: { width: number; height: number; data: Uint8Array | Uint8ClampedArray },
-  edge: number,
-): RgbImage {
-  const scale = Math.min(1, edge / Math.max(src.width, src.height));
-  const w = Math.max(1, Math.round(src.width * scale));
-  const h = Math.max(1, Math.round(src.height * scale));
-  const data = new Uint8ClampedArray(w * h * 4);
-  for (let y = 0; y < h; y++) {
-    const sy = Math.min(src.height - 1, Math.floor(y / scale));
-    for (let x = 0; x < w; x++) {
-      const sx = Math.min(src.width - 1, Math.floor(x / scale));
-      const si = (sy * src.width + sx) * 4;
-      const di = (y * w + x) * 4;
-      data[di] = src.data[si];
-      data[di + 1] = src.data[si + 1];
-      data[di + 2] = src.data[si + 2];
-      data[di + 3] = src.data[si + 3];
-    }
-  }
-  return { width: w, height: h, data };
+// Retained as a named export for existing call sites; area-averaged since 2026-07-25 (spec F4).
+export const downscaleRgba = areaDownscale;
+
+// Carries both the downscaled working-size image AND the pre-downscale (post-EXIF-orientation)
+// source size. The still-image face detector (detect-faces-still.ts) runs on the ORIGINAL,
+// full-resolution file, so its bounds/contours come back in that same source-pixel space — the
+// caller (cv-read-engine.ts) needs sourceSize to scale a detection into the working image's space
+// before deriving regions (task 16; see face-geometry.ts's scaleFaceToWorkingSpace).
+export interface DecodedImage {
+  rgb: RgbImage;
+  sourceSize: { width: number; height: number };
 }
 
-// DEVICE: reads the captured JPEG and decodes it to a fixed working-size RGBA RgbImage.
+// DEVICE: reads the captured JPEG and decodes it to a fixed working-size RGBA RgbImage, plus the
+// pre-downscale (upright) source size.
 // Web preview has no native file read → throw so the __DEV__ stub fallback in run-read takes over.
 // The expo-file-system + jpeg-js calls are lazy-required so they never enter the Jest module graph
 // (the engine's tests inject a fake decode; this body never runs under Jest). Verify the
 // readAsStringAsync base64 path + jpeg-js RGBA layout on the first physical-device run.
-export async function decodeJpegToRgb(uri: string): Promise<RgbImage> {
+export async function decodeJpegToRgb(uri: string): Promise<DecodedImage> {
   if (Platform.OS === 'web') {
     throw new Error('decodeJpegToRgb: native-only (no web pixel decode); web preview uses the dev stub');
   }
@@ -86,5 +77,11 @@ export async function decodeJpegToRgb(uri: string): Promise<RgbImage> {
     height: number;
     data: Uint8Array;
   };
-  return downscaleRgba(decoded, WORKING_EDGE);
+  const upright = applyOrientation(
+    { width: decoded.width, height: decoded.height, data: new Uint8ClampedArray(decoded.data) },
+    readExifOrientation(bytes),
+  );
+  const sourceSize = { width: upright.width, height: upright.height };
+  const rgb = areaDownscale(upright, WORKING_EDGE);
+  return { rgb, sourceSize };
 }

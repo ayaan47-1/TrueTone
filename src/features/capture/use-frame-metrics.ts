@@ -8,7 +8,7 @@
 //     pure, unit-tested `facesToMetrics` (autoMode + screen dims → screen-space bounds).
 //   • LIGHT + FOCUS (brightness / sharpness) — a `useFrameOutput` worklet samples the Y (luma)
 //     plane down to a small grid and hands it to the pure, unit-tested `computeLumaStats` on the JS
-//     thread. Global stats, so orientation-invariant.
+//     thread. The pure metric functions sample the centered face area.
 //
 // Each source updates its own ref; `publish` merges them into one FrameMetrics. The luma ref starts
 // at neutral-pass values so the gate degrades gracefully (face-only) if the frame processor never
@@ -20,27 +20,37 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { useWindowDimensions } from 'react-native';
 import { useFrameOutput, type Frame } from 'react-native-vision-camera';
-import { useFaceDetectorOutput, type Face } from 'react-native-vision-camera-face-detector';
+import { useFaceDetector } from 'react-native-vision-camera-face-detector';
 import { runOnJS } from 'react-native-worklets';
 import type { FrameMetrics } from './quality-gate';
 import { facesToMetrics, ASSUMED_BRIGHTNESS, ASSUMED_SHARPNESS } from './face-metrics';
 import { computeLumaStats } from './luma-metrics';
+import { computeChromaStats } from './chroma-metrics';
 
-type FaceMetrics = Pick<FrameMetrics, 'faceDetected' | 'faceCenteredness' | 'faceFraction'>;
+type FaceMetrics = Pick<FrameMetrics, 'faceDetected' | 'faceCenteredness' | 'faceFraction' | 'yaw' | 'roll'>;
 type LumaMetrics = Pick<FrameMetrics, 'brightness' | 'sharpness'>;
+type ChromaMetrics = Pick<FrameMetrics, 'clipping' | 'cct' | 'imbalance'>;
 
-const BLANK_FACE: FaceMetrics = { faceDetected: false, faceCenteredness: 0, faceFraction: 0 };
+const BLANK_FACE: FaceMetrics = {
+  faceDetected: false, faceCenteredness: 0, faceFraction: 0, yaw: 0, roll: 0,
+};
 const NEUTRAL_LUMA: LumaMetrics = { brightness: ASSUMED_BRIGHTNESS, sharpness: ASSUMED_SHARPNESS };
+const NEUTRAL_CHROMA: ChromaMetrics = { clipping: 0, cct: 6500, imbalance: 0 };
 
 // Luma downsample grid — small enough to pass to the JS thread cheaply each processed frame.
 const LUMA_COLS = 32;
 const LUMA_ROWS = 44;
 
+// Coarse RGB downsample grid for chroma stats (glare/colour-cast/side-light) — deliberately much
+// smaller than the luma grid since chroma only needs coarse facial-area statistics.
+const CHROMA_COLS = 12;
+const CHROMA_ROWS = 16;
+
 // Scripted simulation story: searching → aligned-but-too-far → well-framed. [untilElapsedMs, metrics].
 const SIM_TIMELINE: ReadonlyArray<readonly [number, FrameMetrics]> = [
-  [1200, { faceDetected: false, faceCenteredness: 0, brightness: 0, sharpness: 0, faceFraction: 0 }],
-  [2400, { faceDetected: true, faceCenteredness: 0.82, brightness: 0.58, sharpness: 0.72, faceFraction: 0.15 }],
-  [Infinity, { faceDetected: true, faceCenteredness: 0.88, brightness: 0.6, sharpness: 0.74, faceFraction: 0.42 }],
+  [1200, { faceDetected: false, faceCenteredness: 0, brightness: 0, sharpness: 0, faceFraction: 0, yaw: 0, roll: 0, clipping: 0, cct: 6500, imbalance: 0 }],
+  [2400, { faceDetected: true, faceCenteredness: 0.82, brightness: 0.58, sharpness: 0.72, faceFraction: 0.15, yaw: 0, roll: 0, clipping: 0.01, cct: 5200, imbalance: 0.05 }],
+  [Infinity, { faceDetected: true, faceCenteredness: 0.88, brightness: 0.6, sharpness: 0.74, faceFraction: 0.42, yaw: 0, roll: 0, clipping: 0.01, cct: 5200, imbalance: 0.05 }],
 ];
 
 function metricsForElapsed(ms: number): FrameMetrics {
@@ -50,11 +60,23 @@ function metricsForElapsed(ms: number): FrameMetrics {
   return SIM_TIMELINE[SIM_TIMELINE.length - 1][1];
 }
 
-// Real frame processors (face detector + luma) require react-native-vision-camera-worklets, which
-// is a NATIVE module — installing it needs a rebuild. Flip this to true only in a dev build that
-// has it. Until then the frame-processor hooks are skipped and the gate runs on the scripted
-// simulation, so the camera screen renders without that native dependency.
-const FRAME_PROCESSORS_INSTALLED = false;
+// Real frame processors (face detector + luma) need native modules, so they only exist in a DEV
+// BUILD — never in Expo Go. `useFrameOutput` is exported by react-native-vision-camera itself,
+// backed by react-native-nitro-modules + react-native-nitro-image + react-native-worklets AND by
+// react-native-vision-camera-worklets.
+//
+// That last one matters, and an earlier version of this comment got it wrong. It claimed
+// `react-native-vision-camera-worklets` was stale v3/v4 `worklets-core` lore that did not apply to
+// v5, and that nothing needed installing. The Fold 7 threw on the first run of the scan screen:
+//   Cannot use Frame Processors - `react-native-vision-camera-worklets` is not installed!
+// It is a genuine peer of vision-camera v5 and was genuinely absent. The trap: react-native-worklets
+// (no `vision-camera-` prefix) IS installed and its libworklets.so loads at startup, which made the
+// prerequisite look satisfied. Two different packages, near-identical names.
+//
+// When true the gate runs on the REAL camera signals; when false it falls back to SIM_TIMELINE, a
+// scripted sequence that auto-advances to "well framed" regardless of what the camera sees. Sim mode
+// is for rendering the capture screen without native modules — it must never drive a real read.
+const FRAME_PROCESSORS_INSTALLED = true;
 
 export interface UseFrameMetricsOptions {
   /** Drive metrics from the scripted simulation instead of the real on-device signals. */
@@ -63,44 +85,74 @@ export interface UseFrameMetricsOptions {
 
 export function useFrameMetrics({ simulate = !FRAME_PROCESSORS_INSTALLED }: UseFrameMetricsOptions = {}) {
   const { width, height } = useWindowDimensions();
-  const [metrics, setMetrics] = useState<FrameMetrics>({ ...BLANK_FACE, ...NEUTRAL_LUMA });
+  const [metrics, setMetrics] = useState<FrameMetrics>({ ...BLANK_FACE, ...NEUTRAL_LUMA, ...NEUTRAL_CHROMA });
 
   const faceRef = useRef<FaceMetrics>(BLANK_FACE);
   const lumaRef = useRef<LumaMetrics>(NEUTRAL_LUMA);
+  const chromaRef = useRef<ChromaMetrics>(NEUTRAL_CHROMA);
 
   const publish = useCallback(() => {
-    if (!simulate) setMetrics({ ...faceRef.current, ...lumaRef.current });
+    if (!simulate) setMetrics({ ...faceRef.current, ...lumaRef.current, ...chromaRef.current });
   }, [simulate]);
 
-  // FACE + LUMA come from real frame processors, which need react-native-vision-camera-worklets
-  // (native). Gate the hook calls on a module CONSTANT so React's hook order stays stable across
-  // renders despite the conditional call (the lint rule is safe to suppress here for that reason).
+  // FACE + LUMA come from real frame processors, which are native and exist only in a dev build.
+  // Gate the hook calls on a module CONSTANT so React's hook order stays stable across renders
+  // despite the conditional call (the lint rule is safe to suppress here for that reason).
   /* eslint-disable react-hooks/rules-of-hooks */
   // FACE signal -------------------------------------------------------------
-  const faceOutput = FRAME_PROCESSORS_INSTALLED
-    ? useFaceDetectorOutput({
+  // Deliberately `useFaceDetector` (a detector object callable inside a worklet) and NOT
+  // `useFaceDetectorOutput` (which owns its own camera output). DEVICE-ONLY finding, Fold 7:
+  //
+  //   IllegalArgumentException: No supported surface combination is found for camera device Id 1.
+  //   May be attempting to bind too many use cases.
+  //
+  // Each camera output is a CameraX use case. With photoOutput + faceDetectorOutput + frameOutput
+  // we bound Preview + ImageCapture + TWO ImageAnalysis (confirmed in logcat: four applyFeatures-
+  // ToConfig lines, two of them ImageAnalysis). CameraX only guarantees Preview + ImageCapture +
+  // ONE ImageAnalysis; a second concurrent ImageAnalysis is not a supported surface combination on
+  // this hardware. That is a platform constraint, not a tuning problem — no threshold fixes it.
+  //
+  // Running detection INSIDE the existing luma worklet keeps us at three use cases. autoMode +
+  // windowWidth/Height still apply, so bounds arrive in screen space exactly as before and
+  // facesToMetrics is unchanged.
+  const faceDetector = FRAME_PROCESSORS_INSTALLED
+    ? useFaceDetector({
         cameraFacing: 'front',
         performanceMode: 'fast',
         autoMode: true,
         windowWidth: width,
         windowHeight: height,
-        outputResolution: 'preview',
-        onFacesDetected: (faces: Face[]) => {
-          const m = facesToMetrics(faces, width, height);
-          faceRef.current = { faceDetected: m.faceDetected, faceCenteredness: m.faceCenteredness, faceFraction: m.faceFraction };
-          publish();
-        },
-        onError: () => {
-          faceRef.current = BLANK_FACE;
-          publish();
-        },
       })
     : undefined;
+
+  const onFaces = useCallback(
+    (faces: Array<{ bounds: { x: number; y: number; width: number; height: number }; yawAngle: number; rollAngle: number }>) => {
+      const m = facesToMetrics(faces, width, height);
+      faceRef.current = {
+        faceDetected: m.faceDetected,
+        faceCenteredness: m.faceCenteredness,
+        faceFraction: m.faceFraction,
+        yaw: m.yaw,
+        roll: m.roll,
+      };
+      publish();
+    },
+    [width, height, publish],
+  );
 
   // LIGHT + FOCUS signal ----------------------------------------------------
   const onLumaGrid = useCallback(
     (grid: number[], cols: number, rows: number) => {
       lumaRef.current = computeLumaStats(grid, cols, rows);
+      publish();
+    },
+    [publish],
+  );
+
+  // GLARE + COLOUR CAST + SIDE LIGHT signal ----------------------------------
+  const onChromaGrid = useCallback(
+    (rgbGrid: number[], cols: number, rows: number) => {
+      chromaRef.current = computeChromaStats(rgbGrid, cols, rows);
       publish();
     },
     [publish],
@@ -113,8 +165,26 @@ export function useFrameMetrics({ simulate = !FRAME_PROCESSORS_INSTALLED }: UseF
     onFrame: (frame: Frame) => {
       'worklet';
       try {
+        // FACE first, on the same frame the luma/chroma grids come from — one ImageAnalysis for
+        // both signals (see the surface-combination note above). Copied into PLAIN objects before
+        // runOnJS: a Face is a Nitro HybridObject and does not survive the worklet->JS boundary.
+        if (faceDetector) {
+          const detected = faceDetector.detectFaces(frame);
+          const plain = [];
+          for (let i = 0; i < detected.length; i++) {
+            const f = detected[i];
+            plain.push({
+              bounds: { x: f.bounds.x, y: f.bounds.y, width: f.bounds.width, height: f.bounds.height },
+              yawAngle: f.yawAngle,
+              rollAngle: f.rollAngle,
+            });
+          }
+          runOnJS(onFaces)(plain);
+        }
+
         if (!frame.isPlanar) return;
-        const plane = frame.getPlanes()[0]; // Y (luma)
+        const planes = frame.getPlanes();
+        const plane = planes[0]; // Y (luma)
         const y = new Uint8Array(plane.getPixelBuffer()); // view — no copy
         const w = plane.width;
         const h = plane.height;
@@ -133,6 +203,50 @@ export function useFrameMetrics({ simulate = !FRAME_PROCESSORS_INSTALLED }: UseF
           }
         }
         runOnJS(onLumaGrid)(grid, cols, rows);
+
+        // Coarse RGB grid for chroma stats (glare / colour cast / side light). DEVICE-ONLY: whether
+        // U/V arrive as separate planar planes or one interleaved semi-planar plane (and their
+        // subsampling) varies by device/codec — this best-effort YUV->RGB conversion, like the luma
+        // plane layout above, needs on-device confirmation.
+        if (planes.length >= 2) {
+          const uPlane = planes[1];
+          const vPlane = planes.length >= 3 ? planes[2] : planes[1];
+          const uBuf = new Uint8Array(uPlane.getPixelBuffer());
+          const vBuf = new Uint8Array(vPlane.getPixelBuffer());
+          const uStride = uPlane.bytesPerRow;
+          const vStride = vPlane.bytesPerRow;
+          const interleaved = planes.length === 2;
+          const chromaPixelStride = interleaved ? 2 : 1;
+          const vByteOffset = interleaved ? 1 : 0;
+          const chromaW = uPlane.width;
+          const chromaH = uPlane.height;
+          const cStepX = Math.max(1, Math.floor(chromaW / CHROMA_COLS));
+          const cStepY = Math.max(1, Math.floor(chromaH / CHROMA_ROWS));
+          const rgbGrid: number[] = [];
+          let cCols = 0;
+          let cRows = 0;
+          for (let r = 0; r < chromaH; r += cStepY) {
+            cRows += 1;
+            cCols = 0;
+            for (let c = 0; c < chromaW; c += cStepX) {
+              // U/V planes are typically half-resolution (4:2:0) — sample luma at 2x the chroma
+              // coordinate to align them.
+              const yy = y[Math.min(h - 1, r * 2) * stride + Math.min(w - 1, c * 2)];
+              const uu = uBuf[r * uStride + c * chromaPixelStride] - 128;
+              const vv = vBuf[r * vStride + c * chromaPixelStride + vByteOffset] - 128;
+              const rr = yy + 1.402 * vv;
+              const gg = yy - 0.344136 * uu - 0.714136 * vv;
+              const bb = yy + 1.772 * uu;
+              rgbGrid.push(
+                Math.max(0, Math.min(255, rr)),
+                Math.max(0, Math.min(255, gg)),
+                Math.max(0, Math.min(255, bb)),
+              );
+              cCols += 1;
+            }
+          }
+          runOnJS(onChromaGrid)(rgbGrid, cCols, cRows);
+        }
       } catch {
         // DEVICE-ONLY: plane layout varies by device; skip a frame we can't read.
       } finally {
@@ -151,5 +265,7 @@ export function useFrameMetrics({ simulate = !FRAME_PROCESSORS_INSTALLED }: UseF
     return () => clearInterval(id);
   }, [simulate]);
 
-  return { metrics, setMetrics, faceOutput, lumaOutput };
+  // No faceOutput any more — face detection runs inside lumaOutput's worklet so the camera binds
+  // only ONE ImageAnalysis use case (see the surface-combination note above).
+  return { metrics, setMetrics, lumaOutput };
 }

@@ -1,4 +1,4 @@
-import { clampRect, lumaAt, meanLab, median, laplacianEnergy, gradientEnergy, localContrastDensity } from '../sampling';
+import { clampRect, lumaAt, meanLab, meanLuma, median, laplacianEnergy, gradientEnergy, localContrastDensity, microContrast } from '../sampling';
 import { solidRgb, addNoise } from '../fixtures';
 
 const FULL = (w: number, h: number) => ({ x: 0, y: 0, w, h });
@@ -26,6 +26,14 @@ test('laplacianEnergy is ~0 on a flat patch and rises with noise', () => {
   const noisy = addNoise(flat, FULL(16, 16), 30, 5);
   expect(laplacianEnergy(flat, FULL(16, 16))).toBeCloseTo(0, 5);
   expect(laplacianEnergy(noisy, FULL(16, 16))).toBeGreaterThan(laplacianEnergy(flat, FULL(16, 16)));
+});
+
+test('microContrast removes a pixel-scale sensor-noise floor', () => {
+  const flat = solidRgb(64, 64, [180, 140, 120]);
+  const noisy = addNoise(flat, FULL(64, 64), 8, 5);
+  const raw = laplacianEnergy(noisy, FULL(64, 64)) / meanLuma(noisy, FULL(64, 64));
+
+  expect(microContrast(noisy, FULL(64, 64))).toBeLessThan(raw * 0.25);
 });
 
 test('gradientEnergy and localContrastDensity rise with noise', () => {

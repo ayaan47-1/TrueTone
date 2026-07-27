@@ -11,7 +11,11 @@ function scores(v: number): ScoreVector {
 }
 
 export function buildSyntheticObservations(): Observation[] {
-  const gate = { face: true, lighting: true, focus: true, distance: true, allPass: true, hint: '' };
+  const gate = {
+    face: true, lighting: true, focus: true, distance: true,
+    glare: true, colour: true, evenness: true, pose: true,
+    allPass: true, hint: '',
+  };
   return FITZPATRICK.flatMap((fst) => [
     { fst, subjectId: `${fst}-1`, gate, scores: scores(0.5) },
     { fst, subjectId: `${fst}-1`, gate, scores: scores(0.5) },

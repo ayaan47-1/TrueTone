@@ -1,17 +1,17 @@
 import { render } from '@testing-library/react-native';
 import { WeekStrip } from '../WeekStrip';
 
-test('renders the seven weekday labels', async () => {
+test('renders the seven compact weekday markers', async () => {
   const view = await render(
     <WeekStrip today={new Date(2026, 5, 24)} scanDateKeys={['2026-06-22']} />,
   );
-  ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'].forEach((d) =>
-    expect(view.getByText(d)).toBeTruthy(),
-  );
+  expect(view.getAllByText('S')).toHaveLength(2);
+  expect(view.getAllByText('T')).toHaveLength(2);
+  ['M', 'W', 'F'].forEach((d) => expect(view.getByText(d)).toBeTruthy());
 });
 
-test('shows the day number for days without a scan', async () => {
+test('marks today accessibly without showing a numeric score or date', async () => {
   const view = await render(<WeekStrip today={new Date(2026, 5, 24)} scanDateKeys={[]} />);
-  // 24th is today (Wed) with no scan → its number shows.
-  expect(view.getByText('24')).toBeTruthy();
+  expect(view.getByLabelText('Wed, today')).toBeTruthy();
+  expect(view.queryByText('24')).toBeNull();
 });

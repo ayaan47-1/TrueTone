@@ -24,7 +24,7 @@ export function MistBackground({ children, style, ...rest }: ViewProps) {
         end={mistGradient.end}
         style={StyleSheet.absoluteFill}
       />
-      {/* Decorative blooms — purely atmospheric, never interactive. */}
+      {/* Very quiet warmth behind the frosted cards. */}
       <View
         pointerEvents="none"
         style={[
@@ -35,7 +35,7 @@ export function MistBackground({ children, style, ...rest }: ViewProps) {
             top: -bloom.rose * 0.33,
             right: -bloom.rose * 0.3,
             backgroundColor: palette.rose200,
-            opacity: 0.5,
+            opacity: 0.18,
           },
         ]}
       />
@@ -48,8 +48,8 @@ export function MistBackground({ children, style, ...rest }: ViewProps) {
             height: bloom.mauve,
             bottom: -bloom.mauve * 0.3,
             left: -bloom.mauve * 0.4,
-            backgroundColor: palette.mauve400,
-            opacity: 0.18,
+            backgroundColor: palette.sage,
+            opacity: 0.05,
           },
         ]}
       />
@@ -62,8 +62,8 @@ export function MistBackground({ children, style, ...rest }: ViewProps) {
             height: bloom.mist,
             bottom: bloom.mist * 0.1,
             right: -bloom.mist * 0.43,
-            backgroundColor: palette.mist300,
-            opacity: 0.4,
+            backgroundColor: palette.clay,
+            opacity: 0.04,
           },
         ]}
       />
@@ -73,6 +73,6 @@ export function MistBackground({ children, style, ...rest }: ViewProps) {
 }
 
 const styles = StyleSheet.create({
-  root: { flex: 1, backgroundColor: palette.mist100 },
+  root: { flex: 1, backgroundColor: palette.background },
   bloom: { position: 'absolute', borderRadius: 9999 },
 });

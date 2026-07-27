@@ -55,7 +55,7 @@ export default function ResultRoute() {
         // Personalization: relative to the user's own prior scans (spec §4.1).
         // Cold start (baseline null) → no messages → today's UI exactly.
         const baseline = computePersonalBaseline(
-          history.map((s) => ({ scores: s.scores, isStub: s.isStub })),
+          history.map((s) => ({ scores: s.scores, isStub: s.isStub, captureQuality: s.captureQuality })),
         );
         setPersonalMessages(
           baseline ? personalCopy(computePersonalDeviation(latest.scores, baseline)) : [],

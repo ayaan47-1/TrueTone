@@ -6,10 +6,17 @@
 // sent anywhere (CLAUDE.md §3; enforced by scripts/check-no-image-egress.mjs). The on-device read
 // (Task 4.2) consumes the URI, derives cosmetic scores, and deletes the image.
 //
-// Camera + capture use the vision-camera v5 outputs-based API (usePhotoOutput / capturePhotoToFile,
-// confirmed via Context7 2026-06-18). Quality metrics come from useFrameMetrics, backed by real
-// on-device signals — a face detector (presence / centering / distance) and a luma frame processor
-// (brightness / sharpness); see that file's header.
+// Camera + capture use the vision-camera v5 outputs-based API (usePhotoOutput). Quality metrics
+// come from useFrameMetrics, backed by real on-device signals — a face detector (presence /
+// centering / distance) and a luma frame processor (brightness / sharpness); see that file's header.
+//
+// Capture goes through capturePhoto() (in-memory) rather than capturePhotoToFile(), because the
+// latter writes the raw sensor buffer: on the Fold 7 that is a 3648x2736 LANDSCAPE frame carrying
+// EXIF orientation 1, for a portrait selfie. Every consumer downstream then reads a 90-degree
+// rotated face, MLKit finds nothing on it, and the read silently scores hair and background.
+// writeUprightStill bakes the rotation into the pixels before the file is written — see
+// capture-upright.ts. The CaptureMeta it returns is diagnostic only; the read needs nothing from
+// it, because the file it hands over is already upright.
 import { useCallback, useEffect, useReducer, useRef } from 'react';
 import {
   Animated,
@@ -36,17 +43,30 @@ import {
   initialCaptureState,
 } from './capture-controller';
 import { useFrameMetrics } from './use-frame-metrics';
+import { writeUprightStill, type CaptureMeta } from './capture-upright';
 
 const PRIVACY_LINE = 'Analyzed on your device · never leaves your phone · deleted after your read';
 const PASS_GREEN = '#34d399';
 const TICK_MS = 33; // ~30fps drive for the auto-capture state machine
 
 interface CaptureProps {
-  onCaptured: (photoUri: string) => void;
+  /** `meta` is diagnostic — the URI already points at an upright still (see capture-upright.ts). */
+  onCaptured: (photoUri: string, meta: CaptureMeta) => void;
   onCancel: () => void;
+  /**
+   * DEV-ONLY escape hatch: makes the shutter tappable and fires immediately, ignoring the quality
+   * gate. Only `app/(dev)/bbox-overlay.tsx` passes it, and it is additionally fenced behind
+   * `__DEV__` at the render site, so it cannot reach a release build even if a caller sets it.
+   *
+   * Why it exists: the overlay verifies REGION GEOMETRY, which does not need a gate-quality frame.
+   * Requiring one made the instrument unusable in an ordinarily-lit room and would have pushed us
+   * toward loosening THRESHOLDS — a production calibration — to run a diagnostic. This keeps that
+   * pressure off the real gate entirely.
+   */
+  devForceCapture?: boolean;
 }
 
-export function Capture({ onCaptured, onCancel }: CaptureProps) {
+export function Capture({ onCaptured, onCancel, devForceCapture = false }: CaptureProps) {
   const insets = useSafeAreaInsets();
   const window = useWindowDimensions();
   // Guide oval scales to the viewport so it fits a folded (narrow/short) or unfolded
@@ -56,8 +76,15 @@ export function Capture({ onCaptured, onCancel }: CaptureProps) {
   const isShort = window.height > 0 && window.height < SHORT_VIEWPORT_THRESHOLD;
   const { hasPermission, requestPermission } = useCameraPermission();
   const device = useCameraDevice('front');
-  const photoOutput = usePhotoOutput({ qualityPrioritization: 'balanced' });
-  const { metrics, faceOutput, lumaOutput } = useFrameMetrics();
+  // containerFormat is pinned to 'jpeg' rather than left at 'native': vision-camera documents
+  // capturePhoto() as reliable for JPEG only on Android (CameraX's in-memory support for other
+  // formats is incomplete), and 'native' resolves to HEIC on iOS, which would make the decode
+  // depend on HEIC support being present. Photos land as JPEG on both platforms this way.
+  const photoOutput = usePhotoOutput({
+    containerFormat: 'jpeg',
+    qualityPrioritization: 'balanced',
+  });
+  const { metrics, lumaOutput } = useFrameMetrics();
   const [state, dispatch] = useReducer(captureReducer, initialCaptureState);
 
   const quality = evaluateQuality(metrics);
@@ -103,12 +130,14 @@ export function Capture({ onCaptured, onCancel }: CaptureProps) {
   const firedRef = useRef(false);
   const takePhoto = useCallback(async () => {
     try {
-      const { filePath } = await photoOutput.capturePhotoToFile({}, {});
+      const photo = await photoOutput.capturePhoto({}, {});
+      // writeUprightStill owns the Photo from here — it disposes it on every path.
+      const { uri, meta } = await writeUprightStill(photo);
       Animated.sequence([
         Animated.timing(flash, { toValue: 1, duration: 60, useNativeDriver: true }),
         Animated.timing(flash, { toValue: 0, duration: 380, useNativeDriver: true }),
       ]).start();
-      onCaptured(filePath.startsWith('file://') ? filePath : `file://${filePath}`);
+      onCaptured(uri, meta);
     } catch {
       firedRef.current = false; // allow a retry on a failed capture
       dispatch({ type: 'reset' });
@@ -121,6 +150,13 @@ export function Capture({ onCaptured, onCancel }: CaptureProps) {
       void takePhoto();
     }
   }, [state.phase, takePhoto]);
+
+  // Dev-only manual shutter — same one-shot guard as the automatic path, no countdown, no gate.
+  const manualCapture = useCallback(() => {
+    if (firedRef.current) return;
+    firedRef.current = true;
+    void takePhoto();
+  }, [takePhoto]);
 
   // ---- permission / device fallbacks ----
   if (!hasPermission) {
@@ -164,14 +200,19 @@ export function Capture({ onCaptured, onCancel }: CaptureProps) {
         style={StyleSheet.absoluteFill}
         device={device}
         isActive
-        outputs={[photoOutput, faceOutput, lumaOutput].filter(
+        // Exactly TWO outputs besides Preview. Each output is a CameraX use case, and CameraX only
+        // guarantees Preview + ImageCapture + ONE ImageAnalysis — a second concurrent ImageAnalysis
+        // threw "No supported surface combination" on the Fold 7. Face detection therefore runs
+        // inside lumaOutput's worklet rather than owning an output (see use-frame-metrics.ts).
+        // Do not add a third output here without re-testing on hardware.
+        outputs={[photoOutput, lumaOutput].filter(
           (o): o is NonNullable<typeof o> => o != null,
         )}
       />
 
       {/* top scrim + guidance hint */}
       <View style={[styles.topScrim, { paddingTop: insets.top + 12 }]}>
-        <Text style={styles.wordmark}>TrueTone</Text>
+        <Text style={styles.wordmark}>Hold steady</Text>
         <View style={[styles.hintPill, allPass && styles.hintPillPass]}>
           <Text style={[styles.hintText, allPass && styles.hintTextPass]}>{quality.hint}</Text>
         </View>
@@ -212,6 +253,22 @@ export function Capture({ onCaptured, onCancel }: CaptureProps) {
 
       {/* bottom: privacy reassurance + cancel */}
       <View style={[styles.bottomBar, { paddingBottom: insets.bottom + 16 }]}>
+        <Text style={styles.lightHint}>Natural light works best</Text>
+        {__DEV__ && devForceCapture ? (
+          <Pressable
+            style={[styles.shutter, styles.shutterArmed]}
+            onPress={manualCapture}
+            accessibilityRole="button"
+            accessibilityLabel="Capture now, ignoring the quality gate (dev)"
+          >
+            <View style={[styles.shutterInner, styles.shutterInnerArmed]} />
+          </Pressable>
+        ) : (
+          <View style={styles.shutter}><View style={styles.shutterInner} /></View>
+        )}
+        {__DEV__ && devForceCapture && (
+          <Text style={styles.forceHint}>DEV: tap the shutter to capture regardless of the gate</Text>
+        )}
         <Text style={styles.privacy}>{PRIVACY_LINE}</Text>
         <Pressable style={styles.cancelBtn} onPress={onCancel} disabled={counting}>
           <Text style={[styles.cancelText, counting && styles.cancelTextDim]}>Cancel</Text>
@@ -263,12 +320,21 @@ function MetricsDebug({
       <DebugRow label="light" value={f(metrics.brightness)} range={`${THRESHOLDS.brightnessMin}–${THRESHOLDS.brightnessMax}`} ok={quality.lighting} />
       <DebugRow label="frame" value={f(metrics.faceFraction)} range={`${THRESHOLDS.faceFractionMin}–${THRESHOLDS.faceFractionMax}`} ok={quality.distance} />
       <DebugRow label="focus" value={f(metrics.sharpness)} range={`≥${THRESHOLDS.sharpness}`} ok={quality.focus} />
+      <DebugRow label="clip" value={f(metrics.clipping)} range={`≤${THRESHOLDS.clippingMax}`} ok={quality.glare} />
+      <DebugRow label="cct" value={`${Math.round(metrics.cct)}K`} range={`${THRESHOLDS.cctMin}–${THRESHOLDS.cctMax}K`} ok={quality.colour} />
+      <DebugRow label="even" value={f(metrics.imbalance)} range={`≤${THRESHOLDS.imbalanceMax}`} ok={quality.evenness} />
+      <DebugRow
+        label="pose"
+        value={`yaw ${f(metrics.yaw)}° roll ${f(metrics.roll)}°`}
+        range={`±${THRESHOLDS.poseMax}°`}
+        ok={quality.pose}
+      />
     </View>
   );
 }
 
 const styles = StyleSheet.create({
-  root: { flex: 1, backgroundColor: '#000' },
+  root: { flex: 1, backgroundColor: '#111111' },
   topScrim: {
     position: 'absolute',
     top: 0,
@@ -276,9 +342,9 @@ const styles = StyleSheet.create({
     right: 0,
     alignItems: 'center',
     paddingBottom: 18,
-    backgroundColor: 'rgba(0,0,0,0.35)',
+    backgroundColor: 'rgba(17,17,17,0.24)',
   },
-  wordmark: { color: 'rgba(255,255,255,0.7)', fontSize: 13, fontWeight: '600', letterSpacing: 2, marginBottom: 10 },
+  wordmark: { color: '#fff', fontSize: 22, fontWeight: '700', marginBottom: 10 },
   hintPill: {
     paddingHorizontal: 16,
     paddingVertical: 9,
@@ -291,9 +357,10 @@ const styles = StyleSheet.create({
   centerArea: { position: 'absolute', top: 0, left: 0, right: 0, bottom: 0, alignItems: 'center', justifyContent: 'center' },
   ovalGlow: {
     position: 'absolute',
-    backgroundColor: 'rgba(255,255,255,0.06)',
-    borderWidth: 1,
-    borderColor: 'rgba(255,255,255,0.18)',
+    backgroundColor: 'transparent',
+    borderWidth: 2,
+    borderStyle: 'dashed',
+    borderColor: 'rgba(126,145,116,0.72)',
   },
   oval: {
     borderWidth: 3,
@@ -319,7 +386,15 @@ const styles = StyleSheet.create({
   chipDotOk: { backgroundColor: PASS_GREEN },
   chipText: { color: 'rgba(255,255,255,0.7)', fontSize: 13, fontWeight: '600' },
   chipTextOk: { color: '#bbf7d0' },
-  bottomBar: { position: 'absolute', left: 0, right: 0, bottom: 0, alignItems: 'center', gap: 14, paddingHorizontal: 24 },
+  bottomBar: { position: 'absolute', left: 0, right: 0, bottom: 0, alignItems: 'center', gap: 12, paddingHorizontal: 24 },
+  lightHint: { color: 'rgba(255,255,255,0.62)', fontSize: 14, marginBottom: 2 },
+  shutter: { width: 72, height: 72, borderRadius: 36, borderWidth: 4, borderColor: '#fff', alignItems: 'center', justifyContent: 'center', marginBottom: 2 },
+  shutterInner: { width: 56, height: 56, borderRadius: 28, backgroundColor: 'rgba(255,255,255,0.18)' },
+  // dev-only manual shutter — visibly different so a tappable shutter is never mistaken for the
+  // shipped decorative one
+  shutterArmed: { borderColor: '#d946ef' },
+  shutterInnerArmed: { backgroundColor: 'rgba(217,70,239,0.55)' },
+  forceHint: { color: '#f0abfc', fontSize: 11, fontWeight: '700', textAlign: 'center' },
   privacy: { color: 'rgba(255,255,255,0.62)', fontSize: 12, textAlign: 'center' },
   cancelBtn: { paddingHorizontal: 28, paddingVertical: 12, borderRadius: 999, backgroundColor: 'rgba(255,255,255,0.12)' },
   cancelText: { color: '#fff', fontSize: 15, fontWeight: '600' },

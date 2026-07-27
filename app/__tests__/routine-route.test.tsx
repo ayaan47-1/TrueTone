@@ -27,6 +27,7 @@ function scan(id: string, overrides: Partial<Record<string, unknown>> = {}) {
     skinAge: null,
     skinAgeConfidence: null,
     routineHelpful: null,
+    captureQuality: 'good',
     routine: {
       version: 'skincare-1',
       am: [
@@ -84,7 +85,7 @@ test('cold start renders the stored routine order with no emphasis', async () =>
 test('navigates to /scan/chat with the scanId when the button is pressed', async () => {
   mockFetchScanHistory.mockResolvedValue([scan('s1')]);
   await render(<RoutineRoute />);
-  const button = await screen.findByText(/ask about your routine/i);
+  const button = await screen.findByText(/why these/i);
   fireEvent.press(button);
   expect(mockPush).toHaveBeenCalledWith({ pathname: '/scan/chat', params: { scanId: 's1' } });
 });

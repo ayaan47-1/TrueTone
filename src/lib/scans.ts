@@ -18,9 +18,14 @@ export interface Scan {
   skinAge: number | null;
   skinAgeConfidence: number | null;
   routineHelpful: RoutineHelpful | null;
+  captureQuality: 'good' | 'fair' | 'poor' | null;
 }
 
-export async function recordScan(r: ReadResult, age: SkinAgeEstimate | null = null): Promise<void> {
+export async function recordScan(
+  r: ReadResult,
+  age: SkinAgeEstimate | null = null,
+  captureQuality: 'good' | 'fair' | 'poor' | null = null,
+): Promise<void> {
   const routine = buildRoutine(skincareDomain, { scores: r.scores, skinType: r.skinType });
   const { error } = await supabase.rpc('record_scan', {
     p_scores: r.scores,
@@ -31,6 +36,7 @@ export async function recordScan(r: ReadResult, age: SkinAgeEstimate | null = nu
     p_routine_version: routine.version,
     p_skin_age: age?.ageEstimate ?? null,
     p_skin_age_confidence: age?.confidence ?? null,
+    p_capture_quality: captureQuality ?? r.captureQuality ?? null,
   });
   if (error) throw new Error('record-scan-failed');
 }
@@ -51,6 +57,7 @@ function rowToScan(row: Record<string, unknown>): Scan {
     skinAge: row.skin_age_estimate == null ? null : Number(row.skin_age_estimate),
     skinAgeConfidence: row.skin_age_confidence == null ? null : Number(row.skin_age_confidence),
     routineHelpful: isRoutineHelpful(row.routine_helpful) ? row.routine_helpful : null,
+    captureQuality: row.capture_quality == null ? null : (String(row.capture_quality) as 'good' | 'fair' | 'poor'),
   };
 }
 

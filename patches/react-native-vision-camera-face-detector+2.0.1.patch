@@ -1,0 +1,72 @@
+diff --git a/node_modules/react-native-vision-camera-face-detector/android/src/main/java/com/margelo/nitro/camera/facedetector/HybridImageFaceDetector.kt b/node_modules/react-native-vision-camera-face-detector/android/src/main/java/com/margelo/nitro/camera/facedetector/HybridImageFaceDetector.kt
+index 5d116a9..7e4dc36 100644
+--- a/node_modules/react-native-vision-camera-face-detector/android/src/main/java/com/margelo/nitro/camera/facedetector/HybridImageFaceDetector.kt
++++ b/node_modules/react-native-vision-camera-face-detector/android/src/main/java/com/margelo/nitro/camera/facedetector/HybridImageFaceDetector.kt
+@@ -21,15 +21,23 @@ class HybridImageFaceDetector(
+     options.toMLFaceDetectorOptions()
+   )
+ 
++  // PATCHED (TrueTone, patches/react-native-vision-camera-face-detector+2.0.1.patch).
++  //
++  // Upstream takes `Any?` and tests `is String` / `is Map<*, *>`, which is the shape the old
++  // bridge delivered. Nitro does not deliver either: `InputImage` is the generated sealed class
++  // below, so EVERY call fell through to `else` and threw
++  //   "Invalid image type. Expected string or { uri }"
++  // regardless of what JS passed — a bare string arrives as InputImage.First and fails the same
++  // way. Verified against 2.0.6, which carries identical code, and against the iOS Swift file,
++  // which has the same flaw with `as? String` / `as? [String: Any]` against an enum.
+   private fun resolveInputImage(
+-    input: Any?
++    input: InputImage
+   ): String {
+     return when (input) {
+-      is String -> input
+-      is Map<*, *> -> {
+-        val uri = input["uri"] as? String
+-        uri ?: throw IllegalArgumentException("Invalid image object: missing 'uri'")
+-      }
++      is InputImage.First -> input.value
++      is InputImage.Third -> input.value.uri
++      // Second is the `number` arm of `string | number | ImageUri` — a packager asset id, which
++      // this detector has no way to resolve to a file path.
+       else -> throw IllegalArgumentException("Invalid image type. Expected string or { uri }")
+     }
+   }
+diff --git a/node_modules/react-native-vision-camera-face-detector/ios/HybridImageFaceDetector.swift b/node_modules/react-native-vision-camera-face-detector/ios/HybridImageFaceDetector.swift
+index 608050c..78365da 100644
+--- a/node_modules/react-native-vision-camera-face-detector/ios/HybridImageFaceDetector.swift
++++ b/node_modules/react-native-vision-camera-face-detector/ios/HybridImageFaceDetector.swift
+@@ -51,16 +51,26 @@ class HybridImageFaceDetector: HybridImageFaceDetectorSpec {
+     }
+   }
+ 
++  // PATCHED (TrueTone, patches/react-native-vision-camera-face-detector+2.0.1.patch).
++  //
++  // Upstream takes `Any` and casts to `String` / `[String: Any]`, which is the shape the old
++  // bridge delivered. Nitro passes the generated `InputImage` enum, and a Swift enum bridges to
++  // neither, so every call fell through and threw "Invalid image type. Expected string or { uri }"
++  // whatever JS passed. Same defect as the Android Kotlin file; both still present in 2.0.6.
++  //
++  // NOT YET EXERCISED ON A DEVICE — the device pass that found this ran on Android. It is the
++  // direct translation of the Kotlin fix, which IS verified.
+   private func resolveInputImage(
+-    _ input: Any
++    _ input: InputImage
+   ) throws -> String {
+-    if let uri = input as? String {
+-      return uri
+-    }
+-
+-    if let object = input as? [String: Any],
+-      let uri = object["uri"] as? String {
++    switch input {
++    case .first(let uri):
+       return uri
++    case .third(let image):
++      return image.uri
++    // .second is the `number` arm — a packager asset id, not resolvable to a file path here.
++    default:
++      break
+     }
+ 
+     throw NSError(

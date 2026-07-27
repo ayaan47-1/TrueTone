@@ -11,7 +11,11 @@ function scores(v: number): ScoreVector {
 }
 function obs(fst: Fitzpatrick, subjectId: string): Observation {
   return { fst, subjectId, scores: scores(0.5),
-    gate: { face: true, lighting: true, focus: true, distance: true, allPass: true, hint: '' } };
+    gate: {
+      face: true, lighting: true, focus: true, distance: true,
+      glare: true, colour: true, evenness: true, pose: true,
+      allPass: true, hint: '',
+    } };
 }
 
 const report = fairnessReport(

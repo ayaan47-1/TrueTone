@@ -19,7 +19,14 @@ export interface Rect {
   h: number;
 }
 
-export type SkinBaseline = Lab;
+// Lab (L/a/b) stays as-is: darkCircles and oiliness still consume it directly. Task 12b adds Y
+// (linear relative luminance) and logRG (log linear-R/linear-G) — the LINEAR quantities darkSpots
+// and redness now difference/ratio against, because L*/a* are nonlinear in luminance and so are
+// not exposure-invariant (see cv/color.ts).
+export interface SkinBaseline extends Lab {
+  Y: number; // median linear relative luminance over both cheeks
+  logRG: number; // median log(linear R / linear G) over both cheeks
+}
 
 export const REGION_NAMES = [
   'cheekL',

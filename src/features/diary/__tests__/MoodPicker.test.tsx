@@ -3,27 +3,27 @@ import { MoodPicker } from '../MoodPicker';
 
 const flush = () => new Promise((resolve) => setTimeout(resolve, 0));
 
-test('renders all five skin-feel options', async () => {
+test('renders the four Quiet Glass skin-feel options', async () => {
   const view = await render(<MoodPicker value={null} onSelect={() => {}} />);
-  ['Bad', 'Not great', 'Okay', 'Good', 'Awesome'].forEach((label) =>
+  ['Calm', 'Glowy', 'Dry', 'Tired'].forEach((label) =>
     expect(view.getByText(label)).toBeTruthy(),
   );
 });
 
-test('calls onSelect with the mood value when a face is tapped', async () => {
+test('calls onSelect with the mood value when a chip is tapped', async () => {
   const onSelect = jest.fn();
   const view = await render(<MoodPicker value={null} onSelect={onSelect} />);
-  fireEvent.press(view.getByRole('button', { name: 'Good' }));
-  expect(onSelect).toHaveBeenCalledWith('good');
+  fireEvent.press(view.getByRole('button', { name: 'Glowy' }));
+  expect(onSelect).toHaveBeenCalledWith('glowy');
   await flush();
 });
 
 test('marks the selected mood for accessibility', async () => {
-  const view = await render(<MoodPicker value="awesome" onSelect={() => {}} />);
-  expect(view.getByRole('button', { name: 'Awesome' }).props.accessibilityState).toMatchObject({
+  const view = await render(<MoodPicker value="glowy" onSelect={() => {}} />);
+  expect(view.getByRole('button', { name: 'Glowy' }).props.accessibilityState).toMatchObject({
     selected: true,
   });
-  expect(view.getByRole('button', { name: 'Bad' }).props.accessibilityState).toMatchObject({
+  expect(view.getByRole('button', { name: 'Calm' }).props.accessibilityState).toMatchObject({
     selected: false,
   });
 });

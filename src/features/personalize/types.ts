@@ -18,6 +18,13 @@ export const MAX_MESSAGES = 3;
 export interface PersonalSnapshot {
   scores: ScoreVector;
   isStub: boolean;
+  /**
+   * Coarse capture-quality band from the scan that produced this snapshot. `'poor'` and
+   * `null`/`undefined` (unknown — e.g. a pre-migration scan) are both treated as not
+   * comparable and excluded from the baseline, so a bad capture never pulls a user's
+   * personal "normal" off course.
+   */
+  captureQuality?: 'good' | 'fair' | 'poor' | null;
 }
 
 export interface DimensionBaseline {

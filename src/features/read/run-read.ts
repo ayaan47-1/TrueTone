@@ -13,10 +13,14 @@ interface Deps {
   persist?: (r: ReadResult) => Promise<void>;
 }
 
-export async function runRead(photoUri: string, deps: Deps = {}): Promise<void> {
+export async function runRead(
+  photoUri: string,
+  deps: Deps = {},
+  captureQuality: 'good' | 'fair' | 'poor' | null = null,
+): Promise<void> {
   const engine = deps.engine ?? new CvReadEngine();
   const persist = deps.persist ?? (async (result: ReadResult) => {
-    await recordScan(result, estimateSkinAge(result));
+    await recordScan(result, estimateSkinAge(result), captureQuality);
   });
   try {
     const result = await engine.run(photoUri);

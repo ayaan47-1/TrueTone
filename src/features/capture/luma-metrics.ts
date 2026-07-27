@@ -3,8 +3,9 @@
 // Pure luma → {brightness, sharpness} math for the quality gate. The device-only frame processor
 // (use-frame-metrics.ts) samples the camera's Y (luma) plane down to a small grid in a worklet and
 // hands that grid here, on the JS thread — so this math is the single, host-testable source of
-// truth. These are global stats, so they're orientation-invariant (no rotation/mirroring needed).
+// truth. Metrics use the centered face area so the room/background does not dominate the gate.
 import type { FrameMetrics } from './quality-gate';
+import { centeredGridBounds } from './metric-grid';
 
 export interface LumaStats {
   brightness: FrameMetrics['brightness'];
@@ -26,21 +27,28 @@ export function computeLumaStats(grid: ArrayLike<number>, cols: number, rows: nu
   const n = cols * rows;
   if (n <= 0 || grid.length < n) return { brightness: 0, sharpness: 0 };
 
+  const bounds = centeredGridBounds(cols, rows);
   let sum = 0;
-  for (let i = 0; i < n; i++) sum += grid[i];
-  const brightness = clamp01(sum / n / 255);
+  let sampleCount = 0;
+  for (let r = bounds.startRow; r < bounds.endRow; r++) {
+    for (let c = bounds.startCol; c < bounds.endCol; c++) {
+      sum += grid[r * cols + c];
+      sampleCount++;
+    }
+  }
+  const brightness = clamp01(sum / sampleCount / 255);
 
   // Mean absolute gradient to the right + bottom neighbour — a cheap focus/blur proxy.
   let gradSum = 0;
   let gradCount = 0;
-  for (let r = 0; r < rows; r++) {
-    for (let c = 0; c < cols; c++) {
+  for (let r = bounds.startRow; r < bounds.endRow; r++) {
+    for (let c = bounds.startCol; c < bounds.endCol; c++) {
       const v = grid[r * cols + c];
-      if (c + 1 < cols) {
+      if (c + 1 < bounds.endCol) {
         gradSum += Math.abs(grid[r * cols + c + 1] - v);
         gradCount++;
       }
-      if (r + 1 < rows) {
+      if (r + 1 < bounds.endRow) {
         gradSum += Math.abs(grid[(r + 1) * cols + c] - v);
         gradCount++;
       }
