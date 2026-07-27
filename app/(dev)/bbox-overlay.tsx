@@ -188,15 +188,24 @@ export default function BboxOverlay() {
   if (!__DEV__) return null;
 
   if (!uri) {
+    // The capture step is visually IDENTICAL to /scan — both render the same <Capture> — so this
+    // badge is the only way to know which screen you are on. Without it, "the deep link opened the
+    // camera" is indistinguishable from "the deep link fell through to the scan tab", which cost a
+    // real debugging round on 2026-07-26.
     return (
-      <Capture
-        onCaptured={(photoUri, meta) => {
-          ownsFile.current = true;
-          setCaptureMeta(meta);
-          setUri(photoUri);
-        }}
-        onCancel={() => {}}
-      />
+      <View style={styles.captureRoot}>
+        <Capture
+          onCaptured={(photoUri, meta) => {
+            ownsFile.current = true;
+            setCaptureMeta(meta);
+            setUri(photoUri);
+          }}
+          onCancel={() => {}}
+        />
+        <View style={styles.devBadge} pointerEvents="none">
+          <Text style={styles.devBadgeText}>DEV · bbox-overlay · shoot, then scroll</Text>
+        </View>
+      </View>
     );
   }
 
@@ -403,6 +412,17 @@ export default function BboxOverlay() {
 
 const styles = StyleSheet.create({
   page: { flex: 1, backgroundColor: '#0b0f14' },
+  captureRoot: { flex: 1 },
+  devBadge: {
+    position: 'absolute',
+    left: 10,
+    bottom: 62, // clears the Android system nav bar, which sat on top of it at 10
+    paddingHorizontal: 10,
+    paddingVertical: 5,
+    borderRadius: 6,
+    backgroundColor: 'rgba(217,70,239,0.92)',
+  },
+  devBadgeText: { color: '#fff', fontSize: 11, fontWeight: '700', letterSpacing: 0.3 },
   content: { padding: 16, gap: 4 },
   bounds: { position: 'absolute', borderWidth: 2, borderColor: '#fde047' },
   headline: { fontSize: 18, fontWeight: '700', marginTop: 12 },
