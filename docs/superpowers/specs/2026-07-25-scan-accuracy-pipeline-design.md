@@ -665,6 +665,30 @@ This is not a one-line swap; it probably needs the ambient/amplitude retuning al
 Task 5b. Re-verify all five axes after, and state the renderer diff explicitly in the commit — the
 byte-identical guarantee ends there and every later reader needs to know when and why.
 
+### First correlation-scale experiment (2026-07-27) — rejected
+
+A two-octave roughness field with a 4px minimum feature size, paired with an Immerkaer pixel-noise
+subtraction in `microContrast`, did remove the clean-skin texture/hydration floor: the spread fell
+to **0.0134** (under the 0.05 limit). Restoring enough roughness amplitude to retain the existing
+dynamic-range test, however, produced `roughness → darkSpots` cross-talk of **0.6504** against the
+0.07 ceiling. The experiment was reverted rather than accepting that regression.
+
+The next candidate must make `darkSpots` scale-aware (extended deficits should count; several-pixel
+roughness should not) while preserving genuine spot monotonicity and exposure invariance. Do not
+re-run this exact renderer/noise subtraction combination without that additional separation.
+
+### Scale-aware follow-up (2026-07-27) — accepted by the synthetic harness
+
+The follow-up separates the signals at three layers: a deterministic 4px block-correlated renderer
+field for roughness, Immerkaer pixel-noise subtraction for `microContrast`, and an 11×11
+linear-luminance average before `darkSpots` thresholding. Genuine spot response remains monotonic
+(`rho:darkSpots = 0.9816`), while `roughness → darkSpots` cross-talk is **0.0446**, below 0.07.
+
+Texture and hydration fairness spreads both fell from **0.0897 to 0.0145**; at clean skin the spread
+fell to **0.0006**. Illuminant, geometric, monotonic, and tone-preservation axes remain PASS.
+Overall `defect-tone-fairness` remains FAIL for five other dimensions; this result fixes only the
+texture/hydration noise-floor group and is still synthetic self-consistency, not validation data.
+
 ### The caveat that survives either choice
 
 The noise-subtraction fix may be **correct for real devices and simply unverifiable here**. A

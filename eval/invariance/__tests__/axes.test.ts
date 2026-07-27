@@ -108,7 +108,14 @@ describe('axes', () => {
     }
   });
 
-  it('defect-tone-fairness FAILS — seven of eight dimensions respond unevenly across skin tone', () => {
+  it('does not turn clean deep-tone skin into texture or lower hydration', () => {
+    const r = defectToneFairnessAxis();
+
+    expect(r.detail['texture@0']).toBeLessThanOrEqual(INVARIANCE_THRESHOLDS.toneResponseSpread);
+    expect(r.detail['hydration@0']).toBeLessThanOrEqual(INVARIANCE_THRESHOLDS.toneResponseSpread);
+  });
+
+  it('defect-tone-fairness FAILS — five dimensions still respond unevenly across skin tone', () => {
     // Task 14c: tonePreservationAxis only ever renders at defect=0 (tone must not vanish). This
     // axis is the complement — does the SAME defect strength (see TONE_RESPONSE_DEFECTS) read
     // as the SAME score on every Fitzpatrick tone? That is the actual fairness claim. Measured
@@ -134,7 +141,8 @@ describe('axes', () => {
     //
     // darkSpots is the headline correction: it read 0.0334 at 0.5 and was recorded as PASSING.
     // At 0.25 it is 0.0530, over the limit. That pass was an artefact of sampling one strength.
-    // SEVEN of eight dimensions now fail, not six.
+    // The texture/hydration noise-floor fix later reduced those two dimensions below the limit;
+    // darkSpots, redness, oiliness, pores and darkCircles remain genuine failures.
     //
     // The plan anticipated redness (~0.065) as the worst dimension. Measurement shows oiliness is
     // actually worse (0.1188) and non-monotonic in tone, not merely biased in one direction — a
@@ -154,12 +162,11 @@ describe('axes', () => {
     expect(r.detail.pores).toBeGreaterThan(INVARIANCE_THRESHOLDS.toneResponseSpread);
     expect(r.detail.darkCircles).toBeGreaterThan(INVARIANCE_THRESHOLDS.toneResponseSpread);
     expect(r.detail.oiliness).toBeGreaterThan(INVARIANCE_THRESHOLDS.toneResponseSpread);
-    expect(r.detail.texture).toBeGreaterThan(INVARIANCE_THRESHOLDS.toneResponseSpread);
-    expect(r.detail.hydration).toBeGreaterThan(INVARIANCE_THRESHOLDS.toneResponseSpread);
+    expect(r.detail.texture).toBeLessThan(INVARIANCE_THRESHOLDS.toneResponseSpread);
+    expect(r.detail.hydration).toBeLessThan(INVARIANCE_THRESHOLDS.toneResponseSpread);
     // Task 18: the masking bug this task fixes — the report used to only ever show the single
-    // `worst` dimension (oiliness). `breaches` must surface all of them. Seven since the
-    // multi-level sweep exposed darkSpots.
-    expect(r.breaches.length).toBeGreaterThanOrEqual(7);
+    // `worst` dimension (oiliness). `breaches` must surface all of them.
+    expect(r.breaches.length).toBeGreaterThanOrEqual(5);
   });
 
   it('verdict-based axes report every dimension over its epsilon, not just the worst', () => {

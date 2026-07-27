@@ -1,7 +1,7 @@
 import { darkSpots } from '../darkSpots';
 import { deriveRegions } from '../../regions';
 import { sampleBaseline } from '../../baseline';
-import { solidRgb, fillRect } from '../../fixtures';
+import { solidRgb, fillRect, addNoise } from '../../fixtures';
 
 const SIZE = { width: 100, height: 100 };
 const BBOX = { x: 0, y: 0, w: 100, h: 100 };
@@ -14,4 +14,13 @@ test('darkSpots rises with localized hyperpigmentation on the forehead', () => {
 
   expect(darkSpots(spot, regions, baseline)).toBeGreaterThan(darkSpots(clear, regions, baseline));
   expect(darkSpots(clear, regions, baseline)).toBe(0);
+});
+
+test('darkSpots ignores fine-scale roughness on the forehead', () => {
+  const regions = deriveRegions(BBOX, SIZE);
+  const clear = solidRgb(100, 100, [180, 140, 120]);
+  const baseline = sampleBaseline(clear, regions);
+  const rough = addNoise(clear, regions.forehead, 35, 17);
+
+  expect(darkSpots(rough, regions, baseline)).toBeLessThan(0.05);
 });

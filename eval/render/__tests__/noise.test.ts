@@ -1,4 +1,4 @@
-import { makeRng, valueNoise2d } from '../noise';
+import { blockNoise2d, makeRng, valueNoise2d } from '../noise';
 
 describe('makeRng', () => {
   it('is deterministic for a given seed', () => {
@@ -86,6 +86,23 @@ describe('valueNoise2d baseCells', () => {
   it('is still zero-mean and peak-normalized at a high baseCells', () => {
     const n = valueNoise2d(makeRng(9), 128, 128, 2, 64);
     expect(n.reduce((s, v) => s + v, 0) / n.length).toBeCloseTo(0, 5);
+    expect(Math.max(...Array.from(n).map(Math.abs))).toBeCloseTo(1, 5);
+  });
+});
+
+describe('blockNoise2d', () => {
+  it('keeps each several-pixel texture cell spatially correlated', () => {
+    const n = blockNoise2d(makeRng(13), 12, 8, 4);
+
+    expect(n[0]).toBe(n[3]);
+    expect(n[0]).toBe(n[3 * 12 + 3]);
+    expect(n[0]).not.toBe(n[4]);
+  });
+
+  it('is zero-mean and peak-normalized', () => {
+    const n = blockNoise2d(makeRng(9), 64, 64, 4);
+
+    expect(n.reduce((sum, value) => sum + value, 0) / n.length).toBeCloseTo(0, 5);
     expect(Math.max(...Array.from(n).map(Math.abs))).toBeCloseTo(1, 5);
   });
 });

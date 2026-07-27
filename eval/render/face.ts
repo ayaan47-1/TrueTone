@@ -6,7 +6,7 @@
 import type { RgbImage, Rect } from '../../src/features/read/cv/types';
 import type { Fitzpatrick } from '../fairness/fst';
 import { SKIN_REFLECTANCE, planckianRgb } from './tone';
-import { makeRng, valueNoise2d } from './noise';
+import { blockNoise2d, makeRng, valueNoise2d } from './noise';
 import { faceEllipse, surfaceNormal, syntheticContours, type FaceContours, type RenderGeometry } from './geometry';
 
 export interface DefectParams {
@@ -52,6 +52,8 @@ export const DEFAULT_PARAMS: RenderParams = {
   seed: 1,
 };
 
+export const ROUGHNESS_MIN_FEATURE_PX = 4;
+
 type Deep<T> = { [K in keyof T]?: T[K] extends object ? Deep<T[K]> : T[K] };
 
 function merge(p: Deep<RenderParams> = {}): RenderParams {
@@ -95,22 +97,11 @@ export function renderFace(overrides: Deep<RenderParams> = {}): RenderedFace {
   // octave at ~2px/cell, which is what CAL.pores.thr (an ABSOLUTE adjacent-pixel contrast test)
   // needs to see.
   const micro = valueNoise2d(rng, width, height, 3, 64);
-  // Roughness needs a separate field from `micro`, not because of frequency but DECORRELATION.
-  // forehead is one of the three regions darkSpots samples (cheeks + forehead), and texture's
-  // metric (mean |Laplacian|) and darkSpots' metric (fraction of pixels darker than baseline by a
-  // fixed relThr) are two different statistics of the SAME pixels. `micro`'s bilinearly-
-  // interpolated lattice is spatially CORRELATED (adjacent pixels move together within a cell),
-  // so most of its Laplacian energy comes from slope changes at cell boundaries rather than true
-  // pixel-to-pixel independence — inefficient: it takes a large per-pixel amplitude to move the
-  // Laplacian metric, and that same large amplitude throws individual pixels far enough below
-  // baseline to trip darkSpots' per-pixel test (measured crosstalk 0.36-0.52 against a 0.07 floor,
-  // unmoved by raising ambient further). Fully DECORRELATED noise (baseCells == width, a single
-  // octave — so `cells+1` lattice points cover the image almost 1:1 and bilinear interpolation
-  // degenerates to picking the nearest independent lattice value per pixel) has ~4x the Laplacian
-  // energy per unit amplitude (measured hfEnergy 0.67 vs 0.16), so the SAME texture-score delta
-  // is reachable at a much smaller coefficient — proportionally shrinking the per-pixel excursions
-  // that would otherwise leak into darkSpots.
-  const white = valueNoise2d(makeRng(p.seed + 3001), width, height, 1, width);
+  // Roughness uses its own several-pixel block field. The old independent-pixel field was
+  // spectrally identical to sensor noise, so a noise-floor estimator erased both. Four-pixel
+  // correlation preserves a distinct texture signal; darkSpots separately averages over 11×11
+  // neighbourhoods so these cell edges do not masquerade as broad dark areas.
+  const white = blockNoise2d(makeRng(p.seed + 3001), width, height, ROUGHNESS_MIN_FEATURE_PX);
   const coarse = valueNoise2d(makeRng(p.seed + 977), width, height, 2);
   const noiseRng = makeRng(p.seed + 5501);
 
@@ -150,7 +141,7 @@ export function renderFace(overrides: Deep<RenderParams> = {}): RenderedFace {
         const poreZone = blobEllipse(x, y, e.cx, e.cy + e.ry * 0.05, e.rx * 0.22, e.ry * 0.46);
         const roughZone = blobEllipse(x, y, e.cx, e.cy - e.ry * 0.75, e.rx * 0.5, e.ry * 0.15);
         const tex = 1 + micro[idx] * 2.4 * p.defects.pores * poreZone
-                      + white[idx] * 0.14 * p.defects.roughness * roughZone;
+                      + white[idx] * 0.5 * p.defects.roughness * roughZone;
 
         // dark spots: a few discrete blobs on forehead and cheeks
         let spot = 0;

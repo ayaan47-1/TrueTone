@@ -98,6 +98,25 @@ export function laplacianEnergy(img: RgbImage, rect: Rect): number {
   return n ? sum / n : 0;
 }
 
+// Immerkaer's 3×3 high-pass estimator responds strongly to independent read/quantisation noise
+// and much less to skin detail that persists across several pixels.
+export function estimateSensorNoise(img: RgbImage, rect: Rect): number {
+  const r = clampRect(rect, img.width, img.height);
+  let sum = 0;
+  let n = 0;
+  for (let y = r.y + 1; y < r.y + r.h - 1; y++) {
+    for (let x = r.x + 1; x < r.x + r.w - 1; x++) {
+      const response =
+        lumaAt(img, x - 1, y - 1) - 2 * lumaAt(img, x, y - 1) + lumaAt(img, x + 1, y - 1)
+        - 2 * lumaAt(img, x - 1, y) + 4 * lumaAt(img, x, y) - 2 * lumaAt(img, x + 1, y)
+        + lumaAt(img, x - 1, y + 1) - 2 * lumaAt(img, x, y + 1) + lumaAt(img, x + 1, y + 1);
+      sum += Math.abs(response);
+      n++;
+    }
+  }
+  return n ? Math.sqrt(Math.PI / 2) * sum / (6 * n) : 0;
+}
+
 export function meanLuma(img: RgbImage, rect: Rect): number {
   const r = clampRect(rect, img.width, img.height);
   let sum = 0;
@@ -116,7 +135,8 @@ export function meanLuma(img: RgbImage, rect: Rect): number {
 // energy scales with luminance, biasing texture/hydration across Fitzpatrick tones.
 export function microContrast(img: RgbImage, rect: Rect): number {
   const lum = meanLuma(img, rect);
-  return lum > 0 ? laplacianEnergy(img, rect) / lum : 0;
+  const noiseFloor = Math.sqrt(40 / Math.PI) * estimateSensorNoise(img, rect);
+  return lum > 0 ? Math.max(0, laplacianEnergy(img, rect) - noiseFloor) / lum : 0;
 }
 
 export function gradientEnergy(img: RgbImage, rect: Rect): number {

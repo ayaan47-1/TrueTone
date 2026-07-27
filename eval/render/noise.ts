@@ -70,3 +70,36 @@ export function valueNoise2d(
 
   return out;
 }
+
+// Piecewise-constant several-pixel cells: enough spatial correlation to distinguish rough skin
+// structure from independent sensor grain, while keeping deterministic amplitude semantics.
+export function blockNoise2d(
+  rng: () => number,
+  width: number,
+  height: number,
+  blockSize: number,
+): Float32Array {
+  const size = Math.max(1, Math.round(blockSize));
+  const blockCols = Math.ceil(width / size);
+  const blockRows = Math.ceil(height / size);
+  const blocks = lattice(rng, blockCols, blockRows);
+  const out = new Float32Array(width * height);
+
+  for (let y = 0; y < height; y++) {
+    for (let x = 0; x < width; x++) {
+      out[y * width + x] = blocks[Math.floor(y / size) * blockCols + Math.floor(x / size)];
+    }
+  }
+
+  let mean = 0;
+  for (let i = 0; i < out.length; i++) mean += out[i];
+  mean /= out.length;
+
+  let peak = 0;
+  for (let i = 0; i < out.length; i++) {
+    out[i] -= mean;
+    peak = Math.max(peak, Math.abs(out[i]));
+  }
+  if (peak > 0) for (let i = 0; i < out.length; i++) out[i] /= peak;
+  return out;
+}
