@@ -53,9 +53,20 @@ interface CaptureProps {
   /** `meta` is diagnostic — the URI already points at an upright still (see capture-upright.ts). */
   onCaptured: (photoUri: string, meta: CaptureMeta) => void;
   onCancel: () => void;
+  /**
+   * DEV-ONLY escape hatch: makes the shutter tappable and fires immediately, ignoring the quality
+   * gate. Only `app/(dev)/bbox-overlay.tsx` passes it, and it is additionally fenced behind
+   * `__DEV__` at the render site, so it cannot reach a release build even if a caller sets it.
+   *
+   * Why it exists: the overlay verifies REGION GEOMETRY, which does not need a gate-quality frame.
+   * Requiring one made the instrument unusable in an ordinarily-lit room and would have pushed us
+   * toward loosening THRESHOLDS — a production calibration — to run a diagnostic. This keeps that
+   * pressure off the real gate entirely.
+   */
+  devForceCapture?: boolean;
 }
 
-export function Capture({ onCaptured, onCancel }: CaptureProps) {
+export function Capture({ onCaptured, onCancel, devForceCapture = false }: CaptureProps) {
   const insets = useSafeAreaInsets();
   const window = useWindowDimensions();
   // Guide oval scales to the viewport so it fits a folded (narrow/short) or unfolded
@@ -139,6 +150,13 @@ export function Capture({ onCaptured, onCancel }: CaptureProps) {
       void takePhoto();
     }
   }, [state.phase, takePhoto]);
+
+  // Dev-only manual shutter — same one-shot guard as the automatic path, no countdown, no gate.
+  const manualCapture = useCallback(() => {
+    if (firedRef.current) return;
+    firedRef.current = true;
+    void takePhoto();
+  }, [takePhoto]);
 
   // ---- permission / device fallbacks ----
   if (!hasPermission) {
@@ -236,7 +254,21 @@ export function Capture({ onCaptured, onCancel }: CaptureProps) {
       {/* bottom: privacy reassurance + cancel */}
       <View style={[styles.bottomBar, { paddingBottom: insets.bottom + 16 }]}>
         <Text style={styles.lightHint}>Natural light works best</Text>
-        <View style={styles.shutter}><View style={styles.shutterInner} /></View>
+        {__DEV__ && devForceCapture ? (
+          <Pressable
+            style={[styles.shutter, styles.shutterArmed]}
+            onPress={manualCapture}
+            accessibilityRole="button"
+            accessibilityLabel="Capture now, ignoring the quality gate (dev)"
+          >
+            <View style={[styles.shutterInner, styles.shutterInnerArmed]} />
+          </Pressable>
+        ) : (
+          <View style={styles.shutter}><View style={styles.shutterInner} /></View>
+        )}
+        {__DEV__ && devForceCapture && (
+          <Text style={styles.forceHint}>DEV: tap the shutter to capture regardless of the gate</Text>
+        )}
         <Text style={styles.privacy}>{PRIVACY_LINE}</Text>
         <Pressable style={styles.cancelBtn} onPress={onCancel} disabled={counting}>
           <Text style={[styles.cancelText, counting && styles.cancelTextDim]}>Cancel</Text>
@@ -349,6 +381,11 @@ const styles = StyleSheet.create({
   lightHint: { color: 'rgba(255,255,255,0.62)', fontSize: 14, marginBottom: 2 },
   shutter: { width: 72, height: 72, borderRadius: 36, borderWidth: 4, borderColor: '#fff', alignItems: 'center', justifyContent: 'center', marginBottom: 2 },
   shutterInner: { width: 56, height: 56, borderRadius: 28, backgroundColor: 'rgba(255,255,255,0.18)' },
+  // dev-only manual shutter — visibly different so a tappable shutter is never mistaken for the
+  // shipped decorative one
+  shutterArmed: { borderColor: '#d946ef' },
+  shutterInnerArmed: { backgroundColor: 'rgba(217,70,239,0.55)' },
+  forceHint: { color: '#f0abfc', fontSize: 11, fontWeight: '700', textAlign: 'center' },
   privacy: { color: 'rgba(255,255,255,0.62)', fontSize: 12, textAlign: 'center' },
   cancelBtn: { paddingHorizontal: 28, paddingVertical: 12, borderRadius: 999, backgroundColor: 'rgba(255,255,255,0.12)' },
   cancelText: { color: '#fff', fontSize: 15, fontWeight: '600' },

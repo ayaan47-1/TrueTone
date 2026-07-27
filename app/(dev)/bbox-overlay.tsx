@@ -201,9 +201,14 @@ export default function BboxOverlay() {
             setUri(photoUri);
           }}
           onCancel={() => {}}
+          // This screen checks where the regions LAND, which a gate-quality frame is not required
+          // for. Demanding one made the instrument unusable in a normally-lit room, and the only
+          // alternative would have been loosening THRESHOLDS — a production calibration — to run a
+          // diagnostic. The tappable shutter keeps that pressure off the real gate.
+          devForceCapture
         />
         <View style={styles.devBadge} pointerEvents="none">
-          <Text style={styles.devBadgeText}>DEV · bbox-overlay · shoot, then scroll</Text>
+          <Text style={styles.devBadgeText}>DEV · bbox-overlay · tap shutter, then scroll</Text>
         </View>
       </View>
     );
