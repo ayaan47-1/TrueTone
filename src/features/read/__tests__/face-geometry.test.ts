@@ -1,5 +1,6 @@
 import {
   scaleRect,
+  contourRejectionReason,
   regionsFromContours,
   deriveRegionsForFace,
   rectCornersInPolygon,
@@ -336,5 +337,43 @@ describe('scaleFaceToWorkingSpace', () => {
     const out = scaleFaceToWorkingSpace(face, sourceSize, workingSize);
     expect(out).not.toBeNull();
     expect(out!.bounds).toEqual({ x: 114, y: 152, width: 152, height: 203 });
+  });
+});
+
+// Device pass, Fold 7, 2026-07-26. MLKit returned 15 contours including all nine required, and
+// regionsFromContours still returned null — reported to the screen as "source: bounds", which is
+// the same word for six unrelated rejections. contourRejectionReason names which one fired.
+describe('contourRejectionReason', () => {
+  it('is null when the contours are usable', () => {
+    expect(contourRejectionReason(contoursFor(), SIZE)).toBeNull();
+  });
+
+  it('names the contour that is missing', () => {
+    const { LEFT_CHEEK, ...rest } = contoursFor();
+    expect(contourRejectionReason(rest as never, SIZE)).toBe('missing-contour:LEFT_CHEEK');
+  });
+
+  it('names a contour that has too few points to bound', () => {
+    const c = { ...contoursFor(), NOSE_BRIDGE: [{ x: 1, y: 1 }, { x: 2, y: 2 }] };
+    expect(contourRejectionReason(c, SIZE)).toBe('missing-contour:NOSE_BRIDGE');
+  });
+
+  // The device case to distinguish: a face far enough away that regions round away to nothing.
+  it('names the region that collapses when the face is tiny in frame', () => {
+    const tiny = contoursFor({ scale: 0.06, dx: 0, dy: 0 });
+    const reason = contourRejectionReason(tiny, SIZE);
+    expect(reason).toMatch(/^(degenerate|does-not-fit|outside-polygon):/);
+  });
+
+  it('agrees with regionsFromContours on every input', () => {
+    const cases = [
+      contoursFor(),
+      contoursFor({ scale: 0.6, dx: 0.1, dy: 0 }),
+      contoursFor({ scale: 0.06, dx: 0, dy: 0 }),
+    ];
+    for (const c of cases) {
+      const ok = regionsFromContours(c, SIZE) !== null;
+      expect(contourRejectionReason(c, SIZE) === null).toBe(ok);
+    }
   });
 });

@@ -196,11 +196,37 @@ const REQUIRED: Array<keyof FaceContours> = [
   'LEFT_EYEBROW_TOP', 'RIGHT_EYEBROW_TOP', 'NOSE_BRIDGE', 'NOSE_BOTTOM',
 ];
 
+/**
+ * Why a set of contours could not produce regions. `null` means they could.
+ *
+ * Exists because "no usable contours" was one word covering six unrelated rejections, and the
+ * device pass on 2026-07-26 hit one of them with all nine required contours PRESENT — MLKit
+ * returned 15 of them and derivation still failed, with nothing on screen to say which check
+ * rejected it. Shapes: `missing-contour:<KEY>`, `does-not-fit:<region>`,
+ * `degenerate-after-round:<region>`, `degenerate-after-clamp:<region>`, `outside-polygon:<region>`.
+ */
+export function contourRejectionReason(
+  c: Partial<FaceContours>,
+  size: { width: number; height: number },
+): string | null {
+  return deriveFromContours(c, size).reason;
+}
+
 export function regionsFromContours(
   c: Partial<FaceContours>,
   size: { width: number; height: number },
 ): Regions | null {
-  for (const k of REQUIRED) if (!c[k] || c[k]!.length < 3) return null;
+  return deriveFromContours(c, size).regions;
+}
+
+function deriveFromContours(
+  c: Partial<FaceContours>,
+  size: { width: number; height: number },
+): { regions: Regions | null; reason: string | null } {
+  const reject = (reason: string) => ({ regions: null, reason });
+  for (const k of REQUIRED) {
+    if (!c[k] || c[k]!.length < 3) return reject(`missing-contour:${k}`);
+  }
 
   const face = box(c.FACE)!;
   const eyeL = box(c.LEFT_EYE)!;
@@ -253,12 +279,12 @@ export function regionsFromContours(
   const fitted: Partial<Record<RegionName, Rect>> = {};
   for (const n of REGION_NAMES) {
     const f = fitRectXToPolygon(raw[n], facePoly);
-    if (!f) return null;
+    if (!f) return reject(`does-not-fit:${n}`);
     // Round inward here, before clampRect, so clampRect's independent Math.round on x/y/w/h
     // (which can round an edge outward) never gets a chance to expand a rect past the polygon
     // it was just fitted to.
     const rounded = roundRectInward(f);
-    if (rounded.w < 2 || rounded.h < 2) return null;
+    if (rounded.w < 2 || rounded.h < 2) return reject(`degenerate-after-round:${n}`);
     fitted[n] = rounded;
   }
 
@@ -270,10 +296,10 @@ export function regionsFromContours(
   // polygon — not just its bounding box, which a narrowing hairline makes an unsafe stand-in.
   for (const n of REGION_NAMES) {
     const r = out[n];
-    if (r.w < 2 || r.h < 2) return null;
-    if (!rectCornersInPolygon(r, facePoly)) return null;
+    if (r.w < 2 || r.h < 2) return reject(`degenerate-after-clamp:${n}`);
+    if (!rectCornersInPolygon(r, facePoly)) return reject(`outside-polygon:${n}`);
   }
-  return out;
+  return { regions: out, reason: null };
 }
 
 export function deriveRegionsForFace(

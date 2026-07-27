@@ -27,6 +27,7 @@ import {
   type StillDetectionReport,
 } from '../../src/features/read/still-detection-diagnostics';
 import {
+  contourRejectionReason,
   deriveRegionsForFace,
   isPlausibleFaceDetection,
   scaleFaceToWorkingSpace,
@@ -75,6 +76,8 @@ interface Analysis {
   orientationAmbiguous: boolean;
   /** WHICH detector failure occurred — "no face" has four very different causes. */
   detection: StillDetectionReport;
+  /** WHICH check rejected the contours — "source: bounds" has six very different causes. */
+  contourRejection: string | null;
 }
 
 const boundsRect = (f: DetectedFace) => ({
@@ -149,6 +152,10 @@ async function analyze(uri: string): Promise<Analysis> {
     contourKeys: rawFace?.contours ? Object.keys(rawFace.contours) : [],
     orientationAmbiguous,
     detection,
+    // Asked of the SCALED contours, which is what deriveRegionsForFace actually saw.
+    contourRejection: scaledFace?.contours
+      ? contourRejectionReason(scaledFace.contours, workingSize)
+      : null,
   };
 }
 
@@ -283,7 +290,17 @@ export default function BboxOverlay() {
             source: {analysis.source}
           </Text>
           {analysis.source === 'bounds' && (
-            <Text style={styles.warn}>MLKit returned no usable contours — regions came from the bbox.</Text>
+            <>
+              <Text style={styles.warn}>Contours were rejected — regions came from the bbox.</Text>
+              <Text style={styles.bad}>
+                rejected by: {analysis.contourRejection ?? 'no contours were supplied at all'}
+              </Text>
+              <Text style={styles.footnote}>
+                does-not-fit / outside-polygon = the region falls outside the FACE outline.
+                degenerate-* = it rounded away to under 2px, which a face too small in frame will do.
+                missing-contour = that key was absent or had fewer than 3 points.
+              </Text>
+            </>
           )}
           {analysis.source === 'fallback' && (
             <Text style={styles.bad}>
