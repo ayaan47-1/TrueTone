@@ -4135,9 +4135,107 @@ release on every path including a throwing save. Three things remain device-only
 `allowFastFlagRotation` is passed as `false` and pinned by a test: the fast path rotates by writing a
 metadata flag instead of moving pixels, which reintroduces precisely this bug.
 
-- [ ] **Device pass:** capture through `truetone://bbox-overlay` and read the new
-  "capture (upright guarantee)" section. Expect written size portrait, EXIF tag 1, `source: contours`.
-  Record which of the three device-only branches was taken.
+- [x] **Device pass — Fold 7, 2026-07-26.** Written size portrait (2736×3648), EXIF tag 1, no
+  re-attached tag. `toImageAsync()` DOES apply orientation, so the fallback rotation never ran and
+  its unverified sign never mattered. Two of the three device-only branches answered clean.
+  **The third failed:** the face came back upside down — see Task 15c.
+
+---
+
+## Task 15c: the half turn the conversion loses on a mirrored frame (device finding)
+
+**Status: fixed and verified on device. Commit `e460d7c`.**
+
+The capture fix worked as far as it went, and the check I shipped with it reported a confident green
+pass **on an upside-down image**. It asked "did the axes swap?", and a quarter turn *the wrong way*
+swaps them identically. Same class of mistake this branch exists to correct: verifying a proxy.
+
+    mirror ∘ rotate(θ)  ≡  rotate(−θ) ∘ mirror       ⇒  error = 2θ
+
+2θ is 180° for a quarter turn and 0 for `up`/`down`. The frame was `orientation "right", mirrored
+yes`. Both candidate rotations give identical portrait dimensions, so **only pixels can distinguish
+them** — no size check could ever have caught it.
+
+`conversionResidualDegrees` is bounded to what was measured: a mirrored frame, a quarter-turn
+orientation, and the CONVERSION having done the rotating. When our own `rotateAsync` did it, no
+ordering was involved and correcting again would introduce the error — pinned by a test. 180° has no
+direction ambiguity, so it cannot be applied backwards. **iOS is unverified** (this pass was Android).
+
+---
+
+## Task 15d: `createImageFaceDetector` is broken upstream, on both platforms
+
+**Status: patched, verified on device. Commit `f49cccd`.**
+
+With the still finally upright and well framed, the detector still returned nothing. Collapsing every
+failure into `null` meant "no face" covered four unrelated causes, so the next move would have been a
+guess. `still-detection-diagnostics.ts` (13 host tests) named it instead:
+
+```
+detectFaces() threw: java.lang.IllegalArgumentException:
+Invalid image type. Expected string or { uri }
+  at HybridImageFaceDetector.resolveInputImage(HybridImageFaceDetector.kt:33)
+```
+
+`resolveInputImage` takes `Any?` and tests `is String` / `is Map<*, *>` — the shape the old RN bridge
+delivered. Nitro delivers neither: `InputImage` is a generated **sealed class** (`First(String)` /
+`Second(Double)` / `Third(ImageUri)`), so every call fell to `else` and threw whatever JS passed. A
+bare string arrives as `InputImage.First` and fails identically — there was no JS-side fix. iOS has
+the same defect (`as? String` against a Swift **enum**). **2.0.6, the latest, carries identical code
+on both platforms**, so `createImageFaceDetector` has never worked in this package.
+
+Fixed in `patches/react-native-vision-camera-face-detector+2.0.1.patch` via patch-package +
+`postinstall`, verified by deleting the package and reinstalling. A bug fix to a dependency already
+in use and already processing face data on-device — no new vendor, no change to what data is touched.
+Requires a native rebuild. **Worth filing upstream.** The Swift half is a direct translation of the
+verified Kotlin fix and is **not yet exercised on hardware**, which matters given iOS is primary.
+
+---
+
+## Task 15e: MLKit's contours are not all polygons
+
+**Status: fixed, `source: contours` confirmed on device. Commit `9ca6d21`.**
+
+The patched detector returned a face and all 15 contours, and derivation still rejected them —
+`missing-contour:LEFT_CHEEK`, with `LEFT_CHEEK` listed as present directly above it. The check was
+`length < 3`. Actual counts, read off the device:
+
+```
+FACE:36  LEFT_EYE:16  RIGHT_EYE:16  *_EYEBROW_*:5  *_LIP_*:9-11  NOSE_BOTTOM:3
+NOSE_BRIDGE:2        ← a line: bbox width ≈ 0
+LEFT_CHEEK:1  RIGHT_CHEEK:1   ← single points: zero-area bbox
+```
+
+Three of the nine required contours are not polygons. Past the point check the geometry was still
+unbuildable: cheeks were `inset(box(cheek), 0.15)` and tZone's width `bridge.w * 2.2`. **`source:
+'contours'` could never have succeeded on real hardware.** Fixed with per-contour minimums,
+centroid-based cheek patches sized from the face box, and tZone width from `NOSE_BOTTOM`.
+
+Nothing off-device could have caught it: `eval/render/geometry.ts:55,61` builds cheeks as 12-point
+ellipses and the bridge as an 8-point one — shapes MLKit does not produce.
+
+### The structural finding — the harness does not test what ships
+
+`eval/invariance/axes.ts:16` calls `scoreFromBbox(rgb, bbox)`, the **proportional** path. It never
+calls `regionsFromContours`. Every fairness number, threshold and PASS/FAIL verdict on record
+describes the bbox derivation, while production prefers contours. **The contour path has zero
+fairness coverage.** This is why the report came back byte-identical after cheek and tZone geometry
+changed: the harness does not run that code.
+
+Closing it means touching `eval/render/` (founder sign-off, cf. task #29) and would move the
+baselines, so it is flagged, not fixed. **Open decision.**
+
+### Still open after this pass
+
+- [ ] **Region placement quality.** Derivation succeeding is not the same as the boxes being
+  anatomically right. First look suggests they sit high and tight — forehead near the brow line,
+  cheek patches medial of the cheek apples. Check the printed rects against the face box and tune
+  the fractions.
+- [ ] **Mirroring.** `isMirrored` is reported but the pixels cannot confirm it. Settle by eye: the
+  box labelled "L" must be on the cheek the user touches.
+- [ ] **`THRESHOLDS` calibration** (Task 15 step 4) — never done on hardware. An ordinarily-lit room
+  measured ~0.31–0.34 brightness against a 0.35 floor, i.e. the gate is likely mis-calibrated.
+  The overlay's `devForceCapture` shutter exists so this never pressures the production gate.
 
 ---
 
