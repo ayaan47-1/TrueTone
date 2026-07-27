@@ -95,8 +95,20 @@ export function scaleFaceToWorkingSpace(
   };
 }
 
+function centroidOf(pts: Point[]): Point {
+  let sx = 0;
+  let sy = 0;
+  for (const p of pts) {
+    sx += p.x;
+    sy += p.y;
+  }
+  return { x: sx / pts.length, y: sy / pts.length };
+}
+
+// Accepts any non-empty run of points. A 1-point contour yields a zero-area box and a 2-point one
+// a line — both legitimate for the callers below, which use them for POSITION, not extent.
 function box(pts: Point[] | undefined): Rect | null {
-  if (!pts || pts.length < 3) return null;
+  if (!pts || pts.length < 1) return null;
   const xs = pts.map((p) => p.x);
   const ys = pts.map((p) => p.y);
   const x = Math.min(...xs);
@@ -191,10 +203,40 @@ function roundRectInward(r: Rect): Rect {
   return { x: left, y: top, w: right - left, h: bottom - top };
 }
 
-const REQUIRED: Array<keyof FaceContours> = [
-  'FACE', 'LEFT_CHEEK', 'RIGHT_CHEEK', 'LEFT_EYE', 'RIGHT_EYE',
-  'LEFT_EYEBROW_TOP', 'RIGHT_EYEBROW_TOP', 'NOSE_BRIDGE', 'NOSE_BOTTOM',
-];
+// Minimum points per contour, set from what MLKit ACTUALLY returns (read off a Fold 7,
+// 2026-07-26): FACE:36 LEFT_EYE:16 RIGHT_EYE:16 *_EYEBROW_TOP:5 NOSE_BOTTOM:3 NOSE_BRIDGE:2
+// LEFT_CHEEK:1 RIGHT_CHEEK:1.
+//
+// A flat "3 or more" was rejecting three of the nine required contours on every real capture,
+// because a cheek is a single POINT and the bridge is a two-point LINE. The synthetic fixture in
+// eval/render/geometry.ts builds cheeks as 12-point ellipses and the bridge as an 8-point one, so
+// nothing off-device could have caught it — contour derivation had never run against a real face.
+const MIN_POINTS: Record<string, number> = {
+  FACE: 3,
+  LEFT_EYE: 3,
+  RIGHT_EYE: 3,
+  LEFT_EYEBROW_TOP: 3,
+  RIGHT_EYEBROW_TOP: 3,
+  NOSE_BOTTOM: 3,
+  NOSE_BRIDGE: 2, // a line down the midline; used for its x, never its width
+  LEFT_CHEEK: 1, // a single point at the cheek centre
+  RIGHT_CHEEK: 1,
+};
+
+const REQUIRED = Object.keys(MIN_POINTS) as Array<keyof FaceContours>;
+
+// A cheek arrives as one point, so its patch has to be sized from something else. The face box is
+// the only stable reference to hand, and these fractions keep the patch clear of the nose medially
+// and the jawline below at a neutral pose; anything tighter stops being a representative sample of
+// cheek skin, anything wider starts catching the nasolabial fold. fitRectXToPolygon still shrinks
+// it against the real FACE outline afterwards, so a turned head narrows it rather than spilling.
+const CHEEK_WIDTH_FRACTION_OF_FACE = 0.18;
+const CHEEK_HEIGHT_FRACTION_OF_FACE = 0.12;
+
+// tZone's width used to come from the nose bridge's bounding box, which for a two-point line is
+// ~0. NOSE_BOTTOM spans the base of the nose, so it is both non-degenerate and the anatomically
+// right scale for a T-zone stem.
+const TZONE_WIDTH_FROM_NOSE_BASE = 1.1;
 
 /**
  * Why a set of contours could not produce regions. `null` means they could.
@@ -225,7 +267,7 @@ function deriveFromContours(
 ): { regions: Regions | null; reason: string | null } {
   const reject = (reason: string) => ({ regions: null, reason });
   for (const k of REQUIRED) {
-    if (!c[k] || c[k]!.length < 3) return reject(`missing-contour:${k}`);
+    if (!c[k] || c[k]!.length < MIN_POINTS[k]) return reject(`missing-contour:${k}`);
   }
 
   const face = box(c.FACE)!;
@@ -233,17 +275,28 @@ function deriveFromContours(
   const eyeR = box(c.RIGHT_EYE)!;
   const browL = box(c.LEFT_EYEBROW_TOP)!;
   const browR = box(c.RIGHT_EYEBROW_TOP)!;
-  const cheekL = box(c.LEFT_CHEEK)!;
-  const cheekR = box(c.RIGHT_CHEEK)!;
+  // Cheeks are POINTS, so take a centroid (identical to the point itself when there is only one,
+  // and still correct for the multi-point synthetic fixture) and build a patch around it.
+  const cheekL = centroidOf(c.LEFT_CHEEK!);
+  const cheekR = centroidOf(c.RIGHT_CHEEK!);
   const bridge = box(c.NOSE_BRIDGE)!;
   const noseB = box(c.NOSE_BOTTOM)!;
+
+  const cheekW = face.w * CHEEK_WIDTH_FRACTION_OF_FACE;
+  const cheekH = face.h * CHEEK_HEIGHT_FRACTION_OF_FACE;
+  const cheekRect = (pt: Point): Rect => ({
+    x: pt.x - cheekW / 2,
+    y: pt.y - cheekH / 2,
+    w: cheekW,
+    h: cheekH,
+  });
 
   const browTop = Math.min(browL.y, browR.y);
   const foreheadTop = face.y + face.h * 0.06;
 
   const raw: Record<RegionName, Rect> = {
-    cheekL: inset(cheekL, 0.15),
-    cheekR: inset(cheekR, 0.15),
+    cheekL: cheekRect(cheekL),
+    cheekR: cheekRect(cheekR),
     // Between the eye and the cheek, spanning the eye's width.
     infraorbitalL: { x: eyeL.x, y: eyeL.y + eyeL.h, w: eyeL.w, h: Math.max(2, cheekL.y - (eyeL.y + eyeL.h)) },
     infraorbitalR: { x: eyeR.x, y: eyeR.y + eyeR.h, w: eyeR.w, h: Math.max(2, cheekR.y - (eyeR.y + eyeR.h)) },
@@ -264,10 +317,12 @@ function deriveFromContours(
     // "tZone intentionally overlaps..." in face-geometry.test.ts, which documents and bounds it
     // so it isn't mistaken for the periocular/infraorbital overlap bug this file also guards
     // against.
+    // Centred on the bridge's midline (its x is meaningful even as a 2-point line), but WIDTH from
+    // the nose base — the bridge's own bbox width is ~0 on real contours.
     tZone: {
-      x: bridge.x - bridge.w * 0.6,
+      x: bridge.x + bridge.w / 2 - (noseB.w * TZONE_WIDTH_FROM_NOSE_BASE) / 2,
       y: foreheadTop,
-      w: bridge.w * 2.2,
+      w: noseB.w * TZONE_WIDTH_FROM_NOSE_BASE,
       h: (noseB.y + noseB.h) - foreheadTop,
     },
   };

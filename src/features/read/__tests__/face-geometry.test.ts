@@ -353,9 +353,13 @@ describe('contourRejectionReason', () => {
     expect(contourRejectionReason(rest as never, SIZE)).toBe('missing-contour:LEFT_CHEEK');
   });
 
+  // Per-contour minimums, not a flat 3 — NOSE_BRIDGE legitimately arrives with 2 points from
+  // MLKit, so only a single point is too few to give it a direction.
   it('names a contour that has too few points to bound', () => {
-    const c = { ...contoursFor(), NOSE_BRIDGE: [{ x: 1, y: 1 }, { x: 2, y: 2 }] };
+    const c = { ...contoursFor(), NOSE_BRIDGE: [{ x: 1, y: 1 }] };
     expect(contourRejectionReason(c, SIZE)).toBe('missing-contour:NOSE_BRIDGE');
+    const twoPointBridge = { ...contoursFor(), NOSE_BRIDGE: [{ x: 1, y: 1 }, { x: 2, y: 2 }] };
+    expect(contourRejectionReason(twoPointBridge, SIZE)).not.toBe('missing-contour:NOSE_BRIDGE');
   });
 
   // The device case to distinguish: a face far enough away that regions round away to nothing.
@@ -375,5 +379,98 @@ describe('contourRejectionReason', () => {
       const ok = regionsFromContours(c, SIZE) !== null;
       expect(contourRejectionReason(c, SIZE) === null).toBe(ok);
     }
+  });
+});
+
+// ---------------------------------------------------------------------------------------------
+// Device pass, Fold 7, 2026-07-26. MLKit's actual contour point counts, read off the device:
+//   FACE:36  LEFT_EYE:16  RIGHT_EYE:16  *_EYEBROW_*:5  *_LIP_*:9-11  NOSE_BOTTOM:3
+//   NOSE_BRIDGE:2        <- a line segment, so its bounding box has width ~0
+//   LEFT_CHEEK:1  RIGHT_CHEEK:1   <- single points, so their bounding boxes have zero area
+// Three of the nine required contours are not polygons. eval/render/geometry.ts builds cheeks as
+// 12-point ellipses and the bridge as an 8-point one, so contour derivation had never once been
+// run against the shapes real hardware produces.
+// ---------------------------------------------------------------------------------------------
+
+/** Reshapes the synthetic contours to MLKit's real point counts, preserving position. */
+const asMlkitShaped = (c = contoursFor()) => {
+  const mid = (pts: { x: number; y: number }[]) => {
+    const b = boxOf(pts);
+    return { x: b.x + b.w / 2, y: b.y + b.h / 2 };
+  };
+  const bridgeBox = boxOf(c.NOSE_BRIDGE);
+  return {
+    ...c,
+    LEFT_CHEEK: [mid(c.LEFT_CHEEK)],
+    RIGHT_CHEEK: [mid(c.RIGHT_CHEEK)],
+    NOSE_BRIDGE: [
+      { x: bridgeBox.x + bridgeBox.w / 2, y: bridgeBox.y },
+      { x: bridgeBox.x + bridgeBox.w / 2, y: bridgeBox.y + bridgeBox.h },
+    ],
+  };
+};
+
+describe('regionsFromContours with MLKit-shaped contours', () => {
+  it('accepts single-point cheeks and a two-point nose bridge', () => {
+    expect(contourRejectionReason(asMlkitShaped(), SIZE)).toBeNull();
+  });
+
+  it('produces every named region', () => {
+    const r = regionsFromContours(asMlkitShaped(), SIZE)!;
+    expect(r).not.toBeNull();
+    for (const n of REGION_NAMES) {
+      expect(r[n].w).toBeGreaterThanOrEqual(2);
+      expect(r[n].h).toBeGreaterThanOrEqual(2);
+    }
+  });
+
+  // The single point is the cheek CENTRE, so the rect has to be built around it, not from a
+  // bounding box that has no area.
+  it('centres each cheek region on the cheek point', () => {
+    const c = asMlkitShaped();
+    const r = regionsFromContours(c, SIZE)!;
+    for (const [region, contour] of [['cheekL', 'LEFT_CHEEK'], ['cheekR', 'RIGHT_CHEEK']] as const) {
+      const pt = c[contour][0];
+      const box = r[region];
+      expect(Math.abs(centroid(box).y - pt.y)).toBeLessThanOrEqual(box.h / 2);
+      expect(Math.abs(centroid(box).x - pt.x)).toBeLessThanOrEqual(box.w);
+    }
+  });
+
+  // A two-point bridge is a near-vertical line, so tZone's width cannot come from its bbox.
+  // NOSE_BOTTOM spans the nose base and is the anatomically meaningful width.
+  it('gives tZone a real width, scaled to the nose rather than the bridge', () => {
+    const c = asMlkitShaped();
+    const r = regionsFromContours(c, SIZE)!;
+    const noseWidth = boxOf(c.NOSE_BOTTOM).w;
+    expect(r.tZone.w).toBeGreaterThan(noseWidth * 0.5);
+    expect(r.tZone.w).toBeLessThan(noseWidth * 2);
+  });
+
+  it('keeps every region inside the FACE polygon', () => {
+    const c = asMlkitShaped();
+    const r = regionsFromContours(c, SIZE)!;
+    for (const n of REGION_NAMES) expect(inside(r[n], c.FACE)).toBe(true);
+  });
+
+  it('still rejects a contour that is genuinely absent', () => {
+    const { LEFT_CHEEK, ...rest } = asMlkitShaped();
+    expect(contourRejectionReason(rest as never, SIZE)).toBe('missing-contour:LEFT_CHEEK');
+  });
+
+  it('still rejects a FACE outline too small to be a polygon', () => {
+    const c = { ...asMlkitShaped(), FACE: [{ x: 1, y: 1 }, { x: 2, y: 2 }] };
+    expect(contourRejectionReason(c, SIZE)).toBe('missing-contour:FACE');
+  });
+
+  it('rejects an empty cheek contour, which carries no position at all', () => {
+    const c = { ...asMlkitShaped(), LEFT_CHEEK: [] };
+    expect(contourRejectionReason(c, SIZE)).toBe('missing-contour:LEFT_CHEEK');
+  });
+
+  it('tracks the cheek point when the face moves', () => {
+    const a = regionsFromContours(asMlkitShaped(contoursFor()), SIZE)!;
+    const b = regionsFromContours(asMlkitShaped(contoursFor({ scale: 1, dx: 0.12, dy: 0 })), SIZE)!;
+    expect(b.cheekL.x).toBeGreaterThan(a.cheekL.x);
   });
 });
