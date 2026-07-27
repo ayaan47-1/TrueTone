@@ -7,6 +7,12 @@
 //
 // MLKit has no arm64 iOS-simulator slice, so this returns null there rather than crashing.
 import type { DetectedFace } from './face-geometry';
+import {
+  classifyDetection,
+  reportModuleUnavailable,
+  reportThrew,
+  type StillDetectionReport,
+} from './still-detection-diagnostics';
 
 type StillDetector = { detectFaces: (image: { uri: string }) => unknown[] };
 
@@ -58,17 +64,54 @@ function area(f: unknown): number {
   return b ? Math.max(0, b.width) * Math.max(0, b.height) : 0;
 }
 
+export interface StillDetectionResult {
+  face: DetectedFace | null;
+  /** What actually happened, for the dev overlay. The production path ignores this. */
+  report: StillDetectionReport;
+}
+
+/**
+ * The same detection as `detectFacesOnStill`, but reporting WHICH failure occurred rather than
+ * collapsing all of them into `null`. Used by app/(dev)/bbox-overlay.tsx.
+ *
+ * On the device pass this distinction was the whole problem: an upright, well-lit, well-framed
+ * portrait produced "detector found a face: no", which could equally have meant the native module
+ * was missing, the call threw on the URI form, MLKit genuinely saw nothing, or faces came back in
+ * a shape `readBounds` could not parse. Four different fixes behind one word.
+ */
+export async function detectFacesOnStillDetailed(uri: string): Promise<StillDetectionResult> {
+  let detect: StillDetector;
+  try {
+    detect = detector();
+  } catch (err) {
+    // Simulator (no arm64 MLKit slice), unlinked native module, aliased dev stub.
+    return { face: null, report: reportModuleUnavailable(err) };
+  }
+
+  let faces: unknown;
+  try {
+    faces = detect.detectFaces({ uri });
+  } catch (err) {
+    return { face: null, report: reportThrew(err) };
+  }
+
+  const list = Array.isArray(faces) ? faces : [];
+  const usable = list.filter((f) => readBounds(f) !== null && area(f) > 0);
+  const report = classifyDetection(faces, usable.length);
+  if (usable.length === 0) return { face: null, report };
+
+  const best = usable.reduce((a, b) => (area(b) > area(a) ? b : a));
+  const bounds = readBounds(best)!;
+  const contours = (best as Record<string, unknown>).contours as DetectedFace['contours'];
+  return { face: { bounds, contours }, report };
+}
+
 export async function detectFacesOnStill(uri: string): Promise<DetectedFace | null> {
   try {
-    const faces = detector().detectFaces({ uri }) as unknown[];
-    if (!Array.isArray(faces) || faces.length === 0) return null;
-    const face = faces.reduce((best, f) => (area(f) > area(best) ? f : best));
-    const bounds = readBounds(face);
-    if (!bounds || area(face) <= 0) return null;
-    const contours = (face as Record<string, unknown>).contours as DetectedFace['contours'];
-    return { bounds, contours };
+    const { face } = await detectFacesOnStillDetailed(uri);
+    return face;
   } catch {
-    // Simulator, missing native module, unreadable file — fall back to the proportional path.
+    // Belt and braces: the read must degrade to the proportional path, never throw.
     return null;
   }
 }

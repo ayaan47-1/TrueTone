@@ -21,7 +21,11 @@ import * as FileSystem from 'expo-file-system';
 import { Capture } from '../../src/features/capture/Capture';
 import type { CaptureMeta } from '../../src/features/capture/capture-upright';
 import { decodeJpegToRgb, base64ToBytes } from '../../src/features/read/decode-rgb';
-import { detectFacesOnStill } from '../../src/features/read/detect-faces-still';
+import { detectFacesOnStillDetailed } from '../../src/features/read/detect-faces-still';
+import {
+  describeOutcome,
+  type StillDetectionReport,
+} from '../../src/features/read/still-detection-diagnostics';
 import {
   deriveRegionsForFace,
   isPlausibleFaceDetection,
@@ -69,6 +73,8 @@ interface Analysis {
   contourKeys: string[];
   /** Bounds fit the frame BOTH as-is and transposed — the guard cannot tell the two apart. */
   orientationAmbiguous: boolean;
+  /** WHICH detector failure occurred — "no face" has four very different causes. */
+  detection: StillDetectionReport;
 }
 
 const boundsRect = (f: DetectedFace) => ({
@@ -104,10 +110,19 @@ async function analyze(uri: string): Promise<Analysis> {
   const exifOrientation = await readOrientation(uri);
 
   let rawFace: DetectedFace | null = null;
+  let detection: StillDetectionReport = {
+    outcome: 'threw',
+    rawCount: 0,
+    error: 'analyze() never reached the detector',
+    firstKeys: [],
+  };
   try {
-    rawFace = await detectFacesOnStill(uri);
-  } catch {
+    const detected = await detectFacesOnStillDetailed(uri);
+    rawFace = detected.face;
+    detection = detected.report;
+  } catch (e) {
     rawFace = null;
+    detection = { outcome: 'threw', rawCount: 0, error: String(e), firstKeys: [] };
   }
 
   const scaledFace = scaleFaceToWorkingSpace(rawFace, sourceSize, workingSize);
@@ -133,6 +148,7 @@ async function analyze(uri: string): Promise<Analysis> {
     source,
     contourKeys: rawFace?.contours ? Object.keys(rawFace.contours) : [],
     orientationAmbiguous,
+    detection,
   };
 }
 
@@ -285,6 +301,9 @@ export default function BboxOverlay() {
           <Text style={styles.body}>decoded (working): {analysis.workingSize.width}×{analysis.workingSize.height}</Text>
           <Text style={styles.body}>source (full-res): {analysis.sourceSize.width}×{analysis.sourceSize.height}</Text>
           <Text style={styles.body}>detector found a face: {analysis.rawFace ? 'yes' : 'no'}</Text>
+          <Text style={[styles.body, analysis.detection.outcome === 'ok' ? styles.good : styles.bad]}>
+            detector outcome [{analysis.detection.outcome}] {describeOutcome(analysis.detection)}
+          </Text>
           <Text style={styles.body}>
             raw bounds: {analysis.rawFace ? rect({
               x: analysis.rawFace.bounds.x,
