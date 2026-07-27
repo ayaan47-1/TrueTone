@@ -55,7 +55,19 @@ export default function YouScreen() {
       </Rise>
       </View>
 
-      <Rise index={5}>
+      {/* Dev-only entry to the region overlay (app/(dev)/bbox-overlay.tsx). Reaching that screen
+          otherwise needs an adb deep link, which is unavailable whenever USB is not cooperating —
+          it cost most of a device session on 2026-07-26. Stripped from any release build by the
+          __DEV__ guard. */}
+      {__DEV__ && (
+        <Rise index={5}>
+          <GlassCard flat className="px-6 py-1 mt-3" radius={22}>
+            <ListRow label="DEV · Region overlay" onPress={() => router.push('/bbox-overlay')} />
+          </GlassCard>
+        </Rise>
+      )}
+
+      <Rise index={6}>
         <View className="mt-7"><Disclaimer /></View>
       </Rise>
     </Screen>
