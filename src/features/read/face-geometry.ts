@@ -226,12 +226,15 @@ const MIN_POINTS: Record<string, number> = {
 const REQUIRED = Object.keys(MIN_POINTS) as Array<keyof FaceContours>;
 
 // A cheek arrives as one point, so its patch has to be sized from something else. The face box is
-// the only stable reference to hand, and these fractions keep the patch clear of the nose medially
-// and the jawline below at a neutral pose; anything tighter stops being a representative sample of
-// cheek skin, anything wider starts catching the nasolabial fold. fitRectXToPolygon still shrinks
-// it against the real FACE outline afterwards, so a turned head narrows it rather than spilling.
-const CHEEK_WIDTH_FRACTION_OF_FACE = 0.18;
-const CHEEK_HEIGHT_FRACTION_OF_FACE = 0.12;
+// the only stable reference to hand. A Fold 7 device capture measured the old centred 0.18×0.12
+// patch at only ~14% of detected face width after polygon fitting, with its upper half overlapping
+// the infraorbital band. Grow the patch OUTWARD and DOWNWARD from the measured point: the landmark
+// sits 37.5% in from the medial/top edge, rather than at the centre. This keeps the existing
+// nose-side and eye-side boundaries while adding representative cheek skin toward the cheek apple.
+// fitRectXToPolygon still shrinks the outer edge against the real FACE outline on a turned head.
+const CHEEK_WIDTH_FRACTION_OF_FACE = 0.24;
+const CHEEK_HEIGHT_FRACTION_OF_FACE = 0.16;
+const CHEEK_LANDMARK_INSET_FRACTION = 0.375;
 
 // tZone's width used to come from the nose bridge's bounding box, which for a two-point line is
 // ~0. NOSE_BOTTOM spans the base of the nose, so it is both non-degenerate and the anatomically
@@ -284,22 +287,42 @@ function deriveFromContours(
 
   const cheekW = face.w * CHEEK_WIDTH_FRACTION_OF_FACE;
   const cheekH = face.h * CHEEK_HEIGHT_FRACTION_OF_FACE;
+  const faceMidX = face.x + face.w / 2;
   const cheekRect = (pt: Point): Rect => ({
-    x: pt.x - cheekW / 2,
-    y: pt.y - cheekH / 2,
+    // Choose the side from the point's actual position, not the LEFT/RIGHT contour name, so the
+    // construction stays correct if a front-camera coordinate frame reports anatomical sides in
+    // the opposite screen direction.
+    x: pt.x < faceMidX
+      ? pt.x - cheekW * (1 - CHEEK_LANDMARK_INSET_FRACTION)
+      : pt.x - cheekW * CHEEK_LANDMARK_INSET_FRACTION,
+    y: pt.y - cheekH * CHEEK_LANDMARK_INSET_FRACTION,
     w: cheekW,
     h: cheekH,
   });
+  const cheekRectL = cheekRect(cheekL);
+  const cheekRectR = cheekRect(cheekR);
 
   const browTop = Math.min(browL.y, browR.y);
   const foreheadTop = face.y + face.h * 0.06;
 
   const raw: Record<RegionName, Rect> = {
-    cheekL: cheekRect(cheekL),
-    cheekR: cheekRect(cheekR),
-    // Between the eye and the cheek, spanning the eye's width.
-    infraorbitalL: { x: eyeL.x, y: eyeL.y + eyeL.h, w: eyeL.w, h: Math.max(2, cheekL.y - (eyeL.y + eyeL.h)) },
-    infraorbitalR: { x: eyeR.x, y: eyeR.y + eyeR.h, w: eyeR.w, h: Math.max(2, cheekR.y - (eyeR.y + eyeR.h)) },
+    cheekL: cheekRectL,
+    cheekR: cheekRectR,
+    // Between the eye and the TOP of the cheek patch, spanning the eye's width. Ending at the
+    // landmark itself made this band overlap half of a cheek patch centred on that landmark
+    // (8px on both sides in the Fold 7 measurement).
+    infraorbitalL: {
+      x: eyeL.x,
+      y: eyeL.y + eyeL.h,
+      w: eyeL.w,
+      h: Math.max(2, cheekRectL.y - (eyeL.y + eyeL.h)),
+    },
+    infraorbitalR: {
+      x: eyeR.x,
+      y: eyeR.y + eyeR.h,
+      w: eyeR.w,
+      h: Math.max(2, cheekRectR.y - (eyeR.y + eyeR.h)),
+    },
     // Above the brows, clipped to the FACE polygon.
     forehead: { x: face.x + face.w * 0.22, y: foreheadTop, w: face.w * 0.56, h: Math.max(2, browTop - foreheadTop) },
     // Outer margin of each eye — where crow's feet sit. Height is capped at 1.4x the eye height

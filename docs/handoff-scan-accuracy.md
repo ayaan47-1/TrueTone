@@ -225,33 +225,42 @@ multi-point synthetic fixture, so one code path serves both.
 
 ## 5. Open work, in priority order
 
-### 5.1 Region placement quality — start here
+### 5.1 Region placement quality — verified on Fold 7
 
-`source: contours` means derivation *succeeded*, not that the boxes are anatomically **right**. First
-visual read suggests they sit high and tight — the forehead patch near the brow line rather than
-mid-forehead, cheek patches medial of the cheek apples.
+The first measured capture exposed a real overlap: both infraorbital bands extended 8px into cheek
+patches that were centred on MLKit's single cheek point. The patches were also tight after fitting
+to the face polygon. The fix grows each cheek patch outward and downward from that point instead of
+symmetrically around it, and ends the infraorbital band at the patch's top edge.
 
-Capture in the overlay, read the printed `regions (working space)` rects against the printed
-`scaled bounds`, and tune the fractions in `src/features/read/face-geometry.ts`. The new constants —
-`CHEEK_WIDTH_FRACTION_OF_FACE`, `CHEEK_HEIGHT_FRACTION_OF_FACE`, `TZONE_WIDTH_FROM_NOSE_BASE` — were
-chosen on anatomical reasoning, **not measured**. They are the obvious first thing to calibrate.
+The post-fix device capture confirmed the intended boundary: infraorbital L ended at y288 before
+cheek L began at y289; R ended at y292 before cheek R began at y293. Forehead, periocular, T-zone,
+and both cheek patches were visually placed on their intended anatomy. The asymmetric fitted cheek
+widths (22px L, 30px R) are expected: `fitRectXToPolygon` narrows an outer edge against the detected
+face outline rather than sampling background.
 
-### 5.2 Mirroring — needs a human, not code
+### 5.2 Mirroring — verified by touch on Fold 7
 
 `photo.isMirrored` is reported, but the **pixels cannot confirm it**: a mirrored face is still a
-plausible face. Settle it by eye — touch your left cheek; the box labelled "L" must be on that cheek.
-A pure L/R swap does not change the baseline (both cheeks are averaged) but it swaps every per-side
-region.
+plausible face. The device check settled it physically: the user touched their left cheek and both
+regions labelled "L" landed on that cheek. Region names therefore agree with the user's anatomical
+sides after the capture conversion. A pure L/R swap would not have changed baseline (both cheeks are
+averaged), but would have swapped every per-side region; that failure was not observed.
 
-### 5.3 `THRESHOLDS` calibration — never done on hardware
+### 5.3 `THRESHOLDS` calibration — in progress on Fold 7
 
-`src/features/capture/quality-gate.ts` thresholds were set from synthetic renders. An ordinarily-lit
-room measured **0.31–0.34 brightness against a 0.35 floor**, i.e. the gate is probably mis-calibrated
-rather than the room being bad. Same for `SHARPNESS_SCALE` in `luma-metrics.ts` and the newer
-`clippingMax` / `cctMin` / `cctMax` / `imbalanceMax` / `poseMax`. All JS — hot-reloads, no rebuild.
+The first labeled hardware set proved the synthetic `brightnessMin: 0.35` invalid: acceptable
+captures measured 0.18–0.34. It also exposed a deeper measurement bug. Strong one-sided facial
+lighting reported `imbalance: 0.12`, while acceptable captures reported 0.28–0.29, because the
+metric compared the **whole frame's** left and right halves and mostly measured the room.
 
-Tune against **real** captures. The overlay's manual shutter exists precisely so this is measured
-rather than assumed.
+The metric math now samples the centered 60% face-area approximation. Brightness, sharpness,
+clipping, and CCT ignore the outer background; illumination imbalance is the larger of horizontal
+and vertical asymmetry so sensor rotation cannot hide side lighting. Host tests pin bright/clipped
+background rejection and both imbalance axes. **All pre-change device values are obsolete.**
+
+A fresh labeled device set is still required before changing `THRESHOLDS` or `SHARPNESS_SCALE`:
+normal acceptable, dim acceptable, bright acceptable, too dark, direct glare, one-sided light, and
+head turned. The overlay's manual shutter exists precisely so this is measured rather than assumed.
 
 ### 5.4 The structural gap — the fairness harness does not test what ships
 
@@ -364,6 +373,9 @@ face upright), and confidently passed a 180°-wrong image. The diagnostic that r
 | `src/features/capture/capture-upright.ts` | Photo → upright still on disk. Host-tested via structural interfaces |
 | `src/features/capture/photo-orientation.ts` | Pure rotation arithmetic + the applied/not/undetermined decision |
 | `src/features/capture/use-frame-metrics.ts` | Luma worklet + face detection (one ImageAnalysis) |
+| `src/features/capture/metric-grid.ts` | Shared centered face-area sampling window |
+| `src/features/capture/luma-metrics.ts` | Face-area brightness + focus proxy |
+| `src/features/capture/chroma-metrics.ts` | Face-area clipping, CCT, and 2-axis lighting balance |
 | `src/features/capture/quality-gate.ts` | `THRESHOLDS` — **needs hardware calibration** |
 | `src/features/read/decode-rgb.ts` | JPEG → RGB at 512px working size |
 | `src/features/read/exif-orientation.ts` | Now a no-op on our captures; safety net for other sources |
@@ -384,14 +396,9 @@ step.
 
 ---
 
-## 9. Suggested first move
+## 9. Suggested next move
 
-1. `npx expo start --dev-client`, open the overlay from the **You** tab, tap the magenta shutter.
-2. Confirm it still reads `source: contours` and `detector outcome [ok]`.
-3. Screenshot / read the `regions (working space)` block and compare each rect against
-   `scaled bounds`. That is §5.1, and it is the last thing between this branch and a scan number
-   that means something.
-
-Do **not** start on fairness (§5.4/§5.5) before §5.1 is settled — tuning invariance on regions that
-sit in the wrong place would calibrate the wrong instrument, which is the mistake this entire
-document is a record of.
+1. Calibrate `THRESHOLDS` and `SHARPNESS_SCALE` across several real lighting conditions; do not
+   loosen one threshold from a single room measurement.
+2. Keep the contour-path fairness gap (§5.4) as an explicit founder decision. Do not modify
+   `eval/render/` or move baselines without sign-off.

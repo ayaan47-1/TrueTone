@@ -8,7 +8,7 @@
 //     pure, unit-tested `facesToMetrics` (autoMode + screen dims → screen-space bounds).
 //   • LIGHT + FOCUS (brightness / sharpness) — a `useFrameOutput` worklet samples the Y (luma)
 //     plane down to a small grid and hands it to the pure, unit-tested `computeLumaStats` on the JS
-//     thread. Global stats, so orientation-invariant.
+//     thread. The pure metric functions sample the centered face area.
 //
 // Each source updates its own ref; `publish` merges them into one FrameMetrics. The luma ref starts
 // at neutral-pass values so the gate degrades gracefully (face-only) if the frame processor never
@@ -42,7 +42,7 @@ const LUMA_COLS = 32;
 const LUMA_ROWS = 44;
 
 // Coarse RGB downsample grid for chroma stats (glare/colour-cast/side-light) — deliberately much
-// smaller than the luma grid since chroma only needs coarse, global statistics.
+// smaller than the luma grid since chroma only needs coarse facial-area statistics.
 const CHROMA_COLS = 12;
 const CHROMA_ROWS = 16;
 

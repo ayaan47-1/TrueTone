@@ -4227,14 +4227,21 @@ baselines, so it is flagged, not fixed. **Open decision.**
 
 ### Still open after this pass
 
-- [ ] **Region placement quality.** Derivation succeeding is not the same as the boxes being
-  anatomically right. First look suggests they sit high and tight — forehead near the brow line,
-  cheek patches medial of the cheek apples. Check the printed rects against the face box and tune
-  the fractions.
-- [ ] **Mirroring.** `isMirrored` is reported but the pixels cannot confirm it. Settle by eye: the
-  box labelled "L" must be on the cheek the user touches.
-- [ ] **`THRESHOLDS` calibration** (Task 15 step 4) — never done on hardware. An ordinarily-lit room
-  measured ~0.31–0.34 brightness against a 0.35 floor, i.e. the gate is likely mis-calibrated.
+- [x] **Region placement quality (Fold 7, 2026-07-26).** The first measured contour capture showed
+  both infraorbital bands overlapping their cheek patches by 8px. Cheek patches now grow outward
+  and downward from MLKit's point, and infraorbital bands stop at the patch top. Post-fix device
+  measurements proved separation: L ended y288 / cheek began y289; R ended y292 / cheek began
+  y293. Visual placement of forehead, periocular, T-zone, and cheeks was anatomically plausible.
+- [x] **Mirroring (Fold 7, 2026-07-26).** Settled by physical touch: the user touched their left
+  cheek and both regions labelled "L" landed on that cheek. Per-side region names agree with the
+  user's anatomy after capture conversion.
+- [ ] **`THRESHOLDS` calibration** (Task 15 step 4) — in progress on Fold 7. The first labeled set
+  proved the 0.35 brightness floor invalid, then exposed that whole-frame left/right imbalance
+  measured the room rather than facial side-lighting (unacceptable one-sided light scored 0.12,
+  below acceptable captures at 0.28–0.29). Capture metrics now sample the centered 60% face-area
+  approximation and take the larger horizontal/vertical imbalance; host tests pin background
+  exclusion and rotation invariance. All earlier metric values are obsolete. Recollect the seven
+  labeled acceptable/unacceptable conditions before changing any threshold or `SHARPNESS_SCALE`.
   The overlay's `devForceCapture` shutter exists so this never pressures the production gate.
 
 ---

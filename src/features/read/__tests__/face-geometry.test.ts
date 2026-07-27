@@ -68,6 +68,8 @@ describe('regionsFromContours', () => {
     const r = regionsFromContours(contoursFor(), SIZE)!;
     expect(r.infraorbitalL.y).toBeGreaterThan(r.periocularL.y);
     expect(r.infraorbitalL.y).toBeLessThan(r.cheekL.y);
+    expect(r.infraorbitalL.y + r.infraorbitalL.h).toBeLessThanOrEqual(r.cheekL.y + 1);
+    expect(r.infraorbitalR.y + r.infraorbitalR.h).toBeLessThanOrEqual(r.cheekR.y + 1);
   });
 
   it('keeps the tZone from overlapping either cheek horizontally', () => {
@@ -119,7 +121,7 @@ describe('regionsFromContours', () => {
 describe('regionsFromContours - placement is X- and Y-sensitive per region', () => {
   const TOL = 8; // px — well under a 20% face-width shift (~35px here)
 
-  it('cheeks are centred on their own cheek contour (symmetric inset preserves the centroid)', () => {
+  it('cheeks stay anchored near their own contour while extending outward and downward', () => {
     const c = contoursFor();
     const r = regionsFromContours(c, SIZE)!;
     const cl = centroid(boxOf(c.LEFT_CHEEK!));
@@ -366,7 +368,7 @@ describe('contourRejectionReason', () => {
   it('names the region that collapses when the face is tiny in frame', () => {
     const tiny = contoursFor({ scale: 0.06, dx: 0, dy: 0 });
     const reason = contourRejectionReason(tiny, SIZE);
-    expect(reason).toMatch(/^(degenerate|does-not-fit|outside-polygon):/);
+    expect(reason).toMatch(/^(degenerate(?:-after-(?:round|clamp))?|does-not-fit|outside-polygon):/);
   });
 
   it('agrees with regionsFromContours on every input', () => {
@@ -424,17 +426,30 @@ describe('regionsFromContours with MLKit-shaped contours', () => {
     }
   });
 
-  // The single point is the cheek CENTRE, so the rect has to be built around it, not from a
-  // bounding box that has no area.
-  it('centres each cheek region on the cheek point', () => {
+  // The single point anchors the inner-upper part of the patch. Device evidence showed that
+  // centring the patch on it grew into the infraorbital band and left too little cheek area.
+  it('anchors each cheek point inside the inner-upper half of its region', () => {
     const c = asMlkitShaped();
     const r = regionsFromContours(c, SIZE)!;
     for (const [region, contour] of [['cheekL', 'LEFT_CHEEK'], ['cheekR', 'RIGHT_CHEEK']] as const) {
       const pt = c[contour][0];
-      const box = r[region];
-      expect(Math.abs(centroid(box).y - pt.y)).toBeLessThanOrEqual(box.h / 2);
-      expect(Math.abs(centroid(box).x - pt.x)).toBeLessThanOrEqual(box.w);
+      const patch = r[region];
+      expect(pt.y).toBeGreaterThanOrEqual(patch.y);
+      expect(pt.y).toBeLessThan(centroid(patch).y);
+      expect(pt.x).toBeGreaterThanOrEqual(patch.x);
+      expect(pt.x).toBeLessThanOrEqual(patch.x + patch.w);
+      if (pt.x < SIZE.width / 2) {
+        expect(pt.x).toBeGreaterThan(centroid(patch).x);
+      } else {
+        expect(pt.x).toBeLessThan(centroid(patch).x);
+      }
     }
+  });
+
+  it('keeps the infraorbital bands vertically separate from both cheek patches', () => {
+    const r = regionsFromContours(asMlkitShaped(), SIZE)!;
+    expect(r.infraorbitalL.y + r.infraorbitalL.h).toBeLessThanOrEqual(r.cheekL.y + 1);
+    expect(r.infraorbitalR.y + r.infraorbitalR.h).toBeLessThanOrEqual(r.cheekR.y + 1);
   });
 
   // A two-point bridge is a near-vertical line, so tZone's width cannot come from its bbox.

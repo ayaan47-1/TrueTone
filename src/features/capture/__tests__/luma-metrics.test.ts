@@ -19,6 +19,17 @@ describe('computeLumaStats', () => {
     expect(computeLumaStats(grid(8, 8, () => 0), 8, 8).brightness).toBe(0);
   });
 
+  it('measures the centered face area instead of a bright background border', () => {
+    const face = grid(10, 10, (c, r) =>
+      c >= 2 && c < 8 && r >= 2 && r < 8 ? 51 : 255,
+    );
+
+    const stats = computeLumaStats(face, 10, 10);
+
+    expect(stats.brightness).toBeCloseTo(0.2, 4);
+    expect(stats.sharpness).toBe(0);
+  });
+
   it('reports zero sharpness for a flat (out-of-focus) field', () => {
     expect(computeLumaStats(grid(16, 16, () => 140), 16, 16).sharpness).toBe(0);
   });

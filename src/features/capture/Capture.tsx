@@ -320,6 +320,15 @@ function MetricsDebug({
       <DebugRow label="light" value={f(metrics.brightness)} range={`${THRESHOLDS.brightnessMin}–${THRESHOLDS.brightnessMax}`} ok={quality.lighting} />
       <DebugRow label="frame" value={f(metrics.faceFraction)} range={`${THRESHOLDS.faceFractionMin}–${THRESHOLDS.faceFractionMax}`} ok={quality.distance} />
       <DebugRow label="focus" value={f(metrics.sharpness)} range={`≥${THRESHOLDS.sharpness}`} ok={quality.focus} />
+      <DebugRow label="clip" value={f(metrics.clipping)} range={`≤${THRESHOLDS.clippingMax}`} ok={quality.glare} />
+      <DebugRow label="cct" value={`${Math.round(metrics.cct)}K`} range={`${THRESHOLDS.cctMin}–${THRESHOLDS.cctMax}K`} ok={quality.colour} />
+      <DebugRow label="even" value={f(metrics.imbalance)} range={`≤${THRESHOLDS.imbalanceMax}`} ok={quality.evenness} />
+      <DebugRow
+        label="pose"
+        value={`yaw ${f(metrics.yaw)}° roll ${f(metrics.roll)}°`}
+        range={`±${THRESHOLDS.poseMax}°`}
+        ok={quality.pose}
+      />
     </View>
   );
 }
