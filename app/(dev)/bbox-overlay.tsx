@@ -149,7 +149,15 @@ async function analyze(uri: string): Promise<Analysis> {
     scaledFace,
     regions,
     source,
-    contourKeys: rawFace?.contours ? Object.keys(rawFace.contours) : [],
+    // Point COUNTS, not just names. regionsFromContours treats every contour as a polygon and
+    // rejects anything under 3 points, but MLKit's cheek contours are single points and its nose
+    // bridge is two — shapes the synthetic fixture (eval/render/geometry.ts) never produces, since
+    // it builds both as 8-to-12-point ellipses. The counts are what the fix has to be designed to.
+    contourKeys: rawFace?.contours
+      ? Object.entries(rawFace.contours).map(
+          ([k, v]) => `${k}:${Array.isArray(v) ? v.length : 'not-a-list'}`,
+        )
+      : [],
     orientationAmbiguous,
     detection,
     // Asked of the SCALED contours, which is what deriveRegionsForFace actually saw.
