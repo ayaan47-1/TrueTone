@@ -14,6 +14,7 @@
 // dependency, shipped as part of vision-camera v5's own stack.
 import {
   checkOrientationApplied,
+  conversionResidualDegrees,
   type OrientationCheck,
   type PhotoOrientation,
   type QuarterTurn,
@@ -57,8 +58,14 @@ export interface CaptureMeta {
   uprightSize: Size;
   /** Whether converting the Photo to an Image applied the rotation. `null` means undetermined. */
   orientationCheck: OrientationCheck;
-  /** Degrees this module had to apply itself. 0 when the conversion had already done it. */
+  /** Degrees this module had to apply itself. 0 when the conversion got it right unaided. */
   correctedDegrees: QuarterTurn;
+  /**
+   * Why `correctedDegrees` is non-zero. `'residual'` — the conversion did not rotate, so we did.
+   * `'mirrored-quarter-turn'` — it rotated but landed 180 degrees out on a mirrored frame; see
+   * conversionResidualDegrees for the mechanism and the device evidence.
+   */
+  correctionReason: 'residual' | 'mirrored-quarter-turn' | null;
   /**
    * Non-null when the upright guarantee could NOT be met and the raw sensor buffer was written
    * instead. A read from such a file may place its regions on nothing. Surfaced by the dev overlay.
@@ -104,6 +111,7 @@ export async function writeUprightStill(photo: CapturedPhoto): Promise<UprightSt
           uprightSize: sensorSize,
           orientationCheck: { applied: null, residualDegrees: 0 },
           correctedDegrees: 0,
+          correctionReason: null,
           degradedReason: err instanceof Error ? err.message : String(err),
         },
       };
@@ -116,14 +124,27 @@ export async function writeUprightStill(photo: CapturedPhoto): Promise<UprightSt
         height: image.height,
       });
 
-      let correctedDegrees: QuarterTurn = 0;
-      if (orientationCheck.applied === false && orientationCheck.residualDegrees !== 0) {
+      // Exactly one of these can be non-zero: either the conversion skipped the rotation and we
+      // owe the whole thing, or it rotated a mirrored frame the wrong way round and we owe a half
+      // turn on top. They are mutually exclusive by construction — conversionResidualDegrees only
+      // fires when `applied === true`.
+      const correctionReason = orientationCheck.applied === false
+        ? ('residual' as const)
+        : conversionResidualDegrees(orientation, isMirrored, orientationCheck.applied) !== 0
+          ? ('mirrored-quarter-turn' as const)
+          : null;
+      const correctedDegrees: QuarterTurn = correctionReason === 'residual'
+        ? orientationCheck.residualDegrees
+        : correctionReason === 'mirrored-quarter-turn'
+          ? conversionResidualDegrees(orientation, isMirrored, orientationCheck.applied)
+          : 0;
+
+      if (correctedDegrees !== 0) {
         // `allowFastFlagRotation: false` is load-bearing, not defensive. The fast path rotates by
         // writing an orientation flag rather than moving pixels, which is exactly the state the
         // Fold 7 was already in and which nothing downstream could recover from.
-        image = await image.rotateAsync(orientationCheck.residualDegrees, false);
+        image = await image.rotateAsync(correctedDegrees, false);
         created.push(image);
-        correctedDegrees = orientationCheck.residualDegrees;
       }
 
       const path = await image.saveToTemporaryFileAsync('jpg', JPEG_QUALITY);
@@ -136,6 +157,7 @@ export async function writeUprightStill(photo: CapturedPhoto): Promise<UprightSt
           uprightSize: { width: image.width, height: image.height },
           orientationCheck,
           correctedDegrees,
+          correctionReason,
           degradedReason: null,
         },
       };

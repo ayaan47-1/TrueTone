@@ -182,3 +182,47 @@ describe('writeUprightStill', () => {
     expect(uri).toBe('file:///tmp/x.jpg');
   });
 });
+
+// Device pass, Fold 7, 2026-07-26. The conversion swapped the axes as required, so every size
+// check passed, and the written face was upside down — see conversionResidualDegrees.
+describe('writeUprightStill: mirrored quarter-turn correction', () => {
+  it('applies a half turn when the conversion rotated a mirrored frame', async () => {
+    const log = emptyLog();
+    const { photo } = fakePhoto({ orientation: 'right', isMirrored: true }, log);
+
+    const { meta } = await writeUprightStill(photo);
+
+    expect(log.rotations).toEqual([{ degrees: 180, fastFlag: false }]);
+    expect(meta.correctedDegrees).toBe(180);
+    expect(meta.correctionReason).toBe('mirrored-quarter-turn');
+    // A half turn preserves the portrait shape the conversion already produced.
+    expect(meta.uprightSize).toEqual({ width: 2736, height: 3648 });
+  });
+
+  it('leaves an un-mirrored frame alone', async () => {
+    const log = emptyLog();
+    const { photo } = fakePhoto({ orientation: 'right', isMirrored: false }, log);
+
+    const { meta } = await writeUprightStill(photo);
+
+    expect(log.rotations).toEqual([]);
+    expect(meta.correctedDegrees).toBe(0);
+    expect(meta.correctionReason).toBeNull();
+  });
+
+  // Correcting on top of our own rotation would introduce the error, not remove it.
+  it('does not stack the half turn on top of a rotation it applied itself', async () => {
+    const log = emptyLog();
+    const sensor = { width: 3648, height: 2736 };
+    const { photo } = fakePhoto(
+      { orientation: 'right', isMirrored: true, size: sensor, imageSize: sensor },
+      log,
+    );
+
+    const { meta } = await writeUprightStill(photo);
+
+    expect(log.rotations).toEqual([{ degrees: 270, fastFlag: false }]);
+    expect(meta.correctedDegrees).toBe(270);
+    expect(meta.correctionReason).toBe('residual');
+  });
+});

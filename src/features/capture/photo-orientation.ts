@@ -53,6 +53,43 @@ export function uprightRotationDegrees(orientation: PhotoOrientation): QuarterTu
   }
 }
 
+/**
+ * Extra rotation owed AFTER a conversion that reported success.
+ *
+ * Measured on the Fold 7, 2026-07-26: `photo.orientation` was `'right'` and `isMirrored` was true;
+ * `toImageAsync()` swapped the axes as required (3648x2736 -> 2736x3648), so every size-based check
+ * passed — and the face came out UPSIDE DOWN. MLKit found nothing on it and the regions fell back
+ * to the proportional guess, i.e. the exact failure the capture fix was meant to end, one turn
+ * further along.
+ *
+ * Mechanism, which is why no size check could have caught it:
+ *
+ *     mirror o rotate(t)  ===  rotate(-t) o mirror
+ *
+ * Applying the un-mirror and the rotation in the wrong order therefore lands 2t away from upright.
+ * For a quarter turn that is 180 degrees; for 'up' or 'down' it is 0 or 360, i.e. no error at all.
+ * Both rotations produce identical portrait dimensions, so only pixels can tell them apart.
+ *
+ * Scope, deliberately narrow. This compensates for observed behaviour in someone else's library,
+ * so it is bounded to the case actually observed: a mirrored frame whose orientation is a quarter
+ * turn, where the CONVERSION did the rotating. When `rotateAsync` did it (applied === false) no
+ * ordering was involved and correcting again would introduce the error rather than remove it.
+ * A rear-camera frame is never mirrored and was never tested, so it gets nothing.
+ *
+ * NOT YET VERIFIED ON iOS, and this project is iOS-primary. 180 degrees has no direction ambiguity,
+ * so the correction cannot be applied backwards — but whether iOS needs it at all is unanswered.
+ * The dev overlay prints it whenever it fires; see plan Task 15b.
+ */
+export function conversionResidualDegrees(
+  orientation: PhotoOrientation,
+  isMirrored: boolean,
+  applied: boolean | null,
+): QuarterTurn {
+  if (applied !== true || !isMirrored) return 0;
+  const owed = uprightRotationDegrees(orientation);
+  return owed === 90 || owed === 270 ? 180 : 0;
+}
+
 const NO_EVIDENCE: OrientationCheck = { applied: null, residualDegrees: 0 };
 
 const isUsable = (s: Size) =>

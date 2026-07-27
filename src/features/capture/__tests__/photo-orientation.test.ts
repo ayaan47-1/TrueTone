@@ -1,5 +1,6 @@
 import {
   checkOrientationApplied,
+  conversionResidualDegrees,
   uprightRotationDegrees,
 } from '../photo-orientation';
 
@@ -80,7 +81,7 @@ describe('checkOrientationApplied', () => {
     });
   });
 
-  it('refuses to answer on degenerate sizes', () => {
+  it('refuses to answer on degenerate sizes as well', () => {
     expect(checkOrientationApplied('left', { width: 0, height: 0 }, PORTRAIT)).toEqual({
       applied: null,
       residualDegrees: 0,
@@ -89,5 +90,37 @@ describe('checkOrientationApplied', () => {
       applied: null,
       residualDegrees: 0,
     });
+  });
+});
+
+// Device pass, Fold 7, 2026-07-26: with orientation "right" and isMirrored true, the conversion
+// reported success (the axes swapped, 3648x2736 -> 2736x3648) but the face came out UPSIDE DOWN,
+// so MLKit found nothing and the regions fell back to the proportional guess. Mechanism:
+// mirror o rotate(t) === rotate(-t) o mirror, so applying the un-mirror and the rotation in the
+// wrong order lands 2t away — 180 degrees for a quarter turn, and nothing at all for 0 or 180.
+describe('conversionResidualDegrees', () => {
+  it('owes a half turn after a quarter turn on a mirrored frame', () => {
+    expect(conversionResidualDegrees('right', true, true)).toBe(180);
+    expect(conversionResidualDegrees('left', true, true)).toBe(180);
+  });
+
+  // 2t is 0 or 360 for these, so the order swap leaves no trace.
+  it('owes nothing when the orientation is not a quarter turn', () => {
+    expect(conversionResidualDegrees('up', true, true)).toBe(0);
+    expect(conversionResidualDegrees('down', true, true)).toBe(0);
+  });
+
+  // Bounded to what was actually measured: a front-camera frame. The rear camera is not mirrored
+  // and was never observed, so it gets no speculative correction.
+  it('owes nothing when the frame was not mirrored', () => {
+    expect(conversionResidualDegrees('right', false, true)).toBe(0);
+    expect(conversionResidualDegrees('left', false, true)).toBe(0);
+  });
+
+  // If the conversion did not rotate, our own rotateAsync did — no library ordering was involved,
+  // so correcting again would introduce the very error this compensates for.
+  it('owes nothing when the conversion did not apply the rotation itself', () => {
+    expect(conversionResidualDegrees('right', true, false)).toBe(0);
+    expect(conversionResidualDegrees('right', true, null)).toBe(0);
   });
 });

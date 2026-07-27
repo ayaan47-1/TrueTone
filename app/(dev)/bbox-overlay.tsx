@@ -327,6 +327,13 @@ export default function BboxOverlay() {
                   DEGRADED: could not convert to an upright image ({captureMeta.degradedReason}), so
                   the raw sensor buffer was written. Regions below are not trustworthy.
                 </Text>
+              ) : captureMeta.correctionReason === 'mirrored-quarter-turn' ? (
+                <Text style={styles.good}>
+                  Conversion swapped the axes but landed {captureMeta.correctedDegrees}° out on a
+                  mirrored frame, so capture turned it back. If the face below is UPSIDE DOWN this
+                  correction is not firing; if it is sideways, something new is wrong. See
+                  conversionResidualDegrees.
+                </Text>
               ) : captureMeta.correctedDegrees !== 0 ? (
                 <Text style={styles.good}>
                   Conversion did NOT apply orientation, so capture rotated the pixels{' '}
