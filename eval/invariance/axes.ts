@@ -4,7 +4,7 @@
 // NOT an accuracy measure. Passing means the pipeline is self-consistent and physically sensible;
 // it certifies nothing about real faces and licenses no claim (CLAUDE.md §1, spec §6a).
 import { renderFace } from '../render/face';
-import { scoreFromBbox } from '../../src/features/read/cv/score-from-rgb';
+import { scoreRenderedFace } from '../render/score';
 import { DIMENSIONS, type Dimension } from '../../src/content/cosmetic-vocab';
 import { FITZPATRICK } from '../fairness/fst';
 import { INVARIANCE_THRESHOLDS, type InvarianceThresholds } from './thresholds';
@@ -13,8 +13,22 @@ import type { AxisBreach, AxisResult } from './types';
 type Params = Parameters<typeof renderFace>[0];
 
 function scoresFor(p: Params): Record<Dimension, number> {
-  const { rgb, bbox } = renderFace(p);
-  return scoreFromBbox(rgb, bbox).scores;
+  return scoreRenderedFace(renderFace(p)).scores;
+}
+
+function pointInPolygon(x: number, y: number, polygon: Array<{ x: number; y: number }>): boolean {
+  let inside = false;
+  for (let i = 0, j = polygon.length - 1; i < polygon.length; j = i++) {
+    const a = polygon[i];
+    const b = polygon[j];
+    if (
+      (a.y > y) !== (b.y > y)
+      && x < ((b.x - a.x) * (y - a.y)) / (b.y - a.y) + a.x
+    ) {
+      inside = !inside;
+    }
+  }
+  return inside;
 }
 
 function spread(runs: Array<Record<Dimension, number>>): Record<Dimension, number> {
@@ -158,11 +172,12 @@ export function tonePreservationAxis(t: InvarianceThresholds = INVARIANCE_THRESH
   // tones — if normalization flattens this, "invariance" was bought by destroying signal.
   const defects = { spots: 0.4, redness: 0.3, oiliness: 0.4, pores: 0.4, lines: 0.3, darkCircles: 0.3, roughness: 0.3 };
   const lums = FITZPATRICK.map((fst) => {
-    const { rgb, bbox } = renderFace({ fst, defects });
+    const { rgb, bbox, contours } = renderFace({ fst, defects });
     let sum = 0, n = 0;
     for (let y = bbox.y; y < bbox.y + bbox.h; y++) {
       for (let x = bbox.x; x < bbox.x + bbox.w; x++) {
         if (x < 0 || y < 0 || x >= rgb.width || y >= rgb.height) continue;
+        if (!pointInPolygon(x + 0.5, y + 0.5, contours.FACE)) continue;
         const i = (y * rgb.width + x) * 4;
         sum += (0.2126 * rgb.data[i] + 0.7152 * rgb.data[i + 1] + 0.0722 * rgb.data[i + 2]) / 255;
         n++;

@@ -103,3 +103,49 @@ export function blockNoise2d(
   if (peak > 0) for (let i = 0; i < out.length; i++) out[i] /= peak;
   return out;
 }
+
+// Several-pixel cells arranged in locally zero-mean 2x2 groups. This preserves correlated
+// roughness energy while preventing random same-sign clusters from becoming broad dark patches
+// after spatial averaging.
+export function balancedBlockNoise2d(
+  rng: () => number,
+  width: number,
+  height: number,
+  blockSize: number,
+): Float32Array {
+  const size = Math.max(1, Math.round(blockSize));
+  const blockCols = Math.ceil(width / size);
+  const blockRows = Math.ceil(height / size);
+  const blocks = new Float32Array(blockCols * blockRows);
+
+  for (let macroY = 0; macroY < blockRows; macroY += 2) {
+    for (let macroX = 0; macroX < blockCols; macroX += 2) {
+      const amplitude = Math.abs(rng() * 2 - 1);
+      const orientation = rng() < 0.5 ? 1 : -1;
+      const cells: Array<{ x: number; y: number; value: number }> = [];
+      for (let dy = 0; dy < 2 && macroY + dy < blockRows; dy++) {
+        for (let dx = 0; dx < 2 && macroX + dx < blockCols; dx++) {
+          cells.push({
+            x: macroX + dx,
+            y: macroY + dy,
+            value: amplitude * orientation * ((dx + dy) % 2 === 0 ? 1 : -1),
+          });
+        }
+      }
+      const mean = cells.reduce((sum, cell) => sum + cell.value, 0) / cells.length;
+      for (const cell of cells) blocks[cell.y * blockCols + cell.x] = cell.value - mean;
+    }
+  }
+
+  let peak = 0;
+  for (const value of blocks) peak = Math.max(peak, Math.abs(value));
+  if (peak > 0) for (let i = 0; i < blocks.length; i++) blocks[i] /= peak;
+
+  const out = new Float32Array(width * height);
+  for (let y = 0; y < height; y++) {
+    for (let x = 0; x < width; x++) {
+      out[y * width + x] = blocks[Math.floor(y / size) * blockCols + Math.floor(x / size)];
+    }
+  }
+  return out;
+}

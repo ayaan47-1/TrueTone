@@ -42,6 +42,16 @@ describe('invariance report', () => {
     const parsed = JSON.parse(renderInvarianceJson(RESULTS, '2026-07-25T00:00:00Z'));
     expect(parsed.axes).toHaveLength(2);
     expect(parsed.pass).toBe(false);
+    expect(parsed.provenance).toEqual({
+      regionSource: 'contours',
+      contourFixture: 'mlkit-observed-v1',
+    });
+  });
+
+  it('states the contour-scoring provenance in Markdown', () => {
+    const md = renderInvarianceMarkdown(RESULTS, 'x');
+    expect(md).toContain('region source: contours');
+    expect(md).toContain('contour fixture: mlkit-observed-v1');
   });
 
   it('reports overall pass only when every axis passes', () => {

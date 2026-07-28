@@ -262,38 +262,33 @@ A fresh labeled device set is still required before changing `THRESHOLDS` or `SH
 normal acceptable, dim acceptable, bright acceptable, too dark, direct glare, one-sided light, and
 head turned. The overlay's manual shutter exists precisely so this is measured rather than assumed.
 
-### 5.4 The structural gap — the fairness harness does not test what ships
+### 5.4 Invariance harness production-path parity — resolved 2026-07-27
 
 **Read this before trusting any fairness number.**
 
-`eval/invariance/axes.ts:16` scores via `scoreFromBbox(rgb, bbox)` — the **proportional** path. It
-never calls `regionsFromContours`. So every fairness number, threshold, and PASS/FAIL verdict on
-record describes the **bbox** derivation, while production prefers **contours**. The contour path has
-**zero fairness coverage**.
+The gap recorded here is now closed for `eval/invariance/`: synthetic reads go through
+`deriveRegionsForFace` + `scoreFromRgb`, fail closed unless the source is `contours`, and carry
+`regionSource: contours` / `contourFixture: mlkit-observed-v1` in the report. The fixture mirrors
+observed MLKit cardinalities, including single-point cheeks and a two-point nose bridge.
 
-This is why the invariance report came back byte-identical after cheek and tZone geometry changed:
-the harness does not run that code.
-
-Compounding it, `eval/render/geometry.ts:55,61` builds cheeks as 12-point ellipses and the bridge as
-an 8-point one — shapes MLKit does not produce. The fixture asserts a reality that does not exist.
-
-Closing this means touching `eval/render/` and **would move the baselines**. It is an open decision
-for the founders, not a quiet fix. See §6.
+This intentionally moved every invariance baseline. Dark spots now pool hit counts across both
+cheeks and the forehead before normalization: its worst FST I–VI spread is 0.0432 against the
+unchanged 0.05 limit, and clean skin reads 0 on every tone. The five-seed regression separately
+guards against fitting only the renderer's default sensor-noise realization.
 
 ### 5.5 Known-failing fairness axes (intended, do not "fix" by loosening)
 
 `defect-tone-fairness` sweeps defect levels {0, 0.1, 0.25, 0.5, 0.75, 1.0} and gates on the **worst**
-level. **Seven of eight dimensions fail**; only `fineLines` passes. `Overall: FAIL` is **INTENDED**
-and must not be made green by relaxing thresholds.
+level. Four dimensions still fail: `oiliness`, `redness`, `pores`, and `darkCircles`.
+`Overall: FAIL` is **INTENDED** and must not be made green by relaxing thresholds.
 
 Two distinct failure shapes:
 
 - **Worst at HIGH defect** (oiliness, redness, pores, darkCircles) — tone-dependent *sensitivity*, a
   **gain** error. Fix by dividing by per-subject dynamic range.
-- **Worst at LOW defect** (texture, hydration, darkSpots) — tone-dependent *floor*, an **offset**
-  error. `darkSpots` is a **harness artifact**, not a real defect: the forehead rect pokes onto the
-  renderer's 0.18 grey backdrop, which reads as "dark" only when `skinY > 0.189` — crossing over
-  exactly between FST V and VI. Production uses contour-derived regions, so it cannot happen there.
+- The former **low-defect floor** in texture, hydration, and dark spots now passes. Contour fitting
+  removes backdrop contamination; noise-aware texture and pooled dark-spot sampling keep their
+  worst spreads below 0.05 without changing the gate.
 
 `oiliness` on FST I–III is **categorically a saturation detector**, proved analytically: firing needs
 `S ≥ 1.857·D` but available specular radiance caps at `1−D` — FST I needs 1.331 against 0.283

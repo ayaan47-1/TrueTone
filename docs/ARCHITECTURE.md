@@ -364,6 +364,10 @@ gated on counsel-approved data.
 | `run-fixtures.ts` | deterministic synthetic observations (no faces) — CI smoke |
 | `self-test-images.ts`, `cv-extractor.ts` | procedurally renders the **same** blemishes on each Fitzpatrick tone, runs the real `scoreFromRgb` over them → a **tone-invariance self-test** of the CV algorithm (still synthetic — proves the algorithm, not real-world fairness) |
 
+The separate `eval/invariance/` instrument renders physical face variants and scores them through
+the production-preferred contour path. Its adapter fails closed unless `deriveRegionsForFace`
+returns `source: contours`; committed reports record the `mlkit-observed-v1` fixture provenance.
+
 Compliance by construction: raw eval images never enter git or production Supabase (`eval/data/` is
 gitignored — it holds only a README; a guard test enforces "no images tracked under `eval/`"); only
 aggregate reports are committed. The harness **reports** numbers and verifies the algorithm is
