@@ -48,17 +48,45 @@ function ellipsePoints(cx: number, cy: number, rx: number, ry: number, n: number
   });
 }
 
+function arcPoints(
+  cx: number,
+  cy: number,
+  rx: number,
+  ry: number,
+  start: number,
+  end: number,
+  n: number,
+): Point[] {
+  return Array.from({ length: n }, (_, i) => {
+    const t = start + (i / (n - 1)) * (end - start);
+    return { x: cx + rx * Math.cos(t), y: cy + ry * Math.sin(t) };
+  });
+}
+
 export function syntheticContours(e: Ellipse): FaceContours {
   const { cx, cy, rx, ry } = e;
   return {
-    FACE: ellipsePoints(cx, cy, rx, ry, 32),
-    LEFT_CHEEK: ellipsePoints(cx - rx * 0.45, cy + ry * 0.22, rx * 0.22, ry * 0.18, 12),
-    RIGHT_CHEEK: ellipsePoints(cx + rx * 0.45, cy + ry * 0.22, rx * 0.22, ry * 0.18, 12),
-    LEFT_EYE: ellipsePoints(cx - rx * 0.42, cy - ry * 0.18, rx * 0.16, ry * 0.07, 12),
-    RIGHT_EYE: ellipsePoints(cx + rx * 0.42, cy - ry * 0.18, rx * 0.16, ry * 0.07, 12),
-    LEFT_EYEBROW_TOP: ellipsePoints(cx - rx * 0.42, cy - ry * 0.34, rx * 0.20, ry * 0.03, 8),
-    RIGHT_EYEBROW_TOP: ellipsePoints(cx + rx * 0.42, cy - ry * 0.34, rx * 0.20, ry * 0.03, 8),
-    NOSE_BRIDGE: ellipsePoints(cx, cy - ry * 0.05, rx * 0.06, ry * 0.20, 8),
-    NOSE_BOTTOM: ellipsePoints(cx, cy + ry * 0.18, rx * 0.12, ry * 0.05, 8),
+    // Cardinalities mirror the MLKit still-detector payload observed on hardware. Cheeks are
+    // landmarks, the bridge is a centre line, and the nose bottom is a short three-point arch.
+    FACE: ellipsePoints(cx, cy, rx, ry, 36),
+    LEFT_CHEEK: [{ x: cx - rx * 0.45, y: cy + ry * 0.22 }],
+    RIGHT_CHEEK: [{ x: cx + rx * 0.45, y: cy + ry * 0.22 }],
+    LEFT_EYE: ellipsePoints(cx - rx * 0.42, cy - ry * 0.18, rx * 0.16, ry * 0.07, 16),
+    RIGHT_EYE: ellipsePoints(cx + rx * 0.42, cy - ry * 0.18, rx * 0.16, ry * 0.07, 16),
+    LEFT_EYEBROW_TOP: arcPoints(
+      cx - rx * 0.42, cy - ry * 0.34, rx * 0.20, ry * 0.03, Math.PI, Math.PI * 2, 5,
+    ),
+    RIGHT_EYEBROW_TOP: arcPoints(
+      cx + rx * 0.42, cy - ry * 0.34, rx * 0.20, ry * 0.03, Math.PI, Math.PI * 2, 5,
+    ),
+    NOSE_BRIDGE: [
+      { x: cx, y: cy - ry * 0.25 },
+      { x: cx, y: cy + ry * 0.15 },
+    ],
+    NOSE_BOTTOM: [
+      { x: cx - rx * 0.12, y: cy + ry * 0.18 },
+      { x: cx, y: cy + ry * 0.23 },
+      { x: cx + rx * 0.12, y: cy + ry * 0.18 },
+    ],
   };
 }

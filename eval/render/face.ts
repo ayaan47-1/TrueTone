@@ -6,7 +6,7 @@
 import type { RgbImage, Rect } from '../../src/features/read/cv/types';
 import type { Fitzpatrick } from '../fairness/fst';
 import { SKIN_REFLECTANCE, planckianRgb } from './tone';
-import { blockNoise2d, makeRng, valueNoise2d } from './noise';
+import { balancedBlockNoise2d, makeRng, valueNoise2d } from './noise';
 import { faceEllipse, surfaceNormal, syntheticContours, type FaceContours, type RenderGeometry } from './geometry';
 
 export interface DefectParams {
@@ -97,11 +97,13 @@ export function renderFace(overrides: Deep<RenderParams> = {}): RenderedFace {
   // octave at ~2px/cell, which is what CAL.pores.thr (an ABSOLUTE adjacent-pixel contrast test)
   // needs to see.
   const micro = valueNoise2d(rng, width, height, 3, 64);
-  // Roughness uses its own several-pixel block field. The old independent-pixel field was
+  // Roughness uses locally balanced several-pixel cells. The old independent-pixel field was
   // spectrally identical to sensor noise, so a noise-floor estimator erased both. Four-pixel
-  // correlation preserves a distinct texture signal; darkSpots separately averages over 11×11
-  // neighbourhoods so these cell edges do not masquerade as broad dark areas.
-  const white = blockNoise2d(makeRng(p.seed + 3001), width, height, ROUGHNESS_MIN_FEATURE_PX);
+  // correlation preserves a distinct texture signal, while balancing each 2×2 group prevents
+  // random same-sign clusters from becoming broad dark areas after darkSpots' 11×11 averaging.
+  const white = balancedBlockNoise2d(
+    makeRng(p.seed + 3001), width, height, ROUGHNESS_MIN_FEATURE_PX,
+  );
   const coarse = valueNoise2d(makeRng(p.seed + 977), width, height, 2);
   const noiseRng = makeRng(p.seed + 5501);
 
@@ -139,7 +141,19 @@ export function renderFace(overrides: Deep<RenderParams> = {}): RenderedFace {
         // measurably leaked into darkSpots/fineLines (crosstalk up to 0.92, threshold 0.07) —
         // amplitude alone can't fix that, only confining WHERE the texture is drawn can.
         const poreZone = blobEllipse(x, y, e.cx, e.cy + e.ry * 0.05, e.rx * 0.22, e.ry * 0.46);
-        const roughZone = blobEllipse(x, y, e.cx, e.cy - e.ry * 0.75, e.rx * 0.5, e.ry * 0.15);
+        // Keep roughness on the lateral forehead. The contour-derived T-zone intentionally
+        // overlaps the centre of the forehead; a single centred roughness lobe therefore drove
+        // the pores extractor even though this renderer knob is meant to isolate texture.
+        // Two lobes retain essentially the same sampled forehead area while leaving the central
+        // T-zone clear.
+        const roughZone = Math.max(
+          blobEllipse(
+            x, y, e.cx - e.rx * 0.35, e.cy - e.ry * 0.75, e.rx * 0.22, e.ry * 0.17,
+          ),
+          blobEllipse(
+            x, y, e.cx + e.rx * 0.35, e.cy - e.ry * 0.75, e.rx * 0.22, e.ry * 0.17,
+          ),
+        );
         const tex = 1 + micro[idx] * 2.4 * p.defects.pores * poreZone
                       + white[idx] * 0.5 * p.defects.roughness * roughZone;
 

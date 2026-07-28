@@ -24,3 +24,14 @@ test('darkSpots ignores fine-scale roughness on the forehead', () => {
 
   expect(darkSpots(rough, regions, baseline)).toBeLessThan(0.05);
 });
+
+test('darkSpots pools sampled skin area instead of saturating on one region', () => {
+  const regions = deriveRegions(BBOX, SIZE);
+  const clear = solidRgb(100, 100, [180, 140, 120]);
+  const baseline = sampleBaseline(clear, regions);
+  const oneDarkRegion = fillRect(clear, regions.cheekL, [90, 70, 60]);
+
+  const score = darkSpots(oneDarkRegion, regions, baseline);
+  expect(score).toBeGreaterThan(0);
+  expect(score).toBeLessThan(1);
+});

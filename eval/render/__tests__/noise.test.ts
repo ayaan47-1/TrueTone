@@ -1,4 +1,4 @@
-import { blockNoise2d, makeRng, valueNoise2d } from '../noise';
+import { balancedBlockNoise2d, blockNoise2d, makeRng, valueNoise2d } from '../noise';
 
 describe('makeRng', () => {
   it('is deterministic for a given seed', () => {
@@ -103,6 +103,29 @@ describe('blockNoise2d', () => {
     const n = blockNoise2d(makeRng(9), 64, 64, 4);
 
     expect(n.reduce((sum, value) => sum + value, 0) / n.length).toBeCloseTo(0, 5);
+    expect(Math.max(...Array.from(n).map(Math.abs))).toBeCloseTo(1, 5);
+  });
+});
+
+describe('balancedBlockNoise2d', () => {
+  it('balances every complete 2x2 group of correlated cells', () => {
+    const size = 4;
+    const width = 16;
+    const n = balancedBlockNoise2d(makeRng(13), width, 16, size);
+    const cell = (x: number, y: number) => n[(y * size) * width + x * size];
+
+    for (let y = 0; y < 4; y += 2) {
+      for (let x = 0; x < 4; x += 2) {
+        expect(cell(x, y) + cell(x + 1, y) + cell(x, y + 1) + cell(x + 1, y + 1))
+          .toBeCloseTo(0, 6);
+      }
+    }
+  });
+
+  it('retains several-pixel correlation and normalized amplitude', () => {
+    const n = balancedBlockNoise2d(makeRng(9), 16, 16, 4);
+    expect(n[0]).toBe(n[3]);
+    expect(n[0]).toBe(n[3 * 16 + 3]);
     expect(Math.max(...Array.from(n).map(Math.abs))).toBeCloseTo(1, 5);
   });
 });

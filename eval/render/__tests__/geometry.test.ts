@@ -47,11 +47,20 @@ describe('syntheticContours', () => {
   const e = faceEllipse(SIZE, GEO);
   const c = syntheticContours(e);
 
-  it('provides every contour face-geometry consumes', () => {
-    for (const k of ['FACE', 'LEFT_CHEEK', 'RIGHT_CHEEK', 'LEFT_EYE', 'RIGHT_EYE',
-                     'LEFT_EYEBROW_TOP', 'RIGHT_EYEBROW_TOP', 'NOSE_BRIDGE', 'NOSE_BOTTOM'] as const) {
-      expect(c[k].length).toBeGreaterThan(2);
-    }
+  it('provides every contour in its observed MLKit shape', () => {
+    expect(Object.fromEntries(
+      Object.entries(c).map(([name, points]) => [name, points.length]),
+    )).toEqual({
+      FACE: 36,
+      LEFT_CHEEK: 1,
+      RIGHT_CHEEK: 1,
+      LEFT_EYE: 16,
+      RIGHT_EYE: 16,
+      LEFT_EYEBROW_TOP: 5,
+      RIGHT_EYEBROW_TOP: 5,
+      NOSE_BRIDGE: 2,
+      NOSE_BOTTOM: 3,
+    });
   });
 
   it('keeps every feature contour inside the FACE polygon bounds', () => {

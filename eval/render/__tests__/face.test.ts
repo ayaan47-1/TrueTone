@@ -1,6 +1,7 @@
 import { renderFace, DEFAULT_PARAMS } from '../face';
 import { lumaAt, clampRect } from '../../../src/features/read/cv/sampling';
-import { scoreFromBbox } from '../../../src/features/read/cv/score-from-rgb';
+import { scoreRenderedFace } from '../score';
+import { INVARIANCE_THRESHOLDS } from '../../invariance/thresholds';
 
 const meanLumaOf = (rgb: any, r: any) => {
   const c = clampRect(r, rgb.width, rgb.height);
@@ -78,6 +79,19 @@ describe('renderFace', () => {
     expect(b.contours.FACE.length).toBe(a.contours.FACE.length);
   });
 
+  it('returns contours with the observed MLKit cardinalities', () => {
+    const { contours } = renderFace();
+    expect(contours.FACE).toHaveLength(36);
+    expect(contours.LEFT_EYE).toHaveLength(16);
+    expect(contours.RIGHT_EYE).toHaveLength(16);
+    expect(contours.LEFT_EYEBROW_TOP).toHaveLength(5);
+    expect(contours.RIGHT_EYEBROW_TOP).toHaveLength(5);
+    expect(contours.LEFT_CHEEK).toHaveLength(1);
+    expect(contours.RIGHT_CHEEK).toHaveLength(1);
+    expect(contours.NOSE_BRIDGE).toHaveLength(2);
+    expect(contours.NOSE_BOTTOM).toHaveLength(3);
+  });
+
   it('renders the same defects identically across every tone (no tone-coupled injury)', () => {
     // The blemish must be a FRACTIONAL change to reflectance, not a fixed RGB offset — a fixed
     // offset is a different relative change per tone and would fabricate the very bias the
@@ -101,8 +115,9 @@ describe('renderer dynamic range (calibration)', () => {
   };
   const D0 = { spots: 0, redness: 0, oiliness: 0, pores: 0, lines: 0, darkCircles: 0, roughness: 0 };
   const scoreAt = (knob: string, v: number) => {
-    const { rgb, bbox } = renderFace({ defects: { ...D0, [knob]: v } });
-    return (scoreFromBbox(rgb, bbox).scores as Record<string, number>);
+    return scoreRenderedFace(renderFace({
+      defects: { ...D0, [knob]: v },
+    })).scores as Record<string, number>;
   };
 
   it.each(Object.entries(KNOB))('%s responds to its defect without saturating', (dim, knob) => {
@@ -115,7 +130,19 @@ describe('renderer dynamic range (calibration)', () => {
 
   it('renders a clean face without spurious dark spots', () => {
     // Ellipsoid curvature must not read as blemishes: with zero defects the score must be low.
-    const { rgb, bbox } = renderFace({ defects: D0 });
-    expect(scoreFromBbox(rgb, bbox).scores.darkSpots).toBeLessThan(0.3);
+    expect(scoreRenderedFace(renderFace({ defects: D0 })).scores.darkSpots).toBeLessThan(0.3);
+  });
+
+  it('keeps lateral-forehead roughness out of the contour-derived T-zone', () => {
+    const runs = [0, 0.25, 0.5, 0.75, 1].map((roughness) =>
+      scoreRenderedFace(renderFace({ defects: { ...D0, roughness } })).scores,
+    );
+    const spread = (dimension: 'pores' | 'darkSpots') => {
+      const values = runs.map((scores) => scores[dimension]);
+      return Math.max(...values) - Math.min(...values);
+    };
+
+    expect(spread('pores')).toBeLessThanOrEqual(INVARIANCE_THRESHOLDS.crossTalk);
+    expect(spread('darkSpots')).toBeLessThanOrEqual(INVARIANCE_THRESHOLDS.crossTalk);
   });
 });

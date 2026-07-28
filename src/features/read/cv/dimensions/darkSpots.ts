@@ -20,8 +20,13 @@ import { norm01, CAL } from '../calibration';
 // masquerade as a spot. Keep the window inside the sampled skin region to avoid background bleed.
 const SPOT_RADIUS = 5;
 
-function darkFraction(img: RgbImage, rect: Rect, baselineY: number): number {
-  if (baselineY <= 0) return 0;
+interface DarkCount {
+  dark: number;
+  total: number;
+}
+
+function countDarkPixels(img: RgbImage, rect: Rect, baselineY: number): DarkCount {
+  if (baselineY <= 0) return { dark: 0, total: 0 };
   const r = clampRect(rect, img.width, img.height);
   const stride = r.w + 1;
   const integral = new Float64Array((r.w + 1) * (r.h + 1));
@@ -51,14 +56,20 @@ function darkFraction(img: RgbImage, rect: Rect, baselineY: number): number {
       n++;
     }
   }
-  return n ? dark / n : 0;
+  return { dark, total: n };
 }
 
 export function darkSpots(img: RgbImage, regions: Regions, baseline: SkinBaseline): number {
-  const worst = Math.max(
-    darkFraction(img, regions.cheekL, baseline.Y),
-    darkFraction(img, regions.cheekR, baseline.Y),
-    darkFraction(img, regions.forehead, baseline.Y),
-  );
-  return norm01(worst, CAL.darkSpots.lo, CAL.darkSpots.hi);
+  // Pool pixels before normalization. Taking the maximum of three independently normalized
+  // rectangles made the score depend on whichever region happened to receive the most sensor
+  // noise, and a small cheek patch could saturate the whole-face result. Area-weighted pooling
+  // matches the metric's stated meaning: the fraction of sampled facial skin that is darker.
+  const counts = [
+    countDarkPixels(img, regions.cheekL, baseline.Y),
+    countDarkPixels(img, regions.cheekR, baseline.Y),
+    countDarkPixels(img, regions.forehead, baseline.Y),
+  ];
+  const dark = counts.reduce((sum, count) => sum + count.dark, 0);
+  const total = counts.reduce((sum, count) => sum + count.total, 0);
+  return norm01(total ? dark / total : 0, CAL.darkSpots.lo, CAL.darkSpots.hi);
 }
