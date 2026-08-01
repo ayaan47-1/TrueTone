@@ -10,6 +10,7 @@
     "ios": {
       "supportsTablet": true,
       "bundleIdentifier": "com.ayaan47.truetone",
+      "appleTeamId": "J58R53HC5M",
       "infoPlist": {
         "NSCameraUsageDescription": "TrueTone uses the front camera only to analyze how your skin looks, on your device. Your photo is never uploaded and is deleted right after the analysis."
       }
