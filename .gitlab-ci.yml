@@ -131,5 +131,7 @@ mirror-docs:
         echo "No doc changes to mirror."
         exit 0
       fi
-    - git commit -m "sync(engineering)- mirror app-repo docs @ ${CI_COMMIT_SHORT_SHA}"
+    # Single-quoted: a bare ": " inside an unquoted YAML scalar parses this line
+    # as a mapping instead of a script string.
+    - 'git commit -m "sync(engineering): mirror app-repo docs @ ${CI_COMMIT_SHORT_SHA}"'
     - git push origin HEAD:main
