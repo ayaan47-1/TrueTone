@@ -1,0 +1,38 @@
+# GitLab CI port of .github/workflows/compliance.yml.
+#
+# Both files must stay in step: the repo lives on GitHub and GitLab, and each CI
+# system ignores the other's config. scripts/__tests__/gitlab-ci-parity.test.mjs
+# fails the build if a command exists in one and not the other.
+
+# GitHub's `on: [push, pull_request]` has no single GitLab equivalent. Without
+# rules, a push to a branch with an open merge request queues two pipelines —
+# one for the branch, one for the MR — each paying a full npm ci. This is
+# GitLab's canonical fix: prefer the MR pipeline, fall back to the branch.
+workflow:
+  rules:
+    - if: $CI_PIPELINE_SOURCE == "merge_request_event"
+    - if: $CI_COMMIT_BRANCH && $CI_OPEN_MERGE_REQUESTS
+      when: never
+    - if: $CI_COMMIT_BRANCH
+
+guard:
+  # Pinned to the same Node major as the GitHub workflow's setup-node step.
+  image: node:22
+  # GitLab clones the repo automatically, so there is no checkout step to port.
+  cache:
+    key:
+      files:
+        - package-lock.json
+    paths:
+      - .npm/
+  script:
+    - npm ci --cache .npm --prefer-offline
+    # Build fails if any ad/analytics SDK reaches the data path, or if the marketing
+    # copy in web/ drifts across the cosmetic/medical line (CLAUDE.md §1).
+    - npm run check:compliance
+    - npm run check:no-egress
+    # Unit tests (integration tests need a live Supabase and run separately).
+    - npm test
+    # Jest only collects .ts/.tsx, so the node:test suites covering the compliance
+    # scripts and the waitlist client need their own step or they never run.
+    - npm run test:scripts
