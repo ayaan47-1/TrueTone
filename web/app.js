@@ -1,0 +1,70 @@
+// DOM wiring for the waitlist form. Everything with a decision in it lives in
+// waitlist-client.js and is unit tested; this file only moves values between the form,
+// that module, and the status line.
+
+import { buildRequest, classifyResponse, messageFor, OUTCOMES } from '/waitlist-client.js';
+
+const form = document.getElementById('waitlist-form');
+const emailField = document.getElementById('email');
+const attestField = document.getElementById('attest');
+const button = document.getElementById('submit');
+const statusLine = document.getElementById('status');
+
+function show(tone, text) {
+  statusLine.textContent = text;
+  statusLine.dataset.tone = tone;
+}
+
+function showOutcome(outcome) {
+  const { tone, text } = messageFor(outcome);
+  show(tone, text);
+}
+
+/** The build step writes web/config.js from the environment. If it is missing or still
+ *  holds the example values, say so plainly rather than letting the form look functional
+ *  and quietly drop signups. */
+function readConfig() {
+  const cfg = window.TRUETONE_CONFIG;
+  if (!cfg?.supabaseUrl || !cfg?.supabaseAnonKey) return null;
+  if (cfg.supabaseUrl.includes('YOUR-PROJECT')) return null;
+  return cfg;
+}
+
+form.addEventListener('submit', async (event) => {
+  event.preventDefault();
+
+  if (!emailField.checkValidity() || !emailField.value.trim()) {
+    show('err', 'Enter an email address we can reach you at.');
+    emailField.focus();
+    return;
+  }
+  if (!attestField.checked) {
+    // The 18+/US attestation gates the whole product (CLAUDE.md §1), so it is not
+    // optional here either — and the RPC refuses a signup without it regardless.
+    show('err', 'Please confirm you are 18 or older and in the United States.');
+    attestField.focus();
+    return;
+  }
+
+  const config = readConfig();
+  if (!config) {
+    showOutcome(OUTCOMES.CONFIG);
+    return;
+  }
+
+  button.disabled = true;
+  show('', 'Adding you…');
+
+  const { url, options } = buildRequest(config, emailField.value);
+  try {
+    const response = await fetch(url, options);
+    const outcome = classifyResponse(response.status);
+    showOutcome(outcome);
+    if (outcome === OUTCOMES.OK) form.reset();
+  } catch {
+    // fetch only rejects on a transport failure; every HTTP status is handled above.
+    showOutcome(OUTCOMES.NETWORK);
+  } finally {
+    button.disabled = false;
+  }
+});

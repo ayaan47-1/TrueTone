@@ -60,7 +60,8 @@
     "test:coverage": "jest --coverage",
     "test:integration": "node --test \"test/integration/**/*.test.mjs\"",
     "test:scripts": "node --test \"scripts/__tests__/**/*.test.mjs\" \"web/__tests__/**/*.test.mjs\"",
-    "check:compliance": "node scripts/check-no-analytics-sdk.mjs",
+    "waitlist:build": "node scripts/build-waitlist.mjs",
+    "check:compliance": "node scripts/check-no-analytics-sdk.mjs && node scripts/check-waitlist-copy.mjs",
     "check:no-egress": "node scripts/check-no-image-egress.mjs",
     "eval:invariance": "jest eval/invariance/__tests__/report-writer.test.ts"
   },

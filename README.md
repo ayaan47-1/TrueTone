@@ -292,15 +292,50 @@ eas build:run -p android --latest            # install to a connected device/emu
 npm test                 # Jest unit/component tests (app/src + eval harness; coverage gate enforced)
 npm run test:coverage    # with coverage (Jest global gate: 80% lines/stmts/funcs, 70% branches)
 npm run test:integration # node --test against a running local Supabase (gate-flow + scans E2E)
-npm run test:scripts     # node --test for the compliance scripts (Jest only collects .ts/.tsx)
-npm run check:compliance # fails if any ad/analytics SDK is present
+npm run test:scripts     # node --test for the compliance scripts + waitlist client (Jest can't see .mjs)
+npm run check:compliance # fails on any ad/analytics SDK, or on non-compliant copy in web/
 npm run check:no-egress  # fails if the raw image could reach a network/log sink
 npx supabase test db     # pgTAP suites (RLS isolation, consent immutability, RPCs, retention, scans)
 ```
 
 CI ([`.github/workflows/compliance.yml`](.github/workflows/compliance.yml)) runs
-`check:compliance` + `check:no-egress` + `npm test` on every push and PR. Integration and pgTAP
-tests need a live Supabase and run separately.
+`check:compliance` + `check:no-egress` + `npm test` + `test:scripts` on every push and PR.
+Integration and pgTAP tests need a live Supabase and run separately.
+
+---
+
+## Waitlist site (`web/`)
+
+A static pre-launch landing page on the app's own Mist palette. It collects an email and an
+18+/US attestation — **no biometric or skin data**, so it sits entirely outside the compliance
+boundary — and stores them in Supabase via the `join_waitlist` RPC (migration `0014_waitlist.sql`).
+
+```bash
+npm run waitlist:build   # renders policies + subsets fonts + writes config.js and _headers
+npx serve web            # or any static server, to preview locally
+```
+
+`waitlist:build` needs `EXPO_PUBLIC_SUPABASE_URL` / `EXPO_PUBLIC_SUPABASE_ANON_KEY` in the
+environment, plus `pyftsubset` (`pip install fonttools brotli`) for the font step.
+
+**Deploy (Cloudflare Pages):** build command `npm ci && npm run waitlist:build`, output directory
+`web`, with the two Supabase vars set as environment variables. `web/_headers` is generated with a
+CSP of `default-src 'none'` that opens only `'self'` plus the Supabase origin.
+
+Everything under `web/` except `index.html`, `unsubscribe.html`, `styles.css`, `app.js`,
+`unsubscribe.js`, `waitlist-client.js` and `favicon.svg` is generated and gitignored. Policy pages
+are rendered from `src/content/*.md` — **edit the markdown, never `web/policies/`** — so the site
+and the app can never state different terms.
+
+Two things keep the page honest, and both fail the build rather than relying on discipline:
+
+- `scripts/check-waitlist-copy.mjs` (part of `check:compliance`) rejects disease names, treatment
+  and cure claims, unbacked accuracy/equity claims and bare `%` stats; permits disclaimer wording
+  only in a sentence that negates or redirects to a clinician; and rejects **any** third-party
+  origin, which is why the fonts are self-hosted rather than loaded from Google.
+- `anon` holds no table privileges on `waitlist` and RLS carries no policies, so the list can be
+  written to and never read. `join_waitlist` and `leave_waitlist` both return void, so neither can
+  be used to test whether an address is on the list.
 
 The repo is mirrored to GitLab, which ignores `.github/` entirely, so the same gates are
 declared again in [`.gitlab-ci.yml`](.gitlab-ci.yml) — split into a fast `guard` job and a
