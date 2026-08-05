@@ -2,7 +2,12 @@
 #
 # Both files must stay in step: the repo lives on GitHub and GitLab, and each CI
 # system ignores the other's config. scripts/__tests__/gitlab-ci-parity.test.mjs
-# fails the build if a command exists in one and not the other.
+# fails the build if a command exists in one and not the other, and
+# gitlab-ci-shape.test.mjs pins the job layout below.
+#
+# GitHub Actions is free and unlimited for public repos; GitLab's free tier bills
+# against a monthly compute allowance. That asymmetry drives the layout: the cheap
+# gates run first and jest, which is ~90% of the runtime, only runs if they pass.
 
 # GitHub's `on: [push, pull_request]` has no single GitLab equivalent. Without
 # rules, a push to a branch with an open merge request queues two pipelines —
@@ -15,24 +20,44 @@ workflow:
       when: never
     - if: $CI_COMMIT_BRANCH
 
-guard:
+stages:
+  - check
+  - test
+
+.node:
   # Pinned to the same Node major as the GitHub workflow's setup-node step.
   image: node:22
-  # GitLab clones the repo automatically, so there is no checkout step to port.
+  # The project auto-cancels redundant pipelines, but that only stops *running*
+  # jobs that opt in. Without this, pushing again during a jest run pays for both.
+  interruptible: true
   cache:
     key:
       files:
         - package-lock.json
     paths:
       - .npm/
-  script:
+  # GitLab clones the repo automatically, so there is no checkout step to port.
+  before_script:
     - npm ci --cache .npm --prefer-offline
+
+# Everything that answers in seconds. Failing here skips the jest stage entirely,
+# which is the whole point: a copy violation should cost ~2 minutes, not ~17.
+guard:
+  extends: .node
+  stage: check
+  script:
     # Build fails if any ad/analytics SDK reaches the data path, or if the marketing
     # copy in web/ drifts across the cosmetic/medical line (CLAUDE.md §1).
     - npm run check:compliance
     - npm run check:no-egress
-    # Unit tests (integration tests need a live Supabase and run separately).
-    - npm test
     # Jest only collects .ts/.tsx, so the node:test suites covering the compliance
     # scripts and the waitlist client need their own step or they never run.
     - npm run test:scripts
+
+# The expensive one: ~750 tests across ~135 suites, several minutes of it.
+# Integration tests need a live Supabase and run separately.
+jest:
+  extends: .node
+  stage: test
+  script:
+    - npm test
