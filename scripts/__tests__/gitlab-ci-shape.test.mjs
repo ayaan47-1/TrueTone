@@ -56,6 +56,45 @@ test('jest runs in a later stage so a failed gate skips it entirely', () => {
   assert.match(blocks.jest, /stage:\s*test/);
 });
 
+test('the docs mirror only runs on the default branch', () => {
+  // The GitHub workflow is `on: push, branches: [main]`. A mirror that fired from
+  // a feature branch would publish unreviewed docs into the vault.
+  assert.ok(blocks['mirror-docs'], 'expected a `mirror-docs` job');
+  assert.match(blocks['mirror-docs'], /\$CI_COMMIT_BRANCH == \$CI_DEFAULT_BRANCH/);
+});
+
+test('the docs mirror watches the same paths as the GitHub workflow', () => {
+  const gh = readFileSync(new URL('../../.github/workflows/mirror-docs-to-brain.yml', import.meta.url), 'utf8');
+  const watched = [...gh.matchAll(/^\s+- '([^']+)'$/gm)].map((m) => m[1]);
+  assert.ok(watched.includes('CLAUDE.md'), `path extraction broke: ${watched}`);
+  for (const p of ['CLAUDE.md', 'README.md']) {
+    assert.ok(blocks['mirror-docs'].includes(p), `mirror should watch ${p}`);
+  }
+  assert.match(blocks['mirror-docs'], /docs\/\*\*/, 'mirror should watch docs/');
+});
+
+test('the docs mirror is serialised so two syncs cannot race', () => {
+  // GitHub uses concurrency + cancel-in-progress: false. resource_group is the
+  // GitLab equivalent; without it, two pushes can push conflicting vault commits.
+  assert.match(blocks['mirror-docs'], /resource_group:/);
+});
+
+test('the docs mirror does not block on the test stages', () => {
+  // The GitHub mirror is a separate workflow and does not wait for compliance.
+  // needs: [] keeps that behaviour rather than queueing it behind ~17m of jest.
+  // Anchored to line start: an unanchored match also hits the comment above the
+  // directive, so deleting the directive itself would go unnoticed.
+  assert.match(blocks['mirror-docs'], /^\s*needs:\s*\[\]\s*$/m);
+});
+
+test('the docs mirror never echoes the token value', () => {
+  // Naming the variable in an error message is fine and the job does that; what
+  // must never appear is an echo that *expands* it.
+  assert.equal(/echo[^\n]*\$\{?BRAIN_SYNC_TOKEN/.test(blocks['mirror-docs']), false);
+  // And it must still be referenced, or the assertion above is vacuous.
+  assert.match(blocks['mirror-docs'], /\$\{BRAIN_SYNC_TOKEN\}/);
+});
+
 test('jobs are interruptible so superseded pipelines stop billing', () => {
   // Auto-cancel redundant pipelines is on for the project, but it only cancels
   // *running* jobs when they opt in. Without this a push during a 17-minute jest
