@@ -59,6 +59,7 @@
     "test:watch": "jest --watch",
     "test:coverage": "jest --coverage",
     "test:integration": "node --test \"test/integration/**/*.test.mjs\"",
+    "test:scripts": "node --test \"scripts/__tests__/**/*.test.mjs\" \"web/__tests__/**/*.test.mjs\"",
     "check:compliance": "node scripts/check-no-analytics-sdk.mjs",
     "check:no-egress": "node scripts/check-no-image-egress.mjs",
     "eval:invariance": "jest eval/invariance/__tests__/report-writer.test.ts"

@@ -292,6 +292,7 @@ eas build:run -p android --latest            # install to a connected device/emu
 npm test                 # Jest unit/component tests (app/src + eval harness; coverage gate enforced)
 npm run test:coverage    # with coverage (Jest global gate: 80% lines/stmts/funcs, 70% branches)
 npm run test:integration # node --test against a running local Supabase (gate-flow + scans E2E)
+npm run test:scripts     # node --test for the compliance scripts (Jest only collects .ts/.tsx)
 npm run check:compliance # fails if any ad/analytics SDK is present
 npm run check:no-egress  # fails if the raw image could reach a network/log sink
 npx supabase test db     # pgTAP suites (RLS isolation, consent immutability, RPCs, retention, scans)
@@ -300,6 +301,13 @@ npx supabase test db     # pgTAP suites (RLS isolation, consent immutability, RP
 CI ([`.github/workflows/compliance.yml`](.github/workflows/compliance.yml)) runs
 `check:compliance` + `check:no-egress` + `npm test` on every push and PR. Integration and pgTAP
 tests need a live Supabase and run separately.
+
+The repo is mirrored to GitLab, which ignores `.github/` entirely, so the same gates are
+declared again in [`.gitlab-ci.yml`](.gitlab-ci.yml) — split into a fast `guard` job and a
+slower `jest` job so a failing gate costs ~2 minutes instead of ~17. The two configs are kept
+in step by `scripts/__tests__/gitlab-ci-parity.test.mjs`: adding a check to one side and not
+the other fails the build. GitHub Actions remains primary (free and unlimited for public
+repos); GitLab bills against a monthly compute allowance.
 
 ---
 
