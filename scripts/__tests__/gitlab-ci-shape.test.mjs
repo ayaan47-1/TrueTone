@@ -95,6 +95,13 @@ test('the docs mirror never echoes the token value', () => {
   assert.match(blocks['mirror-docs'], /\$\{BRAIN_SYNC_TOKEN\}/);
 });
 
+test('the mirror commit message follows conventional commits', () => {
+  // A `: ` inside an unquoted YAML scalar silently parses the script line as a
+  // mapping instead of a string, so the message must live in a quoted scalar
+  // rather than be reworded around the colon.
+  assert.match(blocks['mirror-docs'], /sync\(engineering\): mirror app-repo docs/);
+});
+
 test('jobs are interruptible so superseded pipelines stop billing', () => {
   // Auto-cancel redundant pipelines is on for the project, but it only cancels
   // *running* jobs when they opt in. Without this a push during a 17-minute jest
