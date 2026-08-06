@@ -102,6 +102,22 @@ test('the mirror commit message follows conventional commits', () => {
   assert.match(blocks['mirror-docs'], /sync\(engineering\): mirror app-repo docs/);
 });
 
+test('the expensive suite only runs where it gates a merge', () => {
+  // jest is ~90% of a ~20 min run, billed against GitLab free tier's 400
+  // compute-min/month. GitHub Actions is disabled account-wide, so GitLab is the
+  // ONLY CI — jest must still gate everything that lands (merge requests and the
+  // default branch), it just must not re-run on every feature-branch push.
+  assert.match(blocks.jest, /^\s*rules:/m, 'jest needs rules: or it runs on every push');
+  assert.match(blocks.jest, /\$CI_PIPELINE_SOURCE == "merge_request_event"/);
+  assert.match(blocks.jest, /\$CI_COMMIT_BRANCH == \$CI_DEFAULT_BRANCH/);
+});
+
+test('the cheap gate still runs on every pipeline', () => {
+  // guard is ~2 min. Narrowing it too would trade real coverage on feature
+  // branches for a saving too small to matter — it must stay unconditional.
+  assert.equal(/^\s*rules:/m.test(blocks.guard), false, 'guard must not be conditional');
+});
+
 test('jobs are interruptible so superseded pipelines stop billing', () => {
   // Auto-cancel redundant pipelines is on for the project, but it only cancels
   // *running* jobs when they opt in. Without this a push during a 17-minute jest
