@@ -223,9 +223,10 @@
 
 </div>
 
-<!-- config.js is a classic script so it runs before the deferred module below.
-     It is generated from the environment by scripts/build-waitlist.mjs and is not
-     committed; web/config.example.js documents its shape. -->
+<!-- config.js is a classic script so it runs before the deferred module below. It is
+     generated from the environment by scripts/build-waitlist.mjs and is not committed.
+     web/ contains exactly what gets deployed — tests live in test/web/ so they are
+     never served publicly. -->
 <script src="/config.js"></script>
 <script type="module" src="/app.js"></script>
 </body>

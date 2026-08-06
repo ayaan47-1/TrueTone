@@ -2,7 +2,7 @@
 
 # Privacy Policy
 
-## The waitlist (truetone.pages.dev)
+## The waitlist
 
 If you join the early-access list, we collect **your email address** and your confirmation that
 you are 18 or older and in the United States. That is everything. We do not collect your name,
@@ -31,4 +31,4 @@ analytics providers. You can view and delete your data in-app at any time.
 
 ## Contacting us
 
-_(Add a support email address here before publishing — this is how someone asks to be removed.)_
+To ask what we hold about you, or to have it deleted, email **ayaankhan102004@gmail.com**.

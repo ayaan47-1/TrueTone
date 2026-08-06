@@ -10,14 +10,15 @@ import { join } from 'node:path';
 //   2. web/fonts/*.woff2   — Fraunces and Mulish subset out of node_modules, so the page
 //      loads no font from fonts.googleapis.com and leaks no visitor IP to Google.
 //      scripts/check-waitlist-copy.mjs fails the build if that ever regresses.
+//   3. web/config.js + web/_headers — written from the environment at build time.
 
 const CONTENT_DIR = 'src/content';
 const OUT_DIR = 'web';
 
 // ── markdown ──────────────────────────────────────────────────────────────────
-// The five policy documents use headings, blockquotes, bold and paragraphs. A full
-// CommonMark dependency would add supply-chain surface to publish legal text; this does
-// exactly what the source needs and nothing it doesn't.
+// The five policy documents use headings, blockquotes, bold, bullet lists and
+// paragraphs. A full CommonMark dependency would add supply-chain surface to publish
+// legal text; this does exactly what the source needs and nothing it doesn't.
 
 export function escapeHtml(s) {
   return s
@@ -29,7 +30,9 @@ export function escapeHtml(s) {
 
 function inline(text) {
   // Escaping runs first so a literal "<b>" in a policy can never emit live markup.
-  return escapeHtml(text).replace(/\*\*(.+?)\*\*/g, '<strong>$1</strong>');
+  return escapeHtml(text)
+    .replace(/\*\*(.+?)\*\*/g, '<strong>$1</strong>')
+    .replace(/_(.+?)_/g, '<em>$1</em>');
 }
 
 export function renderMarkdown(md) {
@@ -46,6 +49,13 @@ export function renderMarkdown(md) {
       if (block.startsWith('>')) {
         const text = block.replace(/^>\s?/gm, '').replace(/\n/g, ' ');
         return `<blockquote>${inline(text.trim())}</blockquote>`;
+      }
+      if (/^[-*]\s+/.test(block)) {
+        // Continuation lines are indented under their bullet, not new bullets.
+        const items = block
+          .split(/\n(?=[-*]\s+)/)
+          .map((li) => inline(li.replace(/^[-*]\s+/, '').replace(/\n\s+/g, ' ').trim()));
+        return `<ul>\n${items.map((i) => `<li>${i}</li>`).join('\n')}\n</ul>`;
       }
       // Source files hard-wrap at ~100 chars; those newlines are not paragraph breaks.
       return `<p>${inline(block.replace(/\n/g, ' '))}</p>`;
@@ -71,6 +81,8 @@ h2{font-size:1.4rem;margin:1.8em 0 .5em}
 h3{font-size:1.1rem;margin:1.6em 0 .4em}
 p{margin:0 0 1.1em}
 strong{font-weight:600}
+ul{margin:0 0 1.1em;padding-left:20px}
+li{margin:0 0 .5em}
 blockquote{margin:0 0 1.8em;padding:14px 18px;border-radius:14px;
   background:#F3EDE3;border:1px solid #EBE2D3;color:#6B655B;font-size:.9rem}
 a{color:#6B655B}
@@ -86,6 +98,7 @@ export function renderPolicyPage({ title, bodyHtml, version }) {
 <meta name="viewport" content="width=device-width, initial-scale=1" />
 <meta name="robots" content="noindex" />
 <title>${escapeHtml(title)} — TrueTone</title>
+<link rel="icon" href="/favicon.svg" type="image/svg+xml" />
 <style>${POLICY_CSS}</style>
 </head>
 <body>
@@ -173,8 +186,8 @@ const FONT_FACES = [
 ];
 
 /** The subset output is committed, so a deploy needs neither pyftsubset nor node_modules.
- *  Re-subsetting only happens when a face is missing or the toolchain is available and the
- *  source is newer — which in practice means "when a developer changes the fonts". */
+ *  Re-subsetting only happens when a face is missing or the toolchain is available — which
+ *  in practice means "when a developer changes the fonts". */
 function fontsNeedBuilding(outDir) {
   return FONT_FACES.some(([, outName]) => !existsSync(join(outDir, outName)));
 }

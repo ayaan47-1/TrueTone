@@ -7,7 +7,7 @@ import {
   classifyResponse,
   messageFor,
   OUTCOMES,
-} from '../waitlist-client.js';
+} from '../../web/waitlist-client.js';
 
 const CONFIG = { supabaseUrl: 'https://abc.supabase.co', supabaseAnonKey: 'anon-key' };
 
@@ -76,7 +76,7 @@ test('a rejected email is reported as invalid, not as a server fault', () => {
   assert.equal(classifyResponse(422), OUTCOMES.INVALID);
 });
 
-test('an auth failure is a misconfiguration, not the visitor\'s problem', () => {
+test("an auth failure is a misconfiguration, not the visitor's problem", () => {
   assert.equal(classifyResponse(401), OUTCOMES.CONFIG);
   assert.equal(classifyResponse(403), OUTCOMES.CONFIG);
 });

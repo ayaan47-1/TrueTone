@@ -61,7 +61,3 @@ truetone-brain/
 web/policies/
 web/config.js
 web/_headers
-
-# Page snapshots and screenshots dropped by the Playwright MCP server while
-# driving a browser locally. Debug output, never part of a build.
-.playwright-mcp/

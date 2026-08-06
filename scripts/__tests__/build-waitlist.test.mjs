@@ -10,7 +10,7 @@ import {
 
 // The policy pages are generated from src/content/*.md so the website and the app can
 // never state different terms. A tiny renderer is deliberate: these five documents use
-// headings, blockquotes, bold and paragraphs, and nothing else. Pulling in a full
+// headings, blockquotes, bold, bullets and paragraphs, and nothing else. Pulling in a full
 // CommonMark dependency to publish legal text would add supply-chain surface for no gain.
 
 test('escapes markup so policy text can never inject HTML', () => {
@@ -35,12 +35,19 @@ test('keeps the placeholder banner visible rather than stripping it', () => {
   assert.ok(html.indexOf('PLACEHOLDER') < html.indexOf('<h1>'));
 });
 
-test('renders bold spans', () => {
+test('renders bold and italic spans', () => {
   assert.ok(renderMarkdown('**Purpose:** to describe appearance.').includes('<strong>Purpose:</strong>'));
+  assert.ok(renderMarkdown('_(add an address)_').includes('<em>(add an address)</em>'));
+});
+
+test('renders a bullet list, keeping wrapped continuation lines in their own item', () => {
+  // retention.md hard-wraps its bullets; an indented continuation is not a new bullet.
+  const html = renderMarkdown('- **Waitlist:** deleted 90 days after invite,\n  or 3 years after signup.\n- **Account data:** deleted on request.');
+  assert.equal((html.match(/<li>/g) ?? []).length, 2);
+  assert.ok(html.includes('90 days after invite, or 3 years after signup.'));
 });
 
 test('joins wrapped lines into one paragraph', () => {
-  // The source files hard-wrap at ~100 chars; those breaks are not paragraph breaks.
   const html = renderMarkdown('We never sell, lease, or trade\nbiometric or health data.');
   assert.equal((html.match(/<p>/g) ?? []).length, 1);
   assert.ok(html.includes('We never sell, lease, or trade biometric or health data.'));

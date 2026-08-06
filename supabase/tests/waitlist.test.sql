@@ -1,5 +1,5 @@
 -- supabase/tests/waitlist.test.sql
--- pgTAP coverage for migration 0014_waitlist:
+-- pgTAP coverage for migrations 0014_waitlist / 0015_waitlist_service_read:
 --   • waitlist table exists with RLS on and NO anon table privileges (write-only funnel)
 --   • join_waitlist() is the only anon path in: it normalises, validates and dedupes
 --   • it returns void, so a signup can never be used to probe whether an email is on the list

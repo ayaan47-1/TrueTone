@@ -75,7 +75,7 @@ const MESSAGES = {
   [OUTCOMES.INVALID]: { tone: 'err', text: 'That email address was rejected. Check it and try again.' },
   [OUTCOMES.CONFIG]: { tone: 'err', text: "Signup isn't configured correctly right now. Please try again later." },
   [OUTCOMES.RATE]: { tone: 'err', text: 'Too many attempts just now. Give it a minute and try again.' },
-  [OUTCOMES.SERVER]: { tone: 'err', text: "Something broke on our end and you were not added. Please try again." },
+  [OUTCOMES.SERVER]: { tone: 'err', text: 'Something broke on our end and you were not added. Please try again.' },
   [OUTCOMES.NETWORK]: { tone: 'err', text: "Couldn't reach us. Check your connection and try again." },
 };
 

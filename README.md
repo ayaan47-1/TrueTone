@@ -292,8 +292,8 @@ eas build:run -p android --latest            # install to a connected device/emu
 npm test                 # Jest unit/component tests (app/src + eval harness; coverage gate enforced)
 npm run test:coverage    # with coverage (Jest global gate: 80% lines/stmts/funcs, 70% branches)
 npm run test:integration # node --test against a running local Supabase (gate-flow + scans E2E)
-npm run test:scripts     # node --test for the compliance scripts + waitlist client (Jest can't see .mjs)
-npm run check:compliance # fails on any ad/analytics SDK, or on non-compliant copy in web/
+npm run test:scripts     # node --test for the compliance scripts (Jest only collects .ts/.tsx)
+npm run check:compliance # fails if any ad/analytics SDK is present
 npm run check:no-egress  # fails if the raw image could reach a network/log sink
 npx supabase test db     # pgTAP suites (RLS isolation, consent immutability, RPCs, retention, scans)
 ```
@@ -304,28 +304,27 @@ Integration and pgTAP tests need a live Supabase and run separately.
 
 ---
 
-## Waitlist site (`web/`)
+## Waitlist site (`web/`) — **live at https://truetone-1rw.pages.dev**
 
-A static pre-launch landing page on the app's own Mist palette. It collects an email and an
-18+/US attestation — **no biometric or skin data**, so it sits entirely outside the compliance
-boundary — and stores them in Supabase via the `join_waitlist` RPC (migration `0014_waitlist.sql`).
+A static pre-launch landing page on the app's own Mist palette, deployed to Cloudflare Pages. It
+collects an email and an 18+/US attestation — **no biometric or skin data**, so it sits entirely
+outside the compliance boundary — and stores them in Supabase via the `join_waitlist` RPC
+(migrations `0014_waitlist.sql`, `0015_waitlist_service_read.sql`).
 
 ```bash
-npm run waitlist:build   # renders policies + subsets fonts + writes config.js and _headers
-npx serve web            # or any static server, to preview locally
+npm run waitlist:build      # renders policies, subsets fonts, writes config.js and _headers
+npx wrangler pages deploy web --project-name=truetone --branch=main
 ```
 
 `waitlist:build` needs `EXPO_PUBLIC_SUPABASE_URL` / `EXPO_PUBLIC_SUPABASE_ANON_KEY` in the
-environment, plus `pyftsubset` (`pip install fonttools brotli`) for the font step.
+environment. `pyftsubset` (`pip install fonttools brotli`) is only needed when changing a
+typeface — the subsets in `web/fonts/` are committed, so a deploy box needs neither Python nor
+`node_modules`.
 
-**Deploy (Cloudflare Pages):** build command `npm ci && npm run waitlist:build`, output directory
-`web`, with the two Supabase vars set as environment variables. `web/_headers` is generated with a
-CSP of `default-src 'none'` that opens only `'self'` plus the Supabase origin.
-
-Everything under `web/` except `index.html`, `unsubscribe.html`, `styles.css`, `app.js`,
-`unsubscribe.js`, `waitlist-client.js` and `favicon.svg` is generated and gitignored. Policy pages
-are rendered from `src/content/*.md` — **edit the markdown, never `web/policies/`** — so the site
-and the app can never state different terms.
+**`web/` contains exactly what gets deployed.** Tests live in `test/web/`, not inside it, because
+Cloudflare Pages serves every file in the output directory (`.assetsignore` is not honoured for
+direct upload). Policy pages are rendered from `src/content/*.md` — **edit the markdown, never
+`web/policies/`** — so the site and the app can never state different terms.
 
 Two things keep the page honest, and both fail the build rather than relying on discipline:
 
@@ -335,7 +334,11 @@ Two things keep the page honest, and both fail the build rather than relying on 
   origin, which is why the fonts are self-hosted rather than loaded from Google.
 - `anon` holds no table privileges on `waitlist` and RLS carries no policies, so the list can be
   written to and never read. `join_waitlist` and `leave_waitlist` both return void, so neither can
-  be used to test whether an address is on the list.
+  be used to test whether an address is on the list. Only `service_role` (server-side, never in the
+  browser bundle) may read it, and it cannot delete — removal goes through `leave_waitlist` or the
+  nightly retention sweep.
+
+To read the list for sending invites, use the `service_role` key or the dashboard SQL editor.
 
 The repo is mirrored to GitLab, which ignores `.github/` entirely, so the same gates are
 declared again in [`.gitlab-ci.yml`](.gitlab-ci.yml) — split into a fast `guard` job and a
