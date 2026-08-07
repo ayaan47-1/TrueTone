@@ -9,8 +9,12 @@ jobs:
         with:
           node-version: 22
       - run: npm ci
-      # Build fails if any ad/analytics SDK reaches the data path (CLAUDE.md §1).
+      # Build fails if any ad/analytics SDK reaches the data path, or if the marketing
+      # copy in web/ drifts across the cosmetic/medical line (CLAUDE.md §1).
       - run: npm run check:compliance
       - run: npm run check:no-egress
       # Unit tests (integration tests need a live Supabase and run separately).
       - run: npm test
+      # Jest only collects .ts/.tsx, so the node:test suites covering the compliance
+      # scripts and the waitlist client need their own step or they never run.
+      - run: npm run test:scripts

@@ -299,8 +299,46 @@ npx supabase test db     # pgTAP suites (RLS isolation, consent immutability, RP
 ```
 
 CI ([`.github/workflows/compliance.yml`](.github/workflows/compliance.yml)) runs
-`check:compliance` + `check:no-egress` + `npm test` on every push and PR. Integration and pgTAP
-tests need a live Supabase and run separately.
+`check:compliance` + `check:no-egress` + `npm test` + `test:scripts` on every push and PR.
+Integration and pgTAP tests need a live Supabase and run separately.
+
+---
+
+## Waitlist site (`web/`) — **live at https://truetone-1rw.pages.dev**
+
+A static pre-launch landing page on the app's own Mist palette, deployed to Cloudflare Pages. It
+collects an email and an 18+/US attestation — **no biometric or skin data**, so it sits entirely
+outside the compliance boundary — and stores them in Supabase via the `join_waitlist` RPC
+(migrations `0014_waitlist.sql`, `0015_waitlist_service_read.sql`).
+
+```bash
+npm run waitlist:build      # renders policies, subsets fonts, writes config.js and _headers
+npx wrangler pages deploy web --project-name=truetone --branch=main
+```
+
+`waitlist:build` needs `EXPO_PUBLIC_SUPABASE_URL` / `EXPO_PUBLIC_SUPABASE_ANON_KEY` in the
+environment. `pyftsubset` (`pip install fonttools brotli`) is only needed when changing a
+typeface — the subsets in `web/fonts/` are committed, so a deploy box needs neither Python nor
+`node_modules`.
+
+**`web/` contains exactly what gets deployed.** Tests live in `test/web/`, not inside it, because
+Cloudflare Pages serves every file in the output directory (`.assetsignore` is not honoured for
+direct upload). Policy pages are rendered from `src/content/*.md` — **edit the markdown, never
+`web/policies/`** — so the site and the app can never state different terms.
+
+Two things keep the page honest, and both fail the build rather than relying on discipline:
+
+- `scripts/check-waitlist-copy.mjs` (part of `check:compliance`) rejects disease names, treatment
+  and cure claims, unbacked accuracy/equity claims and bare `%` stats; permits disclaimer wording
+  only in a sentence that negates or redirects to a clinician; and rejects **any** third-party
+  origin, which is why the fonts are self-hosted rather than loaded from Google.
+- `anon` holds no table privileges on `waitlist` and RLS carries no policies, so the list can be
+  written to and never read. `join_waitlist` and `leave_waitlist` both return void, so neither can
+  be used to test whether an address is on the list. Only `service_role` (server-side, never in the
+  browser bundle) may read it, and it cannot delete — removal goes through `leave_waitlist` or the
+  nightly retention sweep.
+
+To read the list for sending invites, use the `service_role` key or the dashboard SQL editor.
 
 The repo is mirrored to GitLab, which ignores `.github/` entirely, so the same gates are
 declared again in [`.gitlab-ci.yml`](.gitlab-ci.yml) — split into a fast `guard` job and a

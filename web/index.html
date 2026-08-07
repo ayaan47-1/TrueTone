@@ -1,0 +1,233 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>TrueTone — early access</title>
+<meta name="description" content="An AI skincare routine built around how your skin actually looks, with the ingredients to look for. Makeup matching next. iPhone, US, 18+." />
+
+<!-- No analytics, no pixel, no tag manager, and no third-party origin of any kind.
+     Enforced two ways, not left to discipline:
+       • scripts/check-waitlist-copy.mjs fails the build on any foreign host in this file
+       • web/_headers ships a CSP that blocks one at runtime even if it slipped through
+     Fonts are self-hosted from /fonts (built by scripts/build-waitlist.mjs). -->
+
+<link rel="icon" href="/favicon.svg" type="image/svg+xml" />
+<link rel="stylesheet" href="/styles.css" />
+<link rel="preload" href="/fonts/fraunces-light.woff2" as="font" type="font/woff2" crossorigin />
+<link rel="preload" href="/fonts/mulish-light.woff2" as="font" type="font/woff2" crossorigin />
+</head>
+<body>
+
+<div class="mesh" aria-hidden="true">
+  <i class="m1"></i><i class="m2"></i><i class="m3"></i><i class="m4"></i>
+</div>
+
+<div class="wrap">
+
+  <header>
+    <div class="mark"><span class="dot" aria-hidden="true"></span> TrueTone</div>
+  </header>
+
+  <section class="hero">
+    <h1>A routine built for <em>your</em> skin.</h1>
+    <p class="lede">
+      Take one guided selfie. TrueTone reads how your skin actually looks right now —
+      hydration, texture, pores, evenness — then builds you a morning and night routine
+      and tells you which ingredients to look for. Makeup matching comes next.
+    </p>
+    <ul class="facts">
+      <li>iPhone first</li>
+      <li>United States</li>
+      <li>18+</li>
+      <li>Cosmetic — not medical</li>
+    </ul>
+  </section>
+
+  <!-- ── how it works ── -->
+  <div class="steps">
+    <div class="glass step">
+      <div class="n" aria-hidden="true">1</div>
+      <h3>One guided selfie</h3>
+      <p>The camera waits for decent light, framing and focus before it counts down. Bad photos make bad reads, so it won't take one.</p>
+    </div>
+    <div class="glass step">
+      <div class="n" aria-hidden="true">2</div>
+      <h3>A read in plain words</h3>
+      <p>Hydration, texture, pores and evenness — described in readable bands, not a score out of 100 and not a verdict.</p>
+    </div>
+    <div class="glass step">
+      <div class="n" aria-hidden="true">3</div>
+      <h3>Your routine</h3>
+      <p>Steps in an order that makes sense, morning and night, each one saying what it's for and what to look for on the label.</p>
+    </div>
+  </div>
+
+  <!-- ── the signature: an actual routine ── -->
+  <section class="glass routine">
+    <p class="eyebrow">What you actually get</p>
+    <h2>Steps, in order, with the reason.</h2>
+    <p class="example">
+      An example. Yours is built from your own read, and changes as your read does.
+    </p>
+
+    <div class="plan">
+      <section class="am">
+        <h3>Morning</h3>
+        <ol>
+          <li>Gentle gel cleanser <span class="why">Your read leaned oily in the T-zone.</span></li>
+          <li>Niacinamide serum <span class="why">For the look of evenness.</span></li>
+          <li>Lightweight moisturiser <span class="why">Hydration without the heaviness.</span></li>
+          <li>SPF 30 or higher <span class="why">Every day. The one step that isn't optional.</span></li>
+        </ol>
+      </section>
+      <section class="pm">
+        <h3>Night</h3>
+        <ol>
+          <li>Same gentle cleanser <span class="why">No need for a second product.</span></li>
+          <li>Retinol, twice a week to start <span class="why">Build up slowly. For the look of texture.</span></li>
+          <li>Richer moisturiser <span class="why">On the nights you use retinol especially.</span></li>
+        </ol>
+      </section>
+    </div>
+
+    <footer>
+      Ingredient types and habits, so the list works at any budget and still makes sense when
+      a product gets reformulated or discontinued. You take it to whatever shop you like.
+    </footer>
+  </section>
+
+  <!-- ── makeup ── -->
+  <section class="glass limits">
+    <p class="eyebrow">Next up</p>
+    <h2>Makeup, on the same read. <span class="soon">After launch</span></h2>
+    <ul>
+      <li>Shade and undertone guidance from the same selfie, so you stop buying foundation that turns out one notch off.</li>
+      <li>Finish and coverage suggestions that suit how your skin looks that week, not a fixed profile from months ago.</li>
+      <li>Same approach as the skincare side: what to look for, in terms you can actually shop with.</li>
+      <li><strong>Not in the first release.</strong> Skincare ships first and makeup follows — if you join now, you'll get the skincare build.</li>
+    </ul>
+  </section>
+
+  <!-- ── why it's different ── -->
+  <div class="cols">
+    <div class="glass card">
+      <h3>One selfie, not a quiz</h3>
+      <p>Most skincare apps ask you twenty questions about your own skin. TrueTone looks at it instead, and looks again whenever you want.</p>
+    </div>
+    <div class="glass card">
+      <h3>Ingredients, not marketing</h3>
+      <p>You get the actives and product types to look for. That works at any budget, and it survives a product being discontinued.</p>
+    </div>
+    <div class="glass card">
+      <h3>It changes as you do</h3>
+      <p>Re-scan later and the routine adjusts to your new read. Compared against you, never against anyone else.</p>
+    </div>
+    <div class="glass card">
+      <h3>It learns what worked</h3>
+      <p>Tell it whether a step helped and it takes that into account next time, rather than handing you the same list forever.</p>
+    </div>
+  </div>
+
+  <!-- ── privacy: supporting, not the pitch ── -->
+  <section class="glass boundary">
+    <p class="eyebrow">One thing worth knowing</p>
+    <h2>The photo never leaves your phone.</h2>
+
+    <div class="stage">
+      <div class="side">
+        <small>On your phone</small>
+        <div class="phone"><div class="face fading"></div></div>
+      </div>
+
+      <div class="divider"><span>Nothing crosses</span></div>
+
+      <div class="side">
+        <small>What we ever see</small>
+        <div class="bands drifting">
+          <div class="band b1">Hydration look · <b>balanced</b></div>
+          <div class="band b2">Texture · <b>smooth</b></div>
+          <div class="band b3">Evenness · <b>some variation</b></div>
+        </div>
+      </div>
+    </div>
+
+    <footer>
+      Your selfie is analyzed on the device and deleted the moment the read finishes —
+      whether it succeeds or fails. It is never uploaded, never backed up, never sent to
+      anyone. Only the short descriptions above travel anywhere, and you can delete those
+      from inside the app at any time.
+    </footer>
+  </section>
+
+  <section class="glass limits">
+    <p class="eyebrow">Things we'd rather say now than later</p>
+    <h2>What TrueTone is not.</h2>
+    <ul>
+      <li><strong>Not a diagnosis.</strong> TrueTone describes appearance only. It can't tell you whether something is a medical condition, and it won't try. Ask it about a mole or a lesion and it will tell you to see a dermatologist — every time.</li>
+      <li><strong>Not a replacement for a dermatologist.</strong> If something on your skin is changing, painful, or worrying you, that's a doctor's job.</li>
+      <li><strong>Not tested across every skin tone yet.</strong> Working equally well from Fitzpatrick I to VI is the point of the product, and we're building it that way — but we won't claim it's proven until we have the data to back it up.</li>
+      <li><strong>Not available everywhere yet.</strong> United States only for the first release, and 18 or older.</li>
+    </ul>
+  </section>
+
+  <section class="glass signup" id="join">
+    <h2>Join the early list.</h2>
+    <p class="lede">We'll email you once — when there's a build you can actually use. Nothing else.</p>
+
+    <div class="embed">
+      <form id="waitlist-form" novalidate>
+        <div>
+          <label for="email">Email</label>
+          <input id="email" name="email" type="email" required
+                 placeholder="you@example.com" autocomplete="email" />
+        </div>
+        <label class="check">
+          <input id="attest" name="attest" type="checkbox" required />
+          <span>I'm 18 or older and in the United States.</span>
+        </label>
+        <button id="submit" type="submit">Join the waitlist</button>
+      </form>
+
+      <!-- aria-live so the outcome is announced, and always present so submitting
+           doesn't shift the layout underneath the button. -->
+      <p class="status" id="status" role="status" aria-live="polite"></p>
+
+      <noscript>
+        <p class="status" data-tone="err">
+          The signup form needs JavaScript. Email us instead and we'll add you by hand.
+        </p>
+      </noscript>
+    </div>
+
+    <p class="fineprint">
+      We use your email to tell you when TrueTone opens up, and for nothing else.
+      No selling, no sharing, no ads. Unsubscribe in one click.
+    </p>
+  </section>
+
+  <footer class="foot">
+    <p>
+      TrueTone is a cosmetic and general-wellness product. It is not a medical device, it does
+      not diagnose, treat, cure or prevent any condition, and it is not a substitute for
+      professional medical advice. For anything concerning on your skin, see a dermatologist.
+    </p>
+    <p>
+      United States only · 18+ ·
+      <a href="/policies/privacy.html">Privacy</a> ·
+      <a href="/policies/terms.html">Terms</a> ·
+      <a href="/policies/biometric.html">Biometric Data Policy</a> ·
+      <a href="/policies/retention.html">Retention</a>
+    </p>
+  </footer>
+
+</div>
+
+<!-- config.js is a classic script so it runs before the deferred module below. It is
+     generated from the environment by scripts/build-waitlist.mjs and is not committed.
+     web/ contains exactly what gets deployed — tests live in test/web/ so they are
+     never served publicly. -->
+<script src="/config.js"></script>
+<script type="module" src="/app.js"></script>
+</body>
+</html>
