@@ -15,10 +15,11 @@ function fakeImage(size: { width: number; height: number }, log: ImageLog, path 
     async rotateAsync(degrees, allowFastFlagRotation) {
       log.rotations.push({ degrees, fastFlag: allowFastFlagRotation });
       const swap = degrees === 90 || degrees === 270;
+      // The temp path is chosen at SAVE time, not by rotating, so it rides through unchanged.
       return fakeImage(
         swap ? { width: size.height, height: size.width } : size,
         log,
-        '/tmp/rotated.jpg',
+        path,
       );
     },
     async saveToTemporaryFileAsync(format, quality) {
@@ -65,13 +66,13 @@ function fakePhoto(opts: PhotoOpts, log: ImageLog) {
 const emptyLog = (): ImageLog => ({ rotations: [], saves: [], disposed: 0 });
 
 describe('writeUprightStill', () => {
-  it('writes the converted image, un-rotated, when the conversion already applied orientation', async () => {
+  it('corrects nothing, but still renders, when the conversion already applied orientation', async () => {
     const log = emptyLog();
     const { photo, state } = fakePhoto({ orientation: 'left' }, log);
 
     const { uri, meta } = await writeUprightStill(photo);
 
-    expect(log.rotations).toEqual([]);
+    expect(log.rotations).toEqual([{ degrees: 0, fastFlag: false }]);
     expect(log.saves).toEqual([{ format: 'jpg', quality: JPEG_QUALITY }]);
     expect(uri).toBe('file:///tmp/upright.jpg');
     expect(meta.orientationCheck).toEqual({ applied: true, residualDegrees: 0 });
@@ -110,13 +111,27 @@ describe('writeUprightStill', () => {
     expect(log.rotations[0].degrees).toBe(270);
   });
 
-  it('does not rotate when the sizes carry no evidence', async () => {
+  // iOS device pass, 2026-08-01. `NativeImage.width/height` is `UIImage.size`, which is
+  // orientation-aware: a LANDSCAPE buffer carrying `imageOrientation = .right` reports portrait, so
+  // every size check here passes without a single pixel moving. `jpegData` then writes that
+  // unrotated buffer plus EXIF tag 6; MLKit reads it as `.up` and sees a sideways face. Checking
+  // dimensions can never distinguish "pixels rotated" from "flag set" — only rendering can.
+  it('renders the pixels even when no rotation is owed, so no orientation flag can survive', async () => {
+    const log = emptyLog();
+    const { photo } = fakePhoto({ orientation: 'left' }, log);
+
+    await writeUprightStill(photo);
+
+    expect(log.rotations).toEqual([{ degrees: 0, fastFlag: false }]);
+  });
+
+  it('applies no correction when the sizes carry no evidence', async () => {
     const log = emptyLog();
     const { photo } = fakePhoto({ orientation: 'up' }, log);
 
     const { meta } = await writeUprightStill(photo);
 
-    expect(log.rotations).toEqual([]);
+    expect(log.rotations).toEqual([{ degrees: 0, fastFlag: false }]);
     expect(meta.orientationCheck.applied).toBeNull();
     expect(meta.correctedDegrees).toBe(0);
   });
@@ -148,12 +163,10 @@ describe('writeUprightStill', () => {
   it('releases the native photo even when saving throws', async () => {
     const log = emptyLog();
     const { photo, state } = fakePhoto({}, log);
-    photo.toImageAsync = async () => ({
+    const failingToSave = (): CapturedImage => ({
       width: 2736,
       height: 3648,
-      rotateAsync: async () => {
-        throw new Error('unreachable');
-      },
+      rotateAsync: async () => failingToSave(),
       saveToTemporaryFileAsync: async () => {
         throw new Error('disk full');
       },
@@ -161,10 +174,11 @@ describe('writeUprightStill', () => {
         log.disposed += 1;
       },
     });
+    photo.toImageAsync = async () => failingToSave();
 
     await expect(writeUprightStill(photo)).rejects.toThrow('disk full');
     expect(state.disposed).toBe(1);
-    expect(log.disposed).toBe(1);
+    expect(log.disposed).toBe(2); // the converted image and the render it always produces
   });
 
   it('carries mirroring through untouched, for the overlay to report', async () => {
@@ -205,7 +219,7 @@ describe('writeUprightStill: mirrored quarter-turn correction', () => {
 
     const { meta } = await writeUprightStill(photo);
 
-    expect(log.rotations).toEqual([]);
+    expect(log.rotations).toEqual([{ degrees: 0, fastFlag: false }]);
     expect(meta.correctedDegrees).toBe(0);
     expect(meta.correctionReason).toBeNull();
   });

@@ -32,11 +32,93 @@ index 5d116a9..7e4dc36 100644
        else -> throw IllegalArgumentException("Invalid image type. Expected string or { uri }")
      }
    }
+diff --git a/node_modules/react-native-vision-camera-face-detector/ios/HybridFace.swift b/node_modules/react-native-vision-camera-face-detector/ios/HybridFace.swift
+index f971bf2..11e33dc 100644
+--- a/node_modules/react-native-vision-camera-face-detector/ios/HybridFace.swift
++++ b/node_modules/react-native-vision-camera-face-detector/ios/HybridFace.swift
+@@ -72,6 +72,30 @@ final class HybridFace: HybridFaceSpec {
+         height = boundingBox.height * scaleY
+     }
+ 
++    // PATCHED (TrueTone, patches/react-native-vision-camera-face-detector+2.0.1.patch).
++    //
++    // Upstream transposes x/y UNCONDITIONALLY (`x: minY, y: minX`) while taking width/height
++    // untransposed on this same branch — a rect whose origin comes from minY and whose width comes
++    // from .width describes no real rectangle. That transposition belongs to the live frame path,
++    // where MLKit runs on a rotated sensor buffer; for a still it puts the box in the wrong corner.
++    // Android, the verified path, does NOT transpose (HybridFace.kt processBoundingBox → the
++    // `else` arm of transformPoint is a plain scale).
++    //
++    // `config.orientation` is the clean discriminator: the live detector always supplies it
++    // (HybridFaceDetector.swift), the still detector never does. Gating on nil leaves the live
++    // frame path bit-identical.
++    //
++    // Device evidence (iPhone 17 Pro, 2026-08-01): a face on the LEFT of a 3024x4032 still
++    // returned x1589 y948 — right of centre, off the face. Swapped: x948 y1589, on the face.
++    if config.orientation == nil {
++      return Bounds(
++        width: width,
++        height: height,
++        x: boundingBox.minX * scaleX,
++        y: boundingBox.minY * scaleY
++      )
++    }
++
+     return Bounds(
+       width: width,
+       height: height,
+@@ -94,6 +118,15 @@ final class HybridFace: HybridFaceSpec {
+       }
+ 
+       let position = landmark.position
++      // PATCHED (TrueTone): same still-path transposition as processBoundingBox — see the note
++      // there. TrueTone runs with runLandmarks: false, so this arm is unexercised; it is corrected
++      // to keep the three mappings from disagreeing if landmarks are ever switched on.
++      if config.orientation == nil {
++        return Point(
++          x: Double(position.x) * scaleX,
++          y: Double(position.y) * scaleY
++        )
++      }
+       return Point(
+         x: Double(position.y) * scaleX,
+         y: Double(position.x) * scaleY
+@@ -128,6 +161,15 @@ final class HybridFace: HybridFaceSpec {
+       }
+ 
+       return contour.points.map { point in
++        // PATCHED (TrueTone): same still-path transposition as processBoundingBox — see the note
++        // there. Contours are what the region derivation actually consumes, so transposed points
++        // collapse the derived regions (device: "degenerate-after-round:infraorbitalL").
++        if config.orientation == nil {
++          return Point(
++            x: Double(point.x) * scaleX,
++            y: Double(point.y) * scaleY
++          )
++        }
+         return Point(
+           x: Double(point.y) * scaleX,
+           y: Double(point.x) * scaleY
 diff --git a/node_modules/react-native-vision-camera-face-detector/ios/HybridImageFaceDetector.swift b/node_modules/react-native-vision-camera-face-detector/ios/HybridImageFaceDetector.swift
-index 608050c..78365da 100644
+index 608050c..600cd47 100644
 --- a/node_modules/react-native-vision-camera-face-detector/ios/HybridImageFaceDetector.swift
 +++ b/node_modules/react-native-vision-camera-face-detector/ios/HybridImageFaceDetector.swift
-@@ -51,16 +51,26 @@ class HybridImageFaceDetector: HybridImageFaceDetectorSpec {
+@@ -28,6 +28,14 @@ class HybridImageFaceDetector: HybridImageFaceDetectorSpec {
+       uri: try resolveInputImage(image)
+     )
+     let mlImage = VisionImage(image: uiImage)
++    // PATCHED (TrueTone, patches/react-native-vision-camera-face-detector+2.0.1.patch).
++    //
++    // `VisionImage.orientation` defaults to `.up`, and `UIImage(contentsOfFile:)` does NOT bake
++    // EXIF into pixels — it sets `imageOrientation` from the tag and leaves the CGImage as stored.
++    // Without this line MLKit reads a rotated buffer as though it were upright, so a well-lit,
++    // well-framed portrait detects as NOTHING (iOS device pass 2026-08-01). MLKit's own iOS guide
++    // requires setting this whenever a VisionImage is built from a UIImage.
++    mlImage.orientation = uiImage.imageOrientation
+     let width = Double(uiImage.size.height)
+     let height = Double(uiImage.size.width)
+ 
+@@ -51,16 +59,26 @@ class HybridImageFaceDetector: HybridImageFaceDetectorSpec {
      }
    }
  

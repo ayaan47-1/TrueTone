@@ -139,13 +139,20 @@ export async function writeUprightStill(photo: CapturedPhoto): Promise<UprightSt
           ? conversionResidualDegrees(orientation, isMirrored, orientationCheck.applied)
           : 0;
 
-      if (correctedDegrees !== 0) {
-        // `allowFastFlagRotation: false` is load-bearing, not defensive. The fast path rotates by
-        // writing an orientation flag rather than moving pixels, which is exactly the state the
-        // Fold 7 was already in and which nothing downstream could recover from.
-        image = await image.rotateAsync(correctedDegrees, false);
-        created.push(image);
-      }
+      // ALWAYS render, including at zero degrees. `allowFastFlagRotation: false` is load-bearing,
+      // not defensive: the fast path rotates by writing an orientation flag rather than moving
+      // pixels, which is exactly the state the Fold 7 was already in and which nothing downstream
+      // could recover from.
+      //
+      // The unconditional call is what makes this module's contract true on iOS (device pass
+      // 2026-08-01). `UIImage.size` is orientation-aware, so a landscape buffer tagged
+      // `imageOrientation = .right` reports portrait and satisfies every size check above without a
+      // pixel moving — then `jpegData` writes the unrotated buffer plus EXIF tag 6, and MLKit
+      // (which reads the buffer as `.up`) sees a sideways face and returns nothing. A zero-degree
+      // render is not a no-op: it draws through `UIImage.draw(in:)` into a fresh upright context,
+      // which is the only step that turns an orientation FLAG into upright PIXELS.
+      image = await image.rotateAsync(correctedDegrees, false);
+      created.push(image);
 
       const path = await image.saveToTemporaryFileAsync('jpg', JPEG_QUALITY);
       return {
