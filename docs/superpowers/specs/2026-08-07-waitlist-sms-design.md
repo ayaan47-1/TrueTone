@@ -137,25 +137,40 @@ identity to null out. See "Append-only vs. retention" for the one exception.
 
 ### The pepper
 
-Generated inside the migration rather than deployed by hand:
+**Revised 2026-08-08 — Vault dropped.** The original design read the pepper from
+`vault.decrypted_secrets`. Working through the threat model showed Vault buys nothing here, so
+the dependency is removed in favour of a zero-grant table:
 
 ```sql
-select vault.create_secret(encode(gen_random_bytes(32), 'hex'), 'waitlist_sms_pepper');
+create table public.waitlist_secrets (
+  name  text primary key,
+  value text not null
+);
+alter table public.waitlist_secrets enable row level security;
+revoke all on public.waitlist_secrets from anon, authenticated, service_role;
+-- No grants to anyone. Only the table owner reads it, which is exactly what a
+-- security-definer function runs as.
+
+insert into public.waitlist_secrets(name, value)
+values ('sms_pepper', encode(gen_random_bytes(32), 'hex'));
 ```
 
-A pepper that must be set manually after deploy is a pepper that will one day be missing, at
-which point `join_waitlist` either breaks signups or silently skips the log. Generating it in the
-migration means it always exists and differs per environment.
+**Why this is not a downgrade.** Vault's advantage is that a database dump alone does not reveal
+the secret. But the pepper only ever needed to survive a leak of the *events table on its own* —
+anyone holding a full dump already has `waitlist.phone` in plaintext and has no reason to reverse
+hashes. Against the threat that matters, a table `anon`, `authenticated`, and `service_role`
+cannot read is equivalent.
 
-> **Implementation must verify first:** that `supabase_vault` is available both on the hosted
-> project and under local `supabase start`, since the pgTAP suite runs locally. If it is not, the
-> fallback is a GUC set via `alter database ... set`, which is weaker — `pg_db_role_setting` is
-> broadly readable — and that trade should be raised, not absorbed.
+**What it buys:** no extension dependency, identical behaviour local and hosted, and no
+verification spike blocking implementation. Generating the pepper inside the migration also means
+it always exists and differs per environment — a pepper set manually after deploy is one that
+will eventually be missing, at which point `join_waitlist` either breaks signups or silently
+skips the log.
 
-**Threat model, stated plainly:** the pepper protects against a leak of the events table *alone*.
-Anyone with full database access obtains both the pepper and the phone numbers, so it buys
-nothing there. Partial exposure is the likelier failure, so it is still worth having — but it is
-not encryption of the list.
+**Threat model, restated:** the pepper protects against a leak of the events table alone. Anyone
+with full database access obtains both the pepper and the phone numbers, so it buys nothing
+there. Partial exposure is the likelier failure, so it is still worth having — but it is not
+encryption of the list.
 
 ---
 
