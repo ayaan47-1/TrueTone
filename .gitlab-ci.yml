@@ -54,16 +54,14 @@ guard:
     # scripts and the waitlist client need their own step or they never run.
     - npm run test:scripts
 
-# The expensive one: ~750 tests across ~135 suites, several minutes of it.
-# Integration tests need a live Supabase and run separately.
+# The unit suite: ~700 tests across ~131 suites. Integration tests need a live
+# Supabase and the eval harness is its own job below; both run separately.
 #
-# Scoped to merge requests and main rather than every push. This job is ~90% of a
-# ~20 minute pipeline, and the free tier allows 400 compute-min/month — a day of
-# ordinary feature-branch pushes consumed a quarter of that. GitHub Actions is
-# disabled account-wide, so this is the only place the suite runs: it must still
-# gate everything that lands, which MRs plus the default branch covers. `guard`
-# stays unconditional, so a feature-branch push still gets the compliance gates
-# in ~2 minutes.
+# Scoped to merge requests and main rather than every push. The free tier allows
+# 400 compute-min/month and GitHub Actions is disabled account-wide, so this is
+# the only place the suite runs: it must still gate everything that lands, which
+# MRs plus the default branch covers. `guard` stays unconditional, so a
+# feature-branch push still gets the compliance gates in ~2 minutes.
 jest:
   extends: .node
   stage: test
@@ -72,6 +70,26 @@ jest:
     - if: $CI_COMMIT_BRANCH == $CI_DEFAULT_BRANCH
   script:
     - npm test
+
+# The fairness invariance harness. Measured 2026-08-07 it was 518s of the old
+# suite's 596s — 87% across four files — because it runs the axes over real
+# evaluation data and writes reports. It is a benchmark, not a unit test, so it
+# no longer rides along on every merge request.
+#
+# It still gates everything that lands: default branch on every merge, plus a
+# manual trigger for running it against a branch on demand. A fairness regression
+# is therefore caught just after merge rather than just before — the trade that
+# keeps MRs at a few minutes instead of ~20.
+eval:
+  extends: .node
+  stage: test
+  rules:
+    - if: $CI_COMMIT_BRANCH == $CI_DEFAULT_BRANCH
+    - if: $CI_PIPELINE_SOURCE == "web"
+      when: manual
+      allow_failure: false
+  script:
+    - npm run test:eval
 
 # Port of .github/workflows/mirror-docs-to-brain.yml. One-way sync: this repo is
 # the engineering source of truth, and engineering/ in the vault is a read-only

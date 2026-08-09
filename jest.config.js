@@ -6,9 +6,19 @@ module.exports = {
   ],
   // Integration tests hit a running local Supabase; excluded from the default unit run.
   // Run them with `npm run test:integration`.
+  // eval/ is the fairness invariance harness: it runs the axes over real evaluation
+  // data and writes reports. Measured 2026-08-07, it was 518s of this suite's 596s
+  // (87%) across four files, while the other 131 suites totalled 78s. It is a
+  // benchmark, not a unit test. Run it with `npm run test:eval`; CI runs it on the
+  // default branch so it still gates everything that lands.
   // '.claude/worktrees/*' are nested git worktrees with their own node_modules
   // (duplicate React) — never part of this project's suite.
-  testPathIgnorePatterns: ['/node_modules/', '<rootDir>/test/integration/', '<rootDir>/.claude/'],
+  testPathIgnorePatterns: [
+    '/node_modules/',
+    '<rootDir>/test/integration/',
+    '<rootDir>/eval/',
+    '<rootDir>/.claude/',
+  ],
   moduleNameMapper: { '\\.css$': '<rootDir>/test/css-stub.js' },
   collectCoverageFrom: ['src/**/*.{ts,tsx}', 'app/**/*.{ts,tsx}'],
   // Device-only native shells (vision-camera capture / on-device read) can't run under Jest or the
