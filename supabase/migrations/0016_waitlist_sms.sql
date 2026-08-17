@@ -275,3 +275,47 @@ end; $$;
 revoke all on function public.join_waitlist(text, boolean, text, boolean, text) from public;
 grant execute on function public.join_waitlist(text, boolean, text, boolean, text)
   to anon, authenticated;
+
+-- ── leave_waitlist, now leaving a receipt ─────────────────────────────────────
+create or replace function public.leave_waitlist(p_token uuid)
+returns void
+language plpgsql security definer set search_path = public, pg_temp as $$
+declare v_phone text;
+begin
+  -- Still a no-op on an unknown token, for the same non-enumeration reason as before.
+  delete from public.waitlist where unsubscribe_token = p_token
+  returning phone into v_phone;
+
+  if v_phone is not null then
+    insert into public.waitlist_sms_events(phone_hash, event)
+    values (public.waitlist_phone_hash(v_phone), 'revoked');
+  end if;
+end; $$;
+
+revoke all on function public.leave_waitlist(uuid) from public;
+grant execute on function public.leave_waitlist(uuid) to anon, authenticated;
+
+-- ── retention, third arm ──────────────────────────────────────────────────────
+-- The trigger that makes the log trustworthy also blocks the job that keeps it from
+-- growing forever, so the sweep opens a transaction-local escape hatch. This does mean
+-- "append-only" is really "append-only except through this function" — but anything able
+-- to set_config and delete is service_role or higher, which could drop the trigger
+-- outright. The alternative is an unbounded log.
+create or replace function public.waitlist_retention_sweep()
+returns void
+language plpgsql security definer set search_path = public, pg_temp as $$
+begin
+  delete from public.waitlist
+  where (invited_at is not null and invited_at < now() - interval '90 days')
+     or created_at < now() - interval '3 years';
+
+  -- true => local to this transaction, so the hatch cannot outlive the sweep
+  perform set_config('app.waitlist_sweep', 'on', true);
+  -- 4 years: the federal TCPA limitations period (28 U.S.C. 1658). The receipt is the
+  -- defense, so it should outlive the phone number but not the claim window.
+  delete from public.waitlist_sms_events
+  where created_at < now() - interval '4 years';
+  perform set_config('app.waitlist_sweep', 'off', true);
+end; $$;
+
+revoke all on function public.waitlist_retention_sweep() from public;

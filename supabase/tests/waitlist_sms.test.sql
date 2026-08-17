@@ -4,7 +4,7 @@
 -- The waitlist holds an email address and now a phone number — never biometric or skin
 -- data. It stays outside the compliance boundary in CLAUDE.md §3. Retention still applies.
 begin;
-select plan(64);
+select plan(69);
 
 -- ── shape ─────────────────────────────────────────────────────────────────────
 select has_column('public', 'waitlist', 'phone', 'waitlist carries a phone column');
@@ -237,6 +237,36 @@ select throws_ok(
 select throws_ok(
   $$ select public.join_waitlist('oracle2@example.com', true, '(212) 555-0102', true, 'sms-not-real') $$,
   '23503', null, 'a garbage consent version is rejected identically when the number is already on the list');
+
+-- ── unsubscribe leaves a receipt ──────────────────────────────────────────────
+-- The number goes; the proof that they revoked, and when, stays. That is the whole
+-- point of keeping the log separate from the row.
+select public.join_waitlist('bye@example.com', true, '(212) 555-0105', true, 'sms-2026-08-07');
+select public.leave_waitlist(
+  (select unsubscribe_token from public.waitlist where email = 'bye@example.com'));
+
+select is((select count(*)::int from public.waitlist where email = 'bye@example.com'), 0,
+  'unsubscribing removes the row and the number');
+select is(
+  (select count(*)::int from public.waitlist_sms_events
+   where phone_hash = public.waitlist_phone_hash('+12125550105') and event = 'revoked'),
+  1, 'a revoke receipt survives the deleted row');
+
+-- ── the retention sweep may delete from the append-only log, but only past 4y ─
+insert into public.waitlist_sms_events(phone_hash, event, created_at)
+values ('old-hash', 'granted', now() - interval '5 years'),
+       ('new-hash', 'granted', now() - interval '1 year');
+select public.waitlist_retention_sweep();
+
+select is((select count(*)::int from public.waitlist_sms_events where phone_hash = 'old-hash'), 0,
+  'receipts past the 4-year TCPA limitations period are swept');
+select is((select count(*)::int from public.waitlist_sms_events where phone_hash = 'new-hash'), 1,
+  'receipts inside the limitations period are kept');
+
+-- The escape hatch must not outlive the sweep's transaction.
+select throws_ok(
+  $$ delete from public.waitlist_sms_events where phone_hash = 'new-hash' $$,
+  'P0001', null, 'the log is append-only again once the sweep has returned');
 
 select * from finish();
 rollback;
