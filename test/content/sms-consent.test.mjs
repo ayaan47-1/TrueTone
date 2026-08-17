@@ -33,6 +33,15 @@ test('the migration seeds exactly this wording', () => {
   assert.ok(sql.includes(`'${SMS_CONSENT_VERSION}'`), 'the 0016 seed uses a different version');
 });
 
+test('the page renders exactly this wording', () => {
+  // The third home of the string. Read cwd-independently, like the assertions above.
+  const html = readFileSync(new URL('../../web/index.html', import.meta.url), 'utf8');
+  assert.ok(
+    html.replace(/\s+/g, ' ').includes(SMS_CONSENT_BODY.replace(/&/g, '&amp;')),
+    'web/index.html does not render the canonical disclosure',
+  );
+});
+
 test('web/waitlist-client.js re-declares the same consent version', () => {
   // web/ is served verbatim as static files, so waitlist-client.js cannot import this
   // module — it re-declares SMS_CONSENT_VERSION as a literal instead. Read it as source

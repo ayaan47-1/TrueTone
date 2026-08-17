@@ -211,11 +211,14 @@ header{padding:46px 0 0}
 .embed{max-width:420px;margin:0 auto}
 form{display:grid;gap:12px;text-align:left}
 label{font-size:.78rem;letter-spacing:.1em;text-transform:uppercase;font-weight:600;color:var(--ink-soft)}
-input[type=email]{width:100%;padding:14px 17px;border-radius:14px;
+input[type=email],input[type=tel]{width:100%;padding:14px 17px;border-radius:14px;
   font-family:var(--body);font-size:1rem;
   border:1px solid var(--glass-line);background:rgba(255,255,255,.7);color:var(--ink)}
-input[type=email]::placeholder{color:var(--ink-soft);opacity:.65}
-input[type=email]:focus-visible{outline:2px solid var(--deep);outline-offset:2px}
+input[type=email]::placeholder,input[type=tel]::placeholder{color:var(--ink-soft);opacity:.65}
+input[type=email]:focus-visible,
+input[type=tel]:focus-visible{outline:2px solid var(--deep);outline-offset:2px}
+/* Marks the phone field as optional in the label itself, not just in the fine print. */
+.opt{color:var(--mauve);font-weight:400}
 .check{display:flex;gap:11px;align-items:flex-start;font-size:.84rem;color:var(--ink-soft);
   text-transform:none;letter-spacing:0;font-weight:300}
 .check input{margin-top:.32em;accent-color:var(--deep);flex:0 0 auto}

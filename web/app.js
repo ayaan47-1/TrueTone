@@ -2,11 +2,13 @@
 // waitlist-client.js and is unit tested; this file only moves values between the form,
 // that module, and the status line.
 
-import { buildRequest, classifyResponse, messageFor, OUTCOMES } from '/waitlist-client.js';
+import { buildRequest, classifyResponse, messageFor, OUTCOMES, parsePhone } from '/waitlist-client.js';
 
 const form = document.getElementById('waitlist-form');
 const emailField = document.getElementById('email');
+const phoneField = document.getElementById('phone');
 const attestField = document.getElementById('attest');
+const smsConsentField = document.getElementById('sms-consent');
 const button = document.getElementById('submit');
 const statusLine = document.getElementById('status');
 
@@ -46,6 +48,15 @@ form.addEventListener('submit', async (event) => {
     return;
   }
 
+  const phone = parsePhone(phoneField.value);
+  if (smsConsentField.checked && phone.status !== 'ok') {
+    // Only complain when they asked for texts. An unticked box means the field is
+    // decoration and a stray character in it must not block the signup.
+    show('err', "That doesn't look like a US mobile number. Check it, or untick the text option.");
+    phoneField.focus();
+    return;
+  }
+
   const config = readConfig();
   if (!config) {
     showOutcome(OUTCOMES.CONFIG);
@@ -55,11 +66,18 @@ form.addEventListener('submit', async (event) => {
   button.disabled = true;
   show('', 'Adding you…');
 
-  const { url, options } = buildRequest(config, emailField.value);
+  // buildRequest is the only path that decides whether the number is transmitted: it
+  // re-parses and sends null unless consent is ticked AND the number is well-formed.
+  const { url, options } = buildRequest(config, {
+    email: emailField.value,
+    phone: phoneField.value,
+    smsConsent: smsConsentField.checked,
+  });
   try {
     const response = await fetch(url, options);
     const outcome = classifyResponse(response.status);
-    showOutcome(outcome);
+    const { tone, text } = messageFor(outcome, { sms: smsConsentField.checked && phone.status === 'ok' });
+    show(tone, text);
     if (outcome === OUTCOMES.OK) form.reset();
   } catch {
     // fetch only rejects on a transport failure; every HTTP status is handled above.

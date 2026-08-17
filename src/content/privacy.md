@@ -17,6 +17,11 @@ we have to remember to keep.
 **Unsubscribe:** every email carries a one-tap unsubscribe link, which deletes your address
 outright rather than flagging it as inactive.
 
+If you choose to give us a phone number, we use it for one thing: to text you when
+TrueTone launches. It is optional — the waitlist works without it — and you can opt out
+any time by replying STOP. We do not sell, rent, or share it, and we do not use it for
+anything other than that launch message.
+
 We do not sell, lease, trade, or share your email address. The waitlist page loads no analytics,
 no advertising pixel, and no third-party script of any kind.
 

@@ -182,9 +182,24 @@
           <input id="email" name="email" type="email" required
                  placeholder="you@example.com" autocomplete="email" />
         </div>
+        <div>
+          <label for="phone">Phone <span class="opt">(optional)</span></label>
+          <input id="phone" name="phone" type="tel" inputmode="tel"
+                 placeholder="(555) 123-4567" autocomplete="tel" />
+        </div>
         <label class="check">
           <input id="attest" name="attest" type="checkbox" required />
           <span>I'm 18 or older and in the United States.</span>
+        </label>
+        <!-- Deliberately NOT required: consent to texts is optional, which is the whole
+             legal point. The wording is pinned to src/content/sms-consent.js and to the
+             seeded consent version by test/content/sms-consent.test.mjs — edit it there,
+             mint a new version, and never in place. -->
+        <label class="check">
+          <input id="sms-consent" name="sms-consent" type="checkbox" />
+          <span>Text me when TrueTone launches. ~1-2 messages. Msg &amp; data rates may
+                apply. Reply STOP to opt out. Consent isn't required to join.
+                See our <a href="/policies/privacy.html">Privacy Policy</a>.</span>
         </label>
         <button id="submit" type="submit">Join the waitlist</button>
       </form>
