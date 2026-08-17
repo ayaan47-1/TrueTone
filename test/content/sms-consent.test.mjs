@@ -32,3 +32,21 @@ test('the migration seeds exactly this wording', () => {
   );
   assert.ok(sql.includes(`'${SMS_CONSENT_VERSION}'`), 'the 0016 seed uses a different version');
 });
+
+test('web/waitlist-client.js re-declares the same consent version', () => {
+  // web/ is served verbatim as static files, so waitlist-client.js cannot import this
+  // module — it re-declares SMS_CONSENT_VERSION as a literal instead. Read it as source
+  // text (not import it — it may reference browser-only globals) and extract that literal
+  // with a regex, the same approach the migration-seed assertion above uses for SQL.
+  const source = readFileSync(
+    new URL('../../web/waitlist-client.js', import.meta.url),
+    'utf8',
+  );
+  const match = source.match(/export const SMS_CONSENT_VERSION = '([^']+)';/);
+  assert.ok(match, 'web/waitlist-client.js does not export SMS_CONSENT_VERSION as expected');
+  assert.equal(
+    match[1],
+    SMS_CONSENT_VERSION,
+    'web/waitlist-client.js re-declares a different consent version than src/content/sms-consent.js',
+  );
+});

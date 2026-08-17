@@ -17,7 +17,8 @@ export const OUTCOMES = {
 
 // Mirrors src/content/sms-consent.js. Re-declared rather than imported: web/ is served
 // verbatim as static files, so an import from src/ would 404 in the browser.
-// test/content/sms-consent.test.mjs holds the two to the same value.
+// test/content/sms-consent.test.mjs's 'web/waitlist-client.js re-declares the same
+// consent version' case reads this file as source text and asserts the two literals match.
 export const SMS_CONSENT_VERSION = 'sms-2026-08-07';
 
 const N11 = /^[2-9]11$/;
