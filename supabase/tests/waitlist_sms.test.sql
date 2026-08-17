@@ -4,7 +4,7 @@
 -- The waitlist holds an email address and now a phone number — never biometric or skin
 -- data. It stays outside the compliance boundary in CLAUDE.md §3. Retention still applies.
 begin;
-select plan(25);
+select plan(31);
 
 -- ── shape ─────────────────────────────────────────────────────────────────────
 select has_column('public', 'waitlist', 'phone', 'waitlist carries a phone column');
@@ -80,6 +80,25 @@ select throws_ok(
 select throws_ok(
   $$ delete from public.waitlist_sms_consent_versions where version = 'sms-2026-08-07' $$,
   'P0001', null, 'the consent wording cannot be deleted from');
+
+-- ── normalization ─────────────────────────────────────────────────────────────
+select is(public.normalize_us_phone('(212) 555-0100'), '+12125550100',
+  'punctuation and spaces are stripped');
+select is(public.normalize_us_phone('12125550100'), '+12125550100',
+  'a leading 1 is read as the country code, not a digit');
+select is(public.normalize_us_phone('+1 212 555 0100'), '+12125550100',
+  'an already-E.164 number round-trips');
+select is(public.normalize_us_phone('212555010'), null,
+  'nine digits is not a US number');
+select is(public.normalize_us_phone('+442071838750'), null,
+  'a non-US number is rejected rather than mangled');
+
+-- ── hashing ───────────────────────────────────────────────────────────────────
+-- Two spellings of one number must land on the same hash or dedup and lookup both break.
+select is(
+  public.waitlist_phone_hash(public.normalize_us_phone('(212) 555-0100')),
+  public.waitlist_phone_hash(public.normalize_us_phone('212.555.0100')),
+  'the same number in two formats hashes identically');
 
 select * from finish();
 rollback;

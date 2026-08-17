@@ -128,3 +128,45 @@ create trigger waitlist_sms_consent_versions_no_update
 create trigger waitlist_sms_consent_versions_no_delete
   before delete on public.waitlist_sms_consent_versions
   for each row execute function public.block_consent_version_mutation();
+
+-- ── helpers ───────────────────────────────────────────────────────────────────
+-- Normalising server-side rather than trusting the browser: otherwise dedup depends on
+-- the client having done its job, and a client that did not normalise gets a confusing
+-- rejection from the CHECK constraint. The constraint is the backstop, not the enforcement.
+create or replace function public.normalize_us_phone(p_raw text)
+returns text
+language plpgsql immutable
+as $$
+declare v_digits text;
+begin
+  if p_raw is null then return null; end if;
+  v_digits := regexp_replace(p_raw, '[^0-9]', '', 'g');
+  -- 11 digits starting with 1 means the country code was included
+  if length(v_digits) = 11 and left(v_digits, 1) = '1' then
+    v_digits := substring(v_digits from 2);
+  end if;
+  if length(v_digits) <> 10 then return null; end if;
+  return '+1' || v_digits;
+end;
+$$;
+
+-- security definer so it can read waitlist_secrets, which has no grants at all.
+create or replace function public.waitlist_phone_hash(p_phone text)
+returns text
+language plpgsql
+security definer set search_path = public, extensions, pg_temp
+as $$
+declare v_pepper text;
+begin
+  select value into v_pepper from public.waitlist_secrets where name = 'sms_pepper';
+  if v_pepper is null then
+    -- Fail loudly. Hashing with an empty pepper would produce brute-forceable digests
+    -- that look identical to good ones.
+    raise exception 'waitlist sms pepper missing' using errcode = 'P0001';
+  end if;
+  return encode(extensions.hmac(p_phone, v_pepper, 'sha256'), 'hex');
+end;
+$$;
+
+revoke all on function public.normalize_us_phone(text) from public;
+revoke all on function public.waitlist_phone_hash(text) from public;
