@@ -21,7 +21,10 @@ test('the disclosure is ASCII, so it cannot silently become a UCS-2 SMS', () => 
 });
 
 test('the migration seeds exactly this wording', () => {
-  const sql = readFileSync('supabase/migrations/0016_waitlist_sms.sql', 'utf8');
+  const sql = readFileSync(
+    new URL('../../supabase/migrations/0016_waitlist_sms.sql', import.meta.url),
+    'utf8',
+  );
   // SQL escapes a single quote by doubling it.
   assert.ok(
     sql.includes(SMS_CONSENT_BODY.replace(/'/g, "''")),
