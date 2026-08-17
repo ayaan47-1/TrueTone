@@ -4,7 +4,7 @@
 -- The waitlist holds an email address and now a phone number — never biometric or skin
 -- data. It stays outside the compliance boundary in CLAUDE.md §3. Retention still applies.
 begin;
-select plan(31);
+select plan(39);
 
 -- ── shape ─────────────────────────────────────────────────────────────────────
 select has_column('public', 'waitlist', 'phone', 'waitlist carries a phone column');
@@ -41,6 +41,23 @@ select table_privs_are('public', 'waitlist_secrets', 'authenticated', '{}',
   'authenticated holds no privileges on the pepper table');
 select table_privs_are('public', 'waitlist_secrets', 'service_role', '{}',
   'even service_role cannot read the pepper');
+
+-- ── nor may any client role execute the helpers ────────────────────────────────
+-- Without this, a future migration granting execute on waitlist_phone_hash to anon would
+-- turn it into a phone-number oracle: submit a guess, compare the digest against the event
+-- log. Neither helper needs to be callable by anything but a security-definer RPC.
+select function_privs_are('public', 'normalize_us_phone', ARRAY['text'], 'anon', '{}',
+  'anon holds no privileges on normalize_us_phone');
+select function_privs_are('public', 'normalize_us_phone', ARRAY['text'], 'authenticated', '{}',
+  'authenticated holds no privileges on normalize_us_phone');
+select function_privs_are('public', 'normalize_us_phone', ARRAY['text'], 'service_role', '{}',
+  'service_role holds no privileges on normalize_us_phone');
+select function_privs_are('public', 'waitlist_phone_hash', ARRAY['text'], 'anon', '{}',
+  'anon holds no privileges on waitlist_phone_hash');
+select function_privs_are('public', 'waitlist_phone_hash', ARRAY['text'], 'authenticated', '{}',
+  'authenticated holds no privileges on waitlist_phone_hash');
+select function_privs_are('public', 'waitlist_phone_hash', ARRAY['text'], 'service_role', '{}',
+  'service_role holds no privileges on waitlist_phone_hash');
 
 -- ── phone format: E.164 US, excluding N11 service codes ───────────────────────
 select throws_ok(
@@ -99,6 +116,24 @@ select is(
   public.waitlist_phone_hash(public.normalize_us_phone('(212) 555-0100')),
   public.waitlist_phone_hash(public.normalize_us_phone('212.555.0100')),
   'the same number in two formats hashes identically');
+
+-- A stub that ignored its argument and returned a constant would pass the equality test
+-- above; this rules that out.
+select isnt(
+  public.waitlist_phone_hash(public.normalize_us_phone('(212) 555-0100')),
+  public.waitlist_phone_hash(public.normalize_us_phone('(212) 555-0199')),
+  'different numbers hash differently');
+
+-- The missing-pepper guard is the whole reason for the explicit check: without it, a missing
+-- pepper would hash with a null and produce brute-forceable digests indistinguishable from
+-- good ones. Run last among the hash assertions and restore the row immediately after, since
+-- the rest of this transaction still needs a working waitlist_phone_hash.
+delete from public.waitlist_secrets where name = 'sms_pepper';
+select throws_ok(
+  $$ select public.waitlist_phone_hash('+12125550100') $$,
+  'P0001', null, 'waitlist_phone_hash raises when the pepper is missing');
+insert into public.waitlist_secrets(name, value)
+values ('sms_pepper', encode(gen_random_bytes(32), 'hex'));
 
 select * from finish();
 rollback;
