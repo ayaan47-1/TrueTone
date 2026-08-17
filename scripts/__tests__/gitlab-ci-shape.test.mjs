@@ -118,6 +118,20 @@ test('the cheap gate still runs on every pipeline', () => {
   assert.equal(/^\s*rules:/m.test(blocks.guard), false, 'guard must not be conditional');
 });
 
+test('the fairness eval runs on the default branch, not on every merge request', () => {
+  // eval/ is 87% of the old suite's runtime. Moving it out of `npm test` must not
+  // drop the fairness gate — it still has to run on everything that lands, just
+  // not on every MR iteration.
+  assert.ok(blocks.eval, 'expected an `eval` job');
+  assert.match(blocks.eval, /\$CI_COMMIT_BRANCH == \$CI_DEFAULT_BRANCH/);
+  assert.match(blocks.eval, /npm run test:eval/);
+});
+
+test('the merge-request suite does not pay for the eval harness', () => {
+  // If test:eval crept into the jest job, MRs would be back to ~20 minutes.
+  assert.equal(blocks.jest.includes('test:eval'), false);
+});
+
 test('jobs are interruptible so superseded pipelines stop billing', () => {
   // Auto-cancel redundant pipelines is on for the project, but it only cancels
   // *running* jobs when they opt in. Without this a push during a 17-minute jest

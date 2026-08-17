@@ -58,12 +58,13 @@
     "test": "jest",
     "test:watch": "jest --watch",
     "test:coverage": "jest --coverage",
+    "test:eval": "jest -c jest.eval.config.js",
     "test:integration": "node --test \"test/integration/**/*.test.mjs\"",
     "test:scripts": "node --test \"scripts/__tests__/**/*.test.mjs\" \"test/web/**/*.test.mjs\"",
     "waitlist:build": "node scripts/build-waitlist.mjs",
     "check:compliance": "node scripts/check-no-analytics-sdk.mjs && node scripts/check-waitlist-copy.mjs",
     "check:no-egress": "node scripts/check-no-image-egress.mjs",
-    "eval:invariance": "jest eval/invariance/__tests__/report-writer.test.ts"
+    "eval:invariance": "jest -c jest.eval.config.js eval/invariance/__tests__/report-writer.test.ts"
   },
   "private": true,
   "expo": {
