@@ -217,8 +217,12 @@ input[type=email],input[type=tel]{width:100%;padding:14px 17px;border-radius:14p
 input[type=email]::placeholder,input[type=tel]::placeholder{color:var(--ink-soft);opacity:.65}
 input[type=email]:focus-visible,
 input[type=tel]:focus-visible{outline:2px solid var(--deep);outline-offset:2px}
-/* Marks the phone field as optional in the label itself, not just in the fine print. */
-.opt{color:var(--mauve);font-weight:400}
+/* Marks the phone field as optional in the label itself, not just in the fine print. That
+   one word is the whole visual signal that the field is not required, so it has to be
+   legible: --ink-soft is 5.54:1 on the glass panel (5.08:1 at the mesh-tinted worst case),
+   clearing WCAG AA for small text. --mauve was 3.60:1 and failed. Distinction from the
+   label now comes from the lighter weight, not from a paler colour. */
+.opt{color:var(--ink-soft);font-weight:400}
 .check{display:flex;gap:11px;align-items:flex-start;font-size:.84rem;color:var(--ink-soft);
   text-transform:none;letter-spacing:0;font-weight:300}
 .check input{margin-top:.32em;accent-color:var(--deep);flex:0 0 auto}

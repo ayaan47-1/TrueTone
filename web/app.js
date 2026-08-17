@@ -52,7 +52,12 @@ form.addEventListener('submit', async (event) => {
   if (smsConsentField.checked && phone.status !== 'ok') {
     // Only complain when they asked for texts. An unticked box means the field is
     // decoration and a stray character in it must not block the signup.
-    show('err', "That doesn't look like a US mobile number. Check it, or untick the text option.");
+    //
+    // parsePhone returns three states, not a nullable string, precisely so the two
+    // failures can be worded honestly: an empty field is a missing answer, not a wrong one.
+    show('err', phone.status === 'blank'
+      ? 'Add a phone number, or untick the text option.'
+      : "That doesn't look like a US mobile number. Check it, or untick the text option.");
     phoneField.focus();
     return;
   }
