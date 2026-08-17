@@ -6,6 +6,8 @@ import {
   parseToken,
   classifyResponse,
   messageFor,
+  parsePhone,
+  SMS_CONSENT_VERSION,
   OUTCOMES,
 } from '../../web/waitlist-client.js';
 
@@ -15,13 +17,13 @@ const CONFIG = { supabaseUrl: 'https://abc.supabase.co', supabaseAnonKey: 'anon-
 test('posts to the join_waitlist RPC, never to the table', () => {
   // Going through the RPC is what keeps the list unreadable: anon holds no table
   // privileges (migration 0014), so a direct PostgREST table call would 401 anyway.
-  const req = buildRequest(CONFIG, 'Reader@Example.com');
+  const req = buildRequest(CONFIG, { email: 'Reader@Example.com' });
   assert.equal(req.url, 'https://abc.supabase.co/rest/v1/rpc/join_waitlist');
   assert.equal(req.options.method, 'POST');
 });
 
 test('sends the anon key in both headers PostgREST requires', () => {
-  const { options } = buildRequest(CONFIG, 'a@b.co');
+  const { options } = buildRequest(CONFIG, { email: 'a@b.co' });
   assert.equal(options.headers.apikey, 'anon-key');
   assert.equal(options.headers.Authorization, 'Bearer anon-key');
   assert.equal(options.headers['Content-Type'], 'application/json');
@@ -29,12 +31,18 @@ test('sends the anon key in both headers PostgREST requires', () => {
 
 test('trims and lowercases the email before it leaves the browser', () => {
   // The RPC normalises too; doing it here as well keeps the payload predictable.
-  const { options } = buildRequest(CONFIG, '  Reader@Example.COM ');
-  assert.deepEqual(JSON.parse(options.body), { p_email: 'reader@example.com', p_attested: true });
+  const { options } = buildRequest(CONFIG, { email: '  Reader@Example.COM ' });
+  assert.deepEqual(JSON.parse(options.body), {
+    p_email: 'reader@example.com',
+    p_attested: true,
+    p_phone: null,
+    p_sms_consent: false,
+    p_sms_consent_version: null,
+  });
 });
 
 test('tolerates a trailing slash on the configured Supabase URL', () => {
-  const req = buildRequest({ ...CONFIG, supabaseUrl: 'https://abc.supabase.co/' }, 'a@b.co');
+  const req = buildRequest({ ...CONFIG, supabaseUrl: 'https://abc.supabase.co/' }, { email: 'a@b.co' });
   assert.equal(req.url, 'https://abc.supabase.co/rest/v1/rpc/join_waitlist');
 });
 
@@ -114,4 +122,43 @@ test('the success message does not overpromise', () => {
   const text = messageFor(OUTCOMES.OK).text.toLowerCase();
   assert.ok(text.includes('list'));
   assert.equal(/newsletter|updates|regularly|weekly/.test(text), false);
+});
+
+// ── phone parsing ─────────────────────────────────────────────────────────────
+test('parsePhone accepts the ways people actually type a number', () => {
+  for (const raw of ['2125550100', '(212) 555-0100', '212-555-0100', '+1 212 555 0100', '12125550100']) {
+    assert.deepEqual(parsePhone(raw), { status: 'ok', e164: '+12125550100' }, raw);
+  }
+});
+
+test('parsePhone distinguishes blank from malformed', () => {
+  // Blank is fine — the field is optional. Malformed needs to be reported, so a
+  // single return value that conflates them would be wrong.
+  assert.deepEqual(parsePhone(''), { status: 'blank' });
+  assert.deepEqual(parsePhone('   '), { status: 'blank' });
+  assert.deepEqual(parsePhone(undefined), { status: 'blank' });
+  for (const raw of ['212555010', '21255501000', '+442071838750', 'call me', '+19115550100']) {
+    assert.equal(parsePhone(raw).status, 'invalid', raw);
+  }
+});
+
+test('buildRequest omits the phone entirely when the box is unticked', () => {
+  // We should not receive a number the visitor did not consent to give us.
+  const { options } = buildRequest(CONFIG, {
+    email: 'a@b.com', phone: '2125550100', smsConsent: false,
+  });
+  const body = JSON.parse(options.body);
+  assert.equal(body.p_phone, null);
+  assert.equal(body.p_sms_consent, false);
+  assert.equal(body.p_sms_consent_version, null);
+});
+
+test('buildRequest sends the normalized number and the version consented to', () => {
+  const { options } = buildRequest(CONFIG, {
+    email: 'a@b.com', phone: '(212) 555-0100', smsConsent: true,
+  });
+  const body = JSON.parse(options.body);
+  assert.equal(body.p_phone, '+12125550100');
+  assert.equal(body.p_sms_consent, true);
+  assert.equal(body.p_sms_consent_version, SMS_CONSENT_VERSION);
 });

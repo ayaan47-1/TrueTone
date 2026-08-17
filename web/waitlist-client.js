@@ -15,8 +15,41 @@ export const OUTCOMES = {
   NETWORK: 'network',
 };
 
-export function buildRequest(config, rawEmail) {
+// Mirrors src/content/sms-consent.js. Re-declared rather than imported: web/ is served
+// verbatim as static files, so an import from src/ would 404 in the browser.
+// test/content/sms-consent.test.mjs holds the two to the same value.
+export const SMS_CONSENT_VERSION = 'sms-2026-08-07';
+
+const N11 = /^[2-9]11$/;
+
+/** Three states rather than `string | null`: blank means the optional field was left
+ *  alone, invalid means it was filled in wrongly and the visitor needs telling. A
+ *  nullable return would conflate the two and silently drop a typo'd number. */
+export function parsePhone(raw) {
+  const text = (raw ?? '').trim();
+  if (text === '') return { status: 'blank' };
+
+  let digits = text.replace(/[^0-9]/g, '');
+  if (digits.length === 11 && digits.startsWith('1')) digits = digits.slice(1);
+  if (digits.length !== 10) return { status: 'invalid' };
+
+  // Mirrors the CHECK constraint in migration 0016: N11 codes are assignable as neither
+  // area code nor exchange, so +19115550100 is not a real number.
+  const area = digits.slice(0, 3);
+  const exchange = digits.slice(3, 6);
+  if (area[0] < '2' || exchange[0] < '2') return { status: 'invalid' };
+  if (N11.test(area) || N11.test(exchange)) return { status: 'invalid' };
+
+  return { status: 'ok', e164: `+1${digits}` };
+}
+
+export function buildRequest(config, { email, phone, smsConsent } = {}) {
   const base = config.supabaseUrl.replace(/\/+$/, '');
+  // Only a consented, well-formed number is transmitted. Anything else is left in the
+  // browser: there is no reason for us to receive a number we may not text.
+  const parsed = smsConsent ? parsePhone(phone) : { status: 'blank' };
+  const e164 = parsed.status === 'ok' ? parsed.e164 : null;
+
   return {
     url: `${base}/rest/v1/rpc/join_waitlist`,
     options: {
@@ -27,9 +60,12 @@ export function buildRequest(config, rawEmail) {
         Authorization: `Bearer ${config.supabaseAnonKey}`,
       },
       body: JSON.stringify({
-        p_email: rawEmail.trim().toLowerCase(),
+        p_email: (email ?? '').trim().toLowerCase(),
         // The checkbox is required by the form; the RPC rejects anything else.
         p_attested: true,
+        p_phone: e164,
+        p_sms_consent: Boolean(e164),
+        p_sms_consent_version: e164 ? SMS_CONSENT_VERSION : null,
       }),
     },
   };
@@ -79,8 +115,14 @@ const MESSAGES = {
   [OUTCOMES.NETWORK]: { tone: 'err', text: "Couldn't reach us. Check your connection and try again." },
 };
 
+const SMS_OK = {
+  tone: 'ok',
+  text: "You're on the list. We'll email and text you once, when there's a build to try.",
+};
+
 /** Fails closed: an unmapped outcome reports failure rather than claiming success, so a
  *  future branch that forgets its case can't tell someone they joined when they didn't. */
-export function messageFor(outcome) {
+export function messageFor(outcome, { sms = false } = {}) {
+  if (outcome === OUTCOMES.OK && sms) return SMS_OK;
   return MESSAGES[outcome] ?? MESSAGES[OUTCOMES.SERVER];
 }
