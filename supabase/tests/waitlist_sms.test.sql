@@ -4,7 +4,7 @@
 -- The waitlist holds an email address and now a phone number — never biometric or skin
 -- data. It stays outside the compliance boundary in CLAUDE.md §3. Retention still applies.
 begin;
-select plan(39);
+select plan(56);
 
 -- ── shape ─────────────────────────────────────────────────────────────────────
 select has_column('public', 'waitlist', 'phone', 'waitlist carries a phone column');
@@ -134,6 +134,72 @@ select throws_ok(
   'P0001', null, 'waitlist_phone_hash raises when the pepper is missing');
 insert into public.waitlist_secrets(name, value)
 values ('sms_pepper', encode(gen_random_bytes(32), 'hex'));
+
+-- ── join_waitlist: the old 2-arg form must be gone, not shadowed ──────────────
+-- Two candidate signatures make PostgREST answer PGRST203 rather than picking one.
+select is(
+  (select count(*)::int from pg_proc where proname = 'join_waitlist'),
+  1, 'exactly one join_waitlist signature exists');
+
+-- A cached copy of the old page sends two keys and must still work via defaults.
+select lives_ok(
+  $$ select public.join_waitlist('legacy@example.com', true) $$,
+  'a two-argument call still joins, so a stale cached page keeps working');
+select is((select phone from public.waitlist where email = 'legacy@example.com'), null,
+  'a two-argument call stores no phone');
+
+-- ── consent gates the number ──────────────────────────────────────────────────
+-- A typo'd or unconsented number must not cost the visitor their email signup.
+select lives_ok(
+  $$ select public.join_waitlist('nobox@example.com', true, '(212) 555-0101', false, null) $$,
+  'a number with the box unticked does not fail the signup');
+select is((select phone from public.waitlist where email = 'nobox@example.com'), null,
+  'a number with the box unticked is discarded');
+
+-- ── the happy path ────────────────────────────────────────────────────────────
+select lives_ok(
+  $$ select public.join_waitlist('ok@example.com', true, '(212) 555-0102', true, 'sms-2026-08-07') $$,
+  'a consented number is accepted');
+select is((select phone from public.waitlist where email = 'ok@example.com'), '+12125550102',
+  'the number is stored normalized');
+select is(
+  (select count(*)::int from public.waitlist_sms_events
+   where phone_hash = public.waitlist_phone_hash('+12125550102') and event = 'granted'),
+  1, 'a grant receipt is written');
+
+-- ── a number already on the list under another address ────────────────────────
+-- Must not error: an error would confirm the number is present. The email joins alone.
+select lives_ok(
+  $$ select public.join_waitlist('dupe@example.com', true, '212-555-0102', true, 'sms-2026-08-07') $$,
+  'a number already on the list does not surface an error');
+select is((select phone from public.waitlist where email = 'dupe@example.com'), null,
+  'the duplicate number is discarded, the email still joins');
+select is(
+  (select count(*)::int from public.waitlist_sms_events
+   where phone_hash = public.waitlist_phone_hash('+12125550102') and event = 'granted'),
+  1, 'no second grant receipt for a number that was not stored');
+
+-- ── nobody can overwrite an existing number by knowing the email ──────────────
+select lives_ok(
+  $$ select public.join_waitlist('ok@example.com', true, '(212) 555-0199', true, 'sms-2026-08-07') $$,
+  'resubmitting a known email with a different number is silent');
+select is((select phone from public.waitlist where email = 'ok@example.com'), '+12125550102',
+  'the original number is not replaced');
+
+-- ── a returning visitor may add a number to a row that has none ───────────────
+select lives_ok(
+  $$ select public.join_waitlist('legacy@example.com', true, '(212) 555-0103', true, 'sms-2026-08-07') $$,
+  'a row with no phone can be upgraded');
+select is((select phone from public.waitlist where email = 'legacy@example.com'), '+12125550103',
+  'the number is added to the existing row');
+
+-- ── forged input ──────────────────────────────────────────────────────────────
+select throws_ok(
+  $$ select public.join_waitlist('bad@example.com', true, '(212) 555-0104', true, 'sms-1999-01-01') $$,
+  '23503', null, 'consent to wording that never existed is rejected by the FK');
+select throws_ok(
+  $$ select public.join_waitlist('bad2@example.com', true, '555', true, 'sms-2026-08-07') $$,
+  'P0001', null, 'an unusable number is reported rather than silently dropped');
 
 select * from finish();
 rollback;

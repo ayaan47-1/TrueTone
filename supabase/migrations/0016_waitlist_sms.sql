@@ -170,3 +170,82 @@ $$;
 
 revoke all on function public.normalize_us_phone(text) from public;
 revoke all on function public.waitlist_phone_hash(text) from public;
+
+-- ── join_waitlist, replaced ───────────────────────────────────────────────────
+-- Dropped and recreated rather than overloaded: with both a 2-arg and a 5-arg signature
+-- present, PostgREST answers PGRST203 for a two-key call instead of choosing. The defaults
+-- make deploy order irrelevant — a visitor holding a cached copy of the old app.js sends
+-- two keys, hits the defaults, and still joins. .pages.dev caches aggressively.
+drop function if exists public.join_waitlist(text, boolean);
+
+create or replace function public.join_waitlist(
+  p_email               text,
+  p_attested            boolean,
+  p_phone               text    default null,
+  p_sms_consent         boolean default false,
+  p_sms_consent_version text    default null
+)
+returns void
+language plpgsql security definer set search_path = public, pg_temp as $$
+declare
+  v_email  text := lower(btrim(p_email));
+  v_phone  text;
+  v_stored text;
+begin
+  if p_attested is not true then
+    raise exception 'attestation required' using errcode = 'P0001';
+  end if;
+  if v_email is null
+     or length(v_email) > 254
+     or v_email !~ '^[^@[:space:]]+@[^@[:space:]]+\.[^@[:space:]]+$' then
+    raise exception 'invalid email' using errcode = 'P0001';
+  end if;
+
+  -- Consent is what makes a number storable. No tick, no number — and discarding rather
+  -- than rejecting means a stray digit in an optional field never costs someone their
+  -- email signup.
+  if p_sms_consent is true and p_phone is not null and btrim(p_phone) <> '' then
+    v_phone := public.normalize_us_phone(p_phone);
+    if v_phone is null then
+      -- Raise here: silently dropping would leave them believing a text is coming.
+      raise exception 'invalid phone' using errcode = 'P0001';
+    end if;
+    if p_sms_consent_version is null then
+      raise exception 'consent version required' using errcode = 'P0001';
+    end if;
+  end if;
+
+  begin
+    insert into public.waitlist(email, attested_18_us, phone, sms_consent_at, sms_consent_version)
+    values (
+      v_email, true, v_phone,
+      case when v_phone is null then null else now() end,
+      case when v_phone is null then null else p_sms_consent_version end
+    )
+    on conflict (email) do update
+      set phone               = excluded.phone,
+          sms_consent_at      = excluded.sms_consent_at,
+          sms_consent_version = excluded.sms_consent_version
+      -- Only upgrade a row that has no number. Without this, anyone who knows your
+      -- address could replace your number with theirs.
+      where public.waitlist.phone is null and excluded.phone is not null
+    returning phone into v_stored;
+  exception when unique_violation then
+    -- The number is already on the list under a different address. Store the email alone;
+    -- anything else would confirm the number is present.
+    insert into public.waitlist(email, attested_18_us) values (v_email, true)
+    on conflict (email) do nothing;
+    v_stored := null;
+  end;
+
+  -- Only a confirmed write produces a receipt. Logging on intent instead would record
+  -- consent to text a number we never stored and cannot reach.
+  if v_stored is not null then
+    insert into public.waitlist_sms_events(phone_hash, event, consent_version)
+    values (public.waitlist_phone_hash(v_stored), 'granted', p_sms_consent_version);
+  end if;
+end; $$;
+
+revoke all on function public.join_waitlist(text, boolean, text, boolean, text) from public;
+grant execute on function public.join_waitlist(text, boolean, text, boolean, text)
+  to anon, authenticated;
