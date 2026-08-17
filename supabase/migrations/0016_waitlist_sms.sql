@@ -146,6 +146,16 @@ begin
     v_digits := substring(v_digits from 2);
   end if;
   if length(v_digits) <> 10 then return null; end if;
+  -- NANP, not just digit-counting: area code and exchange must each start 2-9, and
+  -- neither may be an N11 service code. Enforced here, not left to the CHECK below, so
+  -- an unusable number is reported as our own P0001 in join_waitlist rather than escaping
+  -- as a raw 23514 constraint violation (PostgREST forwards the DETAIL to the browser).
+  -- This also keeps the CHECK a pure backstop, matching the comment at its call site, and
+  -- keeps the server in exact agreement with the client-side parsePhone, which applies the
+  -- same NANP rules.
+  if v_digits !~ '^[2-9][0-9]{2}[2-9][0-9]{6}$' then return null; end if;
+  if substring(v_digits from 1 for 3) ~ '^[2-9]11$' then return null; end if;
+  if substring(v_digits from 4 for 3) ~ '^[2-9]11$' then return null; end if;
   return '+1' || v_digits;
 end;
 $$;
@@ -212,6 +222,22 @@ begin
     end if;
     if p_sms_consent_version is null then
       raise exception 'consent version required' using errcode = 'P0001';
+    end if;
+    -- Validated explicitly, up front, rather than left to the sms_consent_version FK: the
+    -- FK is an AFTER-ROW trigger, so it fires after index insertion. That means a phone
+    -- unique_violation (caught below) pre-empts the FK violation whenever the candidate
+    -- number is already on the list, while a garbage version on a number that is NOT on
+    -- the list still reaches the FK and raises. Those two outcomes are a distinct SQLSTATE
+    -- and a distinct HTTP status over the live anon RPC — a structural phone (and email)
+    -- oracle: send any junk version with a candidate number and a throwaway email, and
+    -- 204-vs-409 reveals whether that number is already on the waitlist. Checking here,
+    -- before either insert is attempted, makes the outcome state-independent. Do NOT widen
+    -- the exception handler below to catch foreign_key_violation instead — that would make
+    -- forged versions succeed while silently storing nothing, which is worse.
+    if not exists (
+      select 1 from public.waitlist_sms_consent_versions where version = p_sms_consent_version
+    ) then
+      raise exception 'unknown consent version' using errcode = '23503';
     end if;
   end if;
 

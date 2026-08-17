@@ -196,9 +196,21 @@ matters.
 ### Server-side normalization
 
 `public.normalize_us_phone(raw)` strips non-digits, drops a leading `1`, and returns `+1` + ten
-digits, or `null` if the result isn't ten digits. The `CHECK` constraint becomes the backstop
-rather than the enforcement — otherwise dedup depends on the browser having done its job, and a
-client that didn't normalize gets a confusing rejection.
+digits, or `null` if the result isn't ten digits *and* NANP-valid. The `CHECK` constraint becomes
+the backstop rather than the enforcement — otherwise dedup depends on the browser having done its
+job, and a client that didn't normalize gets a confusing rejection.
+
+**NANP validity is enforced inside the function, not left to the `CHECK`.** Digit-counting alone
+(ten digits, done) lets shapes like `211-555-0100` (N11 area code), `111-555-0100` (area code
+starting `1`), or `212-155-0100` (exchange starting `1`) through `normalize_us_phone` non-null,
+where they then die on `waitlist_phone_e164` with SQLSTATE `23514` — which PostgREST forwards to
+the browser complete with the constraint `DETAIL`, i.e. the caller's own proposed row. That breaks
+the contract that an unusable number surfaces as our own `P0001` from `join_waitlist`, and it's
+needlessly ugly on the wire. `normalize_us_phone` must apply the same NANP checks the `CHECK`
+does (area code and exchange each start `2`–`9`; neither is an N11 service code) so the `CHECK`
+stays a pure backstop that in practice never fires from this path. This also keeps the server in
+exact agreement with the client-side `parsePhone`, which applies the identical rules — client and
+server must stay symmetric here.
 
 ### Consent gates the number
 
@@ -230,6 +242,23 @@ returning phone into v_stored;
 written. Without it the third case logs a consent receipt for a number we never stored — a record
 claiming consent to text someone we cannot text. Only a confirmed write produces a `granted`
 event.
+
+**The consent-version FK must be validated before this block runs, not left to fire on its own.**
+`waitlist_sms_consent_version_fk` is enforced by an AFTER-ROW trigger, which fires *after* the
+unique index on `phone` is checked. That ordering makes the FK a phone (and email) oracle if it's
+the only thing rejecting a garbage `p_sms_consent_version`: for a candidate number **not** already
+on the list, the insert succeeds far enough to hit the FK trigger, which raises `23503`. For a
+candidate number that **is** already on the list, the `unique_violation` on `phone` fires first,
+is caught by the block above, and the FK is never reached — the call returns success (`204`) with
+nothing stored. `204` vs `409/23503` for the same junk version is a structural, non-timing signal:
+send any garbage version with a candidate number and a throwaway email, and the response tells you
+whether that number is on the waitlist. The fix is `if not exists (select 1 from
+waitlist_sms_consent_versions where version = p_sms_consent_version) then raise ... using errcode
+= '23503'` **before** either insert is attempted, inside the same block that already null-checks
+`p_sms_consent_version` — that makes the outcome state-independent. Do not "simplify" this by
+widening the `exception when unique_violation` handler to also catch `foreign_key_violation`;
+that closes the SQLSTATE difference by making forged versions succeed silently, which is worse
+than the oracle it would replace.
 
 ### Unsubscribe leaves a receipt
 

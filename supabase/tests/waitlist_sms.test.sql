@@ -4,7 +4,7 @@
 -- The waitlist holds an email address and now a phone number — never biometric or skin
 -- data. It stays outside the compliance boundary in CLAUDE.md §3. Retention still applies.
 begin;
-select plan(56);
+select plan(64);
 
 -- ── shape ─────────────────────────────────────────────────────────────────────
 select has_column('public', 'waitlist', 'phone', 'waitlist carries a phone column');
@@ -110,6 +110,19 @@ select is(public.normalize_us_phone('212555010'), null,
 select is(public.normalize_us_phone('+442071838750'), null,
   'a non-US number is rejected rather than mangled');
 
+-- ── NANP validity, not just digit-counting ─────────────────────────────────────
+-- normalize_us_phone must reject these itself so an unusable number surfaces as our own
+-- P0001 in join_waitlist rather than escaping as a raw 23514 from the waitlist_phone_e164
+-- CHECK, which would dump the proposed row (via PostgREST's constraint DETAIL) to the browser.
+select is(public.normalize_us_phone('211-555-0100'), null,
+  'an N11 area code is rejected by normalize_us_phone, not left to the CHECK');
+select is(public.normalize_us_phone('111-555-0100'), null,
+  'an area code starting with 1 is rejected');
+select is(public.normalize_us_phone('212-155-0100'), null,
+  'an exchange starting with 1 is rejected');
+select is(public.normalize_us_phone('212-411-5100'), null,
+  'an N11 exchange is rejected');
+
 -- ── hashing ───────────────────────────────────────────────────────────────────
 -- Two spellings of one number must land on the same hash or dedup and lookup both break.
 select is(
@@ -138,8 +151,10 @@ values ('sms_pepper', encode(gen_random_bytes(32), 'hex'));
 -- ── join_waitlist: the old 2-arg form must be gone, not shadowed ──────────────
 -- Two candidate signatures make PostgREST answer PGRST203 rather than picking one.
 select is(
-  (select count(*)::int from pg_proc where proname = 'join_waitlist'),
-  1, 'exactly one join_waitlist signature exists');
+  (select count(*)::int from pg_proc p
+   join pg_namespace n on n.oid = p.pronamespace
+   where p.proname = 'join_waitlist' and n.nspname = 'public'),
+  1, 'exactly one join_waitlist signature exists in public');
 
 -- A cached copy of the old page sends two keys and must still work via defaults.
 select lives_ok(
@@ -185,6 +200,9 @@ select lives_ok(
   'resubmitting a known email with a different number is silent');
 select is((select phone from public.waitlist where email = 'ok@example.com'), '+12125550102',
   'the original number is not replaced');
+select is((select count(*)::int from public.waitlist_sms_events
+           where phone_hash = public.waitlist_phone_hash('+12125550199')), 0,
+  'no receipt for a number that was refused by the no-overwrite guard');
 
 -- ── a returning visitor may add a number to a row that has none ───────────────
 select lives_ok(
@@ -192,6 +210,10 @@ select lives_ok(
   'a row with no phone can be upgraded');
 select is((select phone from public.waitlist where email = 'legacy@example.com'), '+12125550103',
   'the number is added to the existing row');
+select is(
+  (select count(*)::int from public.waitlist_sms_events
+   where phone_hash = public.waitlist_phone_hash('+12125550103') and event = 'granted'),
+  1, 'a grant receipt is written for the upgrade too');
 
 -- ── forged input ──────────────────────────────────────────────────────────────
 select throws_ok(
@@ -200,6 +222,21 @@ select throws_ok(
 select throws_ok(
   $$ select public.join_waitlist('bad2@example.com', true, '555', true, 'sms-2026-08-07') $$,
   'P0001', null, 'an unusable number is reported rather than silently dropped');
+
+-- ── the consent-version FK must not become a phone oracle ──────────────────────
+-- Before this fix, a garbage version surfaced a different SQLSTATE depending on whether
+-- the candidate number was already on the list: unique_violation on the phone (caught,
+-- silent, 204) vs the sms_consent_version FK violation (uncaught, 409/23503), because the
+-- FK is an AFTER-ROW trigger that fires after index insertion. That is a structural phone
+-- (and email) oracle over the live anon RPC. Both cases below must now raise the same
+-- 23503, regardless of whether '+12125550102' (stored earlier in this transaction) is
+-- already on the list.
+select throws_ok(
+  $$ select public.join_waitlist('oracle1@example.com', true, '(212) 555-0201', true, 'sms-not-real') $$,
+  '23503', null, 'a garbage consent version is rejected when the number is not yet on the list');
+select throws_ok(
+  $$ select public.join_waitlist('oracle2@example.com', true, '(212) 555-0102', true, 'sms-not-real') $$,
+  '23503', null, 'a garbage consent version is rejected identically when the number is already on the list');
 
 select * from finish();
 rollback;
