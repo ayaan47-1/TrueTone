@@ -427,6 +427,16 @@ them yet.
 
 Recorded here so they are not rediscovered late.
 
+- **A STOP webhook is now a published promise, and it must exist before the first text.**
+  `privacy.md` and `retention.md` shipped with this project both tell visitors they can reply
+  STOP to opt out, and that doing so deletes the number immediately. That disclosure is required
+  at consent time — it cannot be deferred to the send project — but nothing implements it yet.
+  It is unreachable today because nothing sends texts, so it is not currently a misstatement.
+  **The moment the first message goes out it becomes one**, and an unhonoured STOP is among the
+  most straightforwardly provable TCPA violations there is. The send project must ship the
+  inbound-keyword handler in the same release as the first outbound message, wired to
+  `leave_waitlist` (or an equivalent that deletes the row and writes a `revoked` receipt).
+
 - **Reassigned numbers.** The FCC's Reassigned Numbers Database check is the only safe harbor
   against texting someone who inherited a consenting user's number. This is *heightened* by the
   capture-now/send-later split: every number ages between consent and send, and that gap is
