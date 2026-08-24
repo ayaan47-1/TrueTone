@@ -52,7 +52,10 @@ alter table public.waitlist add constraint waitlist_referred_by_fk
 -- of spinning.
 create or replace function public.gen_waitlist_code()
 returns text
-language plpgsql volatile security definer set search_path = public, pg_temp as $$
+-- pgcrypto's gen_random_bytes lives in the `extensions` schema on Supabase (local + hosted),
+-- so `extensions` must be on the search_path or the code generator — and every join_waitlist
+-- call that depends on it — fails with "function gen_random_bytes(integer) does not exist".
+language plpgsql volatile security definer set search_path = public, extensions, pg_temp as $$
 declare
   v_code text;
   v_try  int := 0;
