@@ -57,6 +57,25 @@ const REQUIRED_DISCLOSURES = [
   { id: 'United States only', pattern: /united states|u\.s\. only/i },
 ];
 
+// Required on any page that collects a phone number. TCPA needs a clear and conspicuous
+// disclosure at the point of consent; CTIA guidelines add the opt-out keyword.
+//
+// Two patterns are looser than they look, on purpose:
+//   • frequency matches the phrase directly rather than requiring "message" and a count in
+//     a fixed order — the copy reads "~1-2 messages", so an order-dependent pattern would
+//     reject the very page it exists to protect.
+//   • rates treats the ampersand as optional because htmlToCopy deletes character
+//     entities: the page renders "Msg &amp; data rates", which reaches this rule as
+//     "Msg data rates". Insisting on a literal "&" would fail every real page.
+// Neither loosening weakens the wording itself — test/content/sms-consent.test.mjs pins
+// the rendered string to SMS_CONSENT_BODY byte-for-byte. This rule catches deletion.
+const SMS_DISCLOSURES = [
+  { id: 'frequency', pattern: /~?\s*1\s*-\s*2\s+(msg|message)s?\b/i },
+  { id: 'rates',     pattern: /msg\s*&?(amp;)?\s*data rates may apply/i },
+  { id: 'stop',      pattern: /\breply STOP\b/i },
+  { id: 'optional',  pattern: /consent isn't required/i },
+];
+
 /** Strip everything that isn't user-facing prose. Attribute text is kept: a meta
  *  description or alt text is copy a person reads, a CSS selector is not. */
 export function htmlToCopy(html) {
@@ -120,6 +139,14 @@ export function findMissingDisclosures(html) {
   return REQUIRED_DISCLOSURES.filter((d) => !d.pattern.test(copy)).map((d) => d.id);
 }
 
+/** SMS disclosures owed by any page carrying a phone field. */
+export function findMissingSmsDisclosures(html) {
+  // No phone field, nothing owed.
+  if (!/<input[^>]+type=["']tel["']/i.test(html)) return [];
+  const copy = htmlToCopy(html);
+  return SMS_DISCLOSURES.filter((d) => !d.pattern.test(copy)).map((d) => d.id);
+}
+
 export function auditHtml(html, { allowedHosts = [], requireDisclosures = true } = {}) {
   return [
     ...findBannedTerms(html),
@@ -130,6 +157,8 @@ export function auditHtml(html, { allowedHosts = [], requireDisclosures = true }
     ...(requireDisclosures
       ? findMissingDisclosures(html).map((id) => ({ kind: 'missing-disclosure', term: id }))
       : []),
+    // Gated on the phone field, not on the page: any page collecting a number owes this.
+    ...findMissingSmsDisclosures(html).map((id) => ({ kind: 'missing-sms-disclosure', term: id })),
   ];
 }
 

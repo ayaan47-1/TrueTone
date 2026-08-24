@@ -187,3 +187,53 @@ test('auditHtml gathers violations from every rule at once', () => {
   assert.ok(kinds.has('foreign-origin'));
   assert.ok(kinds.has('missing-disclosure'));
 });
+
+// ── SMS disclosures ───────────────────────────────────────────────────────────
+// A page that collects phone numbers owes the TCPA disclosure. This is the rule that
+// actually bites: a future redesign that drops the fine print while keeping the input
+// is exactly the failure worth catching in CI.
+const TEL_PAGE = (disclosure) => `
+  <main><form>
+    <input id="email" type="email" />
+    <input id="phone" type="tel" />
+    <label>${disclosure}</label>
+  </form></main>`;
+
+const FULL = "Text me when TrueTone launches. ~1-2 messages. Msg &amp; data rates may " +
+             "apply. Reply STOP to opt out. Consent isn't required to join.";
+
+// auditHtml returns a flat array of { kind, term } violations, so pull out just ours.
+const smsGaps = (html) =>
+  auditHtml(html, { requireDisclosures: false })
+    .filter((v) => v.kind === 'missing-sms-disclosure')
+    .map((v) => v.term);
+
+test('a tel input with the full disclosure passes', () => {
+  assert.deepEqual(smsGaps(TEL_PAGE(FULL)), []);
+});
+
+test('each missing disclosure element is reported', () => {
+  const cases = {
+    frequency: FULL.replace('~1-2 messages. ', ''),
+    rates: FULL.replace('Msg &amp; data rates may apply. ', ''),
+    stop: FULL.replace('Reply STOP to opt out. ', ''),
+    optional: FULL.replace("Consent isn't required to join.", ''),
+  };
+  for (const [id, disclosure] of Object.entries(cases)) {
+    assert.deepEqual(smsGaps(TEL_PAGE(disclosure)), [id], `expected ${id} to be reported missing`);
+  }
+});
+
+test('a page with no tel input owes no SMS disclosure', () => {
+  // requireDisclosures is false here and the rule still applies: what triggers it is the
+  // presence of a phone field, not which page it is.
+  assert.deepEqual(smsGaps('<main><form><input id="email" type="email" /></form></main>'), []);
+});
+
+test('the rates rule survives htmlToCopy deleting the &amp; entity', () => {
+  // htmlToCopy strips character entities, so the ampersand the page actually renders is
+  // gone by the time the rule sees the copy. A pattern that insists on a literal "&"
+  // would reject the very page it exists to protect — this pins that down.
+  assert.equal(htmlToCopy('<p>Msg &amp; data rates may apply.</p>').includes('&'), false);
+  assert.deepEqual(smsGaps(TEL_PAGE(FULL)), []);
+});

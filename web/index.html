@@ -3,191 +3,66 @@
 <head>
 <meta charset="utf-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1" />
-<title>TrueTone — early access</title>
-<meta name="description" content="An AI skincare routine built around how your skin actually looks, with the ingredients to look for. Makeup matching next. iPhone, US, 18+." />
+<title>TrueTone — your real shade, for every tone</title>
+<meta name="description" content="TrueTone reads your real tone and undertone from one selfie, in seconds, and matches you to makeup built for every tone — especially the deep and in-between ones everyone else skips. iPhone, United States, 18+." />
+
+<!-- Open Graph / Twitter. Every URL on this page is relative on purpose: nothing
+     third-party may touch it (CLAUDE.md §1), and scripts/check-waitlist-copy.mjs fails
+     the build on any foreign origin — so og:image points at a self-hosted asset and there
+     is no absolute og:url. The branded card lives at /og.svg. -->
+<meta property="og:type" content="website" />
+<meta property="og:title" content="TrueTone — your real shade, for every tone" />
+<meta property="og:description" content="One selfie. Your real tone and undertone, in seconds. Built for every tone — especially the deep and in-between ones everyone else skips." />
+<meta property="og:image" content="/og.svg" />
+<meta name="twitter:card" content="summary_large_image" />
+<meta name="twitter:title" content="TrueTone — your real shade, for every tone" />
+<meta name="twitter:description" content="One selfie. Your real tone and undertone, in seconds. Built for every tone." />
+<meta name="twitter:image" content="/og.svg" />
 
 <!-- No analytics, no pixel, no tag manager, and no third-party origin of any kind.
      Enforced two ways, not left to discipline:
        • scripts/check-waitlist-copy.mjs fails the build on any foreign host in this file
        • web/_headers ships a CSP that blocks one at runtime even if it slipped through
-     Fonts are self-hosted from /fonts (built by scripts/build-waitlist.mjs). -->
+     UTM/referrer attribution is first-party only: it is stored on our own waitlist row
+     via the join RPC, never sent to a third party. Fonts are self-hosted from /fonts. -->
 
 <link rel="icon" href="/favicon.svg" type="image/svg+xml" />
 <link rel="stylesheet" href="/styles.css" />
-<link rel="preload" href="/fonts/fraunces-light.woff2" as="font" type="font/woff2" crossorigin />
-<link rel="preload" href="/fonts/mulish-light.woff2" as="font" type="font/woff2" crossorigin />
+<link rel="preload" href="/fonts/plus-jakarta-sans.woff2" as="font" type="font/woff2" crossorigin />
+<link rel="preload" href="/fonts/inter.woff2" as="font" type="font/woff2" crossorigin />
 </head>
 <body>
 
-<div class="mesh" aria-hidden="true">
-  <i class="m1"></i><i class="m2"></i><i class="m3"></i><i class="m4"></i>
-</div>
+<div class="glow" aria-hidden="true"><i class="g1"></i><i class="g2"></i></div>
 
 <div class="wrap">
 
-  <header>
-    <div class="mark"><span class="dot" aria-hidden="true"></span> TrueTone</div>
+  <header class="site">
+    <div class="mark"><span class="dot" aria-hidden="true"></span> truetone</div>
+    <a class="nav-join" href="#join">join the list</a>
   </header>
 
-  <section class="hero">
-    <h1>A routine built for <em>your</em> skin.</h1>
+  <!-- ── 1 · hero + email ─────────────────────────────────────────────────── -->
+  <section class="hero" id="join">
+    <p class="ref-banner" id="ref-banner" hidden>a friend saved you a spot — join to move up the line.</p>
+    <h1>your real shade,<br />built for <em>every</em> tone.</h1>
     <p class="lede">
-      Take one guided selfie. TrueTone reads how your skin actually looks right now —
-      hydration, texture, pores, evenness — then builds you a morning and night routine
-      and tells you which ingredients to look for. Makeup matching comes next.
-    </p>
-    <ul class="facts">
-      <li>iPhone first</li>
-      <li>United States</li>
-      <li>18+</li>
-      <li>Cosmetic — not medical</li>
-    </ul>
-  </section>
-
-  <!-- ── how it works ── -->
-  <div class="steps">
-    <div class="glass step">
-      <div class="n" aria-hidden="true">1</div>
-      <h3>One guided selfie</h3>
-      <p>The camera waits for decent light, framing and focus before it counts down. Bad photos make bad reads, so it won't take one.</p>
-    </div>
-    <div class="glass step">
-      <div class="n" aria-hidden="true">2</div>
-      <h3>A read in plain words</h3>
-      <p>Hydration, texture, pores and evenness — described in readable bands, not a score out of 100 and not a verdict.</p>
-    </div>
-    <div class="glass step">
-      <div class="n" aria-hidden="true">3</div>
-      <h3>Your routine</h3>
-      <p>Steps in an order that makes sense, morning and night, each one saying what it's for and what to look for on the label.</p>
-    </div>
-  </div>
-
-  <!-- ── the signature: an actual routine ── -->
-  <section class="glass routine">
-    <p class="eyebrow">What you actually get</p>
-    <h2>Steps, in order, with the reason.</h2>
-    <p class="example">
-      An example. Yours is built from your own read, and changes as your read does.
+      one selfie. truetone reads your real tone and undertone — in seconds — and
+      matches you to makeup that actually disappears into your skin. built for every tone,
+      especially the deep and in-between ones everyone else skips.
     </p>
 
-    <div class="plan">
-      <section class="am">
-        <h3>Morning</h3>
-        <ol>
-          <li>Gentle gel cleanser <span class="why">Your read leaned oily in the T-zone.</span></li>
-          <li>Niacinamide serum <span class="why">For the look of evenness.</span></li>
-          <li>Lightweight moisturiser <span class="why">Hydration without the heaviness.</span></li>
-          <li>SPF 30 or higher <span class="why">Every day. The one step that isn't optional.</span></li>
-        </ol>
-      </section>
-      <section class="pm">
-        <h3>Night</h3>
-        <ol>
-          <li>Same gentle cleanser <span class="why">No need for a second product.</span></li>
-          <li>Retinol, twice a week to start <span class="why">Build up slowly. For the look of texture.</span></li>
-          <li>Richer moisturiser <span class="why">On the nights you use retinol especially.</span></li>
-        </ol>
-      </section>
-    </div>
-
-    <footer>
-      Ingredient types and habits, so the list works at any budget and still makes sense when
-      a product gets reformulated or discontinued. You take it to whatever shop you like.
-    </footer>
-  </section>
-
-  <!-- ── makeup ── -->
-  <section class="glass limits">
-    <p class="eyebrow">Next up</p>
-    <h2>Makeup, on the same read. <span class="soon">After launch</span></h2>
-    <ul>
-      <li>Shade and undertone guidance from the same selfie, so you stop buying foundation that turns out one notch off.</li>
-      <li>Finish and coverage suggestions that suit how your skin looks that week, not a fixed profile from months ago.</li>
-      <li>Same approach as the skincare side: what to look for, in terms you can actually shop with.</li>
-      <li><strong>Not in the first release.</strong> Skincare ships first and makeup follows — if you join now, you'll get the skincare build.</li>
-    </ul>
-  </section>
-
-  <!-- ── why it's different ── -->
-  <div class="cols">
-    <div class="glass card">
-      <h3>One selfie, not a quiz</h3>
-      <p>Most skincare apps ask you twenty questions about your own skin. TrueTone looks at it instead, and looks again whenever you want.</p>
-    </div>
-    <div class="glass card">
-      <h3>Ingredients, not marketing</h3>
-      <p>You get the actives and product types to look for. That works at any budget, and it survives a product being discontinued.</p>
-    </div>
-    <div class="glass card">
-      <h3>It changes as you do</h3>
-      <p>Re-scan later and the routine adjusts to your new read. Compared against you, never against anyone else.</p>
-    </div>
-    <div class="glass card">
-      <h3>It learns what worked</h3>
-      <p>Tell it whether a step helped and it takes that into account next time, rather than handing you the same list forever.</p>
-    </div>
-  </div>
-
-  <!-- ── privacy: supporting, not the pitch ── -->
-  <section class="glass boundary">
-    <p class="eyebrow">One thing worth knowing</p>
-    <h2>The photo never leaves your phone.</h2>
-
-    <div class="stage">
-      <div class="side">
-        <small>On your phone</small>
-        <div class="phone"><div class="face fading"></div></div>
+    <form id="waitlist-form" class="signup" novalidate>
+      <div class="field">
+        <label for="email">email</label>
+        <input id="email" name="email" type="email" required
+               placeholder="you@example.com" autocomplete="email" />
       </div>
-
-      <div class="divider"><span>Nothing crosses</span></div>
-
-      <div class="side">
-        <small>What we ever see</small>
-        <div class="bands drifting">
-          <div class="band b1">Hydration look · <b>balanced</b></div>
-          <div class="band b2">Texture · <b>smooth</b></div>
-          <div class="band b3">Evenness · <b>some variation</b></div>
-        </div>
-      </div>
-    </div>
-
-    <footer>
-      Your selfie is analyzed on the device and deleted the moment the read finishes —
-      whether it succeeds or fails. It is never uploaded, never backed up, never sent to
-      anyone. Only the short descriptions above travel anywhere, and you can delete those
-      from inside the app at any time.
-    </footer>
-  </section>
-
-  <section class="glass limits">
-    <p class="eyebrow">Things we'd rather say now than later</p>
-    <h2>What TrueTone is not.</h2>
-    <ul>
-      <li><strong>Not a diagnosis.</strong> TrueTone describes appearance only. It can't tell you whether something is a medical condition, and it won't try. Ask it about a mole or a lesion and it will tell you to see a dermatologist — every time.</li>
-      <li><strong>Not a replacement for a dermatologist.</strong> If something on your skin is changing, painful, or worrying you, that's a doctor's job.</li>
-      <li><strong>Not tested across every skin tone yet.</strong> Working equally well from Fitzpatrick I to VI is the point of the product, and we're building it that way — but we won't claim it's proven until we have the data to back it up.</li>
-      <li><strong>Not available everywhere yet.</strong> United States only for the first release, and 18 or older.</li>
-    </ul>
-  </section>
-
-  <section class="glass signup" id="join">
-    <h2>Join the early list.</h2>
-    <p class="lede">We'll email you once — when there's a build you can actually use. Nothing else.</p>
-
-    <div class="embed">
-      <form id="waitlist-form" novalidate>
-        <div>
-          <label for="email">Email</label>
-          <input id="email" name="email" type="email" required
-                 placeholder="you@example.com" autocomplete="email" />
-        </div>
-        <label class="check">
-          <input id="attest" name="attest" type="checkbox" required />
-          <span>I'm 18 or older and in the United States.</span>
-        </label>
-        <button id="submit" type="submit">Join the waitlist</button>
-      </form>
+      <label class="check">
+        <input id="attest" name="attest" type="checkbox" required />
+        <span>i'm 18 or older and in the united states.</span>
+      </label>
+      <button id="submit" type="submit">join the waitlist</button>
 
       <!-- aria-live so the outcome is announced, and always present so submitting
            doesn't shift the layout underneath the button. -->
@@ -195,25 +70,112 @@
 
       <noscript>
         <p class="status" data-tone="err">
-          The signup form needs JavaScript. Email us instead and we'll add you by hand.
+          the signup form needs javascript. email us instead and we'll add you by hand.
         </p>
       </noscript>
-    </div>
+    </form>
 
-    <p class="fineprint">
-      We use your email to tell you when TrueTone opens up, and for nothing else.
-      No selling, no sharing, no ads. Unsubscribe in one click.
+    <ul class="facts">
+      <li>iphone first</li>
+      <li>united states</li>
+      <li>18+</li>
+      <li>cosmetic — not a medical device</li>
+    </ul>
+  </section>
+
+  <!-- ── 2 · the problem ──────────────────────────────────────────────────── -->
+  <section class="band problem">
+    <p class="eyebrow">the problem</p>
+    <h2>the shade that's "close enough"<br />never actually is.</h2>
+    <p>
+      foundation ranges thin out fast past the middle. deep and in-between tones get a
+      handful of options, all a little off — too ashy, too orange, a shade too light. so you
+      buy, you blend, you settle. truetone is designed for the full range — not the middle
+      of it.
     </p>
   </section>
 
+  <!-- ── 3 · how it works ─────────────────────────────────────────────────── -->
+  <section class="how">
+    <p class="eyebrow">how it works</p>
+    <div class="steps">
+      <div class="step">
+        <div class="n" aria-hidden="true">1</div>
+        <h3>one guided selfie</h3>
+        <p>the camera waits for good light and framing before it counts down. your face never leaves your phone.</p>
+      </div>
+      <div class="step">
+        <div class="n" aria-hidden="true">2</div>
+        <h3>your real tone &amp; undertone</h3>
+        <p>we read how your skin actually looks right now — tone, undertone, depth — in seconds. no quiz, no guessing.</p>
+      </div>
+      <div class="step">
+        <div class="n" aria-hidden="true">3</div>
+        <h3>your match</h3>
+        <p>shades to look for and the ones to skip, in terms you can shop with at any counter and any budget.</p>
+      </div>
+    </div>
+  </section>
+
+  <!-- ── 4 · three pillars ────────────────────────────────────────────────── -->
+  <section class="pillars">
+    <div class="pillar">
+      <h3>built for every tone</h3>
+      <p>especially the deep and in-between ones everyone else skips. that range is the point of the product, not an afterthought.</p>
+    </div>
+    <div class="pillar">
+      <h3>your real shade</h3>
+      <p>matched to your real shade and undertone from your own skin — not the nearest guess on a shelf. designed for the full range.</p>
+    </div>
+    <div class="pillar">
+      <h3>the photo never leaves your phone</h3>
+      <p>your selfie is read on the device and deleted the moment the read finishes. your face data is yours — we never sell it.</p>
+    </div>
+  </section>
+
+  <!-- ── 5 · urgency + live counter ───────────────────────────────────────── -->
+  <section class="band urgency">
+    <p class="eyebrow">early access</p>
+    <h2>the first builds are limited.</h2>
+    <p class="counter"><span id="waitlist-count" aria-live="polite">—</span> already in line</p>
+    <p>
+      we're letting people in a batch at a time, starting with the earliest on the list.
+      join now to be near the front — then invite friends to move up.
+    </p>
+    <a class="cta-secondary" href="#join">join the waitlist</a>
+  </section>
+
+  <!-- ── 6 · referral: move up the line ───────────────────────────────────── -->
+  <section class="band referral">
+    <p class="eyebrow">move up the line</p>
+    <h2>invite friends. move up.</h2>
+    <p>every friend who joins with your link moves you ahead of everyone with fewer invites. no purchase, no catch.</p>
+
+    <!-- Revealed by app.js once a signup succeeds; carries the visitor's own link. -->
+    <div class="share" id="share" hidden>
+      <p class="position" id="position">you're on the list. invite friends to move up.</p>
+      <label class="share-field" for="share-link">your invite link</label>
+      <div class="share-row">
+        <input id="share-link" type="text" readonly aria-label="your invite link" />
+        <button id="copy-link" type="button">copy</button>
+      </div>
+      <p class="referrals"><span id="referrals">0</span> friends joined with your link so far.</p>
+    </div>
+  </section>
+
+  <!-- ── 7 · footer ───────────────────────────────────────────────────────── -->
   <footer class="foot">
     <p>
-      TrueTone is a cosmetic and general-wellness product. It is not a medical device, it does
+      truetone is a cosmetic and general-wellness product — not a medical device. it does
       not diagnose, treat, cure or prevent any condition, and it is not a substitute for
-      professional medical advice. For anything concerning on your skin, see a dermatologist.
+      professional medical advice. for anything concerning on your skin, see a dermatologist.
     </p>
     <p>
-      United States only · 18+ ·
+      your face data is yours — we never sell it.
+      <a href="/policies/privacy.html">Privacy</a>
+    </p>
+    <p class="meta">
+      united states only · 18+ ·
       <a href="/policies/privacy.html">Privacy</a> ·
       <a href="/policies/terms.html">Terms</a> ·
       <a href="/policies/biometric.html">Biometric Data Policy</a> ·
