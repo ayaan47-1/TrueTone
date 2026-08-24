@@ -1,6 +1,9 @@
-// The disclosure lives in three places: this module, the 0016 migration seed, and the
-// rendered page. They must agree byte-for-byte, or the consent receipt records agreement
-// to wording nobody actually saw.
+// SMS was retired in the shade pivot: the page now collects email + referral only, and
+// web/waitlist-client.js no longer carries a consent version. But the wording is kept in
+// two places as an archived legal record — this module and the 0016 migration seed — so a
+// dump alone still reconstructs exactly what any earlier signup agreed to. They must agree
+// byte-for-byte. The last two tests below assert the teardown: the page and the client no
+// longer surface SMS at all.
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
@@ -33,29 +36,29 @@ test('the migration seeds exactly this wording', () => {
   assert.ok(sql.includes(`'${SMS_CONSENT_VERSION}'`), 'the 0016 seed uses a different version');
 });
 
-test('the page renders exactly this wording', () => {
-  // The third home of the string. Read cwd-independently, like the assertions above.
+test('the pivot removed SMS from the page entirely', () => {
+  // The page used to be the third home of this string. After the pivot it collects email
+  // + referral only: no phone field, and the disclosure wording must be gone with it.
   const html = readFileSync(new URL('../../web/index.html', import.meta.url), 'utf8');
-  assert.ok(
+  assert.equal(/<input[^>]+type=["']tel["']/i.test(html), false, 'a phone field is still on the page');
+  assert.equal(
     html.replace(/\s+/g, ' ').includes(SMS_CONSENT_BODY.replace(/&/g, '&amp;')),
-    'web/index.html does not render the canonical disclosure',
+    false,
+    'the retired SMS disclosure is still rendered on the page',
   );
 });
 
-test('web/waitlist-client.js re-declares the same consent version', () => {
-  // web/ is served verbatim as static files, so waitlist-client.js cannot import this
-  // module — it re-declares SMS_CONSENT_VERSION as a literal instead. Read it as source
-  // text (not import it — it may reference browser-only globals) and extract that literal
-  // with a regex, the same approach the migration-seed assertion above uses for SQL.
+test('web/waitlist-client.js no longer carries a consent version', () => {
+  // The client shed every SMS symbol in the pivot (see test/web/waitlist-client.test.mjs,
+  // which asserts SMS_CONSENT_VERSION and parsePhone are no longer exported). Guard the
+  // source directly so a copy-paste can't quietly reintroduce the literal.
   const source = readFileSync(
     new URL('../../web/waitlist-client.js', import.meta.url),
     'utf8',
   );
-  const match = source.match(/export const SMS_CONSENT_VERSION = '([^']+)';/);
-  assert.ok(match, 'web/waitlist-client.js does not export SMS_CONSENT_VERSION as expected');
   assert.equal(
-    match[1],
-    SMS_CONSENT_VERSION,
-    'web/waitlist-client.js re-declares a different consent version than src/content/sms-consent.js',
+    /SMS_CONSENT_VERSION/.test(source),
+    false,
+    'web/waitlist-client.js still references SMS_CONSENT_VERSION after the pivot',
   );
 });
