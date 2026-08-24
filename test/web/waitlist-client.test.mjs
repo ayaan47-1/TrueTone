@@ -2,6 +2,8 @@ import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import {
   buildRequest,
+  buildCountRequest,
+  parseCount,
   buildLeaveRequest,
   parseToken,
   parseReferral,
@@ -147,6 +149,28 @@ test('formatPosition falls back gracefully when position is unknown', () => {
   const text = formatPosition({ code: 'x', position: null, total: null, referrals: 0 });
   assert.ok(text.length > 0);
   assert.equal(/#\d/.test(text), false);
+});
+
+// ── live counter ──────────────────────────────────────────────────────────────
+test('buildCountRequest posts to the waitlist_count RPC with an empty body', () => {
+  const req = buildCountRequest(CONFIG);
+  assert.equal(req.url, 'https://abc.supabase.co/rest/v1/rpc/waitlist_count');
+  assert.equal(req.options.method, 'POST');
+  assert.equal(req.options.body, '{}');
+  assert.equal(req.options.headers.apikey, 'anon-key');
+});
+
+test('parseCount reads a bare scalar and a one-row array wrapper', () => {
+  assert.equal(parseCount(3142), 3142);
+  assert.equal(parseCount([3142]), 3142);
+  assert.equal(parseCount(0), 0);
+});
+
+test('parseCount returns null for a shape it does not recognise', () => {
+  // A 204, an error body, or anything non-numeric must not render as a real total.
+  assert.equal(parseCount(null), null);
+  assert.equal(parseCount({}), null);
+  assert.equal(parseCount('lots'), null);
 });
 
 // ── unsubscribe ───────────────────────────────────────────────────────────────

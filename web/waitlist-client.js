@@ -81,6 +81,27 @@ export function buildRequest(config, { email, referredBy, source } = {}) {
   };
 }
 
+/** The live counter's read. waitlist_count() (migration 0017) returns a single integer —
+ *  a total, never a row — so this is the one path anon has to look at the list at all. */
+export function buildCountRequest(config) {
+  return {
+    url: `${base(config)}/rest/v1/rpc/waitlist_count`,
+    options: {
+      method: 'POST',
+      headers: authHeaders(config),
+      body: '{}',
+    },
+  };
+}
+
+/** waitlist_count() answers with a bare scalar; PostgREST may still wrap it in a one-row
+ *  array. Anything that isn't a finite number is null so the counter shows nothing rather
+ *  than a fake figure. */
+export function parseCount(data) {
+  const n = Array.isArray(data) ? data[0] : data;
+  return Number.isFinite(n) ? n : null;
+}
+
 export function buildLeaveRequest(config, token) {
   return {
     url: `${base(config)}/rest/v1/rpc/leave_waitlist`,
