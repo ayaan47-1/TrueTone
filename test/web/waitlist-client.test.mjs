@@ -4,10 +4,13 @@ import {
   buildRequest,
   buildLeaveRequest,
   parseToken,
+  parseReferral,
+  captureSource,
+  parseJoinResult,
+  buildShareLink,
+  formatPosition,
   classifyResponse,
   messageFor,
-  parsePhone,
-  SMS_CONSENT_VERSION,
   OUTCOMES,
 } from '../../web/waitlist-client.js';
 
@@ -35,15 +38,115 @@ test('trims and lowercases the email before it leaves the browser', () => {
   assert.deepEqual(JSON.parse(options.body), {
     p_email: 'reader@example.com',
     p_attested: true,
-    p_phone: null,
-    p_sms_consent: false,
-    p_sms_consent_version: null,
+    p_referred_by: null,
+    p_source: null,
   });
+});
+
+test('the SMS/phone surface is gone from the payload entirely', () => {
+  // The pivot dropped SMS: no phone, no sms consent, no consent version may be sent.
+  const { options } = buildRequest(CONFIG, { email: 'a@b.co' });
+  const body = JSON.parse(options.body);
+  assert.equal('p_phone' in body, false);
+  assert.equal('p_sms_consent' in body, false);
+  assert.equal('p_sms_consent_version' in body, false);
 });
 
 test('tolerates a trailing slash on the configured Supabase URL', () => {
   const req = buildRequest({ ...CONFIG, supabaseUrl: 'https://abc.supabase.co/' }, { email: 'a@b.co' });
   assert.equal(req.url, 'https://abc.supabase.co/rest/v1/rpc/join_waitlist');
+});
+
+test('forwards a valid referral code, normalised to lowercase', () => {
+  const { options } = buildRequest(CONFIG, { email: 'a@b.co', referredBy: 'AB12CD34EF' });
+  assert.equal(JSON.parse(options.body).p_referred_by, 'ab12cd34ef');
+});
+
+test('drops a malformed referral code rather than forwarding junk', () => {
+  const { options } = buildRequest(CONFIG, { email: 'a@b.co', referredBy: 'not a code!!' });
+  assert.equal(JSON.parse(options.body).p_referred_by, null);
+});
+
+test('forwards a captured source object as p_source', () => {
+  const source = { utm_source: 'tiktok', utm_campaign: 'seed', referrer: 'https://t.co/x' };
+  const { options } = buildRequest(CONFIG, { email: 'a@b.co', source });
+  assert.deepEqual(JSON.parse(options.body).p_source, source);
+});
+
+test('sends p_source null when nothing was captured', () => {
+  const { options } = buildRequest(CONFIG, { email: 'a@b.co', source: {} });
+  assert.equal(JSON.parse(options.body).p_source, null);
+});
+
+// ── referral parsing ────────────────────────────────────────────────────────
+test('parseReferral reads a well-formed code from ?ref', () => {
+  assert.equal(parseReferral('?ref=ab12cd34ef'), 'ab12cd34ef');
+  assert.equal(parseReferral('?ref=AB12CD34EF&utm_source=ig'), 'ab12cd34ef');
+});
+
+test('parseReferral rejects anything that is not a plausible code', () => {
+  assert.equal(parseReferral('?ref='), null);
+  assert.equal(parseReferral('?ref=has spaces'), null);
+  assert.equal(parseReferral('?ref=<script>'), null);
+  assert.equal(parseReferral(''), null);
+  assert.equal(parseReferral('?other=1'), null);
+});
+
+// ── source / UTM capture ──────────────────────────────────────────────────────
+test('captureSource collects only the UTM keys that are present', () => {
+  const src = captureSource('?utm_source=tiktok&utm_medium=video&utm_campaign=seed', '');
+  assert.deepEqual(src, { utm_source: 'tiktok', utm_medium: 'video', utm_campaign: 'seed' });
+});
+
+test('captureSource includes a referrer when one is given', () => {
+  const src = captureSource('?utm_source=ig', 'https://instagram.com/');
+  assert.equal(src.utm_source, 'ig');
+  assert.equal(src.referrer, 'https://instagram.com/');
+});
+
+test('captureSource returns an empty object for a bare visit', () => {
+  assert.deepEqual(captureSource('', ''), {});
+});
+
+test('captureSource ignores non-UTM query params and caps value length', () => {
+  const src = captureSource('?utm_source=' + 'x'.repeat(500) + '&foo=bar', '');
+  assert.equal('foo' in src, false);
+  assert.ok(src.utm_source.length <= 200);
+});
+
+// ── join result parsing ───────────────────────────────────────────────────────
+test('parseJoinResult reads the referral code, position and totals', () => {
+  const r = parseJoinResult({ code: 'ab12cd34ef', position: 142, total: 3142, referrals: 3 });
+  assert.deepEqual(r, { code: 'ab12cd34ef', position: 142, total: 3142, referrals: 3 });
+});
+
+test('parseJoinResult tolerates a single-row PostgREST array wrapper', () => {
+  const r = parseJoinResult([{ code: 'ab12cd34ef', position: 1, total: 1, referrals: 0 }]);
+  assert.equal(r.code, 'ab12cd34ef');
+});
+
+test('parseJoinResult returns null when the payload has no code', () => {
+  // A 204 with no body, or a shape we do not recognise, must not fake a share link.
+  assert.equal(parseJoinResult(null), null);
+  assert.equal(parseJoinResult({}), null);
+  assert.equal(parseJoinResult({ position: 3 }), null);
+});
+
+// ── share link ────────────────────────────────────────────────────────────────
+test('buildShareLink points back at the page with the ref code', () => {
+  assert.equal(buildShareLink('https://truetone.app', 'ab12cd34ef'), 'https://truetone.app/?ref=ab12cd34ef');
+  assert.equal(buildShareLink('https://truetone.app/', 'ab12cd34ef'), 'https://truetone.app/?ref=ab12cd34ef');
+});
+
+// ── position copy ─────────────────────────────────────────────────────────────
+test('formatPosition states the spot in line when known', () => {
+  assert.match(formatPosition({ code: 'x', position: 142, total: 3142, referrals: 0 }), /142/);
+});
+
+test('formatPosition falls back gracefully when position is unknown', () => {
+  const text = formatPosition({ code: 'x', position: null, total: null, referrals: 0 });
+  assert.ok(text.length > 0);
+  assert.equal(/#\d/.test(text), false);
 });
 
 // ── unsubscribe ───────────────────────────────────────────────────────────────
@@ -64,8 +167,6 @@ test('parseToken reads a well-formed token from the query string', () => {
 });
 
 test('parseToken rejects anything that is not a UUID', () => {
-  // Refusing early means a junk link shows "check your link" instead of firing a
-  // pointless request that would answer 204 anyway and look like it worked.
   assert.equal(parseToken('?token=not-a-uuid'), null);
   assert.equal(parseToken('?token='), null);
   assert.equal(parseToken(''), null);
@@ -73,10 +174,11 @@ test('parseToken rejects anything that is not a UUID', () => {
 });
 
 // ── response classification ───────────────────────────────────────────────────
-test('204 and 200 both count as joined', () => {
-  // join_waitlist returns void, so PostgREST answers 204; 200 is accepted defensively.
-  assert.equal(classifyResponse(204), OUTCOMES.OK);
+test('200, 201 and 204 all count as joined', () => {
+  // join_waitlist now returns jsonb, so PostgREST answers 200; 204/201 accepted defensively.
   assert.equal(classifyResponse(200), OUTCOMES.OK);
+  assert.equal(classifyResponse(201), OUTCOMES.OK);
+  assert.equal(classifyResponse(204), OUTCOMES.OK);
 });
 
 test('a rejected email is reported as invalid, not as a server fault', () => {
@@ -124,41 +226,10 @@ test('the success message does not overpromise', () => {
   assert.equal(/newsletter|updates|regularly|weekly/.test(text), false);
 });
 
-// ── phone parsing ─────────────────────────────────────────────────────────────
-test('parsePhone accepts the ways people actually type a number', () => {
-  for (const raw of ['2125550100', '(212) 555-0100', '212-555-0100', '+1 212 555 0100', '12125550100']) {
-    assert.deepEqual(parsePhone(raw), { status: 'ok', e164: '+12125550100' }, raw);
-  }
-});
-
-test('parsePhone distinguishes blank from malformed', () => {
-  // Blank is fine — the field is optional. Malformed needs to be reported, so a
-  // single return value that conflates them would be wrong.
-  assert.deepEqual(parsePhone(''), { status: 'blank' });
-  assert.deepEqual(parsePhone('   '), { status: 'blank' });
-  assert.deepEqual(parsePhone(undefined), { status: 'blank' });
-  for (const raw of ['212555010', '21255501000', '+442071838750', 'call me', '+19115550100']) {
-    assert.equal(parsePhone(raw).status, 'invalid', raw);
-  }
-});
-
-test('buildRequest omits the phone entirely when the box is unticked', () => {
-  // We should not receive a number the visitor did not consent to give us.
-  const { options } = buildRequest(CONFIG, {
-    email: 'a@b.com', phone: '2125550100', smsConsent: false,
-  });
-  const body = JSON.parse(options.body);
-  assert.equal(body.p_phone, null);
-  assert.equal(body.p_sms_consent, false);
-  assert.equal(body.p_sms_consent_version, null);
-});
-
-test('buildRequest sends the normalized number and the version consented to', () => {
-  const { options } = buildRequest(CONFIG, {
-    email: 'a@b.com', phone: '(212) 555-0100', smsConsent: true,
-  });
-  const body = JSON.parse(options.body);
-  assert.equal(body.p_phone, '+12125550100');
-  assert.equal(body.p_sms_consent, true);
-  assert.equal(body.p_sms_consent_version, SMS_CONSENT_VERSION);
+test('no SMS export leaks in from the retired path', async () => {
+  // The pivot removed SMS; importing the old symbol must now be undefined, not a
+  // stale constant that some code path could still send.
+  const mod = await import('../../web/waitlist-client.js');
+  assert.equal('SMS_CONSENT_VERSION' in mod, false);
+  assert.equal('parsePhone' in mod, false);
 });

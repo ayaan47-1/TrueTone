@@ -1,10 +1,14 @@
 // Pure logic behind the waitlist form. Kept apart from the DOM wiring in app.js so the
 // behaviour that matters — where the request goes, and what each response means — is unit
-// tested in web/__tests__/waitlist-client.test.mjs rather than eyeballed in a browser.
+// tested in test/web/waitlist-client.test.mjs rather than eyeballed in a browser.
 //
 // Everything here runs in the visitor's browser with the public anon key, which is why the
 // write path is the join_waitlist RPC and not the table: migration 0014 revokes every table
 // privilege from anon, so the list can be added to but never read.
+//
+// The shade-pivot dropped SMS entirely: the page collects an email only, plus a referral
+// code (?ref=) and privacy-safe UTM/referrer source for the growth loop. There is no phone
+// field, no SMS consent, and no consent version on any path.
 
 export const OUTCOMES = {
   OK: 'ok',
@@ -15,74 +19,74 @@ export const OUTCOMES = {
   NETWORK: 'network',
 };
 
-// Mirrors src/content/sms-consent.js. Re-declared rather than imported: web/ is served
-// verbatim as static files, so an import from src/ would 404 in the browser.
-// test/content/sms-consent.test.mjs's 'web/waitlist-client.js re-declares the same
-// consent version' case reads this file as source text and asserts the two literals match.
-export const SMS_CONSENT_VERSION = 'sms-2026-08-07';
+// Referral codes are generated server-side (migration 0017: hex from gen_random_bytes).
+// The client stays lenient — any short alphanumeric token — so a change to the generator's
+// length or alphabet does not silently start dropping real codes. Anything with punctuation,
+// spaces or markup is rejected so a crafted ?ref can never reach the RPC or a share link.
+const REFERRAL_CODE = /^[a-z0-9]{6,32}$/i;
 
-const N11 = /^[2-9]11$/;
+// UTM keys we record for the seed phase. A fixed allowlist means an arbitrary query param
+// can never be smuggled into what we store.
+const UTM_KEYS = ['utm_source', 'utm_medium', 'utm_campaign', 'utm_content', 'utm_term'];
+const MAX_SOURCE_VALUE = 200;
 
-/** Three states rather than `string | null`: blank means the optional field was left
- *  alone, invalid means it was filled in wrongly and the visitor needs telling. A
- *  nullable return would conflate the two and silently drop a typo'd number. */
-export function parsePhone(raw) {
-  const text = (raw ?? '').trim();
-  if (text === '') return { status: 'blank' };
+const base = (config) => config.supabaseUrl.replace(/\/+$/, '');
 
-  let digits = text.replace(/[^0-9]/g, '');
-  if (digits.length === 11 && digits.startsWith('1')) digits = digits.slice(1);
-  if (digits.length !== 10) return { status: 'invalid' };
+const authHeaders = (config) => ({
+  'Content-Type': 'application/json',
+  apikey: config.supabaseAnonKey,
+  Authorization: `Bearer ${config.supabaseAnonKey}`,
+});
 
-  // Mirrors the CHECK constraint in migration 0016: N11 codes are assignable as neither
-  // area code nor exchange, so +19115550100 is not a real number.
-  const area = digits.slice(0, 3);
-  const exchange = digits.slice(3, 6);
-  if (area[0] < '2' || exchange[0] < '2') return { status: 'invalid' };
-  if (N11.test(area) || N11.test(exchange)) return { status: 'invalid' };
-
-  return { status: 'ok', e164: `+1${digits}` };
+/** Normalise a referral code, or null if it is missing/implausible. */
+export function normalizeReferral(raw) {
+  const code = (raw ?? '').trim();
+  return REFERRAL_CODE.test(code) ? code.toLowerCase() : null;
 }
 
-export function buildRequest(config, { email, phone, smsConsent } = {}) {
-  const base = config.supabaseUrl.replace(/\/+$/, '');
-  // Only a consented, well-formed number is transmitted. Anything else is left in the
-  // browser: there is no reason for us to receive a number we may not text.
-  const parsed = smsConsent ? parsePhone(phone) : { status: 'blank' };
-  const e164 = parsed.status === 'ok' ? parsed.e164 : null;
+/** Read ?ref= from a query string, validated. */
+export function parseReferral(search) {
+  return normalizeReferral(new URLSearchParams(search).get('ref'));
+}
 
+/** Collect the UTM params and referrer worth attributing a signup to. Returns only the
+ *  keys actually present, so an empty object means "a bare visit" and can be sent as null. */
+export function captureSource(search, referrer = '') {
+  const params = new URLSearchParams(search);
+  const source = {};
+  for (const key of UTM_KEYS) {
+    const value = params.get(key);
+    if (value) source[key] = value.slice(0, MAX_SOURCE_VALUE);
+  }
+  const ref = (referrer ?? '').trim();
+  if (ref) source.referrer = ref.slice(0, MAX_SOURCE_VALUE);
+  return source;
+}
+
+export function buildRequest(config, { email, referredBy, source } = {}) {
+  const hasSource = source && Object.keys(source).length > 0;
   return {
-    url: `${base}/rest/v1/rpc/join_waitlist`,
+    url: `${base(config)}/rest/v1/rpc/join_waitlist`,
     options: {
       method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        apikey: config.supabaseAnonKey,
-        Authorization: `Bearer ${config.supabaseAnonKey}`,
-      },
+      headers: authHeaders(config),
       body: JSON.stringify({
         p_email: (email ?? '').trim().toLowerCase(),
         // The checkbox is required by the form; the RPC rejects anything else.
         p_attested: true,
-        p_phone: e164,
-        p_sms_consent: Boolean(e164),
-        p_sms_consent_version: e164 ? SMS_CONSENT_VERSION : null,
+        p_referred_by: normalizeReferral(referredBy),
+        p_source: hasSource ? source : null,
       }),
     },
   };
 }
 
 export function buildLeaveRequest(config, token) {
-  const base = config.supabaseUrl.replace(/\/+$/, '');
   return {
-    url: `${base}/rest/v1/rpc/leave_waitlist`,
+    url: `${base(config)}/rest/v1/rpc/leave_waitlist`,
     options: {
       method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        apikey: config.supabaseAnonKey,
-        Authorization: `Bearer ${config.supabaseAnonKey}`,
-      },
+      headers: authHeaders(config),
       body: JSON.stringify({ p_token: token }),
     },
   };
@@ -97,6 +101,34 @@ export function parseToken(search) {
   return token && UUID.test(token) ? token : null;
 }
 
+/** join_waitlist returns the caller's own row: their referral code, spot in line and total.
+ *  PostgREST may hand back the object directly or wrapped in a one-row array. Anything
+ *  without a code (a 204, an error shape) is null, so the UI never fakes a share link. */
+export function parseJoinResult(data) {
+  const row = Array.isArray(data) ? data[0] : data;
+  if (!row || typeof row !== 'object' || typeof row.code !== 'string' || !row.code) return null;
+  const num = (v) => (Number.isFinite(v) ? v : null);
+  return {
+    code: row.code,
+    position: num(row.position),
+    total: num(row.total),
+    referrals: num(row.referrals) ?? 0,
+  };
+}
+
+/** The visitor's own shareable link — same-origin, so it stays inside the page's CSP. */
+export function buildShareLink(origin, code) {
+  return `${(origin ?? '').replace(/\/+$/, '')}/?ref=${code}`;
+}
+
+/** One-line status of where they landed, kept vague when the RPC could not tell us. */
+export function formatPosition(result) {
+  if (result && Number.isFinite(result.position)) {
+    return `you're #${result.position} in line. invite friends to move up.`;
+  }
+  return "you're in line. invite friends to move up.";
+}
+
 export function classifyResponse(status) {
   if (status === 200 || status === 201 || status === 204) return OUTCOMES.OK;
   if (status === 400 || status === 422) return OUTCOMES.INVALID;
@@ -106,24 +138,18 @@ export function classifyResponse(status) {
 }
 
 const MESSAGES = {
-  // A repeat signup lands here too — join_waitlist is idempotent and deliberately gives
-  // no sign of whether the address was already stored.
-  [OUTCOMES.OK]: { tone: 'ok', text: "You're on the list. We'll email you once, when there's a build to try." },
-  [OUTCOMES.INVALID]: { tone: 'err', text: 'That email address was rejected. Check it and try again.' },
-  [OUTCOMES.CONFIG]: { tone: 'err', text: "Signup isn't configured correctly right now. Please try again later." },
-  [OUTCOMES.RATE]: { tone: 'err', text: 'Too many attempts just now. Give it a minute and try again.' },
-  [OUTCOMES.SERVER]: { tone: 'err', text: 'Something broke on our end and you were not added. Please try again.' },
-  [OUTCOMES.NETWORK]: { tone: 'err', text: "Couldn't reach us. Check your connection and try again." },
-};
-
-const SMS_OK = {
-  tone: 'ok',
-  text: "You're on the list. We'll email and text you once, when there's a build to try.",
+  // A repeat signup lands here too — join_waitlist is idempotent and returns the same row,
+  // so re-entering an email just retrieves the visitor's existing spot and link.
+  [OUTCOMES.OK]: { tone: 'ok', text: "you're on the list. we'll email you once, when there's a build to try." },
+  [OUTCOMES.INVALID]: { tone: 'err', text: 'that email address was rejected. check it and try again.' },
+  [OUTCOMES.CONFIG]: { tone: 'err', text: "signup isn't configured correctly right now. please try again later." },
+  [OUTCOMES.RATE]: { tone: 'err', text: 'too many attempts just now. give it a minute and try again.' },
+  [OUTCOMES.SERVER]: { tone: 'err', text: 'something broke on our end and you were not added. please try again.' },
+  [OUTCOMES.NETWORK]: { tone: 'err', text: "couldn't reach us. check your connection and try again." },
 };
 
 /** Fails closed: an unmapped outcome reports failure rather than claiming success, so a
  *  future branch that forgets its case can't tell someone they joined when they didn't. */
-export function messageFor(outcome, { sms = false } = {}) {
-  if (outcome === OUTCOMES.OK && sms) return SMS_OK;
+export function messageFor(outcome) {
   return MESSAGES[outcome] ?? MESSAGES[OUTCOMES.SERVER];
 }
