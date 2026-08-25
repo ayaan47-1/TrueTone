@@ -72,8 +72,11 @@ create table public.waitlist_secrets (
 alter table public.waitlist_secrets enable row level security;
 revoke all on public.waitlist_secrets from anon, authenticated, service_role;
 
+-- gen_random_bytes lives in the `extensions` schema on Supabase, and this is a bare
+-- top-level statement (no function body to attach a search_path to), so it must be
+-- schema-qualified — see 0017's note on the same failure mode.
 insert into public.waitlist_secrets(name, value)
-values ('sms_pepper', encode(gen_random_bytes(32), 'hex'));
+values ('sms_pepper', encode(extensions.gen_random_bytes(32), 'hex'));
 
 -- ── the consent event log ─────────────────────────────────────────────────────
 -- Survives unsubscribe and holds no phone number, so an opt-out does not erase the proof
