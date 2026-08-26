@@ -4,17 +4,16 @@ import { Stack, useRouter, usePathname } from 'expo-router';
 import { View } from 'react-native';
 import { useFonts } from 'expo-font';
 import {
-  Fraunces_400Regular,
-  Fraunces_500Medium,
-  Fraunces_600SemiBold,
-  Fraunces_500Medium_Italic,
-} from '@expo-google-fonts/fraunces';
+  PlusJakartaSans_500Medium,
+  PlusJakartaSans_600SemiBold,
+  PlusJakartaSans_700Bold,
+} from '@expo-google-fonts/plus-jakarta-sans';
 import {
-  Mulish_400Regular,
-  Mulish_500Medium,
-  Mulish_600SemiBold,
-  Mulish_700Bold,
-} from '@expo-google-fonts/mulish';
+  Inter_400Regular,
+  Inter_500Medium,
+  Inter_600SemiBold,
+  Inter_700Bold,
+} from '@expo-google-fonts/inter';
 import { SafeAreaProvider, initialWindowMetrics } from 'react-native-safe-area-context';
 import { ProfileProvider, useProfile } from '../src/lib/profile-context';
 import type { Route } from '../src/lib/routing-guard';
@@ -99,14 +98,13 @@ function Guard() {
 
 export default function RootLayout() {
   const [fontsLoaded] = useFonts({
-    Fraunces_400Regular,
-    Fraunces_500Medium,
-    Fraunces_600SemiBold,
-    Fraunces_500Medium_Italic,
-    Mulish_400Regular,
-    Mulish_500Medium,
-    Mulish_600SemiBold,
-    Mulish_700Bold,
+    PlusJakartaSans_500Medium,
+    PlusJakartaSans_600SemiBold,
+    PlusJakartaSans_700Bold,
+    Inter_400Regular,
+    Inter_500Medium,
+    Inter_600SemiBold,
+    Inter_700Bold,
   });
 
   // Seed metrics so children render synchronously (real values in-app; a zeroed
