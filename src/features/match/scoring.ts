@@ -19,6 +19,7 @@ function undertonePenalty(a: Undertone, b: Undertone): number {
   if (pair.has('warm') && pair.has('olive')) return 6;
   if (pair.has('cool') && pair.has('olive')) return 10;
   if (pair.has('warm') && pair.has('cool')) return 14;
+  // forward-compat default for a future undertone value
   return 8;
 }
 
@@ -35,13 +36,22 @@ export function baseShadeUndertoneFit(
 /** Apply the user's coverage + skip preferences to a seed fit. Pure; returns a new number. */
 export function applyPreferences(seed: number, product: Product, profile: MatchProfile): number {
   let score = seed;
-  if (profile.coverage === 'light') {
-    if (product.finish === 'sheer') score += 2;
-    if (product.finish === 'glam') score -= 9;
-  } else if (profile.coverage === 'glam') {
-    if (product.finish === 'glam') score += 5;
+  switch (profile.coverage) {
+    case 'light':
+      if (product.finish === 'sheer') score += 2;
+      if (product.finish === 'glam') score -= 9;
+      break;
+    case 'glam':
+      if (product.finish === 'glam') score += 5;
+      break;
+    case 'everyday':
+      break; // no coverage adjustment
+    default: {
+      // exhaustiveness guard: adding a Coverage value forces a compile error here.
+      const _never: never = profile.coverage;
+      return _never;
+    }
   }
-  // 'everyday' coverage makes no adjustment.
   if (profile.skips.includes('heavy_shimmer') && product.hasShimmer) score -= 14;
   if (profile.skips.includes('drying_matte') && product.finish === 'dewy') score += 3;
   // 'fragrance' & 'full_coverage' skips carry NO score adjustment (filters only, god ruling).

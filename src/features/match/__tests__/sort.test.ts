@@ -40,4 +40,11 @@ describe('rankedForFilter', () => {
     expect(ranked[0].product.id).toBe('e');
     expect(ranked[0].isBestMatch).toBe(true);
   });
+  it('breaks fit ties alphabetically by product name', () => {
+    const ranked = rank(scoreAll([p('zebra'), p('alpha')], profile));
+    expect(ranked.map((s) => s.product.id)).toEqual(['alpha', 'zebra']);
+  });
+  it('handles an empty catalog without throwing', () => {
+    expect(rankedForFilter([], profile, 'all')).toEqual([]);
+  });
 });

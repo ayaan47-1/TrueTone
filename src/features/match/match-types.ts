@@ -19,18 +19,18 @@ export type ShadeDepth = number;
  * scoring boundary compares them to the user's derived shade.
  */
 export interface Product {
-  id: string;
+  readonly id: string;
   /** Brand-neutral, cosmetic-only display name. */
-  name: string;
-  category: ProductCategory;
-  finish: Finish;
-  hasShimmer: boolean;
+  readonly name: string;
+  readonly category: ProductCategory;
+  readonly finish: Finish;
+  readonly hasShimmer: boolean;
   /** Target shade depth this product suits (1..10). */
-  shade: ShadeDepth;
+  readonly shade: ShadeDepth;
   /** Target undertone this product suits. */
-  undertone: Undertone;
+  readonly undertone: Undertone;
   /** Price in whole USD (display only; no payment logic here). */
-  price: number;
+  readonly price: number;
 }
 
 /**
@@ -39,22 +39,22 @@ export interface Product {
  */
 export interface MatchProfile {
   /** Derived shade depth, 1..10. */
-  shade: ShadeDepth;
+  readonly shade: ShadeDepth;
   /** Derived undertone. */
-  undertone: Undertone;
+  readonly undertone: Undertone;
   /** Chosen coverage (single). */
-  coverage: Coverage;
+  readonly coverage: Coverage;
   /** Chosen skips (multi). */
-  skips: readonly Skip[];
+  readonly skips: readonly Skip[];
 }
 
 /** A product paired with its computed fit and rank metadata. Immutable result shape. */
 export interface ScoredProduct {
-  product: Product;
+  readonly product: Product;
   /** Compatibility fit percentage, 40..99. The only score the UI may render. */
-  fit: number;
+  readonly fit: number;
   /** Short, cosmetic-only reason the fit lands where it does. */
-  reason: string;
+  readonly reason: string;
   /** True for the single top-ranked product within its filter view. */
-  isBestMatch: boolean;
+  readonly isBestMatch: boolean;
 }

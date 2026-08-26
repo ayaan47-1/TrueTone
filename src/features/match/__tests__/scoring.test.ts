@@ -61,4 +61,12 @@ describe('scoreProduct', () => {
     );
     expect(s).toBe(40);
   });
+  it('ceils an exact-match glam product under glam coverage at 99', () => {
+    // seed 99 (exact shade+undertone) + glam coverage +5 = 104 -> clamped to 99
+    const s = scoreProduct(
+      face({ finish: 'glam', shade: 5, undertone: 'warm' }),
+      profile({ shade: 5, undertone: 'warm', coverage: 'glam' }),
+    );
+    expect(s).toBe(99);
+  });
 });
