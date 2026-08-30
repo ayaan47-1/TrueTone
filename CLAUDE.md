@@ -1,8 +1,16 @@
 # CLAUDE.md — TrueTone build guardrails
 
 > **Read this on every task.** TrueTone is a mobile app that gives an honest, skin-tone-fair
-> read of skin *appearance* and a brand-neutral skincare routine. It is a **cosmetic /
-> general-wellness product — NOT a medical device, and it NEVER diagnoses anything.**
+> read of skin **tone and undertone** on-device from one selfie and **matches you to makeup**
+> (foundation shade, undertone, finish) built for every tone — a brand-neutral shade-match and
+> shoppable shelf. It is a **cosmetic / general-wellness product — NOT a medical device, and it
+> NEVER diagnoses anything.**
+>
+> **Current build (2026-08-30):** the makeup shade-match layer is being built on
+> `feat/makeup-rebuild` (this branch's base). It is **mid-wiring** — the shade/match/shop logic is
+> real and unit-tested, but most of it is not yet reachable from the running app; the screens you
+> can open today are still the earlier skin-appearance/skincare flow. See §5 for the exact
+> built-vs-navigable status so you don't mistake unwired scaffolding for a shipped feature.
 >
 > These are hard engineering + compliance rules, derived from the project's legal spec. They are
 > **not legal advice**; a licensed Illinois privacy/biometric attorney reviews before launch. Do
@@ -21,9 +29,12 @@
 US regulators classify software by its *intended use*, established by the **words** in the UI and
 model outputs. TrueTone stays on the cosmetic side of that line. Three commitments, enforced in code:
 
-1. Describe how skin **LOOKS** (appearance). Never state or imply a medical diagnosis.
-2. Recommend **OTC cosmetic care and habits**. Never claim to treat / cure / prevent disease or
-   change skin structure/function.
+1. Describe how skin **LOOKS** — its tone, undertone, and appearance — and match cosmetics to it.
+   Never state or imply a medical diagnosis. (No raw read dimension is shown as a number; shade
+   depth is rendered qualitatively, e.g. "Medium Warm.")
+2. Recommend / match **brand-neutral makeup and OTC cosmetic care** (foundation shade, undertone,
+   finish, coverage). Describe how a product LOOKS and FITS a shade — never claim to treat / cure /
+   prevent disease or change skin structure/function.
 3. When something looks medically concerning, **redirect to a dermatologist — never diagnose.**
 
 If a feature request would break any of these, STOP and escalate to the founders.
@@ -85,6 +96,13 @@ If a feature request would break any of these, STOP and escalate to the founders
   (extra Apple restrictions, no MVP benefit).
 - **On-device read:** `react-native-executorch` (preferred) or `onnxruntime-react-native`. Requires
   the New Architecture (default in SDK 56). The read runs here; the image never leaves the device.
+- **Shade match (on-device, pure):** the derived read (tone lightness / warmth / olive / oiliness /
+  skin-type) maps to a **makeup shade** (depth + undertone + finish) and, with the user's structured
+  Setup preferences (goals / coverage / skips), scores a brand-neutral product catalog to a
+  **compatibility fit % (40–99)** for a shoppable shelf. This is a pure, deterministic mapping — it
+  consumes **only the already-derived read descriptors, never the image**, and the only number it
+  emits to the UI is the fit %; shade depth is shown as a word (see §3). Makeup descriptors live in
+  `src/content/makeup-vocab.ts`, additive to — and never widening — the frozen skin-read vocabulary.
 - **Recommendation + chat:** a cloud LLM called from OUR backend, fed **only derived scores + skin
   type — never the image.** Output post-filtered against the disease blocklist (see §1).
 - **Backend / data:** **Supabase** (Postgres + Auth + Row-Level Security + Storage + Edge Functions
@@ -111,6 +129,10 @@ BACKEND    →  Supabase (auth, consent log, scores, retention) + LLM routine/ch
 - The **face image** lives and dies on the phone.
 - Only **derived cosmetic scores / labels** (not the image) may cross to the backend.
 - The **recommendation/chat LLM** receives scores + skin type, never the image.
+- **Shade match runs entirely on-device, inside this boundary:** shade derivation and product
+  scoring consume **only the already-derived read descriptors** (tone / warmth / olive / oiliness /
+  skin-type) — never the image, a URI, or bytes — and no raw read dimension is ever rendered as a
+  number (shade depth is shown as a word; the only score the UI shows is a compatibility fit %).
 - Layer separation is load-bearing — do not "temporarily" send the image to the server for
   convenience, even behind a flag.
 
@@ -155,6 +177,35 @@ point — biometric compliance cannot be retrofitted.
 > (parallel track) is merged. Architecture + module map:
 > [`docs/ARCHITECTURE.md`](docs/ARCHITECTURE.md); setup/run/test: [`README.md`](README.md);
 > phase plans/specs: `docs/superpowers/`.
+
+### Makeup shade-match rebuild — IN PROGRESS (branch `feat/makeup-rebuild`)
+
+The current pivot layers a **makeup shade-match** product on top of the same on-device read and the
+same compliance boundary. The read now also derives a **foundation shade** (depth + undertone +
+finish), which — with the user's structured Setup preferences — scores a brand-neutral product
+catalog to a **fit %** for a shoppable shelf. New code lives under `src/features/`: `shade/` (derive
+the shade), `match/` (types, scoring, catalog, ranking, fit reasons), `shop/` (the shelf + saved
+items), `preferences/` + `setup-ui/` (structured Setup answers), `session/` (per-session shade
+store), `schedule/` (a routine builder store), and `today-home/` (new Today-tab cards).
+
+> ⚠️ **Wiring status — the branch is mid-flight; do NOT assume these screens work.** The
+> shade/match/shop **logic is built and unit-tested**, but most of it is **not yet reachable from
+> the running app**, and the app you actually open on this branch today is **still the earlier
+> skin-appearance/skincare flow** (gates → Today/Routine/Trend/You tabs → the old CV read at
+> `scan/result`). Specifically:
+>
+> - **Built but NOT navigable:** `app/(tabs)/shop.tsx` exists but is **not registered** in
+>   `(tabs)/_layout.tsx`, and `GlassTabBar`'s `TabKey` union has no `'shop'` — the Shop tab is
+>   **unreachable**. `ShadeResult` / `deriveShade` have **zero references under `app/`**. The
+>   `today-home/*` cards are **pure shells with zero `app/` references**. The `setup/*` wizard,
+>   `paywall.tsx`, and `scan-gate.tsx` are wired route files but have **no entry point** from any
+>   other screen (reachable only directly or from tests).
+> - **Still the live flow:** `(tabs)/index.tsx` (Today) renders the week strip + affirmation +
+>   skin-feel diary; `(tabs)/routine.tsx` renders the skincare routine + chat; `scan/result.tsx` is
+>   the old CV read. None of these have been re-pointed at the makeup path yet.
+>
+> When wiring these in, the compliance rules above already cover the makeup path (shade derivation
+> consumes only the on-device read output, never the image) — do not weaken them to ship a screen.
 
 Build the **balanced skin-tone test set in parallel with step 5** — equal performance across
 Fitzpatrick I–VI is the product; verify the read holds up on IV–VI before any equity claim ships.
