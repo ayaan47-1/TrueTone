@@ -31,11 +31,17 @@ async function press(view: View, label: string) {
   await flush();
 }
 
-test('renders all five destinations including the center Scan action', async () => {
+test('renders all five destinations including the center Shade match action', async () => {
   const { view } = await setup();
-  ['Today', 'Routine', 'Scan', 'Trend', 'You'].forEach((label) =>
+  ['Shop', 'Today', 'Shade match', 'Trend', 'You'].forEach((label) =>
     expect(button(view, label)).toBeTruthy(),
   );
+});
+
+test('Shop is the first (primary) tab destination', async () => {
+  const { view } = await setup();
+  const firstTab = view.queryAllByRole('tab')[0];
+  expect(firstTab.props.accessibilityLabel).toBe('Shop');
 });
 
 test('marks the active tab as selected for accessibility', async () => {
@@ -44,24 +50,24 @@ test('marks the active tab as selected for accessibility', async () => {
   expect(button(view, 'Today').props.accessibilityState).toMatchObject({ selected: false });
 });
 
-test('tabs use the "tab" role and Scan uses the "button" role', async () => {
+test('tabs use the "tab" role and Shade match uses the "button" role', async () => {
   const { view } = await setup();
   expect(view.queryAllByRole('tab')).toHaveLength(4);
-  expect(button(view, 'Scan').props.accessibilityRole).toBe('button');
+  expect(button(view, 'Shade match').props.accessibilityRole).toBe('button');
 });
 
 test('pressing a tab calls onSelect with its route key', async () => {
   const { view, onSelect, onScanPress } = await setup();
-  await press(view, 'Routine');
-  expect(onSelect).toHaveBeenCalledWith('routine');
+  await press(view, 'Shop');
+  expect(onSelect).toHaveBeenCalledWith('shop');
   await press(view, 'You');
   expect(onSelect).toHaveBeenCalledWith('you');
   expect(onScanPress).not.toHaveBeenCalled();
 });
 
-test('pressing the center Scan button calls onScanPress, not onSelect', async () => {
+test('pressing the center Shade match button calls onScanPress, not onSelect', async () => {
   const { view, onSelect, onScanPress } = await setup();
-  await press(view, 'Scan');
+  await press(view, 'Shade match');
   expect(onScanPress).toHaveBeenCalledTimes(1);
   expect(onSelect).not.toHaveBeenCalled();
 });

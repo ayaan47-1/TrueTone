@@ -45,6 +45,40 @@ export function RoutineGlyph({ color, size = 22 }: GlyphProps) {
   );
 }
 
+/** Shop — a simple shopping bag with a handle. */
+export function ShopGlyph({ color, size = 22 }: GlyphProps) {
+  const w = size * 0.66;
+  const h = size * 0.56;
+  const handle = w * 0.42;
+  return (
+    <Box size={size}>
+      {/* handle arc */}
+      <View
+        style={{
+          width: handle,
+          height: handle * 0.6,
+          borderTopLeftRadius: handle,
+          borderTopRightRadius: handle,
+          borderWidth: 2,
+          borderBottomWidth: 0,
+          borderColor: color,
+          marginBottom: -1,
+        }}
+      />
+      {/* bag body */}
+      <View
+        style={{
+          width: w,
+          height: h,
+          borderRadius: size * 0.14,
+          borderWidth: 2,
+          borderColor: color,
+        }}
+      />
+    </Box>
+  );
+}
+
 /** Trend — three ascending bars. */
 export function TrendGlyph({ color, size = 22 }: GlyphProps) {
   return (

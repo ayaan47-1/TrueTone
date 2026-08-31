@@ -3,10 +3,13 @@ import { GlassCard } from './GlassCard';
 import { Caption } from './Typography';
 import { useInsets } from './use-insets';
 import { palette, softShadow } from '../../theme/tokens';
-import { TodayGlyph, RoutineGlyph, TrendGlyph, YouGlyph, ScanGlyph, type GlyphProps } from './tab-icons';
+import { TodayGlyph, ShopGlyph, TrendGlyph, YouGlyph, ScanGlyph, type GlyphProps } from './tab-icons';
 
-/** Route keys for the four real tab screens (the center Scan is a separate action). */
-export type TabKey = 'index' | 'routine' | 'trend' | 'you';
+/**
+ * Route keys for the four real tab screens (the center "Shade match" scan action is a
+ * separate button, not a tab). `shop` is the primary/home destination and sits first.
+ */
+export type TabKey = 'shop' | 'index' | 'trend' | 'you';
 
 /**
  * Bottom space a scrollable tab screen should reserve so its last content clears
@@ -27,15 +30,19 @@ interface TabDef {
   Glyph: (props: GlyphProps) => React.ReactElement;
 }
 
-// Order matches the bar; the center Scan button is injected between routine and trend.
+// Order matches the bar; the center "Shade match" scan button is injected between the
+// Shop/Today pair and the Trend/You pair. Shop leads as the primary/home destination.
 const LEFT: readonly TabDef[] = [
+  { key: 'shop', label: 'Shop', Glyph: ShopGlyph },
   { key: 'index', label: 'Today', Glyph: TodayGlyph },
-  { key: 'routine', label: 'Routine', Glyph: RoutineGlyph },
 ];
 const RIGHT: readonly TabDef[] = [
   { key: 'trend', label: 'Trend', Glyph: TrendGlyph },
   { key: 'you', label: 'You', Glyph: YouGlyph },
 ];
+
+/** Visible + accessibility label for the center scan action. */
+const SCAN_LABEL = 'Shade match';
 
 const ACTIVE = palette.sage;
 const INACTIVE = palette.inkMuted;
@@ -76,7 +83,7 @@ export function GlassTabBar({ activeKey, onSelect, onScanPress }: GlassTabBarPro
           <View style={styles.centerSlot}>
             <View style={styles.centerIconSpacer} />
             <Caption numberOfLines={1} style={styles.centerLabel}>
-              Scan
+              {SCAN_LABEL}
             </Caption>
           </View>
 
@@ -90,7 +97,7 @@ export function GlassTabBar({ activeKey, onSelect, onScanPress }: GlassTabBarPro
             off and (on Android) makes the surface itself render as an unclipped box. */}
         <Pressable
           accessibilityRole="button"
-          accessibilityLabel="Scan"
+          accessibilityLabel={SCAN_LABEL}
           onPress={onScanPress}
           style={styles.scanButton}
           hitSlop={8}
