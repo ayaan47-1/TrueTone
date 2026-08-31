@@ -13,6 +13,19 @@ const LOCAL_ANON_KEY =
 const url = process.env.EXPO_PUBLIC_SUPABASE_URL || LOCAL_URL;
 const anonKey = process.env.EXPO_PUBLIC_SUPABASE_ANON_KEY || LOCAL_ANON_KEY;
 
+/**
+ * Demo / offline mode. When EXPO_PUBLIC_DEMO is truthy the app runs against a stubbed
+ * session + profile and never calls the backend, so Shop + Today render from the local
+ * catalog with no Supabase running. Defaults OFF — a missing/empty/"0"/"false" value
+ * keeps normal auth. This is a developer/demo preview convenience ONLY: it does NOT
+ * relax the age-gate or consent logic, it stands in an already-onboarded 18+, consented
+ * identity (the same route a real onboarded user reaches) so the makeup screens are
+ * viewable without a backend. Never enable it for a production build.
+ */
+export const DEMO_MODE = /^(1|true|yes|on)$/i.test(
+  (process.env.EXPO_PUBLIC_DEMO ?? '').trim(),
+);
+
 export const supabase = createClient(url, anonKey, {
   auth: {
     storage: AsyncStorage,

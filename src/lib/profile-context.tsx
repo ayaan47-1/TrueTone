@@ -1,5 +1,5 @@
 import React, { createContext, useContext, useEffect, useState } from 'react';
-import { supabase } from './supabase';
+import { supabase, DEMO_MODE } from './supabase';
 import { bootstrapSession } from './auth';
 import { isUSRegion } from './region';
 import { nextRoute, type Route } from './routing-guard';
@@ -21,6 +21,16 @@ export function ProfileProvider({ children }: { children: React.ReactNode }) {
   const [userId, setUserId] = useState<string | null>(null);
 
   async function refresh() {
+    if (DEMO_MODE) {
+      // Offline demo: stand in a stubbed onboarded identity and skip the backend so the
+      // Shop + Today screens render from the local catalog with no Supabase. The gate
+      // logic is untouched — this is the same route a real US, 18+, consented user hits.
+      setError(false);
+      setUserId('demo-user');
+      setRoute(nextRoute({ isUS: true, is18: true, consent: true }));
+      setLoading(false);
+      return;
+    }
     try {
       setError(false);
       const uid = await bootstrapSession();
