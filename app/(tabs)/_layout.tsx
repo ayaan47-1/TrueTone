@@ -11,10 +11,12 @@ export const unstable_settings = { initialRouteName: 'shop' };
 
 /**
  * Main app shell: four tabbed destinations (Shop / Today / Trend / You) plus a center
- * "Shade match" action that routes through the scan-entry gate (18+ age gate + biometric
- * consent) BEFORE the full-screen camera route, which lives OUTSIDE the tab navigator
- * (capture is a focused, chrome-free flow). Shop is primary/home. The gate logic in the
- * root layout still owns first-run access; this group renders once past the boot gates.
+ * "Shade match" action that opens the pre-camera scan gate (`/scan-gate`, the on-device
+ * privacy screen) BEFORE the full-screen camera route, which lives OUTSIDE the tab
+ * navigator (capture is a focused, chrome-free flow). Shop is primary/home. The 18+ age
+ * gate + biometric consent are enforced UPSTREAM by the root layout's Guard (CLAUDE.md
+ * §1) — this group only renders once those boot gates have cleared, so the camera can
+ * never mount for a user who has not passed them.
  */
 export default function TabsLayout() {
   return (
@@ -47,10 +49,11 @@ function TabBar({ state, navigation }: TabBarProps) {
     <GlassTabBar
       activeKey={activeKey}
       onSelect={onSelect}
-      // Route the floating "Shade match" button through the scan-entry gate, which enforces
-      // the 18+ age gate + biometric consent BEFORE the camera mounts (CLAUDE.md §1). Never
-      // push '/scan' (the camera) directly from here.
-      onScanPress={() => router.push('/scan-entry')}
+      // Route the floating "Shade match" button to the pre-camera scan gate (`/scan-gate`),
+      // the on-device-privacy screen that precedes capture. The 18+ age gate + biometric
+      // consent are already enforced upstream by the root Guard before this group renders
+      // (CLAUDE.md §1). Never push '/scan' (the camera) directly from here.
+      onScanPress={() => router.push('/scan-gate')}
     />
   );
 }
