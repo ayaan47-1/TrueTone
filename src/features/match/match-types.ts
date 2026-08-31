@@ -31,6 +31,17 @@ export interface Product {
   readonly undertone: Undertone;
   /** Price in whole USD (display only; no payment logic here). */
   readonly price: number;
+  /**
+   * Human-readable shade name + code for display (e.g. "Honey 5W"). Optional and
+   * additive: the scoring boundary matches on `shade`/`undertone`, never this label,
+   * so older consumers are unaffected. DATA, not a brand or efficacy claim.
+   */
+  readonly shadeName?: string;
+  /**
+   * Placeholder product image (a stable URL). Optional and additive; the current Shop
+   * cards render name + fit only, so this is inert catalog data for a future thumbnail.
+   */
+  readonly image?: string;
 }
 
 /**
