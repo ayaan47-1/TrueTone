@@ -67,8 +67,8 @@ body {
 /* brand lockup: four overlapping tone swatches stacked above the wordmark
    (Truetone logo spec — tones 01-04 + Plus Jakarta ExtraBold, lowercase). */
 .mark {
-  display: inline-flex; flex-direction: column; align-items: flex-start;
-  gap: 4px; line-height: 1; text-decoration: none; color: var(--ink);
+  display: inline-flex; flex-direction: column; align-items: center;
+  gap: 2px; line-height: 1; text-decoration: none; color: var(--ink);
 }
 .mark .swatches { display: flex; }
 .mark .sw { width: 15px; height: 15px; border-radius: 999px; }
