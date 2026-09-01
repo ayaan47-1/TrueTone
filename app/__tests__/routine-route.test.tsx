@@ -12,7 +12,7 @@ jest.mock('../../src/lib/scans', () => ({
   fetchScanHistory: (...args: unknown[]) => mockFetchScanHistory(...args),
 }));
 
-import RoutineRoute from '../(tabs)/routine';
+import RoutineRoute from '../routine';
 
 const scores = Object.fromEntries(DIMENSIONS.map((d) => [d, 0.5])) as ScoreVector;
 
