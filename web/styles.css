@@ -64,14 +64,22 @@ body {
   display: flex; align-items: center; justify-content: space-between;
   padding: 26px 0 8px;
 }
+/* brand lockup: four overlapping tone swatches stacked above the wordmark
+   (Truetone logo spec — tones 01-04 + Plus Jakarta ExtraBold, lowercase). */
 .mark {
-  display: inline-flex; align-items: center; gap: 10px;
-  font-family: var(--display); font-weight: 700; font-size: 1.25rem;
-  letter-spacing: -0.01em; color: var(--ink);
+  display: inline-flex; flex-direction: column; align-items: center;
+  gap: 2px; line-height: 1; text-decoration: none; color: var(--ink);
 }
-.mark .dot {
-  width: 16px; height: 16px; border-radius: 50%;
-  background: var(--green); box-shadow: 0 0 0 4px rgba(47, 125, 82, 0.14);
+.mark .swatches { display: flex; }
+.mark .sw { width: 15px; height: 15px; border-radius: 999px; }
+.mark .sw + .sw { margin-left: -5px; }
+.mark .sw1 { background: #F2D9C7; }
+.mark .sw2 { background: #C0674A; }
+.mark .sw3 { background: #7A4630; }
+.mark .sw4 { background: #3A2418; }
+.mark .wordmark {
+  font-family: var(--display); font-weight: 800; font-size: 1.35rem;
+  letter-spacing: -0.045em; text-transform: lowercase; color: #14181a;
 }
 .nav-join {
   font-size: 0.9rem; font-weight: 600; text-decoration: none;
