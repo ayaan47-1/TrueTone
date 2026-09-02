@@ -17,8 +17,16 @@ import {
 import { SafeAreaProvider, initialWindowMetrics } from 'react-native-safe-area-context';
 import { ProfileProvider, useProfile } from '../src/lib/profile-context';
 import type { Route } from '../src/lib/routing-guard';
+import { DEMO_MODE } from '../src/lib/supabase';
 import { MistBackground, GlassCard, Heading, Body } from '../src/components/ui';
 import { palette } from '../src/theme/tokens';
+
+// The demo build stubs an already-onboarded identity (profile-context.tsx) and skips the
+// gate chain entirely, so a live camera at this path would have no age-gate/consent in
+// front of it -- structural BIPA exposure if anyone ever ships EXPO_PUBLIC_DEMO=1 with a
+// real camera build. Block it here, not inside Capture.tsx: this is the one place that
+// already redirects imperatively per pathname for every other sensitive screen.
+const DEMO_BLOCKED_PATH = '/scan';
 
 // Map a gate Route to the screen path that must be shown for it. `home` means "no gate".
 const GATE_PATH: Partial<Record<Route, string>> = {
@@ -50,6 +58,12 @@ function Guard() {
   // Stack always mounted and redirecting imperatively avoids that.
   useEffect(() => {
     if (loading || error) return;
+    if (DEMO_MODE && pathname === DEMO_BLOCKED_PATH) {
+      // Demo mode always resolves to a cleared-gates 'home' route (profile-context.tsx), so
+      // the gate check below would never catch this -- checked first and unconditionally.
+      router.replace('/');
+      return;
+    }
     const target = GATE_PATH[route];
     if (target) {
       // A gate is active → make sure we're on its screen.
