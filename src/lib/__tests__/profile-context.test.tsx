@@ -4,10 +4,18 @@ import { ProfileProvider, useProfile } from '../profile-context';
 import { bootstrapSession } from '../auth';
 import { isUSRegion } from '../region';
 import { supabase } from '../supabase';
+import { cameraDemoReset, cameraDemoSetIs18, cameraDemoSetConsent } from '../camera-demo-profile';
 
 jest.mock('../auth', () => ({ bootstrapSession: jest.fn() }));
 jest.mock('../region', () => ({ isUSRegion: jest.fn() }));
-jest.mock('../supabase', () => ({ supabase: { from: jest.fn() } }));
+let mockCameraDemo = false;
+jest.mock('../supabase', () => ({
+  supabase: { from: jest.fn() },
+  DEMO_MODE: false,
+  get CAMERA_DEMO() {
+    return mockCameraDemo;
+  },
+}));
 
 const mockBootstrap = bootstrapSession as jest.Mock;
 const mockRegion = isUSRegion as jest.Mock;
@@ -24,7 +32,11 @@ function Probe() {
   return <Text>{`${loading}|${error}|${route}|${userId}`}</Text>;
 }
 
-beforeEach(() => jest.clearAllMocks());
+beforeEach(() => {
+  jest.clearAllMocks();
+  mockCameraDemo = false;
+  cameraDemoReset();
+});
 
 test('happy path: US + 18+ + consent -> home, exposes userId', async () => {
   mockBootstrap.mockResolvedValue('u1');
@@ -99,4 +111,50 @@ test('fails closed on profile-load error', async () => {
 
 test('useProfile throws outside a provider', async () => {
   await expect(render(<Probe />)).rejects.toThrow(/useProfile outside provider/);
+});
+
+describe('CAMERA_DEMO', () => {
+  beforeEach(() => {
+    mockCameraDemo = true;
+  });
+
+  test('never touches the real backend', async () => {
+    await render(
+      <ProfileProvider>
+        <Probe />
+      </ProfileProvider>
+    );
+    expect(mockBootstrap).not.toHaveBeenCalled();
+    expect(mockFrom).not.toHaveBeenCalled();
+  });
+
+  test('neither gate flag pre-cleared -> age-gate first, NOT home (Dwight condition (b))', async () => {
+    await render(
+      <ProfileProvider>
+        <Probe />
+      </ProfileProvider>
+    );
+    await waitFor(() => expect(screen.getByText(/\|age-gate\|/)).toBeTruthy());
+  });
+
+  test('after a real 18+ pass but before consent -> consent, still not home', async () => {
+    cameraDemoSetIs18();
+    await render(
+      <ProfileProvider>
+        <Probe />
+      </ProfileProvider>
+    );
+    await waitFor(() => expect(screen.getByText(/\|consent\|/)).toBeTruthy());
+  });
+
+  test('after both real taps -> home', async () => {
+    cameraDemoSetIs18();
+    cameraDemoSetConsent();
+    await render(
+      <ProfileProvider>
+        <Probe />
+      </ProfileProvider>
+    );
+    await waitFor(() => expect(screen.getByText(/\|home\|/)).toBeTruthy());
+  });
 });

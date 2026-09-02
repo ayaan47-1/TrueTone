@@ -14,9 +14,13 @@ jest.mock('../../src/features/capture/Capture', () => ({
 jest.mock('../../src/features/read/run-read', () => ({ runRead: jest.fn() }));
 
 let mockDemoMode = false;
+let mockCameraDemo = false;
 jest.mock('../../src/lib/supabase', () => ({
   get DEMO_MODE() {
     return mockDemoMode;
+  },
+  get CAMERA_DEMO() {
+    return mockCameraDemo;
   },
   supabase: {},
 }));
@@ -36,6 +40,7 @@ import ScanRoute from '../scan/index';
 beforeEach(() => {
   jest.clearAllMocks();
   mockDemoMode = false;
+  mockCameraDemo = false;
 });
 
 test('DEMO_MODE on: <Capture> never renders -- a synchronous redirect takes its place', async () => {
@@ -49,4 +54,18 @@ test('DEMO_MODE off: renders <Capture> as before, real scans unaffected', async 
   mockDemoMode = false;
   await render(<ScanRoute />);
   expect(mockCapture).toHaveBeenCalledTimes(1);
+});
+
+test('CAMERA_DEMO on (plain DEMO_MODE off): camera is reachable, same as a real build', async () => {
+  mockCameraDemo = true;
+  await render(<ScanRoute />);
+  expect(mockCapture).toHaveBeenCalledTimes(1);
+});
+
+test('both flags on (should never happen in a real build) still blocks -- DEMO_MODE wins', async () => {
+  mockDemoMode = true;
+  mockCameraDemo = true;
+  const view = await render(<ScanRoute />);
+  expect(mockCapture).not.toHaveBeenCalled();
+  expect(view.getByText('redirect:/')).toBeTruthy();
 });

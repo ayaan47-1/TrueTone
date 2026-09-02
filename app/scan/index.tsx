@@ -12,6 +12,15 @@ export default function ScanRoute() {
   // be structurally impossible to reach this render tree -- returning the redirect here,
   // synchronously, means the camera component is never constructed regardless of effect
   // timing or how many devices race to mount this screen.
+  //
+  // Deliberately checks ONLY DEMO_MODE, not CAMERA_DEMO (tt-cam-pipeline B): CAMERA_DEMO does
+  // NOT stub the identity -- profile-context.tsx still drives the real /age-gate + /consent
+  // chain for it, so the generic route Guard in _layout.tsx already keeps /scan unreachable
+  // until a real tap flips the local flags (camera-demo-profile.ts). Adding `&& !CAMERA_DEMO`
+  // here would make a misconfigured build with BOTH flags on fail OPEN (camera reachable);
+  // leaving this check as DEMO_MODE-only means DEMO_MODE always wins and blocks -- fail
+  // closed, which is the correct default for a BIPA-sensitive path. See
+  // app/__tests__/scan-render-guard.test.tsx's "both flags on" test.
   if (DEMO_MODE) {
     return <Redirect href="/" />;
   }

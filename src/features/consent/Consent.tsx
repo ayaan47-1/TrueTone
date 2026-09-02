@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import { View, Text, Pressable, StyleSheet } from 'react-native';
-import { supabase } from '../../lib/supabase';
+import { supabase, CAMERA_DEMO } from '../../lib/supabase';
+import { cameraDemoSetConsent } from '../../lib/camera-demo-profile';
 import { CONSENT_COPY as C } from './consent-copy';
 import {
   Screen,
@@ -22,6 +23,13 @@ export function Consent({
 }) {
   const [checked, setChecked] = useState(false);
   async function consent() {
+    // CAMERA_DEMO: same real affirmative tap against the same disclosure copy above, no live
+    // backend -- persists to camera-demo-profile.ts's local state (Dwight tt-cam-mode-ruling).
+    if (CAMERA_DEMO) {
+      cameraDemoSetConsent();
+      onConsent();
+      return;
+    }
     const { error } = await supabase.rpc('record_consent');
     if (!error) onConsent();
   }

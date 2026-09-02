@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import { View, TextInput } from 'react-native';
-import { supabase } from '../../lib/supabase';
+import { supabase, CAMERA_DEMO } from '../../lib/supabase';
+import { cameraDemoSetIs18 } from '../../lib/camera-demo-profile';
 import { computeIs18Plus } from './age';
 import {
   MistBackground,
@@ -21,9 +22,15 @@ export function AgeGate({ userId, onPass }: { userId: string; onPass: () => void
     const dob = new Date(value);
     if (isNaN(dob.getTime())) { setBlocked(false); return; }
     if (!computeIs18Plus(dob, new Date())) { setBlocked(true); return; } // discard DOB
-    await supabase.from('profiles')
-      .update({ is_18_plus: true, age_verified_at: new Date().toISOString() })
-      .eq('id', userId);
+    // CAMERA_DEMO: same real pass, no live backend (avoids the plain-HTTP/ATS blocker) --
+    // persists to camera-demo-profile.ts's local state instead (Dwight tt-cam-mode-ruling).
+    if (CAMERA_DEMO) {
+      cameraDemoSetIs18();
+    } else {
+      await supabase.from('profiles')
+        .update({ is_18_plus: true, age_verified_at: new Date().toISOString() })
+        .eq('id', userId);
+    }
     onPass();
   }
 
