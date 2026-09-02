@@ -128,6 +128,30 @@ outside our control, which is exactly why `CLAUDE.md` §4 says start early.
 
 ---
 
+## Submitting a build to TestFlight (`eas submit`)
+
+Once a build exists (`eas build -p ios --profile preview`), `eas submit -p ios --profile preview
+--latest` uploads it to App Store Connect / TestFlight. The `submit.preview` block in `eas.json`
+is checked in with **placeholder values only** — no credential is committed. Fill these in locally
+(or via EAS environment variables/secrets — see `eas env:create`) before running submit:
+
+| `eas.json` key | What it is | Where to get it |
+|---|---|---|
+| `ascAppId` | The app's numeric App Store Connect ID | App Store Connect → the app → General → App Information → "Apple ID" |
+| `appleTeamId` | The 10-character Apple Developer Team ID | developer.apple.com → Membership. **Already set** at `app.json → expo.ios.appleTeamId` for this build — reuse that same value, don't re-enter a different one. |
+| `ascApiKeyPath` | Local path to an App Store Connect API key `.p8` file | App Store Connect → Users and Access → Integrations → App Store Connect API → generate a key, download the `.p8` **once** (Apple won't re-issue it) |
+| `ascApiKeyId` | The key ID shown next to that key | same Integrations page |
+| `ascApiKeyIssuerId` | The Issuer ID for the account (one per account, not per key) | same Integrations page, shown above the key list |
+
+The API-key path is preferred over `appleId`/interactive login: it's non-interactive (works in CI
+and doesn't need 2FA/app-specific-password juggling) and scoped to just what `eas submit` needs.
+If an Apple ID login is preferred instead, replace the four `asc*` keys with `"appleId":
+"you@company-domain.com"` and keep `ascAppId` + `appleTeamId`.
+
+**Never commit the actual `.p8` key file or a real `ascApiKeyId`/`ascApiKeyIssuerId`** — keep the
+key outside the repo (e.g. `~/.eas/AuthKey_XXXX.p8`) and point `ascApiKeyPath` at it locally, or
+store the key via `eas credentials` / EAS secrets instead of a literal path in `eas.json`.
+
 ## Sources
 
 - [Enrollment — Apple Developer Help](https://developer.apple.com/help/account/membership/program-enrollment/)
