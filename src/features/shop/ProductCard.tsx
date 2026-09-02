@@ -3,12 +3,17 @@
 // compatibility fit % pill + bar + a short cosmetic-only "why it fits" line, all
 // sourced from the match boundary (scoring + fit-reason). PRE-scan (no profile) it
 // stays NEUTRAL — "Shades available", never a fit % (plan Flag 3, hasScanned gating).
+import { useEffect, useRef, useState } from 'react';
 import { View } from 'react-native';
-import { GlassCard, Heading, Body, Caption } from '../../components/ui';
+import { GlassCard, Heading, Body, Caption, PressableScale } from '../../components/ui';
 import type { Product, MatchProfile } from '../match/match-types';
 import { scoreProduct } from '../match/scoring';
 import { fitReason } from '../match/fit-reason';
 import { BEST_MATCH_BADGE } from '../../content/makeup-vocab';
+import { bag } from '../checkout/bag-store';
+
+/** How long the "Added" affordance holds before the button reverts. */
+const ADDED_HOLD_MS = 1200;
 
 interface ProductCardProps {
   product: Product;
@@ -22,6 +27,19 @@ interface ProductCardProps {
 export function ProductCard({ product, profile, isBestMatch = false }: ProductCardProps) {
   const fit = profile ? scoreProduct(product, profile) : null;
   const reason = profile ? fitReason(product, profile) : null;
+  const [justAdded, setJustAdded] = useState(false);
+  const revertTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  useEffect(() => () => {
+    if (revertTimer.current) clearTimeout(revertTimer.current);
+  }, []);
+
+  const addToBag = (): void => {
+    bag.add(product);
+    setJustAdded(true);
+    if (revertTimer.current) clearTimeout(revertTimer.current);
+    revertTimer.current = setTimeout(() => setJustAdded(false), ADDED_HOLD_MS);
+  };
 
   return (
     <GlassCard testID={`product-${product.id}`} className="gap-2 p-4" flat>
@@ -53,6 +71,18 @@ export function ProductCard({ product, profile, isBestMatch = false }: ProductCa
       ) : (
         <Caption className="text-ink-faint">Shades available</Caption>
       )}
+
+      <PressableScale
+        accessibilityRole="button"
+        accessibilityLabel={`Add ${product.name} to bag`}
+        onPress={addToBag}
+        testID={`add-to-bag-${product.id}`}
+        className="self-end"
+      >
+        <View className="rounded-full bg-brand-green px-4 py-2">
+          <Caption className="text-white">{justAdded ? 'Added' : 'Add to bag'}</Caption>
+        </View>
+      </PressableScale>
     </GlassCard>
   );
 }
