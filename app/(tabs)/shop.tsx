@@ -27,6 +27,7 @@ export default function ShopScreen() {
 
   return (
     <Screen className="px-6" bottomGap={TAB_BAR_CLEARANCE}>
+      <BagBar />
       <ShopList profile={profile} />
     </Screen>
   );
