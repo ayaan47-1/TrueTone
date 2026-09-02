@@ -1,5 +1,6 @@
 import { Screen, TAB_BAR_CLEARANCE } from '../../src/components/ui';
 import { ShopList } from '../../src/features/shop/ShopList';
+import { BagBar } from '../../src/features/checkout/BagBar';
 import type { MatchProfile } from '../../src/features/match/match-types';
 import { usePersonalization } from '../../src/features/session/personalization';
 import { preferencesStore } from '../../src/features/preferences/preferences-store';
