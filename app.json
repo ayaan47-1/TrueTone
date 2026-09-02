@@ -17,7 +17,8 @@
       "bundleIdentifier": "com.ayaan47.truetone",
       "appleTeamId": "J58R53HC5M",
       "infoPlist": {
-        "NSCameraUsageDescription": "TrueTone uses the front camera only to read your skin tone and undertone and match you to makeup shades, on your device. Your photo is never uploaded and is deleted right after the analysis."
+        "NSCameraUsageDescription": "TrueTone uses the front camera only to read your skin tone and undertone and match you to makeup shades, on your device. Your photo is never uploaded and is deleted right after the analysis.",
+        "ITSAppUsesNonExemptEncryption": false
       }
     },
     "android": {
@@ -45,7 +46,9 @@
         {
           "android": {
             "minSdkVersion": 26,
-            "buildArchs": ["arm64-v8a"]
+            "buildArchs": [
+              "arm64-v8a"
+            ]
           },
           "ios": {
             "deploymentTarget": "16.4"
