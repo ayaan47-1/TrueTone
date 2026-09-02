@@ -28,12 +28,12 @@ export function Consent({
   return (
     <Screen className="px-6" topGap={56} bottomGap={24}>
       <View className="gap-1 mb-7">
-        <Display className="text-[30px]">Your photo stays yours</Display>
+        <Display accessibilityRole="header" className="text-[30px]">Your photo stays yours</Display>
         <Body className="text-ink-muted">Review and choose before any scan can begin.</Body>
       </View>
 
       <GlassCard flat radius={22} className="px-5 py-5 gap-4">
-        <Heading className="text-[20px]">{C.title}</Heading>
+        <Heading accessibilityRole="header" className="text-[20px]">{C.title}</Heading>
         <Body>{C.what}</Body>
         <Body>{C.purpose}</Body>
         <Body className="text-ink-muted">{C.retention}</Body>
