@@ -169,6 +169,16 @@ interactive fallback.
 key outside the repo (e.g. `~/.eas/AuthKey_XXXX.p8`) and point `ascApiKeyPath` at it locally, or
 store the key via `eas credentials` / EAS secrets instead of a literal path in `eas.json`.
 
+### `camera-demo` — a different profile, NOT a distribution path
+
+`build.camera-demo` (`EXPO_PUBLIC_CAMERA_DEMO: "1"`) is the own-device live-camera prototype
+(tt-cam-pipeline, Dwight's tt-cam-mode-ruling PASS). Unlike `testflight-demo`, it has **no
+`submit.camera-demo` block** — deliberately: this mode must stay OFF in any build that could
+reach another person's device (Dwight condition (e)), so it is built and installed straight to
+one owned device (`eas build -p ios --profile camera-demo`, then a direct/local install), never
+routed through App Store Connect. Friends-distribution is a separate, not-yet-unlocked effort
+(needs server `consent_log`, lawyer-reviewed copy, real backend/ATS, and ASC 18+ rating).
+
 ## Sources
 
 - [Enrollment — Apple Developer Help](https://developer.apple.com/help/account/membership/program-enrollment/)
