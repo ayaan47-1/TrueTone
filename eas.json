@@ -46,9 +46,9 @@
       "ios": {
         "ascAppId": "6807728417",
         "appleTeamId": "J58R53HC5M",
-        "ascApiKeyPath": "./PLACEHOLDER_AuthKey.p8",
-        "ascApiKeyId": "PLACEHOLDER_ASC_API_KEY_ID",
-        "ascApiKeyIssuerId": "PLACEHOLDER_ASC_API_KEY_ISSUER_ID"
+        "ascApiKeyPath": "./TrueTone Update/AuthKey_9RKMSHPFVN.p8",
+        "ascApiKeyId": "9RKMSHPFVN",
+        "ascApiKeyIssuerId": "a0965429-64be-4377-98bd-d89cfb03bf9e"
       }
     }
   }
