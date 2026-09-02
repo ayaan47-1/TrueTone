@@ -77,6 +77,7 @@ export function ProductCard({ product, profile, isBestMatch = false }: ProductCa
         accessibilityLabel={`Add ${product.name} to bag`}
         onPress={addToBag}
         testID={`add-to-bag-${product.id}`}
+        hitSlop={8}
         className="self-end"
       >
         <View className="rounded-full bg-brand-green px-4 py-2">

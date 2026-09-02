@@ -31,10 +31,16 @@ export function ProductRail({ title, subtitle, products, profile }: ProductRailP
   return (
     <View className="gap-3" testID={railTestId(title)}>
       <View className="gap-0.5">
-        <Subheading>{title}</Subheading>
+        <Subheading accessibilityRole="header">{title}</Subheading>
         {subtitle ? <Caption className="text-ink-soft">{subtitle}</Caption> : null}
       </View>
-      <ScrollView horizontal showsHorizontalScrollIndicator={false} className="-mx-1">
+      <ScrollView
+        horizontal
+        showsHorizontalScrollIndicator={false}
+        className="-mx-1"
+        contentContainerStyle={{ paddingHorizontal: 4, paddingRight: 8 }}
+        accessibilityLabel={subtitle ? `${title}, ${subtitle}` : title}
+      >
         {products.map((product, index) => (
           <View key={product.id} className="w-52 mr-3">
             <ProductCard

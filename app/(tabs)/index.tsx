@@ -30,6 +30,7 @@ import {
   featuredProducts,
 } from '../../src/features/foryou/for-you-profile';
 import { ProductRail } from '../../src/features/foryou/ProductRail';
+import { FindYourShadeCard } from '../../src/features/foryou/FindYourShadeCard';
 
 /**
  * For You — the app home. A daily snapshot (week strip, affirmation, skin-feel diary)
@@ -99,6 +100,7 @@ export default function TodayScreen() {
           <PressableScale
             accessibilityRole="button"
             accessibilityLabel="Shade match"
+            accessibilityHint="Opens the shade scan"
             onPress={() => router.push('/scan-gate')}
             className="h-11 w-11 mt-1 rounded-full bg-mist-300 items-center justify-center"
           >
@@ -125,14 +127,22 @@ export default function TodayScreen() {
       </Rise>
 
       <Rise index={4}>
-        <View className="mt-7 gap-7">
+        <View className="mt-9 gap-8">
+          {forYouProfile ? (
+            <ProductRail
+              title="Your products"
+              subtitle="Picked for your shade"
+              products={yourPicks}
+              profile={forYouProfile}
+            />
+          ) : (
+            <FindYourShadeCard onFindShade={() => router.push('/scan-gate')} />
+          )}
           <ProductRail
-            title="Your products"
-            subtitle="Picked for your shade"
-            products={yourPicks}
-            profile={forYouProfile}
+            title="Featured products"
+            subtitle="A range from fair to deep"
+            products={featured}
           />
-          <ProductRail title="Featured products" products={featured} />
         </View>
       </Rise>
 
