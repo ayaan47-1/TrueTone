@@ -29,7 +29,13 @@ export function scoreFromRgb(rgb: RgbImage, regions: Regions): ReadResult {
     fineLines: fineLines(rgb, regions),
     darkCircles: darkCircles(rgb, regions, baseline),
   };
-  return { scores, skinType: classify(scores), modelVersion: CV_MODEL_VERSION, isStub: false };
+  return {
+    scores,
+    skinType: classify(scores),
+    modelVersion: CV_MODEL_VERSION,
+    isStub: false,
+    tone: { L: baseline.L, a: baseline.a, b: baseline.b },
+  };
 }
 
 // Convenience for harnesses that have a bbox rather than regions.

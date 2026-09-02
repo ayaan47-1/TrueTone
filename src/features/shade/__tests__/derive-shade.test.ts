@@ -3,6 +3,7 @@ import {
   deriveDepth,
   deriveUndertone,
   deriveFinish,
+  deriveToneFromLab,
   depthWord,
 } from '../derive-shade';
 import { findDiseaseTerms } from '../../../lib/cosmetic-filter';
@@ -54,6 +55,48 @@ describe('depthWord', () => {
     expect(depthWord(6)).toBe('Medium');
     expect(depthWord(8)).toBe('Tan');
     expect(depthWord(10)).toBe('Deep');
+  });
+});
+
+describe('deriveToneFromLab (Phase-1 rough, uncalibrated placeholder curves)', () => {
+  test('a light L* reads fair, a deep L* reads deep, mid L* clamps into range', () => {
+    expect(deriveToneFromLab({ L: 80, a: 10, b: 15 }).lightness).toBeCloseTo(1, 1);
+    expect(deriveToneFromLab({ L: 20, a: 10, b: 15 }).lightness).toBeCloseTo(0, 1);
+    const mid = deriveToneFromLab({ L: 50, a: 10, b: 15 }).lightness;
+    expect(mid).toBeGreaterThan(0);
+    expect(mid).toBeLessThan(1);
+  });
+
+  test('lightness is clamped to [0,1] for L* outside the placeholder range', () => {
+    expect(deriveToneFromLab({ L: 100, a: 10, b: 15 }).lightness).toBe(1);
+    expect(deriveToneFromLab({ L: 0, a: 10, b: 15 }).lightness).toBe(0);
+  });
+
+  test('positive b* (yellow) reads warm, negative b* (blue) reads cool', () => {
+    expect(deriveToneFromLab({ L: 50, a: 10, b: 30 }).warmth).toBeGreaterThan(0.15);
+    expect(deriveToneFromLab({ L: 50, a: 10, b: -10 }).warmth).toBeLessThan(-0.15);
+  });
+
+  test('warmth is clamped to [-1,1]', () => {
+    expect(deriveToneFromLab({ L: 50, a: 10, b: 1000 }).warmth).toBe(1);
+    expect(deriveToneFromLab({ L: 50, a: 10, b: -1000 }).warmth).toBe(-1);
+  });
+
+  test('low a* with high b* (green-yellow cast) reads a stronger olive signal than high a*', () => {
+    const lowA = deriveToneFromLab({ L: 50, a: 0, b: 25 }).olive;
+    const highA = deriveToneFromLab({ L: 50, a: 25, b: 25 }).olive;
+    expect(lowA).toBeGreaterThan(highA);
+  });
+
+  test('olive is clamped to [0,1]', () => {
+    expect(deriveToneFromLab({ L: 50, a: -100, b: 100 }).olive).toBe(1);
+    expect(deriveToneFromLab({ L: 50, a: 100, b: -100 }).olive).toBe(0);
+  });
+
+  test('composes directly with deriveShade (only lightness/warmth/olive, no skinType/oiliness)', () => {
+    const tone = deriveToneFromLab({ L: 75, a: 8, b: 28 });
+    const shade = deriveShade({ ...tone, skinType: 'combination', oiliness: 0.3 });
+    expect(shade.shadeName).toMatch(/^(Fair|Light) Warm$/);
   });
 });
 
