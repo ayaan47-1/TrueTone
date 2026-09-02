@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useState } from 'react';
 import { View } from 'react-native';
 import { useRouter } from 'expo-router';
 import { Result } from '../../src/features/read/Result';
@@ -11,9 +11,7 @@ import { RoutineFeedbackPrompt } from '../../src/features/feedback/RoutineFeedba
 import { computePersonalBaseline } from '../../src/features/personalize/personal-baseline';
 import { computePersonalDeviation } from '../../src/features/personalize/personal-deviation';
 import { personalCopy } from '../../src/features/personalize/personal-copy';
-import { useLatestRead } from '../../src/features/session/latest-read';
-import { deriveShade } from '../../src/features/shade/derive-shade';
-import { personalization } from '../../src/features/session/personalization';
+import { usePersonalization } from '../../src/features/session/personalization';
 import { ShadeMatchResult } from '../../src/features/shade/ShadeMatchResult';
 
 type Status = 'loading' | 'ready' | 'empty' | 'error';
@@ -27,11 +25,12 @@ function toSkinTypeFeel(value: string): SkinTypeFeel {
 
 export default function ResultRoute() {
   const router = useRouter();
-  // Live camera shade-match seam: when the on-device read has published a tone read, this
-  // screen becomes the makeup shade result (shade name + product picks) rather than the
-  // skin-read analysis. Descriptors only -- never the image (CLAUDE.md §3).
-  const toneRead = useLatestRead();
-  const shade = useMemo(() => (toneRead ? deriveShade(toneRead) : null), [toneRead]);
+  // Live camera shade-match: the shade is derived from the FRESH in-memory read at capture
+  // time (ReadResult.tone does not survive the DB round-trip) and published to the session
+  // via personalization.setScan(). When a currentShade exists, this screen becomes the makeup
+  // shade result (shade name + product picks) instead of the skin-read analysis. Descriptors
+  // only -- never the image (CLAUDE.md §3).
+  const { currentShade } = usePersonalization();
 
   const [status, setStatus] = useState<Status>('loading');
   const [scores, setScores] = useState<ScoreVector | null>(null);
@@ -43,13 +42,8 @@ export default function ResultRoute() {
   const [needsFeedback, setNeedsFeedback] = useState(false);
   const [personalMessages, setPersonalMessages] = useState<string[]>([]);
 
-  // Persist the derived shade so the For You re-rank picks it up. Descriptors only.
   useEffect(() => {
-    if (shade) personalization.setScan(shade);
-  }, [shade]);
-
-  useEffect(() => {
-    if (shade) return; // shade-match path owns the screen; skip the skin-read fetch
+    if (currentShade) return; // shade-match path owns the screen; skip the skin-read fetch
     let active = true; // guard against setState after unmount / fast navigation
     void (async () => {
       try {
@@ -85,14 +79,14 @@ export default function ResultRoute() {
       }
     })();
     return () => { active = false; };
-  }, [shade]);
+  }, [currentShade]);
 
   // Live camera shade-match result: shade name + product picks. Rendered as soon as a
-  // tone read exists, so the skin-read states below never flash on the camera-demo path.
-  if (shade) {
+  // shade exists, so the skin-read states below never flash on the camera-demo path.
+  if (currentShade) {
     return (
       <ShadeMatchResult
-        shade={shade}
+        shade={currentShade}
         onSeeLook={() => router.replace('/')}
         onShare={() => {}}
       />

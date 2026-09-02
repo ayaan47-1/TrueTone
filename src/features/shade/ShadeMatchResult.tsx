@@ -12,7 +12,7 @@ import { DEFAULT_SETUP_ANSWERS } from '../preferences/preferences-types';
 import type { CurrentShade } from './shade-types';
 
 interface ShadeMatchResultProps {
-  /** The derived shade to present (route already persisted it via personalization.setScan). */
+  /** The derived shade to present (persisted at capture via personalization.setScan). */
   shade: CurrentShade;
   /** "See my look" -> the route sends the user to their shelf. */
   onSeeLook?: () => void;
