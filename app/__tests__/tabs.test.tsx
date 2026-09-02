@@ -25,11 +25,14 @@ const flush = () => new Promise((resolve) => setTimeout(resolve, 0));
 
 beforeEach(() => jest.clearAllMocks());
 
-test('Today shows the disclaimer and starts a scan', async () => {
+test('For You shows the disclaimer and the shade-match icon opens the scan gate, never the camera', async () => {
   const view = await render(<TodayScreen />);
   expect(view.getByText(/not a medical device/i)).toBeTruthy();
-  fireEvent.press(view.getByRole('button', { name: /ready for today.s scan/i }));
-  expect(mockPush).toHaveBeenCalledWith('/scan');
+  fireEvent.press(view.getByRole('button', { name: 'Shade match' }));
+  // MUST be /scan-gate (the pre-camera privacy screen), never /scan directly — a hard
+  // compliance rule (app/_layout.tsx's Guard also structurally blocks /scan in DEMO_MODE).
+  expect(mockPush).toHaveBeenCalledWith('/scan-gate');
+  expect(mockPush).not.toHaveBeenCalledWith('/scan');
   await flush();
 });
 

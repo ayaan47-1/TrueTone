@@ -1,46 +1,52 @@
 // src/features/foryou/__tests__/ProductRail.test.tsx
-// The horizontal For You rail. With a profile it shows the compliant fit % (40..99) and
-// a single Best-match badge on the top card; without one it stays neutral (no fit %).
-// Renders are ASYNC in this repo (gotcha a): await render, query via `view`.
-import { render, fireEvent, waitFor } from '@testing-library/react-native';
+// Renders are ASYNC (repo gotcha a): await render, query via `view`.
+import { render } from '@testing-library/react-native';
 import { ProductRail } from '../ProductRail';
-import { resolveForYouProfile } from '../for-you-profile';
-import { catalog } from '../../match/product-catalog';
-import { rankedForFilter } from '../../match/sort';
-import { bag, bagCount } from '../../checkout/bag-store';
-import { DEFAULT_SETUP_ANSWERS } from '../../preferences/preferences-types';
+import { pickedForYourShade, featuredProducts, DEMO_SHADE } from '../for-you-profile';
+import type { MatchProfile } from '../../match/match-types';
 
-const demoProfile = resolveForYouProfile(false, null, DEFAULT_SETUP_ANSWERS, true)!;
-const rankedItems = rankedForFilter(catalog, demoProfile, 'all')
-  .slice(0, 8)
-  .map((s) => ({ product: s.product, isBestMatch: s.isBestMatch }));
+const DEMO_PROFILE: MatchProfile = {
+  shade: DEMO_SHADE.depth,
+  undertone: DEMO_SHADE.undertone,
+  coverage: 'everyday',
+  skips: [],
+};
 
 describe('ProductRail', () => {
-  beforeEach(() => bag.clear());
+  test('"Picked for your shade" renders products ranked off the demo stub shade', async () => {
+    const picks = pickedForYourShade(DEMO_PROFILE);
+    expect(picks.length).toBeGreaterThan(0);
 
-  test('ranked against the demo stub shade: shows fit % and one Best-match badge', async () => {
     const view = await render(
-      <ProductRail title="Your products" subtitle="Picked for your shade" items={rankedItems} profile={demoProfile} />,
+      <ProductRail title="Your products" subtitle="Picked for your shade" products={picks} profile={DEMO_PROFILE} />,
     );
+
     expect(view.getByText('Your products')).toBeTruthy();
     expect(view.getByText('Picked for your shade')).toBeTruthy();
-    expect(view.getAllByText(/% fit/).length).toBeGreaterThan(0);
-    expect(view.getAllByTestId('rail-best-match')).toHaveLength(1);
+    // Best-first ranking (sort.ts): the top pick is the only card badged.
+    expect(view.getByTestId(`product-${picks[0].id}`)).toBeTruthy();
+    expect(view.getAllByTestId('best-match-badge')).toHaveLength(1);
+    // Every ranked pick actually renders in the rail, in order.
+    const names = view.getAllByTestId('product-name').map((n) => n.props.children);
+    expect(names).toEqual(picks.map((p) => p.name));
   });
 
-  test('neutral (no profile) rail shows no fit %', async () => {
-    const items = catalog.slice(0, 5).map((product) => ({ product }));
-    const view = await render(<ProductRail title="Featured products" items={items} />);
-    expect(view.queryAllByText(/% fit/)).toHaveLength(0);
-    expect(view.queryByTestId('rail-best-match')).toBeNull();
+  test('Featured renders its diverse fair->deep set, no fit signal', async () => {
+    const featured = featuredProducts();
+    expect(featured.length).toBeGreaterThan(0);
+
+    const view = await render(<ProductRail title="Featured products" products={featured} />);
+
+    expect(view.getByText('Featured products')).toBeTruthy();
+    // No profile -> ProductCard's neutral state, no fit pill or best-match badge.
+    expect(view.queryAllByTestId('fit-pill')).toHaveLength(0);
+    expect(view.queryByTestId('best-match-badge')).toBeNull();
+    const names = view.getAllByTestId('product-name').map((n) => n.props.children);
+    expect(names).toEqual(featured.map((p) => p.name));
   });
 
-  test('tapping a card add button adds the product to the bag', async () => {
-    const view = await render(
-      <ProductRail title="Your products" items={rankedItems} profile={demoProfile} />,
-    );
-    const top = rankedItems[0].product;
-    fireEvent.press(view.getByTestId(`rail-add-${top.id}`));
-    await waitFor(() => expect(bag.count()).toBe(1));
+  test('renders nothing for an empty product list', async () => {
+    const view = await render(<ProductRail title="Empty rail" products={[]} />);
+    expect(view.queryByText('Empty rail')).toBeNull();
   });
 });

@@ -8,6 +8,7 @@ import type { Undertone } from '../../content/makeup-vocab';
 import type { CurrentShade } from '../session/personalization';
 import type { SetupAnswers } from '../preferences/preferences-types';
 import { catalog } from '../match/product-catalog';
+import { rankedForFilter } from '../match/sort';
 
 /**
  * Fixed demo stub shade. `currentShade` is null in the running app (the camera → shade
@@ -64,4 +65,22 @@ export function featuredProducts(products: readonly Product[] = catalog): Produc
   return FEATURED_IDS.map((id) => products.find((p) => p.id === id)).filter(
     (p): p is Product => p !== undefined,
   );
+}
+
+/** How many products the "Picked for your shade" rail shows. */
+export const PICKED_FOR_YOU_COUNT = 8;
+
+/**
+ * The "Picked for your shade" rail: the catalog ranked best-first against `profile`
+ * (scoring.ts + sort.ts's documented tiebreak — same engine ShopList uses), trimmed to
+ * a rail-sized slice. Ranking logic is not duplicated here, only composed.
+ */
+export function pickedForYourShade(
+  profile: MatchProfile,
+  products: readonly Product[] = catalog,
+  count: number = PICKED_FOR_YOU_COUNT,
+): Product[] {
+  return rankedForFilter(products, profile, 'all')
+    .slice(0, count)
+    .map((scored) => scored.product);
 }

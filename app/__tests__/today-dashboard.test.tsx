@@ -19,49 +19,29 @@ jest.mock('../../src/features/diary/diary-storage', () => ({
   setMood: (v: string) => mockSetMood(v),
 }));
 
+// Demo mode is the only way this screen's "Picked for your shade" rail populates without
+// a real on-device scan (for-you-profile.ts's stub shade) -- mocked on so both rails can
+// be exercised the same way the shipped demo build actually runs.
+jest.mock('../../src/lib/supabase', () => ({ DEMO_MODE: true, supabase: {} }));
+
 import TodayScreen from '../(tabs)/index';
 
-const SCAN = {
-  id: 's1',
-  capturedAt: '2026-06-24T09:00:00.000Z',
-  skinType: 'dry',
-  scores: {},
-  modelVersion: 'stub-1',
-  isStub: true,
-  routine: { version: 'v1', am: [{}, {}, {}], pm: [{}, {}], notes: [] },
-  skinAge: null,
-  skinAgeConfidence: null,
-  routineHelpful: null,
-};
-
 const flush = () => new Promise((resolve) => setTimeout(resolve, 0));
-beforeEach(() => jest.clearAllMocks());
-
-test('with a scan, shows the routine summary with step counts and links to Routine', async () => {
-  mockFetchHistory.mockResolvedValue([SCAN]);
-  const view = await render(<TodayScreen />);
-  await waitFor(() => expect(view.getByText(/your routine is ready/i)).toBeTruthy());
-  expect(view.getByText(/3 morning · 2 evening steps/i)).toBeTruthy();
-  fireEvent.press(view.getByRole('button', { name: 'Open your routine' }));
-  expect(mockPush).toHaveBeenCalledWith('/routine');
-  await flush();
-});
-
-test('with no scans, shows the first-read empty state', async () => {
+beforeEach(() => {
+  jest.clearAllMocks();
   mockFetchHistory.mockResolvedValue([]);
-  const view = await render(<TodayScreen />);
-  await waitFor(() => expect(view.getByText(/take your first read/i)).toBeTruthy());
 });
 
-test('when the scan fetch fails, shows a distinct error (not the empty state)', async () => {
-  mockFetchHistory.mockRejectedValue(new Error('network'));
+test('renders both product rails: Featured always, and Your products via the demo stub shade', async () => {
   const view = await render(<TodayScreen />);
-  await waitFor(() => expect(view.getByText(/couldn.t load your scans/i)).toBeTruthy());
-  expect(view.queryByText(/take your first read/i)).toBeNull();
+  await waitFor(() => expect(view.getByText('Featured products')).toBeTruthy());
+  expect(view.getByText('Your products')).toBeTruthy();
+  expect(view.getByText('Picked for your shade')).toBeTruthy();
+  // Both rails actually contain product cards, not just their headers.
+  expect(view.getAllByTestId('product-name').length).toBeGreaterThan(0);
 });
 
 test('logging a skin-feel mood persists it on-device', async () => {
-  mockFetchHistory.mockResolvedValue([]);
   const view = await render(<TodayScreen />);
   fireEvent.press(view.getByRole('button', { name: 'Glowy' }));
   expect(mockSetMood).toHaveBeenCalledWith('glowy');
