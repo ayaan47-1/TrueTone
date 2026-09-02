@@ -7,6 +7,8 @@ import { CvReadEngine } from './cv-read-engine';
 import { stubRead } from './stub-read';
 import { recordScan } from '../../lib/scans';
 import { estimateSkinAge } from '../age/skin-age-engine';
+import { personalization } from '../session/personalization';
+import { deriveShade, deriveToneFromLab } from '../shade/derive-shade';
 
 interface Deps {
   engine?: ReadEngine;
@@ -24,6 +26,20 @@ export async function runRead(
   });
   try {
     const result = await engine.run(photoUri);
+    // Live camera shade-match seam (Phase 1, tt-cam-integrate): derive the makeup shade from the
+    // FRESH in-memory tone read and publish it via personalization.setScan() -- the result screen
+    // renders off currentShade and the For You rail re-ranks off it. tone survives only in-memory
+    // here (it does NOT round-trip through persistence), so map it now. Descriptors only; the image
+    // is already deleted on-device (CLAUDE.md §3). Stub/no-CV reads have no tone -> no shade set.
+    if (result.tone) {
+      personalization.setScan(
+        deriveShade({
+          ...deriveToneFromLab(result.tone),
+          skinType: result.skinType,
+          oiliness: result.scores.oiliness,
+        }),
+      );
+    }
     await persist(result);
   } catch (err) {
     if (__DEV__) {
