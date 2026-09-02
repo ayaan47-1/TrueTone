@@ -18,6 +18,9 @@ interface ShadeResultProps {
   shade: CurrentShade;
   /** Optional cosmetic tip line; a finish-appropriate default is used when omitted. */
   tip?: string;
+  /** Optional product-picks slot (e.g. a "Picked for your shade" rail), rendered
+   *  between the tip and the CTAs. The route owns ranking; this is presentation only. */
+  picks?: React.ReactNode;
   /** Fired by "See my look" (no-op wiring lives in the route). */
   onSeeLook?: () => void;
   /** Fired by "Share" (share sheet is a shell this phase). */
@@ -66,7 +69,7 @@ function Swatch({ color, label, value }: { color: string; label: string; value: 
 }
 
 /** The derived-shade result card. Hero shade + undertone/depth/finish swatches + CTAs. */
-export function ShadeResult({ shade, tip, onSeeLook, onShare }: ShadeResultProps) {
+export function ShadeResult({ shade, tip, picks, onSeeLook, onShare }: ShadeResultProps) {
   const tipLine = tip ?? FINISH_TIP[shade.finish];
 
   return (
@@ -98,6 +101,9 @@ export function ShadeResult({ shade, tip, onSeeLook, onShare }: ShadeResultProps
           <Caption className="uppercase tracking-[1.2px] text-brand-green">Today's tip</Caption>
           <Body className="text-ink-soft">{tipLine}</Body>
         </GlassCard>
+
+        {/* Product picks slot (route-owned ranking) */}
+        {picks}
 
         <View className="mt-auto gap-3 pb-2">
           <PrimaryButton label="See my look" onPress={onSeeLook} />

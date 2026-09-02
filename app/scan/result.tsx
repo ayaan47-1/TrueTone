@@ -11,6 +11,8 @@ import { RoutineFeedbackPrompt } from '../../src/features/feedback/RoutineFeedba
 import { computePersonalBaseline } from '../../src/features/personalize/personal-baseline';
 import { computePersonalDeviation } from '../../src/features/personalize/personal-deviation';
 import { personalCopy } from '../../src/features/personalize/personal-copy';
+import { usePersonalization } from '../../src/features/session/personalization';
+import { ShadeMatchResult } from '../../src/features/shade/ShadeMatchResult';
 
 type Status = 'loading' | 'ready' | 'empty' | 'error';
 
@@ -23,6 +25,13 @@ function toSkinTypeFeel(value: string): SkinTypeFeel {
 
 export default function ResultRoute() {
   const router = useRouter();
+  // Live camera shade-match: the shade is derived from the FRESH in-memory read at capture
+  // time (ReadResult.tone does not survive the DB round-trip) and published to the session
+  // via personalization.setScan(). When a currentShade exists, this screen becomes the makeup
+  // shade result (shade name + product picks) instead of the skin-read analysis. Descriptors
+  // only -- never the image (CLAUDE.md §3).
+  const { currentShade } = usePersonalization();
+
   const [status, setStatus] = useState<Status>('loading');
   const [scores, setScores] = useState<ScoreVector | null>(null);
   const [prev, setPrev] = useState<ScoreVector | null>(null);
@@ -34,6 +43,7 @@ export default function ResultRoute() {
   const [personalMessages, setPersonalMessages] = useState<string[]>([]);
 
   useEffect(() => {
+    if (currentShade) return; // shade-match path owns the screen; skip the skin-read fetch
     let active = true; // guard against setState after unmount / fast navigation
     void (async () => {
       try {
@@ -69,7 +79,19 @@ export default function ResultRoute() {
       }
     })();
     return () => { active = false; };
-  }, []);
+  }, [currentShade]);
+
+  // Live camera shade-match result: shade name + product picks. Rendered as soon as a
+  // shade exists, so the skin-read states below never flash on the camera-demo path.
+  if (currentShade) {
+    return (
+      <ShadeMatchResult
+        shade={currentShade}
+        onSeeLook={() => router.replace('/')}
+        onShare={() => {}}
+      />
+    );
+  }
 
   if (status === 'loading') {
     return (
