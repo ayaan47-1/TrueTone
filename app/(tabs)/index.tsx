@@ -11,7 +11,7 @@ import {
   Rise,
   PressableScale,
 } from '../../src/components/ui';
-import { ScanGlyph } from '../../src/components/ui/tab-icons';
+import { CameraGlyph } from '../../src/components/ui/tab-icons';
 import { palette } from '../../src/theme/tokens';
 import { fetchScanHistory, type Scan } from '../../src/lib/scans';
 import { toDateKey } from '../../src/features/today/week';
@@ -102,9 +102,12 @@ export default function TodayScreen() {
             accessibilityLabel="Shade match"
             accessibilityHint="Opens the shade scan"
             onPress={() => router.push('/scan-gate')}
-            className="h-11 w-11 mt-1 rounded-full bg-mist-300 items-center justify-center"
+            className="items-center gap-1 mt-1"
           >
-            <ScanGlyph color={palette.mauve600} size={22} />
+            <View className="h-11 w-11 rounded-full bg-mist-300 items-center justify-center">
+              <CameraGlyph color={palette.mauve600} size={22} />
+            </View>
+            <Caption className="text-ink-muted">Shade match</Caption>
           </PressableScale>
         </View>
       </Rise>
