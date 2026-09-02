@@ -61,3 +61,8 @@ truetone-brain/
 web/policies/
 web/config.js
 web/_headers
+
+# App Store Connect API keys / secrets (never commit)
+*.p8
+AuthKey_*.p8
+TrueTone Update/
