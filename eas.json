@@ -26,16 +26,26 @@
         "EXPO_PUBLIC_DEMO": "1"
       }
     },
+    "testflight-demo": {
+      "distribution": "store",
+      "autoIncrement": true,
+      "ios": {
+        "simulator": false
+      },
+      "env": {
+        "EXPO_PUBLIC_DEMO": "1"
+      }
+    },
     "production": {
       "autoIncrement": true
     }
   },
   "submit": {
     "production": {},
-    "preview": {
+    "testflight-demo": {
       "ios": {
-        "ascAppId": "PLACEHOLDER_ASC_APP_ID",
-        "appleTeamId": "PLACEHOLDER_APPLE_TEAM_ID",
+        "ascAppId": "6807728417",
+        "appleTeamId": "J58R53HC5M",
         "ascApiKeyPath": "./PLACEHOLDER_AuthKey.p8",
         "ascApiKeyId": "PLACEHOLDER_ASC_API_KEY_ID",
         "ascApiKeyIssuerId": "PLACEHOLDER_ASC_API_KEY_ISSUER_ID"

@@ -130,23 +130,40 @@ outside our control, which is exactly why `CLAUDE.md` §4 says start early.
 
 ## Submitting a build to TestFlight (`eas submit`)
 
-Once a build exists (`eas build -p ios --profile preview`), `eas submit -p ios --profile preview
---latest` uploads it to App Store Connect / TestFlight. The `submit.preview` block in `eas.json`
-is checked in with **placeholder values only** — no credential is committed. Fill these in locally
+**TestFlight/App Store Connect requires a `distribution: "store"` (App Store signed) build —
+it rejects the Ad Hoc `preview` profile's IPA at upload.** The `preview` build profile stays
+`distribution: "internal"` because it's still used for direct-install demo builds (no App Store
+Connect involved); a separate `testflight-demo` build profile carries `distribution: "store"` so
+its IPA is accepted. Both run the same demo runtime (`EXPO_PUBLIC_DEMO: "1"` — camera
+structurally unreachable, `__DEV__` false) — only the code-signing target differs.
+
+```bash
+eas build -p ios --profile testflight-demo
+eas submit -p ios --profile testflight-demo --latest
+```
+
+The `submit.testflight-demo` block in `eas.json` already has the two account-identifying values
+filled in (`ascAppId`, `appleTeamId` — both public identifiers, not secrets); the three
+credential fields are still **placeholders only** — no key is committed. Fill these in locally
 (or via EAS environment variables/secrets — see `eas env:create`) before running submit:
 
 | `eas.json` key | What it is | Where to get it |
 |---|---|---|
-| `ascAppId` | The app's numeric App Store Connect ID | App Store Connect → the app → General → App Information → "Apple ID" |
-| `appleTeamId` | The 10-character Apple Developer Team ID | developer.apple.com → Membership. **Already set** at `app.json → expo.ios.appleTeamId` for this build — reuse that same value, don't re-enter a different one. |
+| `ascAppId` | The app's numeric App Store Connect ID | Already set: `"6807728417"`. (App Store Connect → the app → General → App Information → "Apple ID", if it ever needs re-confirming.) |
+| `appleTeamId` | The 10-character Apple Developer Team ID | Already set: `"J58R53HC5M"` — same value as `app.json → expo.ios.appleTeamId`. |
 | `ascApiKeyPath` | Local path to an App Store Connect API key `.p8` file | App Store Connect → Users and Access → Integrations → App Store Connect API → generate a key, download the `.p8` **once** (Apple won't re-issue it) |
 | `ascApiKeyId` | The key ID shown next to that key | same Integrations page |
 | `ascApiKeyIssuerId` | The Issuer ID for the account (one per account, not per key) | same Integrations page, shown above the key list |
 
 The API-key path is preferred over `appleId`/interactive login: it's non-interactive (works in CI
 and doesn't need 2FA/app-specific-password juggling) and scoped to just what `eas submit` needs.
-If an Apple ID login is preferred instead, replace the four `asc*` keys with `"appleId":
-"you@company-domain.com"` and keep `ascAppId` + `appleTeamId`.
+**For a first one-off submit, the API key can be skipped entirely**: delete the three
+`ascApiKeyPath` / `ascApiKeyId` / `ascApiKeyIssuerId` placeholder lines from
+`submit.testflight-demo.ios` (leave `ascAppId` + `appleTeamId`), then `eas submit -p ios
+--profile testflight-demo` prompts for an interactive Apple ID login (2FA included) instead.
+Leaving the placeholder *strings* in place will make `eas submit` try to read a `.p8` file that
+doesn't exist and fail — the fields must be removed, not merely left unfilled, to get the
+interactive fallback.
 
 **Never commit the actual `.p8` key file or a real `ascApiKeyId`/`ascApiKeyIssuerId`** — keep the
 key outside the repo (e.g. `~/.eas/AuthKey_XXXX.p8`) and point `ascApiKeyPath` at it locally, or
