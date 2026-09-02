@@ -30,7 +30,7 @@ const TABS: readonly TabDef[] = [
   { key: 'shop', label: 'Shop', Glyph: ShopGlyph },
   { key: 'index', label: 'For You', Glyph: TodayGlyph },
   { key: 'trend', label: 'Trend', Glyph: TrendGlyph },
-  { key: 'you', label: 'Settings', Glyph: YouGlyph },
+  { key: 'you', label: 'Account', Glyph: YouGlyph },
 ];
 
 const ACTIVE = palette.sage;
@@ -45,7 +45,7 @@ interface GlassTabBarProps {
 
 /**
  * Floating frosted tab bar for the main app: four evenly-spaced destinations
- * (Shop · For You · Trend · Settings). Purely presentational — the route adapter in
+ * (Shop · For You · Trend · Account). Purely presentational — the route adapter in
  * `app/(tabs)/_layout.tsx` maps React Navigation state onto this API.
  */
 export function GlassTabBar({ activeKey, onSelect }: GlassTabBarProps) {

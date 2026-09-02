@@ -1,6 +1,6 @@
 import { render, fireEvent } from '@testing-library/react-native';
 
-// The bottom bar is now four plain tabs (Shop · For You · Trend · Settings). The
+// The bottom bar is now four plain tabs (Shop · For You · Trend · Account). The
 // shade-match scan entry no longer lives here — it moved to the For You header (see
 // app/__tests__/for-you.test.tsx for the /scan-gate compliance assertion). This test
 // verifies the layout adapts React Navigation state onto the GlassTabBar and routes a
@@ -38,8 +38,8 @@ jest.mock('../../src/components/ui', () => {
   return {
     GlassTabBar: ({ onSelect }: { onSelect: (k: string) => void }) => (
       <>
-        <Pressable accessibilityRole="tab" accessibilityLabel="Settings" onPress={() => onSelect('you')}>
-          <Text>Settings</Text>
+        <Pressable accessibilityRole="tab" accessibilityLabel="Account" onPress={() => onSelect('you')}>
+          <Text>Account</Text>
         </Pressable>
       </>
     ),
@@ -54,7 +54,7 @@ beforeEach(() => jest.clearAllMocks());
 
 test('selecting a tab navigates to its route', async () => {
   const view = await render(<TabsLayout />);
-  fireEvent.press(view.getByRole('tab', { name: 'Settings' }));
+  fireEvent.press(view.getByRole('tab', { name: 'Account' }));
   expect(mockNavigate).toHaveBeenCalledWith('you');
   await flush();
 });

@@ -31,7 +31,7 @@ async function press(view: View, label: string) {
 test('renders exactly four tab destinations and no center Shade match button', async () => {
   const { view } = await setup();
   expect(view.queryAllByRole('tab')).toHaveLength(4);
-  ['Shop', 'For You', 'Trend', 'Settings'].forEach((label) =>
+  ['Shop', 'For You', 'Trend', 'Account'].forEach((label) =>
     expect(tab(view, label)).toBeTruthy(),
   );
   // The floating center scan action is gone from the bar entirely.
@@ -59,6 +59,6 @@ test('pressing a tab calls onSelect with its route key', async () => {
   expect(onSelect).toHaveBeenCalledWith('shop');
   await press(view, 'For You');
   expect(onSelect).toHaveBeenCalledWith('index');
-  await press(view, 'Settings');
+  await press(view, 'Account');
   expect(onSelect).toHaveBeenCalledWith('you');
 });

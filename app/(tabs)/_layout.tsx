@@ -10,7 +10,7 @@ type TabBarProps = Parameters<NonNullable<React.ComponentProps<typeof Tabs>['tab
 export const unstable_settings = { initialRouteName: 'shop' };
 
 /**
- * Main app shell: four tabbed destinations (Shop · For You · Trend · Settings). The
+ * Main app shell: four tabbed destinations (Shop · For You · Trend · Account). The
  * shade-match ("Shade match") scan entry is NOT a tab — it lives as a small icon in the
  * For You header, which pushes the pre-camera scan gate (`/scan-gate`, the on-device
  * privacy screen) BEFORE the full-screen camera route (capture lives OUTSIDE the tab
@@ -28,7 +28,7 @@ export default function TabsLayout() {
       <Tabs.Screen name="shop" options={{ title: 'Shop' }} />
       <Tabs.Screen name="index" options={{ title: 'For You' }} />
       <Tabs.Screen name="trend" options={{ title: 'Trend' }} />
-      <Tabs.Screen name="you" options={{ title: 'Settings' }} />
+      <Tabs.Screen name="you" options={{ title: 'Account' }} />
     </Tabs>
   );
 }

@@ -11,10 +11,10 @@ import {
 } from '../../src/components/ui';
 
 /**
- * Settings — profile & controls. Surfaces the previously-orphaned data-rights and legal
+ * Account — profile & controls. Surfaces the previously-orphaned data-rights and legal
  * screens (both are reachability requirements: data deletion per CLAUDE.md §1, and
  * policies must be reachable before a scan per the build order). The route stays `you`
- * internally to avoid deep-link churn; only the visible title reads "Settings".
+ * internally to avoid deep-link churn; only the visible title reads "Account".
  */
 export default function YouScreen() {
   const router = useRouter();
@@ -23,7 +23,7 @@ export default function YouScreen() {
       <Rise>
         <View className="items-center mt-3 mb-8">
           <View className="h-20 w-20 rounded-full bg-mist-300 mb-4" />
-          <Display className="text-[28px]">Settings</Display>
+          <Display className="text-[28px]">Account</Display>
         </View>
       </Rise>
 
