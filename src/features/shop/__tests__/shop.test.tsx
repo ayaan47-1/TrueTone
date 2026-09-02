@@ -35,11 +35,17 @@ describe('ShopList', () => {
     expect(view.getAllByTestId('best-match-badge')).toHaveLength(1);
 
     const names = view.getAllByTestId('product-name').map((n) => n.props.children);
-    // A close-shade (99% fit), non-shimmer product wins the top card (name tiebreak);
-    // the shimmer glam foundation (−14 shimmer, −9 glam) ranks well below it.
-    expect(names[0]).toBe('Satin Lip Color');
-    const shimmerIdx = names.indexOf('Full-Glam Foundation');
+    // Three catalog products share this profile's exact shade (5) + undertone (warm), so
+    // all three hit the 99% fit ceiling: Lumira Full-Cover Concealer (matte), Lumira Satin
+    // Lip Color (satin), Veranda Velvet Matte Foundation (matte). rank()'s documented
+    // tiebreak is alphabetical by name (sort.ts), and "Full-Cover" < "Satin" < "Velvet" —
+    // Lumira Full-Cover Concealer wins the top card.
+    expect(names[0]).toBe('Lumira Full-Cover Concealer');
+    // Solene Shimmer Eye Quad shares the same shade/undertone (also a 99% seed) but is the
+    // catalog's only hasShimmer product, so profile.skips=['heavy_shimmer'] (−14) plus its
+    // glam finish under coverage:'light' (−9) drop it to 76% — well below the 99% cluster.
+    const shimmerIdx = names.indexOf('Solene Shimmer Eye Quad');
     expect(shimmerIdx).toBeGreaterThan(0);
-    expect(shimmerIdx).toBeGreaterThan(names.indexOf('Satin Lip Color'));
+    expect(shimmerIdx).toBeGreaterThan(names.indexOf('Lumira Full-Cover Concealer'));
   });
 });
