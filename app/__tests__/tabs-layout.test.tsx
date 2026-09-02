@@ -1,10 +1,11 @@
 import { render, fireEvent } from '@testing-library/react-native';
 
-// The center "Shade match" action MUST route through the pre-camera gate route
-// (`/scan-gate`), never straight to the camera (`/scan`). Age-gate + biometric
-// consent are enforced upstream by the root Guard before `(tabs)` is reachable
-// (CLAUDE.md §1); scan-gate is the on-device-privacy screen shown before capture.
-const mockPush = jest.fn();
+// The bottom bar is now four plain tabs (Shop · For You · Trend · Settings). The
+// shade-match scan entry no longer lives here — it moved to the For You header (see
+// app/__tests__/for-you.test.tsx for the /scan-gate compliance assertion). This test
+// verifies the layout adapts React Navigation state onto the GlassTabBar and routes a
+// tab press to navigation.navigate.
+const mockNavigate = jest.fn();
 
 jest.mock('expo-router', () => {
   // A minimal <Tabs> that immediately renders the supplied tabBar with a fake
@@ -12,28 +13,35 @@ jest.mock('expo-router', () => {
   const Tabs = Object.assign(
     ({ tabBar }: { tabBar: (props: unknown) => React.ReactElement }) =>
       tabBar({
-        state: { index: 0, routes: [{ name: 'shop', key: 'shop' }] },
+        state: {
+          index: 0,
+          routes: [
+            { name: 'shop', key: 'shop' },
+            { name: 'index', key: 'index' },
+            { name: 'trend', key: 'trend' },
+            { name: 'you', key: 'you' },
+          ],
+        },
         navigation: {
           emit: () => ({ defaultPrevented: false }),
-          navigate: jest.fn(),
+          navigate: mockNavigate,
         },
       }),
     { Screen: () => null },
   );
-  return {
-    Tabs,
-    useRouter: () => ({ push: mockPush, replace: jest.fn(), back: jest.fn() }),
-  };
+  return { Tabs };
 });
 
-// Capture the onScanPress wiring behind a pressable we can fire.
+// Capture the onSelect wiring behind pressables we can fire.
 jest.mock('../../src/components/ui', () => {
   const { Pressable, Text } = require('react-native');
   return {
-    GlassTabBar: ({ onScanPress }: { onScanPress: () => void }) => (
-      <Pressable accessibilityRole="button" accessibilityLabel="Shade match" onPress={onScanPress}>
-        <Text>Shade match</Text>
-      </Pressable>
+    GlassTabBar: ({ onSelect }: { onSelect: (k: string) => void }) => (
+      <>
+        <Pressable accessibilityRole="tab" accessibilityLabel="Settings" onPress={() => onSelect('you')}>
+          <Text>Settings</Text>
+        </Pressable>
+      </>
     ),
   };
 });
@@ -44,17 +52,15 @@ const flush = () => new Promise((resolve) => setTimeout(resolve, 0));
 
 beforeEach(() => jest.clearAllMocks());
 
-test('the Shade match button routes through the /scan-gate entry', async () => {
+test('selecting a tab navigates to its route', async () => {
   const view = await render(<TabsLayout />);
-  fireEvent.press(view.getByRole('button', { name: 'Shade match' }));
-  expect(mockPush).toHaveBeenCalledWith('/scan-gate');
+  fireEvent.press(view.getByRole('tab', { name: 'Settings' }));
+  expect(mockNavigate).toHaveBeenCalledWith('you');
   await flush();
 });
 
-test('the Shade match button never opens the camera (/scan) directly', async () => {
+test('the layout no longer wires a direct-to-camera scan action', async () => {
   const view = await render(<TabsLayout />);
-  fireEvent.press(view.getByRole('button', { name: 'Shade match' }));
-  expect(mockPush).not.toHaveBeenCalledWith('/scan');
-  expect(mockPush).not.toHaveBeenCalledWith('/scan-entry');
-  await flush();
+  // No control anywhere routes to '/scan' — there is no onScanPress on the bar at all.
+  expect(view.queryByLabelText('Shade match')).toBeNull();
 });
