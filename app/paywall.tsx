@@ -1,7 +1,7 @@
 import { useState } from 'react';
 import { View } from 'react-native';
 import { useRouter } from 'expo-router';
-import { Screen, Eyebrow, Heading, Body, PrimaryButton, PressableScale, GlassCard } from '../src/components/ui';
+import { Screen, HEADER_CLEARANCE, Eyebrow, Heading, Body, PrimaryButton, PressableScale, GlassCard } from '../src/components/ui';
 
 type Plan = 'yearly' | 'monthly';
 
@@ -18,7 +18,7 @@ export default function PaywallScreen() {
   const goNext = () => router.push('/scan-gate');
 
   return (
-    <Screen className="px-6">
+    <Screen className="px-6" topGap={HEADER_CLEARANCE}>
       <View className="flex-1 gap-8 pt-6">
         <View className="gap-3">
           <Eyebrow>TrueTone Plus</Eyebrow>

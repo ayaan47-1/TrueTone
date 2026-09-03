@@ -5,6 +5,7 @@ import { cameraDemoSetConsent } from '../../lib/camera-demo-profile';
 import { CONSENT_COPY as C } from './consent-copy';
 import {
   Screen,
+  HEADER_CLEARANCE,
   GlassCard,
   Display,
   Heading,
@@ -34,7 +35,7 @@ export function Consent({
     if (!error) onConsent();
   }
   return (
-    <Screen className="px-6" topGap={56} bottomGap={24}>
+    <Screen className="px-6" topGap={HEADER_CLEARANCE} bottomGap={24}>
       <View className="gap-1 mb-7">
         <Display accessibilityRole="header" className="text-[30px]">Your photo stays yours</Display>
         <Body className="text-ink-muted">Review and choose before any scan can begin.</Body>

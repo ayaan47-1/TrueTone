@@ -1,7 +1,7 @@
 import { useState } from 'react';
 import { View } from 'react-native';
 import { useRouter } from 'expo-router';
-import { Screen, Eyebrow, Heading, Body, PrimaryButton, PressableScale } from '../../src/components/ui';
+import { Screen, HEADER_CLEARANCE, Eyebrow, Heading, Body, PrimaryButton, PressableScale } from '../../src/components/ui';
 import { COVERAGES, COVERAGE_LABELS, type Coverage } from '../../src/content/makeup-vocab';
 import { preferencesStore } from '../../src/features/preferences/preferences-store';
 import { DEFAULT_SETUP_ANSWERS } from '../../src/features/preferences/preferences-types';
@@ -23,7 +23,7 @@ export default function CoverageScreen() {
   };
 
   return (
-    <Screen className="px-6">
+    <Screen className="px-6" topGap={HEADER_CLEARANCE}>
       <View className="flex-1 gap-8 pt-6">
         <View className="gap-3">
           <Eyebrow>Set up · 2 of 2</Eyebrow>

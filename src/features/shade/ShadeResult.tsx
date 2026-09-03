@@ -8,7 +8,7 @@
 // or condition terms), and the shade depth is shown qualitatively (depthWord), never as a
 // raw number (CLAUDE.md §0/§1, plan Flag 4).
 import { View } from 'react-native';
-import { Screen, Eyebrow, Heading, Display, Body, Caption, PrimaryButton, GlassCard } from '../../components/ui';
+import { Screen, HEADER_CLEARANCE, Eyebrow, Heading, Display, Body, Caption, PrimaryButton, GlassCard } from '../../components/ui';
 import { UNDERTONE_LABELS, FINISH_LABELS, type Finish } from '../../content/makeup-vocab';
 import { depthWord } from './derive-shade';
 import type { CurrentShade } from './shade-types';
@@ -73,7 +73,7 @@ export function ShadeResult({ shade, tip, picks, onSeeLook, onShare }: ShadeResu
   const tipLine = tip ?? FINISH_TIP[shade.finish];
 
   return (
-    <Screen className="px-6" topGap={56}>
+    <Screen className="px-6" topGap={HEADER_CLEARANCE}>
       <View className="flex-1 gap-8">
         <View className="gap-3">
           <Eyebrow>Your shade</Eyebrow>

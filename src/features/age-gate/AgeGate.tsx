@@ -6,6 +6,7 @@ import { computeIs18Plus } from './age';
 import {
   MistBackground,
   Screen,
+  HEADER_CLEARANCE,
   GlassCard,
   Display,
   Heading,
@@ -47,7 +48,7 @@ export function AgeGate({ userId, onPass }: { userId: string; onPass: () => void
     );
 
   return (
-    <Screen className="px-6" scroll={false} topGap={56} bottomGap={24}>
+    <Screen className="px-6" scroll={false} topGap={HEADER_CLEARANCE} bottomGap={24}>
       <View className="flex-1">
         <View className="gap-1 mb-8">
           <Display accessibilityRole="header" className="text-[30px]">Before we begin</Display>

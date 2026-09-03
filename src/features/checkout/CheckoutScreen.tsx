@@ -12,6 +12,7 @@ import { View } from 'react-native';
 import { useRouter } from 'expo-router';
 import {
   Screen,
+  HEADER_CLEARANCE,
   GlassCard,
   Display,
   Heading,
@@ -48,7 +49,7 @@ export function CheckoutScreen() {
   };
 
   return (
-    <Screen className="gap-6 px-6" bottomGap={32}>
+    <Screen className="gap-6 px-6" topGap={HEADER_CLEARANCE} bottomGap={32}>
       <View className="gap-1">
         <Eyebrow>Checkout</Eyebrow>
         <Display>Review your order</Display>
@@ -150,7 +151,7 @@ function PaymentDemo() {
 /** Post-"Place order" confirmation state. */
 function Confirmation({ orderNo, onDone }: { orderNo: string; onDone: () => void }) {
   return (
-    <Screen className="gap-6 px-6" bottomGap={32}>
+    <Screen className="gap-6 px-6" topGap={HEADER_CLEARANCE} bottomGap={32}>
       <View className="flex-1 items-center justify-center gap-4 py-16">
         <View className="h-16 w-16 items-center justify-center rounded-full bg-brand-green">
           <Display className="text-white">✓</Display>
@@ -172,7 +173,7 @@ function Confirmation({ orderNo, onDone }: { orderNo: string; onDone: () => void
 /** Shown when checkout is reached with an empty bag. */
 function EmptyBag({ onBrowse }: { onBrowse: () => void }) {
   return (
-    <Screen className="gap-6 px-6" bottomGap={32}>
+    <Screen className="gap-6 px-6" topGap={HEADER_CLEARANCE} bottomGap={32}>
       <View className="flex-1 items-center justify-center gap-4 py-16">
         <Heading className="text-center">Your bag is empty</Heading>
         <Body className="text-center text-ink-soft">

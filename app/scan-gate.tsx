@@ -1,6 +1,6 @@
 import { View } from 'react-native';
 import { useRouter } from 'expo-router';
-import { Screen, Eyebrow, Heading, Body, PrimaryButton, PressableScale, Disclaimer } from '../src/components/ui';
+import { Screen, HEADER_CLEARANCE, Eyebrow, Heading, Body, PrimaryButton, PressableScale, Disclaimer } from '../src/components/ui';
 
 /**
  * Scan gate (B1) — the on-device-privacy reassurance shown before the camera scan.
@@ -16,7 +16,7 @@ export default function ScanGateScreen() {
   // is grouped with the CTAs as a footer so the screen reads as two balanced anchors (intro
   // at top, fine print + actions at the bottom) instead of a top-heavy stack with dead space.
   return (
-    <Screen className="px-6" topGap={56}>
+    <Screen className="px-6" topGap={HEADER_CLEARANCE}>
       <View className="flex-1">
         <View className="gap-3">
           <Eyebrow>Before we scan</Eyebrow>
