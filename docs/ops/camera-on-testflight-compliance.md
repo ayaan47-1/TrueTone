@@ -288,10 +288,9 @@ preference.
   own device — the company **obtained and retained nothing** (offline stub identity, no backend /
   Supabase / `consent_log` write, image deleted on-device via `withImageCleanup`). No §15(b)
   collection *by the entity*, no §15(a) retention, and no notice / disclosure / purge owed.
-- **Residual check (OPEN):** whether **any other non-owner internal tester** also received build 4
-  is still pending user confirmation. If any did, apply the same containment (no-scan / remove
-  from internal / delete app) to them; none of it changes the de-minimis posture (still no data
-  in company control). Close this line when confirmed.
+- **Residual check (CLOSED):** confirmed 2026-09-03 — the cofounder is the **only** non-owner
+  internal tester, so **no other person received build 4.** Incident **fully contained**
+  (cofounder to be removed from the internal group + delete the app). No further exposure surface.
 - **Residual exposure (ruling, Dwight):** **De minimis near-miss, no data in company control.**
   CAMERA_DEMO uses an offline stub identity and writes **nothing** to the backend / Supabase /
   `consent_log`; any captured frame is processed on-device and deleted immediately
