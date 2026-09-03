@@ -8,7 +8,7 @@ import { Caption } from './Typography';
  */
 export function Disclaimer({ className }: { className?: string }) {
   return (
-    <GlassCard flat intensity={24} radius={26} className={`px-5 py-4 ${className ?? ''}`}>
+    <GlassCard flat radius={22} className={`px-5 py-4 ${className ?? ''}`}>
       <Caption className="text-[11px] leading-[17px] text-ink-muted">
         TrueTone is a cosmetic and general-wellness tool. It is not a medical device, does not
         diagnose, treat, or prevent any disease or condition, and is not a substitute for

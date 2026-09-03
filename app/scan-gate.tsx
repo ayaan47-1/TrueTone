@@ -11,9 +11,13 @@ import { Screen, Eyebrow, Heading, Body, PrimaryButton, PressableScale, Disclaim
 export default function ScanGateScreen() {
   const router = useRouter();
 
+  // topGap clears the transparent floating Stack header (the back button) so the eyebrow
+  // never renders under it -- matching the age-gate / consent gate screens. The disclaimer
+  // is grouped with the CTAs as a footer so the screen reads as two balanced anchors (intro
+  // at top, fine print + actions at the bottom) instead of a top-heavy stack with dead space.
   return (
-    <Screen className="px-6">
-      <View className="flex-1 gap-8 pt-6">
+    <Screen className="px-6" topGap={56}>
+      <View className="flex-1">
         <View className="gap-3">
           <Eyebrow>Before we scan</Eyebrow>
           <Heading>Your scan stays on your device</Heading>
@@ -23,13 +27,14 @@ export default function ScanGateScreen() {
           </Body>
         </View>
 
-        <Disclaimer />
-
-        <View className="mt-auto gap-4 pb-2">
-          <PrimaryButton label="Enable camera" onPress={() => router.replace('/scan')} />
-          <PressableScale accessibilityRole="button" onPress={() => router.replace('/(tabs)')}>
-            <Body className="text-center text-ink-faint">Skip for now</Body>
-          </PressableScale>
+        <View className="mt-auto gap-6">
+          <Disclaimer />
+          <View className="gap-4 pb-2">
+            <PrimaryButton label="Enable camera" onPress={() => router.replace('/scan')} />
+            <PressableScale accessibilityRole="button" onPress={() => router.replace('/(tabs)')}>
+              <Body className="text-center text-ink-faint">Skip for now</Body>
+            </PressableScale>
+          </View>
         </View>
       </View>
     </Screen>
