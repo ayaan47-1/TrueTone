@@ -282,8 +282,16 @@ preference.
 - **What happened:** The `camera-demo` build (build 4, `--profile camera-demo`, live face
   capture) was uploaded to TestFlight and **internal TestFlight auto-distributed it to the
   cofounder**, an internal tester. This crossed the own-device-only boundary of this contract.
-- **Scan status:** **TBD — pending user confirmation** whether the cofounder actually ran an
-  on-device face scan or only installed the app. (Finalize this line when confirmed.)
+- **Scan status:** **CONFIRMED — the cofounder DID run a face scan** (not install-only; user
+  confirmed 2026-09-03). This is the worst-case branch of the ruling below, and it remains **de
+  minimis**: the scan was an ephemeral, self-deleting on-device capture on a knowing associate's
+  own device — the company **obtained and retained nothing** (offline stub identity, no backend /
+  Supabase / `consent_log` write, image deleted on-device via `withImageCleanup`). No §15(b)
+  collection *by the entity*, no §15(a) retention, and no notice / disclosure / purge owed.
+- **Residual check (OPEN):** whether **any other non-owner internal tester** also received build 4
+  is still pending user confirmation. If any did, apply the same containment (no-scan / remove
+  from internal / delete app) to them; none of it changes the de-minimis posture (still no data
+  in company control). Close this line when confirmed.
 - **Residual exposure (ruling, Dwight):** **De minimis near-miss, no data in company control.**
   CAMERA_DEMO uses an offline stub identity and writes **nothing** to the backend / Supabase /
   `consent_log`; any captured frame is processed on-device and deleted immediately
