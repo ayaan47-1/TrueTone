@@ -350,10 +350,15 @@ non-adverse co-principal consenting to their own capture on their own device.
    friends / external / public path, which stays fully gated (server `consent_log`,
    lawyer-signed copy, backend + ATS, revocation, ASC Age Assurance = YES/18+).
 
-**Documentation on record (condition):** a short **written attestation signed by the cofounder**
-— that he is a company principal, knowingly participating in on-device testing of **his own**
-biometric data, understands the image is processed on-device and deleted with **nothing retained
-by the company**, and consents — to be filed with this contract. This converts the arrangement
+**Documentation on record (condition):** a short **written attestation from each _non-owner_
+principal** who uses the camera build — i.e. **the cofounder's signature is REQUIRED** (the
+second-person exposure that drove §12). The **developer / account-owner's own attestation is
+OPTIONAL** (recommended for a tidy symmetric record, but not required — the account owner who
+built the app and authored the consent flow is the entity itself dogfooding its own build on its
+own device, so a receipt adds nothing legally there). Each attests that they are a company
+principal, knowingly participating in on-device testing of **their own** biometric data,
+understand the image is processed on-device and deleted with **nothing retained by the company**,
+and consent — to be filed with this contract. This converts the arrangement
 from "de minimis near-miss" into a documented knowing-principal dogfooding record. Route to the
 human to sign + file; the build need not be blocked in the interim (retention is nil), but put it
 on file promptly. **Attestation template:** `docs/ops/cofounder-camera-attestation.md`
