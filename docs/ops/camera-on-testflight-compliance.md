@@ -310,3 +310,45 @@ preference.
   notice attaches to collected/retained data and none exists. This internal note is the audit
   record. Mention once to counsel at the next review for the record (a camera build momentarily
   reached a non-owner device, deleted on-device, zero retention) — documentation, not a filing.
+
+---
+
+## 12. STANDING POLICY — the two company principals may dogfood the on-device camera build
+
+**Ruling: CONDITIONAL YES.** The owner **and** the single cofounder — both **company
+principals, not members of the public** — may be **standing users** of the
+`EXPO_PUBLIC_CAMERA_DEMO` on-device build on their own devices, as an ongoing internal
+**dogfooding** arrangement (not "distribution to testers"). This is distinct from the one-time
+§11 incident and is a deliberate, blessed posture.
+
+**Why it holds for ongoing (not just one-off) use:** the "no data in company control" basis is
+**architectural**, so it holds every run — CAMERA_DEMO uses an offline stub identity and writes
+**nothing** to the backend / Supabase / `consent_log`, and every captured frame is deleted
+on-device (`withImageCleanup`). Each principal still passes the **real** in-app age-gate +
+consent flow (the gate requires real taps — see §9/§4), so informed consent is genuinely given;
+only the durable written-release *receipt* is local, and its evidentiary value is moot for a
+non-adverse co-principal consenting to their own capture on their own device.
+
+**Standing conditions (all MUST hold — any breach drops to Tier-2 §0–§8):**
+1. **Two named principals ONLY.** The camera build is used solely by the owner + the one
+   cofounder. **Never a third person** — no other friend, tester, or member of the public, ever.
+2. **Direct-install only (per §10) — NOT internal TestFlight.** Each principal receives the
+   camera build by **direct install to their own device**. The camera build **MUST NOT** sit on
+   an internal TestFlight group (even one frozen at two people), any external group, or a public
+   link. *Rationale:* internal TestFlight auto-distributes every uploaded build to every internal
+   tester — the exact mechanism that caused the §11 incident. Direct-install has **no
+   auto-distribute surface** and cannot structurally reach a third person; a "frozen 2-person
+   internal group" would rest safety on a human never adding a third tester, which is rejected.
+3. **Real in-app consent each principal.** The age-gate + consent screens run for real (no
+   stub-through); image deleted on-device; nothing written server-side.
+4. **Anyone beyond these two = full Tier-2 §0–§8 contract.** This clause does **not** touch the
+   friends / external / public path, which stays fully gated (server `consent_log`,
+   lawyer-signed copy, backend + ATS, revocation, ASC Age Assurance = YES/18+).
+
+**Documentation on record (condition):** a short **written attestation signed by the cofounder**
+— that he is a company principal, knowingly participating in on-device testing of **his own**
+biometric data, understands the image is processed on-device and deleted with **nothing retained
+by the company**, and consents — to be filed with this contract. This converts the arrangement
+from "de minimis near-miss" into a documented knowing-principal dogfooding record. Route to the
+human to sign + file; the build need not be blocked in the interim (retention is nil), but put it
+on file promptly. *(Attestation: TBD — pending signature.)*
