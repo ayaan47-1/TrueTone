@@ -339,6 +339,11 @@ non-adverse co-principal consenting to their own capture on their own device.
    tester — the exact mechanism that caused the §11 incident. Direct-install has **no
    auto-distribute surface** and cannot structurally reach a third person; a "frozen 2-person
    internal group" would rest safety on a human never adding a third tester, which is rejected.
+   **Now enforced in config:** the `camera-demo` EAS profile is `distribution: "internal"`
+   (ad-hoc / direct-install, no `submit` block) as of makeup-preview `@d8b625c` — so the profile
+   is structurally incapable of reaching App Store Connect / TestFlight. Residual discipline: the
+   ad-hoc install is scoped to device UDIDs registered via `eas device:create`, so **do not
+   register a third device or share the install QR/link beyond the two principals.**
 3. **Real in-app consent each principal.** The age-gate + consent screens run for real (no
    stub-through); image deleted on-device; nothing written server-side.
 4. **Anyone beyond these two = full Tier-2 §0–§8 contract.** This clause does **not** touch the
@@ -351,4 +356,6 @@ biometric data, understands the image is processed on-device and deleted with **
 by the company**, and consents — to be filed with this contract. This converts the arrangement
 from "de minimis near-miss" into a documented knowing-principal dogfooding record. Route to the
 human to sign + file; the build need not be blocked in the interim (retention is nil), but put it
-on file promptly. *(Attestation: TBD — pending signature.)*
+on file promptly. **Attestation template:** `docs/ops/cofounder-camera-attestation.md`
+(compliance-approved wording). **Status: pending the cofounder's signature** — file the signed
+copy in the Company's records; this line closes when signed.
