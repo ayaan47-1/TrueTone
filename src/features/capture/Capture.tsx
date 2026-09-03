@@ -30,6 +30,8 @@ import {
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { captureOvalSize, SHORT_VIEWPORT_THRESHOLD } from '../../components/ui/use-responsive';
+import { palette, fonts } from '../../theme/tokens';
+import { Screen, GlassCard, Display, Body, PrimaryButton } from '../../components/ui';
 import {
   Camera,
   useCameraDevice,
@@ -46,6 +48,10 @@ import { useFrameMetrics } from './use-frame-metrics';
 import { writeUprightStill, type CaptureMeta } from './capture-upright';
 
 const PRIVACY_LINE = 'Analyzed on your device · never leaves your phone · deleted after your read';
+// Shipped "pass / ready" accent = the app's brand green (Quiet Glass), so the capture success
+// state matches every other positive state in the app instead of an off-brand emerald.
+const PASS = palette.sage;
+// PASS_GREEN stays a bright emerald for the __DEV__ metrics overlay ONLY (a diagnostic, never shipped).
 const PASS_GREEN = '#34d399';
 const TICK_MS = 33; // ~30fps drive for the auto-capture state machine
 
@@ -161,35 +167,41 @@ export function Capture({ onCaptured, onCancel, devForceCapture = false }: Captu
   // ---- permission / device fallbacks ----
   if (!hasPermission) {
     return (
-      <View style={styles.fallback}>
-        <Text style={styles.fallbackTitle}>Camera access needed</Text>
-        <Text style={styles.fallbackBody}>
-          TrueTone uses the front camera only to analyze how your skin looks, on your device. Your
-          photo never leaves your device and is deleted right after the analysis.
-        </Text>
-        <Pressable style={styles.primaryBtn} onPress={() => void Linking.openSettings()}>
-          <Text style={styles.primaryBtnText}>Open Settings</Text>
-        </Pressable>
-        <Pressable style={styles.ghostBtn} onPress={onCancel}>
-          <Text style={styles.ghostBtnText}>Go back</Text>
-        </Pressable>
-      </View>
+      <Screen className="px-6">
+        <View className="flex-1 items-center justify-center">
+          <GlassCard className="w-full items-center gap-4 px-7 py-8" radius={32}>
+            <Display className="text-center text-[26px]">Camera access needed</Display>
+            <Body className="text-center text-ink-soft">
+              TrueTone uses the front camera only to analyze how your skin looks, on your device. Your
+              photo never leaves your device and is deleted right after the analysis.
+            </Body>
+            <View className="w-full gap-3 mt-1">
+              <PrimaryButton label="Open Settings" fullWidth onPress={() => void Linking.openSettings()} />
+              <PrimaryButton label="Go back" variant="ghost" fullWidth onPress={onCancel} />
+            </View>
+          </GlassCard>
+        </View>
+      </Screen>
     );
   }
 
   if (!device) {
     return (
-      <View style={styles.fallback}>
-        <Text style={styles.fallbackTitle}>No front camera found</Text>
-        <Text style={styles.fallbackBody}>This device doesn’t expose a front camera to TrueTone.</Text>
-        <Pressable style={styles.ghostBtn} onPress={onCancel}>
-          <Text style={styles.ghostBtnText}>Go back</Text>
-        </Pressable>
-      </View>
+      <Screen className="px-6">
+        <View className="flex-1 items-center justify-center">
+          <GlassCard className="w-full items-center gap-4 px-7 py-8" radius={32}>
+            <Display className="text-center text-[26px]">No front camera found</Display>
+            <Body className="text-center text-ink-soft">This device doesn’t expose a front camera to TrueTone.</Body>
+            <View className="w-full mt-1">
+              <PrimaryButton label="Go back" variant="ghost" fullWidth onPress={onCancel} />
+            </View>
+          </GlassCard>
+        </View>
+      </Screen>
     );
   }
 
-  const ovalBorder = pass.interpolate({ inputRange: [0, 1], outputRange: ['rgba(255,255,255,0.78)', PASS_GREEN] });
+  const ovalBorder = pass.interpolate({ inputRange: [0, 1], outputRange: ['rgba(255,255,255,0.78)', PASS] });
   const breatheScale = breathe.interpolate({ inputRange: [0, 1], outputRange: [1, 1.05] });
   const breatheOpacity = breathe.interpolate({ inputRange: [0, 1], outputRange: [0.25, 0.5] });
   const counting = state.phase === 'countdown';
@@ -334,7 +346,7 @@ function MetricsDebug({
 }
 
 const styles = StyleSheet.create({
-  root: { flex: 1, backgroundColor: '#111111' },
+  root: { flex: 1, backgroundColor: palette.camera },
   topScrim: {
     position: 'absolute',
     top: 0,
@@ -342,35 +354,36 @@ const styles = StyleSheet.create({
     right: 0,
     alignItems: 'center',
     paddingBottom: 18,
-    backgroundColor: 'rgba(17,17,17,0.24)',
+    backgroundColor: 'rgba(31,26,20,0.34)', // warm ink scrim, not a cold black
   },
-  wordmark: { color: '#fff', fontSize: 22, fontWeight: '700', marginBottom: 10 },
+  wordmark: { color: 'rgba(255,255,255,0.95)', fontFamily: fonts.displayMedium, fontSize: 19, letterSpacing: 0.3, marginBottom: 12 },
   hintPill: {
     paddingHorizontal: 16,
     paddingVertical: 9,
     borderRadius: 999,
-    backgroundColor: 'rgba(255,255,255,0.14)',
+    backgroundColor: 'rgba(255,255,255,0.15)',
+    borderWidth: StyleSheet.hairlineWidth * 2,
+    borderColor: 'rgba(255,255,255,0.22)',
   },
-  hintPillPass: { backgroundColor: 'rgba(52,211,153,0.22)' },
-  hintText: { color: '#fff', fontSize: 15, fontWeight: '600' },
-  hintTextPass: { color: '#bbf7d0' },
+  hintPillPass: { backgroundColor: 'rgba(47,125,82,0.26)', borderColor: 'rgba(47,125,82,0.5)' },
+  hintText: { color: 'rgba(255,255,255,0.92)', fontFamily: fonts.bodyMedium, fontSize: 15 },
+  hintTextPass: { color: palette.white },
   centerArea: { position: 'absolute', top: 0, left: 0, right: 0, bottom: 0, alignItems: 'center', justifyContent: 'center' },
   ovalGlow: {
     position: 'absolute',
     backgroundColor: 'transparent',
     borderWidth: 2,
-    borderStyle: 'dashed',
-    borderColor: 'rgba(126,145,116,0.72)',
+    borderColor: 'rgba(255,255,255,0.28)', // soft warm-white guide ring, not a clinical dashed line
   },
   oval: {
     borderWidth: 3,
     alignItems: 'center',
     justifyContent: 'center',
-    shadowOpacity: 0.9,
-    shadowRadius: 18,
+    shadowOpacity: 0.85,
+    shadowRadius: 20,
     shadowOffset: { width: 0, height: 0 },
   },
-  countdown: { color: '#fff', fontSize: 96, fontWeight: '200', textShadowColor: 'rgba(0,0,0,0.4)', textShadowRadius: 12 },
+  countdown: { color: palette.white, fontFamily: fonts.displayLight, fontSize: 96, textShadowColor: 'rgba(0,0,0,0.4)', textShadowRadius: 12 },
   checkStrip: { position: 'absolute', left: 0, right: 0, flexDirection: 'row', justifyContent: 'center', gap: 8 },
   chip: {
     flexDirection: 'row',
@@ -379,27 +392,36 @@ const styles = StyleSheet.create({
     paddingHorizontal: 11,
     paddingVertical: 7,
     borderRadius: 999,
-    backgroundColor: 'rgba(0,0,0,0.45)',
+    backgroundColor: 'rgba(31,26,20,0.5)', // warm frosted chip
+    borderWidth: StyleSheet.hairlineWidth * 2,
+    borderColor: 'rgba(255,255,255,0.12)',
   },
-  chipOk: { backgroundColor: 'rgba(52,211,153,0.2)' },
+  chipOk: { backgroundColor: 'rgba(47,125,82,0.24)', borderColor: 'rgba(47,125,82,0.45)' },
   chipDot: { width: 7, height: 7, borderRadius: 4, backgroundColor: 'rgba(255,255,255,0.5)' },
-  chipDotOk: { backgroundColor: PASS_GREEN },
-  chipText: { color: 'rgba(255,255,255,0.7)', fontSize: 13, fontWeight: '600' },
-  chipTextOk: { color: '#bbf7d0' },
+  chipDotOk: { backgroundColor: PASS },
+  chipText: { color: 'rgba(255,255,255,0.72)', fontFamily: fonts.bodySemibold, fontSize: 13 },
+  chipTextOk: { color: palette.white },
   bottomBar: { position: 'absolute', left: 0, right: 0, bottom: 0, alignItems: 'center', gap: 12, paddingHorizontal: 24 },
-  lightHint: { color: 'rgba(255,255,255,0.62)', fontSize: 14, marginBottom: 2 },
-  shutter: { width: 72, height: 72, borderRadius: 36, borderWidth: 4, borderColor: '#fff', alignItems: 'center', justifyContent: 'center', marginBottom: 2 },
-  shutterInner: { width: 56, height: 56, borderRadius: 28, backgroundColor: 'rgba(255,255,255,0.18)' },
+  lightHint: { color: 'rgba(255,255,255,0.66)', fontFamily: fonts.bodyMedium, fontSize: 14, marginBottom: 2 },
+  shutter: { width: 74, height: 74, borderRadius: 37, borderWidth: 4, borderColor: 'rgba(255,255,255,0.92)', alignItems: 'center', justifyContent: 'center', marginBottom: 2 },
+  shutterInner: { width: 58, height: 58, borderRadius: 29, backgroundColor: 'rgba(255,255,255,0.22)' },
   // dev-only manual shutter — visibly different so a tappable shutter is never mistaken for the
   // shipped decorative one
   shutterArmed: { borderColor: '#d946ef' },
   shutterInnerArmed: { backgroundColor: 'rgba(217,70,239,0.55)' },
   forceHint: { color: '#f0abfc', fontSize: 11, fontWeight: '700', textAlign: 'center' },
-  privacy: { color: 'rgba(255,255,255,0.62)', fontSize: 12, textAlign: 'center' },
-  cancelBtn: { paddingHorizontal: 28, paddingVertical: 12, borderRadius: 999, backgroundColor: 'rgba(255,255,255,0.12)' },
-  cancelText: { color: '#fff', fontSize: 15, fontWeight: '600' },
+  privacy: { color: 'rgba(255,255,255,0.6)', fontFamily: fonts.body, fontSize: 12, textAlign: 'center' },
+  cancelBtn: {
+    paddingHorizontal: 28,
+    paddingVertical: 12,
+    borderRadius: 999,
+    backgroundColor: 'rgba(255,255,255,0.14)',
+    borderWidth: StyleSheet.hairlineWidth * 2,
+    borderColor: 'rgba(255,255,255,0.2)',
+  },
+  cancelText: { color: palette.white, fontFamily: fonts.bodySemibold, fontSize: 15 },
   cancelTextDim: { color: 'rgba(255,255,255,0.35)' },
-  flash: { backgroundColor: '#fff' },
+  flash: { backgroundColor: palette.white },
   // dev-only calibration overlay
   dbgPanel: {
     position: 'absolute',
@@ -413,12 +435,4 @@ const styles = StyleSheet.create({
   dbgTitle: { color: 'rgba(255,255,255,0.55)', fontSize: 10, fontWeight: '700', letterSpacing: 1, marginBottom: 2 },
   dbgRow: { fontSize: 12, fontVariant: ['tabular-nums'], fontWeight: '600' },
   dbgRange: { color: 'rgba(255,255,255,0.45)', fontWeight: '400' },
-  // permission / no-device fallbacks
-  fallback: { flex: 1, alignItems: 'center', justifyContent: 'center', padding: 28, gap: 14, backgroundColor: '#0b0b0c' },
-  fallbackTitle: { color: '#fff', fontSize: 20, fontWeight: '700' },
-  fallbackBody: { color: 'rgba(255,255,255,0.7)', fontSize: 15, textAlign: 'center', lineHeight: 21 },
-  primaryBtn: { marginTop: 8, paddingHorizontal: 28, paddingVertical: 13, borderRadius: 14, backgroundColor: '#7c3aed' },
-  primaryBtnText: { color: '#fff', fontSize: 16, fontWeight: '700' },
-  ghostBtn: { paddingHorizontal: 20, paddingVertical: 10 },
-  ghostBtnText: { color: 'rgba(255,255,255,0.7)', fontSize: 15, fontWeight: '600' },
 });

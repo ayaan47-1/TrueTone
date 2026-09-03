@@ -1,6 +1,6 @@
 import { View } from 'react-native';
 import { useRouter } from 'expo-router';
-import { Screen, HEADER_CLEARANCE, Eyebrow, Heading, Body, PrimaryButton, PressableScale, Disclaimer } from '../src/components/ui';
+import { Screen, HEADER_CLEARANCE, Eyebrow, Heading, Body, PrimaryButton, Disclaimer } from '../src/components/ui';
 
 /**
  * Scan gate (B1) — the on-device-privacy reassurance shown before the camera scan.
@@ -29,11 +29,9 @@ export default function ScanGateScreen() {
 
         <View className="mt-auto gap-6">
           <Disclaimer />
-          <View className="gap-4 pb-2">
-            <PrimaryButton label="Enable camera" onPress={() => router.replace('/scan')} />
-            <PressableScale accessibilityRole="button" onPress={() => router.replace('/(tabs)')}>
-              <Body className="text-center text-ink-faint">Skip for now</Body>
-            </PressableScale>
+          <View className="gap-3 pb-2">
+            <PrimaryButton label="Enable camera" fullWidth onPress={() => router.replace('/scan')} />
+            <PrimaryButton label="Skip for now" variant="ghost" fullWidth onPress={() => router.replace('/(tabs)')} />
           </View>
         </View>
       </View>
