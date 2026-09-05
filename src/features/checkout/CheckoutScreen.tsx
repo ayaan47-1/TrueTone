@@ -44,10 +44,8 @@ export function CheckoutScreen() {
     setLoading(true);
     try {
       // 1. Create PaymentIntent via edge function
-      const amountCents = Math.round(bagSubtotal(state) * 100);
       const { data, error } = await supabase.functions.invoke('create-payment-intent', {
         body: { 
-          amount: amountCents,
           items: state.lines 
         }
       });
