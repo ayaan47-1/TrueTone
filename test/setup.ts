@@ -40,3 +40,13 @@ jest.mock('expo-font', () => ({
 jest.mock('@react-native-async-storage/async-storage', () =>
   require('@react-native-async-storage/async-storage/jest/async-storage-mock'),
 );
+
+jest.mock('@stripe/stripe-react-native', () => {
+  return {
+    StripeProvider: ({ children }: any) => children,
+    useStripe: () => ({
+      initPaymentSheet: jest.fn().mockResolvedValue({ error: undefined }),
+      presentPaymentSheet: jest.fn().mockResolvedValue({ error: undefined }),
+    }),
+  };
+});

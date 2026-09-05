@@ -15,6 +15,7 @@ import {
   Inter_700Bold,
 } from '@expo-google-fonts/inter';
 import { SafeAreaProvider, initialWindowMetrics } from 'react-native-safe-area-context';
+import { StripeProvider } from '@stripe/stripe-react-native';
 import { ProfileProvider, useProfile } from '../src/lib/profile-context';
 import type { Route } from '../src/lib/routing-guard';
 import { DEMO_MODE } from '../src/lib/supabase';
@@ -132,9 +133,13 @@ export default function RootLayout() {
   return (
     <SafeAreaProvider initialMetrics={metrics}>
       {fontsLoaded ? (
-        <ProfileProvider>
-          <Guard />
-        </ProfileProvider>
+        <StripeProvider
+          publishableKey={process.env.EXPO_PUBLIC_STRIPE_PUBLISHABLE_KEY || ''}
+        >
+          <ProfileProvider>
+            <Guard />
+          </ProfileProvider>
+        </StripeProvider>
       ) : (
         <MistBackground />
       )}

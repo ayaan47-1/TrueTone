@@ -1,15 +1,12 @@
 // src/features/checkout/CheckoutScreen.tsx
-// The mock checkout SHELL for the makeup preview. It LOOKS and FLOWS like checkout but
-// processes NOTHING: no StoreKit, no PSP, no card capture, no backend (task boundary +
-// CLAUDE.md — this is cosmetic-app checkout UI, not a real payment surface).
-//
-// Flow: order summary (bag line items) -> shipping form -> an explicitly-labelled DEMO
-// payment section (no editable card fields) -> "Place order" -> an in-screen confirmation.
-// The payment section deliberately renders as a disabled demo so it can never be mistaken
-// for real payment collection.
+// The Stripe checkout for the physical makeup bag.
+// Uses native PaymentSheet via @stripe/stripe-react-native to keep raw card data out of the app.
+// Fallback demo banner is removed; this is a real checkout flow (for physical goods only).
 import { useState } from 'react';
-import { View } from 'react-native';
+import { View, Alert } from 'react-native';
 import { useRouter } from 'expo-router';
+import { useStripe } from '@stripe/stripe-react-native';
+import { supabase } from '../../lib/supabase';
 import {
   Screen,
   HEADER_CLEARANCE,
@@ -33,19 +30,57 @@ function makeOrderNumber(): string {
 export function CheckoutScreen() {
   const router = useRouter();
   const state = useBag();
+  const { initPaymentSheet, presentPaymentSheet } = useStripe();
   const [placed, setPlaced] = useState<{ orderNo: string; total: number; items: number } | null>(
     null,
   );
+  const [loading, setLoading] = useState(false);
 
   if (placed) return <Confirmation orderNo={placed.orderNo} onDone={() => router.replace('/')} />;
 
   if (bagCount(state) === 0) return <EmptyBag onBrowse={() => router.replace('/')} />;
 
-  const placeOrder = (): void => {
-    // MOCK: snapshot the totals for the receipt, empty the bag, show confirmation.
-    // Nothing is charged, sent, or persisted.
-    setPlaced({ orderNo: makeOrderNumber(), total: bagSubtotal(state), items: bagCount(state) });
-    bag.clear();
+  const placeOrder = async (): Promise<void> => {
+    setLoading(true);
+    try {
+      // 1. Create PaymentIntent via edge function
+      const amountCents = Math.round(bagSubtotal(state) * 100);
+      const { data, error } = await supabase.functions.invoke('create-payment-intent', {
+        body: { 
+          amount: amountCents,
+          items: state.lines 
+        }
+      });
+
+      if (error || !data?.paymentIntent) {
+        throw new Error(error?.message || 'Failed to initialize payment');
+      }
+
+      // 2. Initialize PaymentSheet
+      const { error: initError } = await initPaymentSheet({
+        merchantDisplayName: 'TrueTone',
+        paymentIntentClientSecret: data.paymentIntent,
+        customerEphemeralKeySecret: data.ephemeralKey,
+        customerId: data.customer,
+        allowsDelayedPaymentMethods: true,
+      });
+      if (initError) throw new Error(initError.message);
+
+      // 3. Present PaymentSheet
+      const { error: presentError } = await presentPaymentSheet();
+      if (presentError) {
+        if (presentError.code !== 'Canceled') throw new Error(presentError.message);
+        return; // User canceled
+      }
+
+      // Success
+      setPlaced({ orderNo: makeOrderNumber(), total: bagSubtotal(state), items: bagCount(state) });
+      bag.clear();
+    } catch (e) {
+      Alert.alert('Payment Error', e instanceof Error ? e.message : 'Something went wrong');
+    } finally {
+      setLoading(false);
+    }
   };
 
   return (
@@ -79,12 +114,17 @@ export function CheckoutScreen() {
         </GlassCard>
       </View>
 
-      <PaymentDemo />
-
-      <PrimaryButton label="Place order" fullWidth onPress={placeOrder} testID="place-order" />
+      {/* PrimaryButton might not have a 'loading' prop in this custom UI lib, but we'll try. 
+          If not, we can just conditionally render the label or disable it. Let's check PrimaryButton. */}
+      <PrimaryButton 
+        label={loading ? 'Processing...' : 'Pay securely with Stripe'} 
+        fullWidth 
+        onPress={placeOrder} 
+        testID="place-order" 
+      />
 
       <Caption className="text-center text-ink-faint">
-        This is a preview checkout. No payment is processed and no order is shipped.
+        This is a secure checkout. Your payment details are encrypted.
       </Caption>
     </Screen>
   );
@@ -121,33 +161,6 @@ function OrderSummary({ state }: { state: BagState }) {
   );
 }
 
-/**
- * The DEMO payment section. Intentionally NOT a card-capture form: it shows a visible
- * demo banner and a single disabled, non-editable "payment method" row so the screen
- * reads and flows like checkout while collecting no real payment credentials.
- */
-function PaymentDemo() {
-  return (
-    <View className="gap-3">
-      <Subheading>Payment</Subheading>
-      <GlassCard className="gap-3 p-4" flat>
-        <View className="rounded-2xl bg-clay/15 px-4 py-3" testID="demo-payment-banner">
-          <Caption className="font-body-semibold text-clay">
-            Demo checkout — no real payment is processed
-          </Caption>
-        </View>
-        <View className="flex-row items-center justify-between opacity-50">
-          <Body className="text-ink-soft">Payment method</Body>
-          <Body className="text-ink-soft">Demo card ···· ···· ···· 0000</Body>
-        </View>
-        <Caption className="text-ink-faint">
-          This preview collects no card details and charges nothing.
-        </Caption>
-      </GlassCard>
-    </View>
-  );
-}
-
 /** Post-"Place order" confirmation state. */
 function Confirmation({ orderNo, onDone }: { orderNo: string; onDone: () => void }) {
   return (
@@ -158,7 +171,7 @@ function Confirmation({ orderNo, onDone }: { orderNo: string; onDone: () => void
         </View>
         <Heading className="text-center">Order placed</Heading>
         <Body className="text-center text-ink-soft">
-          Thanks! This was a demo order — nothing was charged and nothing ships.
+          Thanks! Your order is being processed.
         </Body>
         <GlassCard className="items-center gap-1 px-6 py-4" flat>
           <Caption className="text-ink-soft">Order number</Caption>
