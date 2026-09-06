@@ -42,7 +42,6 @@
       }
     },
     "camera-demo": {
-      "//": "DIRECT-INSTALL (ad-hoc) ONLY per docs/ops/camera-on-testflight-compliance.md §10/§12: the live-camera build must NEVER reach App Store Connect / TestFlight (internal TestFlight auto-distributes every build to every internal tester). distribution:internal has zero auto-distribute surface -- installs via QR/link to devices registered with `eas device:create`. Two named principals only; anyone else = full Tier-2 contract. There is deliberately NO submit block for this profile.",
       "distribution": "internal",
       "ios": {
         "simulator": false
