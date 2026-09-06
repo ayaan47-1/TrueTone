@@ -55,7 +55,14 @@
           }
         }
       ],
-      "expo-font"
+      "expo-font",
+      [
+        "@stripe/stripe-react-native",
+        {
+          "merchantIdentifier": "",
+          "enableGooglePay": false
+        }
+      ]
     ],
     "extra": {
       "router": {},

@@ -8,6 +8,8 @@ Ensure the environment is fully wired and in **Stripe TEST Mode**:
 - [ ] **Database Migration**: Confirm migration `0020_orders.sql` has been applied to the Supabase database.
 - [ ] **Frontend Environment**: `EXPO_PUBLIC_STRIPE_PUBLISHABLE_KEY` is set in the local `.env` or EAS secrets.
 - [ ] **Backend Environment**: `STRIPE_SECRET_KEY` and `STRIPE_WEBHOOK_SECRET` are set in the Supabase Edge Functions environment via `supabase secrets set`.
+- [ ] **Native Rebuild Required**: Because `@stripe/stripe-react-native` adds native code, you MUST rebuild the dev client (`npx expo run:ios --device` or an EAS development build). A JS reload is insufficient. The Stripe config plugin must be present in `app.json` before rebuilding to ensure the URL scheme for 3DS return handling is wired.
+
 - [ ] **Deploy Edge Functions**: Both functions are deployed to Supabase:
   - `supabase functions deploy create-payment-intent`
   - `supabase functions deploy stripe-webhook`
