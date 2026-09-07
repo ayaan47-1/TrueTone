@@ -52,6 +52,17 @@
     },
     "production": {
       "autoIncrement": true
+    },
+    "device-test": {
+      "distribution": "internal",
+      "ios": {
+        "simulator": false
+      },
+      "env": {
+        "EXPO_PUBLIC_SUPABASE_URL": "https://tskbebqnlginnjhxpsnp.supabase.co",
+        "EXPO_PUBLIC_SUPABASE_ANON_KEY": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InRza2JlYnFubGdpbm5qaHhwc25wIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODU4ODkzNzIsImV4cCI6MjEwMTQ2NTM3Mn0.TkNztzo9DZLvvTU7jtoWhafVP_ocyYclHZqrGiRVSmE",
+        "EXPO_PUBLIC_STRIPE_PUBLISHABLE_KEY": "pk_test_51UCXj4Ec3Ghg5OAmodo0ZrxrQtWXkk3v5jmjJrIxw0n8VjbJzyYUWypnSKqnm9tNIL5J0r6N3MtojX18cwLvWvt10099LaJLKH"
+      }
     }
   },
   "submit": {
