@@ -13,6 +13,8 @@ CREATE TABLE public.orders (
     updated_at timestamptz NOT NULL DEFAULT now()
 );
 
+GRANT SELECT, INSERT ON public.orders TO authenticated;
+
 -- RLS
 ALTER TABLE public.orders ENABLE ROW LEVEL SECURITY;
 
