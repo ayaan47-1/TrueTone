@@ -14,6 +14,7 @@ CREATE TABLE public.orders (
 );
 
 GRANT SELECT, INSERT ON public.orders TO authenticated;
+GRANT SELECT, INSERT, UPDATE ON public.orders TO service_role;
 
 -- RLS
 ALTER TABLE public.orders ENABLE ROW LEVEL SECURITY;
