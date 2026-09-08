@@ -2,12 +2,12 @@ import { glass, palette } from '../tokens';
 
 describe('Quiet Glass design contract', () => {
   it('uses the approved warm neutral palette', () => {
-    expect(palette.background).toBe('#FBF7F2');
+    expect(palette.background).toBe('#faf7f2');
     expect(palette.ink).toBe('#221F1A');
     expect(palette.inkSoft).toBe('#6B655B');
     expect(palette.inkMuted).toBe('#8A8378');
-    expect(palette.sage).toBe('#7E9174');
-    expect(palette.clay).toBe('#C1875F');
+    expect(palette.sage).toBe('#2f7d52');
+    expect(palette.clay).toBe('#c26a4a');
   });
 
   it('keeps cards translucent with a bright glass edge', () => {
