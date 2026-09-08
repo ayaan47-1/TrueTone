@@ -4,22 +4,30 @@ import { Stack, useRouter, usePathname } from 'expo-router';
 import { View } from 'react-native';
 import { useFonts } from 'expo-font';
 import {
-  Fraunces_400Regular,
-  Fraunces_500Medium,
-  Fraunces_600SemiBold,
-  Fraunces_500Medium_Italic,
-} from '@expo-google-fonts/fraunces';
+  PlusJakartaSans_500Medium,
+  PlusJakartaSans_600SemiBold,
+  PlusJakartaSans_700Bold,
+} from '@expo-google-fonts/plus-jakarta-sans';
 import {
-  Mulish_400Regular,
-  Mulish_500Medium,
-  Mulish_600SemiBold,
-  Mulish_700Bold,
-} from '@expo-google-fonts/mulish';
+  Inter_400Regular,
+  Inter_500Medium,
+  Inter_600SemiBold,
+  Inter_700Bold,
+} from '@expo-google-fonts/inter';
 import { SafeAreaProvider, initialWindowMetrics } from 'react-native-safe-area-context';
+import { StripeProvider } from '@stripe/stripe-react-native';
 import { ProfileProvider, useProfile } from '../src/lib/profile-context';
 import type { Route } from '../src/lib/routing-guard';
+import { DEMO_MODE } from '../src/lib/supabase';
 import { MistBackground, GlassCard, Heading, Body } from '../src/components/ui';
 import { palette } from '../src/theme/tokens';
+
+// The demo build stubs an already-onboarded identity (profile-context.tsx) and skips the
+// gate chain entirely, so a live camera at this path would have no age-gate/consent in
+// front of it -- structural BIPA exposure if anyone ever ships EXPO_PUBLIC_DEMO=1 with a
+// real camera build. Block it here, not inside Capture.tsx: this is the one place that
+// already redirects imperatively per pathname for every other sensitive screen.
+const DEMO_BLOCKED_PATH = '/scan';
 
 // Map a gate Route to the screen path that must be shown for it. `home` means "no gate".
 const GATE_PATH: Partial<Record<Route, string>> = {
@@ -51,6 +59,12 @@ function Guard() {
   // Stack always mounted and redirecting imperatively avoids that.
   useEffect(() => {
     if (loading || error) return;
+    if (DEMO_MODE && pathname === DEMO_BLOCKED_PATH) {
+      // Demo mode always resolves to a cleared-gates 'home' route (profile-context.tsx), so
+      // the gate check below would never catch this -- checked first and unconditionally.
+      router.replace('/');
+      return;
+    }
     const target = GATE_PATH[route];
     if (target) {
       // A gate is active → make sure we're on its screen.
@@ -99,14 +113,13 @@ function Guard() {
 
 export default function RootLayout() {
   const [fontsLoaded] = useFonts({
-    Fraunces_400Regular,
-    Fraunces_500Medium,
-    Fraunces_600SemiBold,
-    Fraunces_500Medium_Italic,
-    Mulish_400Regular,
-    Mulish_500Medium,
-    Mulish_600SemiBold,
-    Mulish_700Bold,
+    PlusJakartaSans_500Medium,
+    PlusJakartaSans_600SemiBold,
+    PlusJakartaSans_700Bold,
+    Inter_400Regular,
+    Inter_500Medium,
+    Inter_600SemiBold,
+    Inter_700Bold,
   });
 
   // Seed metrics so children render synchronously (real values in-app; a zeroed
@@ -120,9 +133,13 @@ export default function RootLayout() {
   return (
     <SafeAreaProvider initialMetrics={metrics}>
       {fontsLoaded ? (
-        <ProfileProvider>
-          <Guard />
-        </ProfileProvider>
+        <StripeProvider
+          publishableKey={process.env.EXPO_PUBLIC_STRIPE_PUBLISHABLE_KEY || ''}
+        >
+          <ProfileProvider>
+            <Guard />
+          </ProfileProvider>
+        </StripeProvider>
       ) : (
         <MistBackground />
       )}

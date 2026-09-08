@@ -12,19 +12,69 @@
       },
       "ios": {
         "simulator": false
+      },
+      "env": {
+        "EXPO_PUBLIC_SUPABASE_URL": "https://tskbebqnlginnjhxpsnp.supabase.co",
+        "EXPO_PUBLIC_SUPABASE_ANON_KEY": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InRza2JlYnFubGdpbm5qaHhwc25wIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODU4ODkzNzIsImV4cCI6MjEwMTQ2NTM3Mn0.TkNztzo9DZLvvTU7jtoWhafVP_ocyYclHZqrGiRVSmE",
+        "EXPO_PUBLIC_STRIPE_PUBLISHABLE_KEY": "pk_test_51UCXj4Ec3Ghg5OAmodo0ZrxrQtWXkk3v5jmjJrIxw0n8VjbJzyYUWypnSKqnm9tNIL5J0r6N3MtojX18cwLvWvt10099LaJLKH"
       }
     },
     "preview": {
       "distribution": "internal",
       "android": {
         "buildType": "apk"
+      },
+      "ios": {
+        "simulator": false
+      },
+      "env": {
+        "EXPO_PUBLIC_DEMO": "1"
+      }
+    },
+    "testflight-demo": {
+      "distribution": "store",
+      "autoIncrement": true,
+      "ios": {
+        "simulator": false
+      },
+      "env": {
+        "EXPO_PUBLIC_DEMO": "1"
+      }
+    },
+    "camera-demo": {
+      "distribution": "internal",
+      "ios": {
+        "simulator": false
+      },
+      "env": {
+        "EXPO_PUBLIC_CAMERA_DEMO": "1"
       }
     },
     "production": {
       "autoIncrement": true
+    },
+    "device-test": {
+      "distribution": "internal",
+      "ios": {
+        "simulator": false
+      },
+      "env": {
+        "EXPO_PUBLIC_SUPABASE_URL": "https://tskbebqnlginnjhxpsnp.supabase.co",
+        "EXPO_PUBLIC_SUPABASE_ANON_KEY": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InRza2JlYnFubGdpbm5qaHhwc25wIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODU4ODkzNzIsImV4cCI6MjEwMTQ2NTM3Mn0.TkNztzo9DZLvvTU7jtoWhafVP_ocyYclHZqrGiRVSmE",
+        "EXPO_PUBLIC_STRIPE_PUBLISHABLE_KEY": "pk_test_51UCXj4Ec3Ghg5OAmodo0ZrxrQtWXkk3v5jmjJrIxw0n8VjbJzyYUWypnSKqnm9tNIL5J0r6N3MtojX18cwLvWvt10099LaJLKH"
+      }
     }
   },
   "submit": {
-    "production": {}
+    "production": {},
+    "testflight-demo": {
+      "ios": {
+        "ascAppId": "6807728417",
+        "appleTeamId": "J58R53HC5M",
+        "ascApiKeyPath": "./TrueTone Update/AuthKey_9RKMSHPFVN.p8",
+        "ascApiKeyId": "9RKMSHPFVN",
+        "ascApiKeyIssuerId": "a0965429-64be-4377-98bd-d89cfb03bf9e"
+      }
+    }
   }
 }

@@ -1,0 +1,272 @@
+-- supabase/tests/waitlist_sms.test.sql
+-- pgTAP coverage for 0016_waitlist_sms: phone capture and TCPA consent proof.
+--
+-- The waitlist holds an email address and now a phone number — never biometric or skin
+-- data. It stays outside the compliance boundary in CLAUDE.md §3. Retention still applies.
+begin;
+select plan(69);
+
+-- ── shape ─────────────────────────────────────────────────────────────────────
+select has_column('public', 'waitlist', 'phone', 'waitlist carries a phone column');
+select has_column('public', 'waitlist', 'sms_consent_at', 'waitlist records when SMS consent was given');
+select has_column('public', 'waitlist', 'sms_consent_version', 'waitlist records which wording was consented to');
+select has_column('public', 'waitlist', 'sms_invited_at', 'waitlist has the send-project idempotency seam');
+select has_table('public', 'waitlist_sms_events', 'the consent event log exists');
+select has_table('public', 'waitlist_sms_consent_versions', 'the consent wording table exists');
+select has_table('public', 'waitlist_secrets', 'the pepper table exists');
+select is((select relrowsecurity from pg_class where relname = 'waitlist_secrets'), true,
+  'RLS enabled on waitlist_secrets');
+
+-- ── no client role may read any of it: full anon/authenticated/service_role matrix ────
+-- waitlist_sms_events and waitlist_sms_consent_versions each grant SELECT to service_role
+-- only (so the send-project and any future read path can find receipts); waitlist_secrets
+-- grants nothing to anyone, ever.
+select table_privs_are('public', 'waitlist_sms_events', 'anon', '{}',
+  'anon holds no privileges on the event log');
+select table_privs_are('public', 'waitlist_sms_events', 'authenticated', '{}',
+  'authenticated holds no privileges on the event log');
+select table_privs_are('public', 'waitlist_sms_events', 'service_role', '{SELECT}',
+  'service_role can only read the event log');
+
+select table_privs_are('public', 'waitlist_sms_consent_versions', 'anon', '{}',
+  'anon holds no privileges on the consent wording table');
+select table_privs_are('public', 'waitlist_sms_consent_versions', 'authenticated', '{}',
+  'authenticated holds no privileges on the consent wording table');
+select table_privs_are('public', 'waitlist_sms_consent_versions', 'service_role', '{SELECT}',
+  'service_role can only read the consent wording table');
+
+select table_privs_are('public', 'waitlist_secrets', 'anon', '{}',
+  'anon holds no privileges on the pepper table');
+select table_privs_are('public', 'waitlist_secrets', 'authenticated', '{}',
+  'authenticated holds no privileges on the pepper table');
+select table_privs_are('public', 'waitlist_secrets', 'service_role', '{}',
+  'even service_role cannot read the pepper');
+
+-- ── nor may any client role execute the helpers ────────────────────────────────
+-- Without this, a future migration granting execute on waitlist_phone_hash to anon would
+-- turn it into a phone-number oracle: submit a guess, compare the digest against the event
+-- log. Neither helper needs to be callable by anything but a security-definer RPC.
+select function_privs_are('public', 'normalize_us_phone', ARRAY['text'], 'anon', '{}',
+  'anon holds no privileges on normalize_us_phone');
+select function_privs_are('public', 'normalize_us_phone', ARRAY['text'], 'authenticated', '{}',
+  'authenticated holds no privileges on normalize_us_phone');
+select function_privs_are('public', 'normalize_us_phone', ARRAY['text'], 'service_role', '{}',
+  'service_role holds no privileges on normalize_us_phone');
+select function_privs_are('public', 'waitlist_phone_hash', ARRAY['text'], 'anon', '{}',
+  'anon holds no privileges on waitlist_phone_hash');
+select function_privs_are('public', 'waitlist_phone_hash', ARRAY['text'], 'authenticated', '{}',
+  'authenticated holds no privileges on waitlist_phone_hash');
+select function_privs_are('public', 'waitlist_phone_hash', ARRAY['text'], 'service_role', '{}',
+  'service_role holds no privileges on waitlist_phone_hash');
+
+-- ── phone format: E.164 US, excluding N11 service codes ───────────────────────
+select throws_ok(
+  $$ insert into public.waitlist(email, attested_18_us, phone, sms_consent_at, sms_consent_version)
+     values ('a@example.com', true, '+19115550100', now(), 'sms-2026-08-07') $$,
+  '23514', null, '911 is rejected as an area code');
+select throws_ok(
+  $$ insert into public.waitlist(email, attested_18_us, phone, sms_consent_at, sms_consent_version)
+     values ('b@example.com', true, '+12124115100', now(), 'sms-2026-08-07') $$,
+  '23514', null, '411 is rejected as an exchange');
+select throws_ok(
+  $$ insert into public.waitlist(email, attested_18_us, phone, sms_consent_at, sms_consent_version)
+     values ('d@example.com', true, '+442071234567', now(), 'sms-2026-08-07') $$,
+  '23514', null, 'a non-US number is rejected');
+
+-- ── a number and its consent record are inseparable ───────────────────────────
+select throws_ok(
+  $$ insert into public.waitlist(email, attested_18_us, phone)
+     values ('c@example.com', true, '+12125550100') $$,
+  '23514', null, 'a phone with no consent record is rejected');
+
+-- ── the event log is append-only ──────────────────────────────────────────────
+insert into public.waitlist_sms_events(phone_hash, event) values ('deadbeef', 'granted');
+select throws_ok(
+  $$ update public.waitlist_sms_events set event = 'revoked' where phone_hash = 'deadbeef' $$,
+  'P0001', null, 'the event log cannot be updated');
+select throws_ok(
+  $$ delete from public.waitlist_sms_events where phone_hash = 'deadbeef' $$,
+  'P0001', null, 'the event log cannot be deleted from');
+
+-- ── the consent wording table is append-only too ──────────────────────────────
+-- Same guarantee as the event log: the wording is a legal record, so a copy-paste that
+-- pointed a trigger at the wrong table, or dropped it in a later migration, must fail loudly.
+select throws_ok(
+  $$ update public.waitlist_sms_consent_versions set body = 'changed' where version = 'sms-2026-08-07' $$,
+  'P0001', null, 'the consent wording cannot be updated');
+select throws_ok(
+  $$ delete from public.waitlist_sms_consent_versions where version = 'sms-2026-08-07' $$,
+  'P0001', null, 'the consent wording cannot be deleted from');
+
+-- ── normalization ─────────────────────────────────────────────────────────────
+select is(public.normalize_us_phone('(212) 555-0100'), '+12125550100',
+  'punctuation and spaces are stripped');
+select is(public.normalize_us_phone('12125550100'), '+12125550100',
+  'a leading 1 is read as the country code, not a digit');
+select is(public.normalize_us_phone('+1 212 555 0100'), '+12125550100',
+  'an already-E.164 number round-trips');
+select is(public.normalize_us_phone('212555010'), null,
+  'nine digits is not a US number');
+select is(public.normalize_us_phone('+442071838750'), null,
+  'a non-US number is rejected rather than mangled');
+
+-- ── NANP validity, not just digit-counting ─────────────────────────────────────
+-- normalize_us_phone must reject these itself so an unusable number surfaces as our own
+-- P0001 in join_waitlist rather than escaping as a raw 23514 from the waitlist_phone_e164
+-- CHECK, which would dump the proposed row (via PostgREST's constraint DETAIL) to the browser.
+select is(public.normalize_us_phone('211-555-0100'), null,
+  'an N11 area code is rejected by normalize_us_phone, not left to the CHECK');
+select is(public.normalize_us_phone('111-555-0100'), null,
+  'an area code starting with 1 is rejected');
+select is(public.normalize_us_phone('212-155-0100'), null,
+  'an exchange starting with 1 is rejected');
+select is(public.normalize_us_phone('212-411-5100'), null,
+  'an N11 exchange is rejected');
+
+-- ── hashing ───────────────────────────────────────────────────────────────────
+-- Two spellings of one number must land on the same hash or dedup and lookup both break.
+select is(
+  public.waitlist_phone_hash(public.normalize_us_phone('(212) 555-0100')),
+  public.waitlist_phone_hash(public.normalize_us_phone('212.555.0100')),
+  'the same number in two formats hashes identically');
+
+-- A stub that ignored its argument and returned a constant would pass the equality test
+-- above; this rules that out.
+select isnt(
+  public.waitlist_phone_hash(public.normalize_us_phone('(212) 555-0100')),
+  public.waitlist_phone_hash(public.normalize_us_phone('(212) 555-0199')),
+  'different numbers hash differently');
+
+-- The missing-pepper guard is the whole reason for the explicit check: without it, a missing
+-- pepper would hash with a null and produce brute-forceable digests indistinguishable from
+-- good ones. Run last among the hash assertions and restore the row immediately after, since
+-- the rest of this transaction still needs a working waitlist_phone_hash.
+delete from public.waitlist_secrets where name = 'sms_pepper';
+select throws_ok(
+  $$ select public.waitlist_phone_hash('+12125550100') $$,
+  'P0001', null, 'waitlist_phone_hash raises when the pepper is missing');
+insert into public.waitlist_secrets(name, value)
+values ('sms_pepper', encode(gen_random_bytes(32), 'hex'));
+
+-- ── join_waitlist: the old 2-arg form must be gone, not shadowed ──────────────
+-- Two candidate signatures make PostgREST answer PGRST203 rather than picking one.
+select is(
+  (select count(*)::int from pg_proc p
+   join pg_namespace n on n.oid = p.pronamespace
+   where p.proname = 'join_waitlist' and n.nspname = 'public'),
+  1, 'exactly one join_waitlist signature exists in public');
+
+-- A cached copy of the old page sends two keys and must still work via defaults.
+select lives_ok(
+  $$ select public.join_waitlist('legacy@example.com', true) $$,
+  'a two-argument call still joins, so a stale cached page keeps working');
+select is((select phone from public.waitlist where email = 'legacy@example.com'), null,
+  'a two-argument call stores no phone');
+
+-- ── consent gates the number ──────────────────────────────────────────────────
+-- A typo'd or unconsented number must not cost the visitor their email signup.
+select lives_ok(
+  $$ select public.join_waitlist('nobox@example.com', true, '(212) 555-0101', false, null) $$,
+  'a number with the box unticked does not fail the signup');
+select is((select phone from public.waitlist where email = 'nobox@example.com'), null,
+  'a number with the box unticked is discarded');
+
+-- ── the happy path ────────────────────────────────────────────────────────────
+select lives_ok(
+  $$ select public.join_waitlist('ok@example.com', true, '(212) 555-0102', true, 'sms-2026-08-07') $$,
+  'a consented number is accepted');
+select is((select phone from public.waitlist where email = 'ok@example.com'), '+12125550102',
+  'the number is stored normalized');
+select is(
+  (select count(*)::int from public.waitlist_sms_events
+   where phone_hash = public.waitlist_phone_hash('+12125550102') and event = 'granted'),
+  1, 'a grant receipt is written');
+
+-- ── a number already on the list under another address ────────────────────────
+-- Must not error: an error would confirm the number is present. The email joins alone.
+select lives_ok(
+  $$ select public.join_waitlist('dupe@example.com', true, '212-555-0102', true, 'sms-2026-08-07') $$,
+  'a number already on the list does not surface an error');
+select is((select phone from public.waitlist where email = 'dupe@example.com'), null,
+  'the duplicate number is discarded, the email still joins');
+select is(
+  (select count(*)::int from public.waitlist_sms_events
+   where phone_hash = public.waitlist_phone_hash('+12125550102') and event = 'granted'),
+  1, 'no second grant receipt for a number that was not stored');
+
+-- ── nobody can overwrite an existing number by knowing the email ──────────────
+select lives_ok(
+  $$ select public.join_waitlist('ok@example.com', true, '(212) 555-0199', true, 'sms-2026-08-07') $$,
+  'resubmitting a known email with a different number is silent');
+select is((select phone from public.waitlist where email = 'ok@example.com'), '+12125550102',
+  'the original number is not replaced');
+select is((select count(*)::int from public.waitlist_sms_events
+           where phone_hash = public.waitlist_phone_hash('+12125550199')), 0,
+  'no receipt for a number that was refused by the no-overwrite guard');
+
+-- ── a returning visitor may add a number to a row that has none ───────────────
+select lives_ok(
+  $$ select public.join_waitlist('legacy@example.com', true, '(212) 555-0103', true, 'sms-2026-08-07') $$,
+  'a row with no phone can be upgraded');
+select is((select phone from public.waitlist where email = 'legacy@example.com'), '+12125550103',
+  'the number is added to the existing row');
+select is(
+  (select count(*)::int from public.waitlist_sms_events
+   where phone_hash = public.waitlist_phone_hash('+12125550103') and event = 'granted'),
+  1, 'a grant receipt is written for the upgrade too');
+
+-- ── forged input ──────────────────────────────────────────────────────────────
+select throws_ok(
+  $$ select public.join_waitlist('bad@example.com', true, '(212) 555-0104', true, 'sms-1999-01-01') $$,
+  '23503', null, 'consent to wording that never existed is rejected by the FK');
+select throws_ok(
+  $$ select public.join_waitlist('bad2@example.com', true, '555', true, 'sms-2026-08-07') $$,
+  'P0001', null, 'an unusable number is reported rather than silently dropped');
+
+-- ── the consent-version FK must not become a phone oracle ──────────────────────
+-- Before this fix, a garbage version surfaced a different SQLSTATE depending on whether
+-- the candidate number was already on the list: unique_violation on the phone (caught,
+-- silent, 204) vs the sms_consent_version FK violation (uncaught, 409/23503), because the
+-- FK is an AFTER-ROW trigger that fires after index insertion. That is a structural phone
+-- (and email) oracle over the live anon RPC. Both cases below must now raise the same
+-- 23503, regardless of whether '+12125550102' (stored earlier in this transaction) is
+-- already on the list.
+select throws_ok(
+  $$ select public.join_waitlist('oracle1@example.com', true, '(212) 555-0201', true, 'sms-not-real') $$,
+  '23503', null, 'a garbage consent version is rejected when the number is not yet on the list');
+select throws_ok(
+  $$ select public.join_waitlist('oracle2@example.com', true, '(212) 555-0102', true, 'sms-not-real') $$,
+  '23503', null, 'a garbage consent version is rejected identically when the number is already on the list');
+
+-- ── unsubscribe leaves a receipt ──────────────────────────────────────────────
+-- The number goes; the proof that they revoked, and when, stays. That is the whole
+-- point of keeping the log separate from the row.
+select public.join_waitlist('bye@example.com', true, '(212) 555-0105', true, 'sms-2026-08-07');
+select public.leave_waitlist(
+  (select unsubscribe_token from public.waitlist where email = 'bye@example.com'));
+
+select is((select count(*)::int from public.waitlist where email = 'bye@example.com'), 0,
+  'unsubscribing removes the row and the number');
+select is(
+  (select count(*)::int from public.waitlist_sms_events
+   where phone_hash = public.waitlist_phone_hash('+12125550105') and event = 'revoked'),
+  1, 'a revoke receipt survives the deleted row');
+
+-- ── the retention sweep may delete from the append-only log, but only past 4y ─
+insert into public.waitlist_sms_events(phone_hash, event, created_at)
+values ('old-hash', 'granted', now() - interval '5 years'),
+       ('new-hash', 'granted', now() - interval '1 year');
+select public.waitlist_retention_sweep();
+
+select is((select count(*)::int from public.waitlist_sms_events where phone_hash = 'old-hash'), 0,
+  'receipts past the 4-year TCPA limitations period are swept');
+select is((select count(*)::int from public.waitlist_sms_events where phone_hash = 'new-hash'), 1,
+  'receipts inside the limitations period are kept');
+
+-- The escape hatch must not outlive the sweep's transaction.
+select throws_ok(
+  $$ delete from public.waitlist_sms_events where phone_hash = 'new-hash' $$,
+  'P0001', null, 'the log is append-only again once the sweep has returned');
+
+select * from finish();
+rollback;

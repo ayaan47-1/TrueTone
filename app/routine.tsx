@@ -1,13 +1,13 @@
 import { useEffect, useState } from 'react';
 import { View } from 'react-native';
 import { useRouter } from 'expo-router';
-import { fetchScanHistory, type Scan } from '../../src/lib/scans';
-import { RoutineView } from '../../src/features/recommend/RoutineView';
-import { computePersonalBaseline } from '../../src/features/personalize/personal-baseline';
-import { computePersonalDeviation } from '../../src/features/personalize/personal-deviation';
-import { emphasizeRoutine } from '../../src/features/recommend/emphasize-routine';
-import type { Routine } from '../../src/features/recommend/routine-types';
-import { MistBackground, GlassCard, Body } from '../../src/components/ui';
+import { fetchScanHistory, type Scan } from '../src/lib/scans';
+import { RoutineView } from '../src/features/recommend/RoutineView';
+import { computePersonalBaseline } from '../src/features/personalize/personal-baseline';
+import { computePersonalDeviation } from '../src/features/personalize/personal-deviation';
+import { emphasizeRoutine } from '../src/features/recommend/emphasize-routine';
+import type { Routine } from '../src/features/recommend/routine-types';
+import { MistBackground, GlassCard, Body } from '../src/components/ui';
 
 function StateCard({ children }: { children: React.ReactNode }) {
   return (
@@ -22,9 +22,10 @@ function StateCard({ children }: { children: React.ReactNode }) {
 }
 
 /**
- * Routine tab — the brand-neutral routine derived from the latest scan, with a
- * link into the scores-only chat. Reachable from the tab bar (previously this
- * lived at the orphaned /scan/routine route).
+ * Routine screen — the brand-neutral routine derived from the latest scan, with a
+ * link into the scores-only chat. No longer a bottom tab (the tab set is
+ * Shop / Today / Trend / You); reached from the Today card's "Your routine is ready"
+ * link at the root route `/routine`.
  */
 export default function RoutineRoute() {
   const router = useRouter();

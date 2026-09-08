@@ -1,6 +1,7 @@
 import { scoreFromRgb, CV_MODEL_VERSION } from '../score-from-rgb';
 import { solidRgb, fillRect, addNoise } from '../fixtures';
 import { deriveRegions } from '../regions';
+import { srgbToLab } from '../color';
 import { DIMENSIONS, SKIN_TYPE_FEELS } from '../../../../content/cosmetic-vocab';
 
 const SIZE = { width: 120, height: 120 };
@@ -30,4 +31,14 @@ test('marks the read as a real CV read', () => {
   expect(result.modelVersion).toBe(CV_MODEL_VERSION);
   expect(result.modelVersion).toBe('cv-1');
   expect(SKIN_TYPE_FEELS).toContain(result.skinType);
+});
+
+test('carries the cheek-region CIELAB tone read (baseline L/a/b) for shade derivation', () => {
+  const img = solidRgb(120, 120, [180, 140, 120]);
+  const result = scoreFromRgb(img, REGIONS);
+  const expected = srgbToLab(180, 140, 120);
+  expect(result.tone).toBeDefined();
+  expect(result.tone?.L).toBeCloseTo(expected.L, 0);
+  expect(result.tone?.a).toBeCloseTo(expected.a, 0);
+  expect(result.tone?.b).toBeCloseTo(expected.b, 0);
 });

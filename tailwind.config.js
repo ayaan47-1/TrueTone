@@ -1,22 +1,23 @@
 /** @type {import('tailwindcss').Config} */
-// TrueTone "Mist" design system — Soft-Surrealism liquid glass.
+// TrueTone design system — brief green/terracotta on warm off-white.
 // Palette + type live here so every screen reskins from one source of truth.
 //
-// Refinement: the palette + fonts are unchanged (they were already right).
-// The only token added here is the inclusive `fitzpatrick` I–VI scale, mirrored
-// in src/theme/tokens.ts. Gradient/glass/shadow refinements live in tokens.ts
-// (StyleSheet land); type-weight refinements live in Typography.tsx.
+// Section 0 re-theme: token KEYS are unchanged so ~134 screens reskin with zero
+// screen edits — only VALUES move from the old bronze "Mist" palette (Fraunces/
+// Mulish) to the brief palette: green #2f7d52 anchor + terracotta #c26a4a accent
+// + Plus Jakarta Sans (display) / Inter (body). The fitzpatrick + shade-swatch
+// gradients stay WARM (real skin/foundation tones = data, not brand).
 module.exports = {
   content: ['./app/**/*.{ts,tsx}', './src/**/*.{ts,tsx}'],
   presets: [require('nativewind/preset')],
   theme: {
     extend: {
       colors: {
-        // Dominant (60%) — mist lavender washing into white.
+        // Dominant surface — warm off-white washing to white, green-tinted rise.
         mist: {
-          50: '#FFFCF8',
-          100: '#FBF7F2',
-          200: '#F3EDE3',
+          50: '#fffdf9',
+          100: '#faf7f2',
+          200: '#e7f1ea',
           300: '#EBE2D3',
           400: '#DED4C4',
         },
@@ -33,15 +34,25 @@ module.exports = {
           600: '#6B655B',
           700: '#3F3A33',
         },
-        // Ink — aubergine-tinted neutrals for text.
+        // Ink — warm neutrals for text.
         ink: {
           DEFAULT: '#221F1A',
           soft: '#6B655B',
           muted: '#8A8378',
-          faint: '#C5BDAF',
+          faint: '#a89f8f',
         },
-        sage: '#7E9174',
-        clay: '#C1875F',
+        // Brand — green anchor (confirmation / fit-positive / active tab),
+        // terracotta accent (primary CTA / highlight, used sparingly).
+        brand: {
+          green: '#2f7d52',
+          greenDark: '#245f3f',
+          terracotta: '#c26a4a',
+          tint: '#e7f1ea',
+          charcoal: '#1f2a26',
+          offwhite: '#faf7f2',
+        },
+        sage: '#2f7d52',
+        clay: '#c26a4a',
         // Inclusive Fitzpatrick I–VI scale (onboarding tone strip + fairness UI).
         // Mirrored in src/theme/tokens.ts as `fitzpatrick`.
         fitzpatrick: {
@@ -54,19 +65,22 @@ module.exports = {
         },
       },
       fontFamily: {
-        display: ['Fraunces_600SemiBold'],
-        'display-md': ['Fraunces_500Medium'],
-        'display-light': ['Fraunces_400Regular'],
-        'display-italic': ['Fraunces_500Medium_Italic'],
-        sans: ['Mulish_400Regular'],
-        body: ['Mulish_400Regular'],
-        'body-medium': ['Mulish_500Medium'],
-        'body-semibold': ['Mulish_600SemiBold'],
-        'body-bold': ['Mulish_700Bold'],
+        display: ['PlusJakartaSans_700Bold'],
+        'display-md': ['PlusJakartaSans_600SemiBold'],
+        'display-light': ['PlusJakartaSans_500Medium'],
+        // display-italic retained as a key (maps to 600SemiBold — no italic cut shipped).
+        'display-italic': ['PlusJakartaSans_600SemiBold'],
+        sans: ['Inter_400Regular'],
+        body: ['Inter_400Regular'],
+        'body-medium': ['Inter_500Medium'],
+        'body-semibold': ['Inter_600SemiBold'],
+        'body-bold': ['Inter_700Bold'],
       },
       borderRadius: {
         glass: '30px',
         sheet: '36px',
+        card: '20px',
+        hero: '28px',
       },
     },
   },

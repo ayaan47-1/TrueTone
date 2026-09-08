@@ -24,6 +24,14 @@ interface ScreenProps {
 const DEFAULT_MAX_WIDTH = 560;
 
 /**
+ * Extra top padding a pushed screen should reserve so its first element clears the root
+ * Stack's TRANSPARENT floating header (the back button) instead of rendering under it.
+ * Single source of truth -- pass as `topGap={HEADER_CLEARANCE}` on any header-bearing screen
+ * (tab screens set their own smaller topGap; they have no floating header). Mirrors
+ * TAB_BAR_CLEARANCE for the bottom edge. */
+export const HEADER_CLEARANCE = 56;
+
+/**
  * Standard page chrome for the "Mist" system: the gradient-mesh atmosphere, plus
  * safe-area-aware padding that callers cannot accidentally clobber, plus a centered
  * content column that caps its width on large/unfolded (foldable) screens.

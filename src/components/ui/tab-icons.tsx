@@ -45,6 +45,40 @@ export function RoutineGlyph({ color, size = 22 }: GlyphProps) {
   );
 }
 
+/** Shop — a simple shopping bag with a handle. */
+export function ShopGlyph({ color, size = 22 }: GlyphProps) {
+  const w = size * 0.66;
+  const h = size * 0.56;
+  const handle = w * 0.42;
+  return (
+    <Box size={size}>
+      {/* handle arc */}
+      <View
+        style={{
+          width: handle,
+          height: handle * 0.6,
+          borderTopLeftRadius: handle,
+          borderTopRightRadius: handle,
+          borderWidth: 2,
+          borderBottomWidth: 0,
+          borderColor: color,
+          marginBottom: -1,
+        }}
+      />
+      {/* bag body */}
+      <View
+        style={{
+          width: w,
+          height: h,
+          borderRadius: size * 0.14,
+          borderWidth: 2,
+          borderColor: color,
+        }}
+      />
+    </Box>
+  );
+}
+
 /** Trend — three ascending bars. */
 export function TrendGlyph({ color, size = 22 }: GlyphProps) {
   return (
@@ -104,6 +138,47 @@ export function ScanGlyph({ color, size = 24 }: GlyphProps) {
   return (
     <Box size={size}>
       <View style={{ width: s, height: s, borderRadius: s * 0.3, borderWidth: 2, borderColor: color }} />
+    </Box>
+  );
+}
+
+/** Camera — an outlined body with a lens and viewfinder nub, for the shade-match control. */
+export function CameraGlyph({ color, size = 22 }: GlyphProps) {
+  const w = size * 0.84;
+  const h = size * 0.6;
+  const lens = size * 0.3;
+  const nubW = size * 0.24;
+  const nubH = size * 0.12;
+  return (
+    <Box size={size}>
+      <View style={{ width: w, alignItems: 'center' }}>
+        {/* Viewfinder nub, offset left of centre and overlapping the body's top edge. */}
+        <View
+          style={{
+            width: nubW,
+            height: nubH,
+            marginRight: w * 0.34,
+            marginBottom: -1,
+            borderTopLeftRadius: nubH * 0.5,
+            borderTopRightRadius: nubH * 0.5,
+            backgroundColor: color,
+          }}
+        />
+        {/* Body with a concentric lens. */}
+        <View
+          style={{
+            width: w,
+            height: h,
+            borderRadius: size * 0.18,
+            borderWidth: 2,
+            borderColor: color,
+            alignItems: 'center',
+            justifyContent: 'center',
+          }}
+        >
+          <View style={{ width: lens, height: lens, borderRadius: lens / 2, borderWidth: 2, borderColor: color }} />
+        </View>
+      </View>
     </Box>
   );
 }

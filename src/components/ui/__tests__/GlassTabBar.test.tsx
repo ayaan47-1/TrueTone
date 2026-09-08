@@ -6,19 +6,16 @@ type View = Awaited<ReturnType<typeof render>>;
 // `render` is async in this repo's setup; bind queries to each render's own result.
 async function setup(overrides: Partial<React.ComponentProps<typeof GlassTabBar>> = {}) {
   const onSelect = jest.fn();
-  const onScanPress = jest.fn();
-  const view = await render(
-    <GlassTabBar activeKey="index" onSelect={onSelect} onScanPress={onScanPress} {...overrides} />,
-  );
-  return { view, onSelect, onScanPress };
+  const view = await render(<GlassTabBar activeKey="index" onSelect={onSelect} {...overrides} />);
+  return { view, onSelect };
 }
 
-// Selecting from the control list by accessibilityLabel is stable across the
-// repo's async renders (the getByRole `{ name }` filter is not). Tabs use the
-// "tab" role; the center Scan action uses "button".
-function button(view: View, label: string) {
-  const all = [...view.queryAllByRole('tab'), ...view.queryAllByRole('button')];
-  const match = all.find((b) => b.props.accessibilityLabel === label);
+// Selecting from the tab list by accessibilityLabel is stable across the repo's
+// async renders (the getByRole `{ name }` filter is not). All four destinations
+// use the "tab" role — there is no longer a center "Shade match" button here (it
+// moved to the For You header per the redesign).
+function tab(view: View, label: string) {
+  const match = view.queryAllByRole('tab').find((b) => b.props.accessibilityLabel === label);
   if (!match) throw new Error(`no tab control labelled "${label}"`);
   return match;
 }
@@ -27,41 +24,41 @@ function button(view: View, label: string) {
 // under the async-render + auto-cleanup combo. Flush after every press.
 const flush = () => new Promise((resolve) => setTimeout(resolve, 0));
 async function press(view: View, label: string) {
-  fireEvent.press(button(view, label));
+  fireEvent.press(tab(view, label));
   await flush();
 }
 
-test('renders all five destinations including the center Scan action', async () => {
+test('renders exactly four tab destinations and no center Shade match button', async () => {
   const { view } = await setup();
-  ['Today', 'Routine', 'Scan', 'Trend', 'You'].forEach((label) =>
-    expect(button(view, label)).toBeTruthy(),
+  expect(view.queryAllByRole('tab')).toHaveLength(4);
+  ['Shop', 'For You', 'Trend', 'Account'].forEach((label) =>
+    expect(tab(view, label)).toBeTruthy(),
   );
+  // The floating center scan action is gone from the bar entirely.
+  const scan = [...view.queryAllByRole('button'), ...view.queryAllByRole('tab')].find(
+    (b) => b.props.accessibilityLabel === 'Shade match',
+  );
+  expect(scan).toBeUndefined();
+});
+
+test('Shop is the first (primary) tab destination', async () => {
+  const { view } = await setup();
+  const firstTab = view.queryAllByRole('tab')[0];
+  expect(firstTab.props.accessibilityLabel).toBe('Shop');
 });
 
 test('marks the active tab as selected for accessibility', async () => {
   const { view } = await setup({ activeKey: 'trend' });
-  expect(button(view, 'Trend').props.accessibilityState).toMatchObject({ selected: true });
-  expect(button(view, 'Today').props.accessibilityState).toMatchObject({ selected: false });
-});
-
-test('tabs use the "tab" role and Scan uses the "button" role', async () => {
-  const { view } = await setup();
-  expect(view.queryAllByRole('tab')).toHaveLength(4);
-  expect(button(view, 'Scan').props.accessibilityRole).toBe('button');
+  expect(tab(view, 'Trend').props.accessibilityState).toMatchObject({ selected: true });
+  expect(tab(view, 'For You').props.accessibilityState).toMatchObject({ selected: false });
 });
 
 test('pressing a tab calls onSelect with its route key', async () => {
-  const { view, onSelect, onScanPress } = await setup();
-  await press(view, 'Routine');
-  expect(onSelect).toHaveBeenCalledWith('routine');
-  await press(view, 'You');
+  const { view, onSelect } = await setup();
+  await press(view, 'Shop');
+  expect(onSelect).toHaveBeenCalledWith('shop');
+  await press(view, 'For You');
+  expect(onSelect).toHaveBeenCalledWith('index');
+  await press(view, 'Account');
   expect(onSelect).toHaveBeenCalledWith('you');
-  expect(onScanPress).not.toHaveBeenCalled();
-});
-
-test('pressing the center Scan button calls onScanPress, not onSelect', async () => {
-  const { view, onSelect, onScanPress } = await setup();
-  await press(view, 'Scan');
-  expect(onScanPress).toHaveBeenCalledTimes(1);
-  expect(onSelect).not.toHaveBeenCalled();
 });

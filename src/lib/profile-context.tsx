@@ -1,8 +1,9 @@
 import React, { createContext, useContext, useEffect, useState } from 'react';
-import { supabase } from './supabase';
+import { supabase, DEMO_MODE, CAMERA_DEMO } from './supabase';
 import { bootstrapSession } from './auth';
 import { isUSRegion } from './region';
 import { nextRoute, type Route } from './routing-guard';
+import { cameraDemoState } from './camera-demo-profile';
 
 type Profile = { is_18_plus: boolean; consent_active: boolean };
 type Ctx = {
@@ -21,6 +22,29 @@ export function ProfileProvider({ children }: { children: React.ReactNode }) {
   const [userId, setUserId] = useState<string | null>(null);
 
   async function refresh() {
+    if (DEMO_MODE) {
+      // Offline demo: stand in a stubbed onboarded identity and skip the backend so the
+      // Shop + Today screens render from the local catalog with no Supabase. The gate
+      // logic is untouched — this is the same route a real US, 18+, consented user hits.
+      setError(false);
+      setUserId('demo-user');
+      setRoute(nextRoute({ isUS: true, is18: true, consent: true }));
+      setLoading(false);
+      return;
+    }
+    if (CAMERA_DEMO) {
+      // Own-device camera prototype (Dwight tt-cam-mode-ruling): no live backend (avoids the
+      // plain-HTTP/ATS blocker), but UNLIKE DEMO_MODE the gate flags are NOT pre-cleared -- they
+      // come from camera-demo-profile.ts's local state, which only flips true after a real
+      // /age-gate or /consent tap (AgeGate.tsx / Consent.tsx). route recomputes correctly on
+      // every refresh() call, same as those screens' real onPass wiring.
+      setError(false);
+      setUserId('camera-demo-user');
+      const local = cameraDemoState();
+      setRoute(nextRoute({ isUS: true, is18: local.is18, consent: local.consentActive }));
+      setLoading(false);
+      return;
+    }
     try {
       setError(false);
       const uid = await bootstrapSession();

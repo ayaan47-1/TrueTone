@@ -1,10 +1,12 @@
 import { useState } from 'react';
-import { View, TextInput } from 'react-native';
-import { supabase } from '../../lib/supabase';
+import { View, TextInput, Text } from 'react-native';
+import { supabase, CAMERA_DEMO } from '../../lib/supabase';
+import { cameraDemoSetIs18 } from '../../lib/camera-demo-profile';
 import { computeIs18Plus } from './age';
 import {
   MistBackground,
   Screen,
+  HEADER_CLEARANCE,
   GlassCard,
   Display,
   Heading,
@@ -21,9 +23,15 @@ export function AgeGate({ userId, onPass }: { userId: string; onPass: () => void
     const dob = new Date(value);
     if (isNaN(dob.getTime())) { setBlocked(false); return; }
     if (!computeIs18Plus(dob, new Date())) { setBlocked(true); return; } // discard DOB
-    await supabase.from('profiles')
-      .update({ is_18_plus: true, age_verified_at: new Date().toISOString() })
-      .eq('id', userId);
+    // CAMERA_DEMO: same real pass, no live backend (avoids the plain-HTTP/ATS blocker) --
+    // persists to camera-demo-profile.ts's local state instead (Dwight tt-cam-mode-ruling).
+    if (CAMERA_DEMO) {
+      cameraDemoSetIs18();
+    } else {
+      await supabase.from('profiles')
+        .update({ is_18_plus: true, age_verified_at: new Date().toISOString() })
+        .eq('id', userId);
+    }
     onPass();
   }
 
@@ -32,7 +40,7 @@ export function AgeGate({ userId, onPass }: { userId: string; onPass: () => void
       <MistBackground>
         <View className="flex-1 items-center justify-center px-6">
           <GlassCard className="px-7 py-9 items-center gap-3">
-            <Display className="text-center text-3xl">Adults only</Display>
+            <Display accessibilityRole="header" className="text-center text-3xl">Adults only</Display>
             <Body className="text-center">TrueTone is available to adults 18 and over.</Body>
           </GlassCard>
         </View>
@@ -40,21 +48,28 @@ export function AgeGate({ userId, onPass }: { userId: string; onPass: () => void
     );
 
   return (
-    <Screen className="px-6" scroll={false} topGap={56} bottomGap={24}>
+    <Screen className="px-6" scroll={false} topGap={HEADER_CLEARANCE} bottomGap={24}>
       <View className="flex-1">
         <View className="gap-1 mb-8">
-          <Display className="text-[30px]">Before we begin</Display>
+          <Display accessibilityRole="header" className="text-[30px]">Before we begin</Display>
           <Body className="text-ink-muted">Quick, one-time essentials.</Body>
         </View>
 
         <GlassCard flat radius={22} className="px-5 py-5 mb-3 flex-row items-center gap-4">
           <View className="h-12 w-12 rounded-2xl bg-mist-300 items-center justify-center"><Body>US</Body></View>
           <View className="flex-1"><Body className="font-semibold text-ink">United States</Body><Caption>TrueTone is available in your region</Caption></View>
-          <View className="h-5 w-5 rounded-full bg-sage" />
+          {/* Semantic "available" state, not a decorative dot: a check reinforces the row copy. */}
+          <View
+            accessibilityElementsHidden
+            importantForAccessibility="no-hide-descendants"
+            className="h-6 w-6 rounded-full bg-sage items-center justify-center"
+          >
+            <Text className="text-white text-[13px] font-bold leading-4">✓</Text>
+          </View>
         </GlassCard>
 
         <GlassCard flat radius={22} className="px-5 py-5 gap-4">
-          <Heading className="text-[19px]">Confirm your date of birth</Heading>
+          <Heading accessibilityRole="header" className="text-[19px]">Confirm your date of birth</Heading>
           <TextInput
             testID="dob-input"
             placeholder="YYYY-MM-DD"
@@ -62,7 +77,12 @@ export function AgeGate({ userId, onPass }: { userId: string; onPass: () => void
             value={value}
             onChangeText={setValue}
             autoCapitalize="none"
+            autoCorrect={false}
+            autoComplete="off"
+            keyboardType="numbers-and-punctuation"
+            maxLength={10}
             accessibilityLabel="Date of birth"
+            accessibilityHint="Enter your date of birth as year, month, day"
             className="rounded-[18px] bg-white/80 px-5 py-4 text-center text-base text-ink"
           />
           <Caption>Must be 18+. We don&apos;t store this date — only that you&apos;re eligible.</Caption>

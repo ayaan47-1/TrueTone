@@ -1,13 +1,21 @@
 # TrueTone Architecture & Codemap
 
-> Reflects what has landed on `main`: the **P1 compliance scaffold**, the **P2 capture +
-> on-device-read pipeline** (shipped read = **classical computer vision**, `CvReadEngine`), the
-> **brand-neutral routine + scores-only chat** (build-order step 6), the **"Mist" liquid-glass
-> design system**, the **progress-trend + "did this help?" loop** (step 7), and the **fairness-eval
-> dev tool** (migrations `0001`–`0012`, all modules below).
-> The device-gated pieces are the native JPEG decode + the worklet-backed quality metrics; an
-> `ExecutorchEngine` ML shell exists but is **dormant** (never instantiated — reserved for a future
-> model). Source of truth for *rules*: [`../CLAUDE.md`](../CLAUDE.md). This doc maps *what exists*.
+> **Scope.** Sections 1 through the fairness-eval tool below map what has landed on `main`: the
+> **P1 compliance scaffold**, the **P2 capture + on-device-read pipeline** (shipped read =
+> **classical computer vision**, `CvReadEngine`), the **brand-neutral routine + scores-only chat**
+> (build-order step 6), the **"Mist" liquid-glass design system**, the **progress-trend + "did this
+> help?" loop** (step 7), and the **fairness-eval dev tool** (migrations `0001`–`0012`, all modules
+> below). The device-gated pieces are the native JPEG decode + the worklet-backed quality metrics;
+> an `ExecutorchEngine` ML shell exists but is **dormant** (never instantiated — reserved for a
+> future model).
+>
+> The final section, [**Makeup shade-match layer**](#makeup-shade-match-layer-featmakeup-rebuild--in-progress),
+> covers the in-progress pivot on `feat/makeup-rebuild` — **built + unit-tested, but mostly not yet
+> wired into a route**. Where that layer is unwired, the routing/tab tables in this doc still
+> describe the live app accurately (that is *why* they are still accurate); a note flags where they
+> will go stale once the makeup screens are wired in.
+>
+> Source of truth for *rules*: [`../CLAUDE.md`](../CLAUDE.md). This doc maps *what exists*.
 
 ## The compliance boundary
 
@@ -74,6 +82,15 @@ always-reachable; `data/index.tsx` ("Your Data") is reached from the You tab.
 Behind the gates, the scan flow lives under `app/scan/`: `index.tsx` (guided capture) →
 `result.tsx` (fetch latest scan, render the dimension-list read; "Scan again" + feedback render
 inside the scroll via `Result`'s `footer` slot). The routine is also reachable as a tab.
+
+> **Makeup-rebuild caveat (`feat/makeup-rebuild`).** This routing table is still accurate on that
+> branch **only because the makeup screens aren't wired yet.** `app/(tabs)/shop.tsx` exists but is
+> **not registered** in `(tabs)/_layout.tsx`, and `GlassTabBar`'s `TabKey` has no `'shop'` — the
+> Shop tab is unreachable. `app/setup/{goals,coverage,skips}.tsx`, `app/scan-gate.tsx`, and
+> `app/paywall.tsx` are wired route files with **no entry point** from any screen. The moment the
+> Shop tab is registered (or Scan is re-pointed at `scan-gate` → the makeup read), this table and the
+> "five items" tab bar go stale — update them together. See the
+> [Makeup shade-match layer](#makeup-shade-match-layer-featmakeup-rebuild--in-progress) section.
 
 ## Gating logic — `src/lib/`
 
@@ -381,3 +398,44 @@ equity claim ships from synthetic results**.
 - **Integration** — `node --test test/integration/**/*.test.mjs` (jest-expo breaks `supabase-js`'s
   `fetch`; plain Node works). Needs a running local Supabase. Excluded from the default jest run.
 - **DB** — pgTAP via `npx supabase test db`.
+
+## Makeup shade-match layer (`feat/makeup-rebuild` — in progress)
+
+The pivot layers a **makeup shade-match** product on top of the existing on-device read, inside the
+**same compliance boundary** — every module below consumes **only the derived read descriptors
+(tone lightness / warmth / olive / oiliness / skin-type), never the image**, and the only number it
+surfaces to the UI is a compatibility fit %. It is pure and Jest-tested. Data flow:
+
+```
+on-device read (CvReadEngine) → descriptors
+        │  (image already deleted; only descriptors cross forward)
+        ▼
+deriveShade()        → foundation shade { depth 1–10 (shown as a WORD), undertone, finish }
+        │  + Setup preferences (goals / coverage / skips)
+        ▼
+match/scoring        → compatibility fit % (40–99) per catalog product
+        ▼
+shop/ShopList        → brand-neutral shelf, ranked best-first ("Best match" badge)
+```
+
+| Module (`src/features/`) | What it does |
+|---|---|
+| `shade/` | `deriveShade()` maps the read → a foundation shade (depth, undertone, finish). `ShadeResult` is the result card. **Unwired** — zero references under `app/`. |
+| `match/` | Brand-neutral `product-catalog`, `scoring` (emits only the fit %), `fit-reason` (cosmetic-only "why it fits"), `sort`/ranking. Pure. |
+| `shop/` | `ShopList` + `shelf-store` (saved items). **In-memory only** this phase — no persistence, no payments. `app/(tabs)/shop.tsx` exists but is **not registered** in `(tabs)/_layout.tsx` and `GlassTabBar`'s `TabKey` has no `'shop'` → **unreachable**. |
+| `preferences/` + `setup-ui/` | Structured (non-free-text) Setup answers: goals (multi), coverage (single), skips (multi). Wizard at `app/setup/*` — wired routes, but **no entry point** from another screen yet. |
+| `session/` | Per-session shade store (`personalization`) — holds the derived shade for the session, descriptors only. |
+| `schedule/` | A manual routine-builder store (no notifications). |
+| `today-home/` | New Today-tab cards (seasonal report / picked-for-you / shade-twins). **Pure shells, zero `app/` references.** |
+
+Content lives in `src/content/makeup-vocab.ts` — the single source of truth for makeup descriptors
+(goals / coverage / skips / finishes / undertones / categories / fit-reason fragments), **additive
+to and never widening** the frozen skin-read vocabulary.
+
+> ⚠️ **Wiring status — mid-flight.** The logic above is built and unit-tested, but **most of it is
+> not yet reachable from the running app**. The app you open on this branch today is **still the
+> earlier skincare flow** (gates → Today/Routine/Trend/You → the old CV read at `scan/result`).
+> Wiring the makeup path in (registering the Shop tab, re-pointing Scan at the shade read, mounting
+> `ShadeResult` and the `today-home` cards) is the open work — and the routing tables earlier in this
+> doc go stale the moment it lands, so update them together. The compliance rules in
+> [`../CLAUDE.md`](../CLAUDE.md) already cover this path; do not weaken them to ship a screen.
