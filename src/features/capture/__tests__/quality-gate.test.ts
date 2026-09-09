@@ -38,6 +38,11 @@ test('too dark fails lighting with a move-into-light hint', () => {
   expect(r.lighting).toBe(false);
   expect(r.hint).toMatch(/light/i);
 });
+test('a valid deep-tone capture (0.25) passes lighting — the old 0.35 floor wrongly rejected it', () => {
+  // handoff-scan-accuracy §5.3: valid deep-skin captures measure 0.18-0.34; the floor must admit them.
+  const r = evaluateQuality({ ...ok, brightness: 0.25 });
+  expect(r.lighting).toBe(true);
+});
 test('face too small fails distance with move-closer', () => {
   const r = evaluateQuality({ ...ok, faceFraction: 0.1 });
   expect(r.distance).toBe(false);

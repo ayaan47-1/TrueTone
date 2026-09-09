@@ -20,7 +20,11 @@ export type QualityReport = {
 
 export const THRESHOLDS = {
   centeredness: 0.6,
-  brightnessMin: 0.35, brightnessMax: 0.9,
+  // brightnessMin lowered 0.35 -> 0.18: on-device data (handoff-scan-accuracy §5.3) showed valid
+  // deep-skin captures measure 0.18-0.34, so a 0.35 floor wrongly rejected them and pushed those
+  // users to add light (changing the illuminant) — a deep-tone fairness hazard. PROVISIONAL —
+  // must be re-validated on a real multi-lighting/multi-device set (spec §11).
+  brightnessMin: 0.18, brightnessMax: 0.9,
   sharpness: 0.5,
   faceFractionMin: 0.2, faceFractionMax: 0.6,
   // PROVISIONAL — must be re-tuned on a physical device (spec §11).
