@@ -46,6 +46,7 @@ import {
 } from './capture-controller';
 import { useFrameMetrics } from './use-frame-metrics';
 import { writeUprightStill, type CaptureMeta } from './capture-upright';
+import { createDeviceAPI, orchestrateFlashAndCapture } from './flash-orchestrator';
 
 const PRIVACY_LINE = 'Analyzed on your device · never leaves your phone · deleted after your read';
 // Shipped "pass / ready" accent = the app's brand green (Quiet Glass), so the capture success
@@ -82,6 +83,8 @@ export function Capture({ onCaptured, onCancel, devForceCapture = false }: Captu
   const isShort = window.height > 0 && window.height < SHORT_VIEWPORT_THRESHOLD;
   const { hasPermission, requestPermission } = useCameraPermission();
   const device = useCameraDevice('front');
+  const cameraRef = useRef<Camera>(null);
+  
   // containerFormat is pinned to 'jpeg' rather than left at 'native': vision-camera documents
   // capturePhoto() as reliable for JPEG only on Android (CameraX's in-memory support for other
   // formats is incomplete), and 'native' resolves to HEIC on iOS, which would make the decode
@@ -136,15 +139,27 @@ export function Capture({ onCaptured, onCancel, devForceCapture = false }: Captu
   const firedRef = useRef(false);
   const takePhoto = useCallback(async () => {
     try {
-      const photo = await photoOutput.capturePhoto({}, {});
-      // writeUprightStill owns the Photo from here — it disposes it on every path.
-      const { uri, meta } = await writeUprightStill(photo);
+      const api = createDeviceAPI(
+        cameraRef,
+        async () => {
+          const photo = await photoOutput.capturePhoto({}, {});
+          return writeUprightStill(photo);
+        },
+        (active) => {
+          flash.setValue(active ? 1 : 0);
+        }
+      );
+
+      const { uri, meta } = await orchestrateFlashAndCapture(api);
+
+      // Flash off animation
       Animated.sequence([
-        Animated.timing(flash, { toValue: 1, duration: 60, useNativeDriver: true }),
         Animated.timing(flash, { toValue: 0, duration: 380, useNativeDriver: true }),
       ]).start();
+
       onCaptured(uri, meta);
-    } catch {
+    } catch (e) {
+      console.error(e);
       firedRef.current = false; // allow a retry on a failed capture
       dispatch({ type: 'reset' });
     }
@@ -209,6 +224,7 @@ export function Capture({ onCaptured, onCancel, devForceCapture = false }: Captu
   return (
     <View style={styles.root}>
       <Camera
+        ref={cameraRef}
         style={StyleSheet.absoluteFill}
         device={device}
         isActive
@@ -221,6 +237,9 @@ export function Capture({ onCaptured, onCancel, devForceCapture = false }: Captu
           (o): o is NonNullable<typeof o> => o != null,
         )}
       />
+
+      {/* capture flash */}
+      <Animated.View style={[StyleSheet.absoluteFill, styles.flash, { opacity: flash }]} pointerEvents="none" />
 
       {/* top scrim + guidance hint */}
       <View style={[styles.topScrim, { paddingTop: insets.top + 12 }]}>
@@ -265,7 +284,7 @@ export function Capture({ onCaptured, onCancel, devForceCapture = false }: Captu
 
       {/* bottom: privacy reassurance + cancel */}
       <View style={[styles.bottomBar, { paddingBottom: insets.bottom + 16 }]}>
-        <Text style={styles.lightHint}>Natural light works best</Text>
+        <Text style={styles.lightHint}>Screen flash works best in a dim room</Text>
         {__DEV__ && devForceCapture ? (
           <Pressable
             style={[styles.shutter, styles.shutterArmed]}
@@ -286,9 +305,6 @@ export function Capture({ onCaptured, onCancel, devForceCapture = false }: Captu
           <Text style={[styles.cancelText, counting && styles.cancelTextDim]}>Cancel</Text>
         </Pressable>
       </View>
-
-      {/* capture flash */}
-      <Animated.View style={[StyleSheet.absoluteFill, styles.flash, { opacity: flash }]} pointerEvents="none" />
 
       {/* dev-only calibration overlay */}
       {__DEV__ && <MetricsDebug metrics={metrics} quality={quality} insetTop={insets.top} />}
