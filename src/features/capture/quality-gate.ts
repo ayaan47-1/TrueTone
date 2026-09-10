@@ -20,10 +20,9 @@ export type QualityReport = {
 
 export const THRESHOLDS = {
   centeredness: 0.6,
-  // brightnessMin lowered 0.35 -> 0.18: on-device data (handoff-scan-accuracy §5.3) showed valid
-  // deep-skin captures measure 0.18-0.34, so a 0.35 floor wrongly rejected them and pushed those
-  // users to add light (changing the illuminant) — a deep-tone fairness hazard. PROVISIONAL —
-  // must be re-validated on a real multi-lighting/multi-device set (spec §11).
+  // GATES ON DIM AMBIENT (Approach A): requires a dark room (0.05-0.4) so the screen flash is the
+  // dominant illuminant, solving the intensity/illuminant ambiguity that chroma metrics can't fix.
+  // PROVISIONAL — must be re-validated on a real multi-lighting/multi-device set (spec §11).
   brightnessMin: 0.05, // Lowered to allow dim ambient
   brightnessMax: 0.4,  // Gated on dim ambient so screen flash can dominate
   sharpness: 0.5,
