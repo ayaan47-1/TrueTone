@@ -152,11 +152,6 @@ export function Capture({ onCaptured, onCancel, devForceCapture = false }: Captu
 
       const { uri, meta } = await orchestrateFlashAndCapture(api);
 
-      // Flash off animation
-      Animated.sequence([
-        Animated.timing(flash, { toValue: 0, duration: 380, useNativeDriver: true }),
-      ]).start();
-
       onCaptured(uri, meta);
     } catch (e) {
       console.error(e);
