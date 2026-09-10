@@ -12,8 +12,8 @@ describe('flash-orchestrator', () => {
       delay: jest.fn().mockResolvedValue(undefined),
       supportsExposureLocking: true,
       supportsWhiteBalanceLocking: true,
-      lockExposure: jest.fn().mockResolvedValue(undefined),
-      lockWhiteBalance: jest.fn().mockResolvedValue(undefined),
+      lockExposure: jest.fn().mockResolvedValue(true),
+      lockWhiteBalance: jest.fn().mockResolvedValue(true),
       resetFocus: jest.fn().mockResolvedValue(undefined),
       capture: jest.fn().mockResolvedValue(capturedPhoto),
       setFlashOverlay: jest.fn(),
@@ -83,5 +83,20 @@ describe('flash-orchestrator', () => {
     expect(api.resetFocus).toHaveBeenCalledTimes(1);
     expect(api.setFlashOverlay).toHaveBeenCalledWith(false);
     expect(api.setBrightness).toHaveBeenCalledWith(0.5);
+  });
+
+  it('skips brightness ramp and restore if original brightness cannot be read', async () => {
+    api.getBrightness.mockResolvedValue(-1);
+
+    await orchestrateFlashAndCapture(api);
+
+    expect(api.getBrightness).toHaveBeenCalledTimes(1);
+    
+    // Should NOT ramp brightness or restore it
+    expect(api.setBrightness).not.toHaveBeenCalled();
+
+    // BUT should still set the white overlay
+    expect(api.setFlashOverlay).toHaveBeenCalledWith(true);
+    expect(api.setFlashOverlay).toHaveBeenCalledWith(false); // in finally
   });
 });

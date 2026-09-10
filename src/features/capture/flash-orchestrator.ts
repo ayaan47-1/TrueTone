@@ -7,8 +7,8 @@ export interface DeviceAPI {
   delay: (ms: number) => Promise<void>;
   supportsExposureLocking: boolean;
   supportsWhiteBalanceLocking: boolean;
-  lockExposure: () => Promise<void>;
-  lockWhiteBalance: () => Promise<void>;
+  lockExposure: () => Promise<boolean>;
+  lockWhiteBalance: () => Promise<boolean>;
   resetFocus: () => Promise<void>;
   capture: () => Promise<{ uri: string; [key: string]: any }>;
   setFlashOverlay: (active: boolean) => void;
@@ -48,16 +48,22 @@ export function createDeviceAPI(
       // It could be on .controller or directly on the component
       if (c && typeof (c as any).lockCurrentExposure === 'function') {
         await (c as any).lockCurrentExposure();
+        return true;
       } else if (c && (c as any).controller && typeof (c as any).controller.lockCurrentExposure === 'function') {
         await (c as any).controller.lockCurrentExposure();
+        return true;
       }
+      return false;
     },
     lockWhiteBalance: async () => {
       if (c && typeof (c as any).lockCurrentWhiteBalance === 'function') {
         await (c as any).lockCurrentWhiteBalance();
+        return true;
       } else if (c && (c as any).controller && typeof (c as any).controller.lockCurrentWhiteBalance === 'function') {
         await (c as any).controller.lockCurrentWhiteBalance();
+        return true;
       }
+      return false;
     },
     resetFocus: async () => {
       if (c && typeof (c as any).resetFocus === 'function') {
@@ -79,7 +85,10 @@ export async function orchestrateFlashAndCapture(api: DeviceAPI) {
   try {
     // 1. Ramp screen to 100% + white overlay
     originalBrightness = await api.getBrightness();
-    await api.setBrightness(1.0);
+    if (originalBrightness >= 0) {
+      await api.setBrightness(1.0);
+    }
+    // Set overlay even if we skip brightness ramp
     api.setFlashOverlay(true);
     didFlash = true;
 
@@ -87,7 +96,7 @@ export async function orchestrateFlashAndCapture(api: DeviceAPI) {
     await api.delay(150);
 
     // 3. Lock white-balance/exposure
-    const locks = [];
+    const locks: Promise<boolean>[] = [];
     if (api.supportsExposureLocking) {
       locks.push(api.lockExposure());
     }
@@ -97,8 +106,8 @@ export async function orchestrateFlashAndCapture(api: DeviceAPI) {
     }
     
     if (locks.length > 0) {
-      await Promise.all(locks);
-      didLock = true;
+      const results = await Promise.all(locks);
+      didLock = results.every(r => r === true);
     }
 
     // 4. Capture
