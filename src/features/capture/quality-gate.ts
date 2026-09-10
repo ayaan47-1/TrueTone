@@ -24,7 +24,8 @@ export const THRESHOLDS = {
   // deep-skin captures measure 0.18-0.34, so a 0.35 floor wrongly rejected them and pushed those
   // users to add light (changing the illuminant) — a deep-tone fairness hazard. PROVISIONAL —
   // must be re-validated on a real multi-lighting/multi-device set (spec §11).
-  brightnessMin: 0.18, brightnessMax: 0.9,
+  brightnessMin: 0.05, // Lowered to allow dim ambient
+  brightnessMax: 0.4,  // Gated on dim ambient so screen flash can dominate
   sharpness: 0.5,
   faceFractionMin: 0.2, faceFractionMax: 0.6,
   // PROVISIONAL — must be re-tuned on a physical device (spec §11).
@@ -54,7 +55,7 @@ export function evaluateQuality(m: FrameMetrics): QualityReport {
   if (!face) hint = 'Center your face in the oval';
   else if (!pose) hint = 'Face the camera straight on';
   else if (!glare) hint = 'Too much glare — turn away from the light';
-  else if (!lighting) hint = m.brightness < THRESHOLDS.brightnessMin ? 'Move into better light' : 'Too bright — reduce glare';
+  else if (!lighting) hint = m.brightness < THRESHOLDS.brightnessMin ? 'Too dark — add a little light' : 'Dim the room so the screen can light your face';
   else if (!colour) hint = 'Try more neutral light';
   else if (!evenness) hint = "Light's coming from one side";
   else if (!distance) hint = m.faceFraction < THRESHOLDS.faceFractionMin ? 'Move closer' : 'Move a little farther back';
