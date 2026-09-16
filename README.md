@@ -403,13 +403,6 @@ Two things keep the page honest, and both fail the build rather than relying on 
 
 To read the list for sending invites, use the `service_role` key or the dashboard SQL editor.
 
-The repo is mirrored to GitLab, which ignores `.github/` entirely, so the same gates are
-declared again in [`.gitlab-ci.yml`](.gitlab-ci.yml) — split into a fast `guard` job and a
-slower `jest` job so a failing gate costs ~2 minutes instead of ~17. The two configs are kept
-in step by `scripts/__tests__/gitlab-ci-parity.test.mjs`: adding a check to one side and not
-the other fails the build. GitHub Actions remains primary (free and unlimited for public
-repos); GitLab bills against a monthly compute allowance.
-
 ---
 
 ## Roadmap
