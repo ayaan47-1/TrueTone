@@ -1,0 +1,61 @@
+name: eval
+
+# Port of the `eval` job in .gitlab-ci.yml — the fairness/invariance benchmark
+# harness. .gitlab-ci.yml recorded it as 518s of the old suite's 596s (87%,
+# measured 2026-08-07); a real run on GitHub's runners today (2026-09-16)
+# matches that closely: 21 suites / 121 tests, 595.559s of jest execution
+# alone, ~622s wall-clock including checkout/npm ci. One file,
+# eval/invariance/__tests__/axes.test.ts, is ~595s of that by itself. It is a
+# benchmark, not a unit test.
+#
+# Trigger is a deliberate match of GitLab's, not a default: GitLab's `eval`
+# job runs only `if: $CI_COMMIT_BRANCH == $CI_DEFAULT_BRANCH` (a branch
+# pipeline on main — i.e. push to main, not merge-request pipelines) plus a
+# manual `if: $CI_PIPELINE_SOURCE == "web"` trigger. It deliberately does not
+# run on every push/PR the way `jest` does, since ~10 minutes is too long for
+# that. `push: branches: [main]` + `workflow_dispatch` mirrors that exactly —
+# no `pull_request` trigger here, unlike compliance.yml.
+on:
+  push:
+    branches: [main]
+  workflow_dispatch: {}
+
+concurrency:
+  group: eval-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  eval:
+    name: Fairness/invariance eval harness
+    runs-on: ubuntu-latest
+    # A first verification run cut it close: ~900s (15 min) elapsed while
+    # axes.test.ts, alone ~595s, was still the only thing left running, and
+    # the job was cancelled right as it would have finished. 20 minutes
+    # leaves real headroom above the ~622s typically measured, not just
+    # above the raw ~596s jest figure.
+    #
+    # No --forceExit: investigated whether that near-timeout was really a
+    # post-test hang. Ran the suite with --detectOpenHandles (no timeout
+    # pressure this time — 40 min) and it passed clean, 21/21 suites, 121/121
+    # tests, zero handles reported — https://github.com/ayaan47-1/TrueTone/actions/runs/35066862347.
+    # --detectOpenHandles itself is expensive (axes.test.ts alone went from
+    # ~595s to ~1065s under it — Jest's own docs call this flag's overhead
+    # "significant" and debug-only), which is what actually explained the
+    # earlier near-timeout, not a leak. There is nothing to force-exit past.
+    timeout-minutes: 20
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+          cache: "npm"
+          cache-dependency-path: package-lock.json
+
+      - name: Install dependencies
+        run: npm ci --cache .npm --prefer-offline
+
+      - name: Run fairness/invariance eval
+        run: npm run test:eval
