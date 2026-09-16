@@ -28,21 +28,25 @@ jobs:
   eval:
     name: Fairness/invariance eval harness
     runs-on: ubuntu-latest
-    # A first verification run cut it close: ~900s (15 min) elapsed while
-    # axes.test.ts, alone ~595s, was still the only thing left running, and
-    # the job was cancelled right as it would have finished. 20 minutes
-    # leaves real headroom above the ~622s typically measured, not just
-    # above the raw ~596s jest figure.
+    # No --forceExit: investigated whether an early near-timeout was a real
+    # post-test hang. Ran the suite with --detectOpenHandles under a widened
+    # 40-min budget and it passed clean, 21/21 suites, 121/121 tests, zero
+    # handles reported — https://github.com/ayaan47-1/TrueTone/actions/runs/35066862347.
+    # There is nothing to force-exit past.
     #
-    # No --forceExit: investigated whether that near-timeout was really a
-    # post-test hang. Ran the suite with --detectOpenHandles (no timeout
-    # pressure this time — 40 min) and it passed clean, 21/21 suites, 121/121
-    # tests, zero handles reported — https://github.com/ayaan47-1/TrueTone/actions/runs/35066862347.
-    # --detectOpenHandles itself is expensive (axes.test.ts alone went from
-    # ~595s to ~1065s under it — Jest's own docs call this flag's overhead
-    # "significant" and debug-only), which is what actually explained the
-    # earlier near-timeout, not a leak. There is nothing to force-exit past.
-    timeout-minutes: 20
+    # Sizing: axes.test.ts, the heaviest file, has been measured at 595s,
+    # 1037s, 1065s, and 1066s across separate runs on GitHub's shared
+    # runners — with and without --detectOpenHandles, so that flag is not
+    # the variable (an earlier version of this comment blamed it; that was
+    # wrong, corrected 2026-09-16 after the first real push-to-main run took
+    # 1068s with no flag at all, same range as the diagnostic runs). The
+    # spread is CPU variance on a shared runner for a CPU-bound benchmark,
+    # roughly 1.8x between the fast and slow ends observed so far. The first
+    # real run on main passed at 18m21s wall-clock against the old 20-minute
+    # timeout — under 2 minutes of headroom, enough for a normal run to turn
+    # main red on a false alarm. 35 minutes absorbs that variance without
+    # letting a genuine hang sit forever.
+    timeout-minutes: 35
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4
