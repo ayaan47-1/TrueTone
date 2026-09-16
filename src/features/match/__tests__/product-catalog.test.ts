@@ -56,12 +56,13 @@ describe('synthetic product catalog', () => {
     expect(Math.max(...depths)).toBeGreaterThanOrEqual(9);
   });
 
-  it('carries a shade name and a placeholder image for every product', () => {
+  it('carries a shade name and a locally computed color swatch for every product', () => {
     for (const p of catalog) {
       expect(typeof p.shadeName).toBe('string');
       expect(p.shadeName && p.shadeName.length).toBeGreaterThan(0);
-      expect(typeof p.image).toBe('string');
-      expect(p.image && p.image.length).toBeGreaterThan(0);
+      expect(typeof p.color).toBe('string');
+      expect(p.color && p.color.length).toBeGreaterThan(0);
+      expect(p.color).toMatch(/^hsl\(/);
     }
   });
 
@@ -69,6 +70,41 @@ describe('synthetic product catalog', () => {
     for (const p of catalog) {
       expect(findDiseaseTerms(p.name)).toEqual([]);
       expect(findDiseaseTerms(p.shadeName ?? '')).toEqual([]);
+    }
+  });
+
+  it('ensures deep-shade swatches (9C, 9N, 10C, 10W) are pairwise distinct by a real margin', () => {
+    const deepIds = ['aur-cover-24', 'ver-dewy-11', 'aur-comfort-14', 'mar-every-26']; // 9C, 9N, 10C, 10W
+    const deepProducts = catalog.filter((p) => deepIds.includes(p.id));
+    expect(deepProducts.length).toBe(4);
+
+    const hslToRgb = (h, s, l) => {
+      s /= 100;
+      l /= 100;
+      const k = n => (n + h / 30) % 12;
+      const a = s * Math.min(l, 1 - l);
+      const f = n => l - a * Math.max(-1, Math.min(k(n) - 3, Math.min(9 - k(n), 1)));
+      return [Math.round(255 * f(0)), Math.round(255 * f(8)), Math.round(255 * f(4))];
+    };
+
+    const parseHsl = (colorStr) => {
+      const match = colorStr.match(/hsl\((\d+(?:\.\d+)?),\s*(\d+(?:\.\d+)?)%,\s*(\d+(?:\.\d+)?)%\)/);
+      if (!match) throw new Error(`Failed to parse HSL: ${colorStr}`);
+      return [parseFloat(match[1]), parseFloat(match[2]), parseFloat(match[3])];
+    };
+
+    const colors = deepProducts.map(p => {
+      const [h, s, l] = parseHsl(p.color!);
+      return hslToRgb(h, s, l);
+    });
+
+    const dist = (c1, c2) => Math.sqrt(Math.pow(c1[0]-c2[0], 2) + Math.pow(c1[1]-c2[1], 2) + Math.pow(c1[2]-c2[2], 2));
+
+    // Check all pairwise combinations
+    for (let i = 0; i < colors.length; i++) {
+      for (let j = i + 1; j < colors.length; j++) {
+        expect(dist(colors[i], colors[j])).toBeGreaterThan(15);
+      }
     }
   });
 });
