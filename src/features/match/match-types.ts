@@ -38,10 +38,10 @@ export interface Product {
    */
   readonly shadeName?: string;
   /**
-   * Placeholder product image (a stable URL). Optional and additive; the current Shop
-   * cards render name + fit only, so this is inert catalog data for a future thumbnail.
+   * Locally computed hex or HSL color representing the shade swatch. Optional and additive;
+   * the current Shop cards render name + fit only, so this is inert catalog data for a future thumbnail.
    */
-  readonly image?: string;
+  readonly color?: string;
 }
 
 /**

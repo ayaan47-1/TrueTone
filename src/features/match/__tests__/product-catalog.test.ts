@@ -56,12 +56,13 @@ describe('synthetic product catalog', () => {
     expect(Math.max(...depths)).toBeGreaterThanOrEqual(9);
   });
 
-  it('carries a shade name and a placeholder image for every product', () => {
+  it('carries a shade name and a locally computed color swatch for every product', () => {
     for (const p of catalog) {
       expect(typeof p.shadeName).toBe('string');
       expect(p.shadeName && p.shadeName.length).toBeGreaterThan(0);
-      expect(typeof p.image).toBe('string');
-      expect(p.image && p.image.length).toBeGreaterThan(0);
+      expect(typeof p.color).toBe('string');
+      expect(p.color && p.color.length).toBeGreaterThan(0);
+      expect(p.color).toMatch(/^hsl\(/);
     }
   });
 
