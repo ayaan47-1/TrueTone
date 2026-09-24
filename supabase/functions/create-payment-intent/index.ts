@@ -38,15 +38,30 @@ serve(async (req) => {
     httpClient: Stripe.createFetchHttpClient(),
   });
 
+  const serviceKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') || Deno.env.get('SERVICE_ROLE_KEY');
+  const serviceSupabase = serviceKey
+    ? createClient(Deno.env.get('SUPABASE_URL')!, serviceKey)
+    : supabase;
+
   try {
-    // Determine customer
+    // Determine customer and reuse from user_entitlements if already mapped
     let customerId: string | undefined = undefined;
-    const { data: customerData } = await supabase.from('user_entitlements').select('stripe_customer_id').eq('id', user.id).maybeSingle();
+    const { data: customerData } = await supabase
+      .from('user_entitlements')
+      .select('stripe_customer_id')
+      .eq('id', user.id)
+      .maybeSingle();
+
     if (customerData?.stripe_customer_id) {
-        customerId = customerData.stripe_customer_id;
+      customerId = customerData.stripe_customer_id;
     } else {
-        const customer = await stripe.customers.create({ email: user.email });
-        customerId = customer.id;
+      const customer = await stripe.customers.create({ email: user.email });
+      customerId = customer.id;
+      // Persist Stripe customer mapping
+      await serviceSupabase.from('user_entitlements').upsert({
+        id: user.id,
+        stripe_customer_id: customerId,
+      });
     }
 
     const ephemeralKey = await stripe.ephemeralKeys.create(
@@ -74,15 +89,15 @@ serve(async (req) => {
     });
 
     if (error) {
-        console.error('Failed to create order', error);
-        return new Response('internal error', { status: 500 });
+      console.error('Failed to create order', error);
+      return new Response('internal error', { status: 500 });
     }
 
     return Response.json({
       paymentIntent: paymentIntent.client_secret,
       ephemeralKey: ephemeralKey.secret,
       customer: customerId,
-      publishableKey: Deno.env.get('EXPO_PUBLIC_STRIPE_PUBLISHABLE_KEY') // Optional, frontend can have it via env var directly
+      publishableKey: Deno.env.get('EXPO_PUBLIC_STRIPE_PUBLISHABLE_KEY')
     });
 
   } catch (e) {

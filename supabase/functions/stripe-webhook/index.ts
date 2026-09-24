@@ -27,9 +27,10 @@ serve(async (req) => {
   }
 
   // Use service role to bypass RLS since webhook comes from Stripe
+  const serviceKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') || Deno.env.get('SERVICE_ROLE_KEY');
   const supabase = createClient(
     Deno.env.get('SUPABASE_URL')!,
-    Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!
+    serviceKey!
   );
 
   switch (event.type) {
@@ -38,7 +39,7 @@ serve(async (req) => {
       
       const { error } = await supabase
         .from('orders')
-        .update({ status: 'succeeded' })
+        .update({ status: 'paid' })
         .eq('stripe_payment_intent_id', paymentIntent.id);
         
       if (error) console.error('Failed to update order status', error);

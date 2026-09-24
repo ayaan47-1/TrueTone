@@ -1,8 +1,8 @@
 // src/features/checkout/CheckoutScreen.tsx
 // The Stripe checkout for the physical makeup bag.
 // Uses native PaymentSheet via @stripe/stripe-react-native to keep raw card data out of the app.
-// Fallback demo banner is removed; this is a real checkout flow (for physical goods only).
-import { useState } from 'react';
+// Server-side pricing computes amounts from the trusted product catalog.
+import { useState, useRef } from 'react';
 import { View, Alert } from 'react-native';
 import { useRouter } from 'expo-router';
 import { useStripe } from '@stripe/stripe-react-native';
@@ -35,6 +35,20 @@ export function CheckoutScreen() {
     null,
   );
   const [loading, setLoading] = useState(false);
+  const [shippingAddress, setShippingAddress] = useState({
+    name: '',
+    street: '',
+    city: '',
+    state: '',
+    zip: '',
+  });
+  const shippingRef = useRef(shippingAddress);
+  shippingRef.current = shippingAddress;
+
+  const updateShipping = (key: keyof typeof shippingAddress, value: string) => {
+    shippingRef.current = { ...shippingRef.current, [key]: value };
+    setShippingAddress((s) => ({ ...s, [key]: value }));
+  };
 
   if (placed) return <Confirmation orderNo={placed.orderNo} onDone={() => router.replace('/')} />;
 
@@ -43,10 +57,12 @@ export function CheckoutScreen() {
   const placeOrder = async (): Promise<void> => {
     setLoading(true);
     try {
-      // 1. Create PaymentIntent via edge function
+      const addr = shippingRef.current;
+      // 1. Create PaymentIntent via edge function (server computes price from catalog)
       const { data, error } = await supabase.functions.invoke('create-payment-intent', {
         body: { 
-          items: state.lines 
+          items: state.lines,
+          shippingAddress: addr.name ? addr : null,
         }
       });
 
@@ -68,16 +84,16 @@ export function CheckoutScreen() {
       const { error: presentError } = await presentPaymentSheet();
       if (presentError) {
         if (presentError.code !== 'Canceled') throw new Error(presentError.message);
-        return; // User canceled
+        return; // User canceled gracefully
       }
 
-      // Success
-      setPlaced({ orderNo: makeOrderNumber(), total: bagSubtotal(state), items: bagCount(state) });
+      // 4. Success: order placed, clear bag
       bag.clear();
-    } catch (e) {
-      Alert.alert('Payment Error', e instanceof Error ? e.message : 'Something went wrong');
-    } finally {
       setLoading(false);
+      setPlaced({ orderNo: makeOrderNumber(), total: bagSubtotal(state), items: bagCount(state) });
+    } catch (e) {
+      setLoading(false);
+      Alert.alert('Payment Error', e instanceof Error ? e.message : 'Something went wrong');
     }
   };
 
@@ -93,14 +109,42 @@ export function CheckoutScreen() {
       <View className="gap-3">
         <Subheading>Shipping address</Subheading>
         <GlassCard className="gap-3 p-4" flat>
-          <Field label="Full name" placeholder="Jordan Rivera" autoComplete="name" />
-          <Field label="Address" placeholder="123 Maple Street" autoComplete="street-address" />
+          <Field
+            label="Full name"
+            placeholder="Jordan Rivera"
+            autoComplete="name"
+            value={shippingAddress.name}
+            onChangeText={(v) => updateShipping('name', v)}
+            testID="shipping-name"
+          />
+          <Field
+            label="Address"
+            placeholder="123 Maple Street"
+            autoComplete="street-address"
+            value={shippingAddress.street}
+            onChangeText={(v) => updateShipping('street', v)}
+            testID="shipping-street"
+          />
           <View className="flex-row gap-3">
             <View className="flex-1">
-              <Field label="City" placeholder="Chicago" />
+              <Field
+                label="City"
+                placeholder="Chicago"
+                value={shippingAddress.city}
+                onChangeText={(v) => updateShipping('city', v)}
+                testID="shipping-city"
+              />
             </View>
             <View className="w-24">
-              <Field label="State" placeholder="IL" autoCapitalize="characters" maxLength={2} />
+              <Field
+                label="State"
+                placeholder="IL"
+                autoCapitalize="characters"
+                maxLength={2}
+                value={shippingAddress.state}
+                onChangeText={(v) => updateShipping('state', v)}
+                testID="shipping-state"
+              />
             </View>
           </View>
           <Field
@@ -108,16 +152,18 @@ export function CheckoutScreen() {
             placeholder="60601"
             keyboardType="number-pad"
             maxLength={5}
+            value={shippingAddress.zip}
+            onChangeText={(v) => updateShipping('zip', v)}
+            testID="shipping-zip"
           />
         </GlassCard>
       </View>
 
-      {/* PrimaryButton might not have a 'loading' prop in this custom UI lib, but we'll try. 
-          If not, we can just conditionally render the label or disable it. Let's check PrimaryButton. */}
       <PrimaryButton 
         label={loading ? 'Processing...' : 'Pay securely with Stripe'} 
         fullWidth 
         onPress={placeOrder} 
+        disabled={loading}
         testID="place-order" 
       />
 
