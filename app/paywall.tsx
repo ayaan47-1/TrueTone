@@ -1,24 +1,77 @@
 import { useState } from 'react';
-import { View } from 'react-native';
+import { View, Alert } from 'react-native';
 import { useRouter } from 'expo-router';
-import { Screen, HEADER_CLEARANCE, Eyebrow, Heading, Body, PrimaryButton, PressableScale, GlassCard } from '../src/components/ui';
-
-type Plan = 'yearly' | 'monthly';
+import {
+  Screen,
+  HEADER_CLEARANCE,
+  Eyebrow,
+  Heading,
+  Body,
+  Caption,
+  PrimaryButton,
+  PressableScale,
+  GlassCard,
+} from '../src/components/ui';
+import {
+  purchasePlan,
+  restorePurchases,
+  type SubscriptionPlan,
+} from '../src/features/premium/entitlement';
 
 /**
- * TrueTone Plus paywall — a PRICING SHELL only. No StoreKit, no real purchase:
- * both the CTA and "Maybe later" simply route on to the scan gate. Two selectable
- * plan cards drive local state. Pre-scan screen — cosmetic copy only, no personalized
- * strings, no medical/condition language.
+ * TrueTone Plus paywall — integration-ready subscription entitlement.
+ * Connects to the pluggable EntitlementSource (StoreKit / RevenueCat / local test stub).
+ * Pre-scan screen — cosmetic copy only, no personalized strings, no medical/condition language.
  */
 export default function PaywallScreen() {
   const router = useRouter();
-  const [plan, setPlan] = useState<Plan>('yearly');
+  const [plan, setPlan] = useState<SubscriptionPlan>('yearly');
+  const [loading, setLoading] = useState(false);
 
   const goNext = () => router.push('/scan-gate');
 
+  const handleSubscribe = async () => {
+    setLoading(true);
+    try {
+      const res = await purchasePlan(plan);
+      if (res.success) {
+        goNext();
+      } else if (!res.userCancelled) {
+        Alert.alert('Subscription error', res.error || 'Failed to complete subscription');
+      }
+    } catch (e) {
+      Alert.alert('Subscription error', e instanceof Error ? e.message : 'An error occurred');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleRestore = async () => {
+    setLoading(true);
+    try {
+      const res = await restorePurchases();
+      if (res.success && res.entitlement?.isPlusSubscriber) {
+        Alert.alert('Subscription restored', 'Your TrueTone Plus subscription has been restored.', [
+          { text: 'Continue', onPress: goNext },
+        ]);
+      } else {
+        Alert.alert('No subscription found', 'No active TrueTone Plus subscription was found to restore.');
+      }
+    } catch (e) {
+      Alert.alert('Restore error', e instanceof Error ? e.message : 'Unable to restore purchases');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const ctaLabel = loading
+    ? 'Processing...'
+    : plan === 'yearly'
+    ? 'Start free trial'
+    : 'Subscribe for $8.99/mo';
+
   return (
-    <Screen className="px-6" topGap={HEADER_CLEARANCE}>
+    <Screen className="px-6" topGap={HEADER_CLEARANCE} bottomGap={24}>
       <View className="flex-1 gap-8 pt-6">
         <View className="gap-3">
           <Eyebrow>TrueTone Plus</Eyebrow>
@@ -33,6 +86,7 @@ export default function PaywallScreen() {
             accessibilityRole="button"
             accessibilityState={{ selected: plan === 'yearly' }}
             onPress={() => setPlan('yearly')}
+            testID="plan-yearly"
           >
             <GlassCard
               className={
@@ -55,6 +109,7 @@ export default function PaywallScreen() {
             accessibilityRole="button"
             accessibilityState={{ selected: plan === 'monthly' }}
             onPress={() => setPlan('monthly')}
+            testID="plan-monthly"
           >
             <GlassCard
               className={
@@ -69,12 +124,33 @@ export default function PaywallScreen() {
         </View>
 
         <View className="mt-auto gap-3 pb-2">
-          <PrimaryButton label="Start free trial" onPress={goNext} />
-          <PressableScale accessibilityRole="button" onPress={goNext}>
-            <View className="items-center py-2">
-              <Body className="text-ink-faint">Maybe later</Body>
-            </View>
-          </PressableScale>
+          <PrimaryButton
+            label={ctaLabel}
+            onPress={handleSubscribe}
+            testID="paywall-subscribe"
+          />
+
+          <View className="flex-row justify-between items-center px-2 py-1">
+            <PressableScale
+              accessibilityRole="button"
+              onPress={handleRestore}
+              testID="paywall-restore"
+            >
+              <Caption className="text-ink-faint underline">Restore purchases</Caption>
+            </PressableScale>
+
+            <PressableScale
+              accessibilityRole="button"
+              onPress={goNext}
+              testID="paywall-maybe-later"
+            >
+              <Caption className="text-ink-faint">Maybe later</Caption>
+            </PressableScale>
+          </View>
+
+          <Caption className="text-center text-ink-faint text-xs">
+            Recurring subscription. Cancel anytime in App Store settings at least 24h before renewal.
+          </Caption>
         </View>
       </View>
     </Screen>
