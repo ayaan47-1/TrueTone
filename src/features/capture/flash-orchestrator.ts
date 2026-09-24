@@ -77,10 +77,33 @@ export function createDeviceAPI(
   };
 }
 
-export async function orchestrateFlashAndCapture(api: DeviceAPI) {
+/**
+ * Device-test evidence for one capture (tt-gap05). `null` = step not applicable (no lock was
+ * taken, or the original brightness could not be read so nothing was ramped/restored).
+ */
+export interface CaptureTrace {
+  kind: 'capture';
+  originalBrightness: number | null;
+  exposureLockSupported: boolean;
+  whiteBalanceLockSupported: boolean;
+  lockSucceeded: boolean;
+  lockReleased: boolean | null;
+  brightnessRestored: boolean | null;
+  captured: boolean;
+  error: string | null;
+}
+
+export async function orchestrateFlashAndCapture(
+  api: DeviceAPI,
+  onTrace?: (trace: CaptureTrace) => void,
+) {
   let originalBrightness = -1;
   let didFlash = false;
   let didLock = false;
+  let lockReleased: boolean | null = null;
+  let brightnessRestored: boolean | null = null;
+  let captured = false;
+  let error: string | null = null;
 
   try {
     // 1. Ramp screen to 100% + white overlay
@@ -112,17 +135,36 @@ export async function orchestrateFlashAndCapture(api: DeviceAPI) {
 
     // 4. Capture
     const photo = await api.capture();
+    captured = true;
     return photo;
+  } catch (e) {
+    error = e instanceof Error ? e.message : String(e);
+    throw e;
   } finally {
     // 5. Release locks + restore brightness
     if (didLock) {
-      await api.resetFocus().catch(() => {});
+      lockReleased = await api.resetFocus().then(() => true, () => false);
     }
     if (didFlash) {
       api.setFlashOverlay(false);
       if (originalBrightness >= 0) {
-        await api.setBrightness(originalBrightness).catch(() => {});
+        brightnessRestored = await api.setBrightness(originalBrightness).then(() => true, () => false);
       }
+    }
+    try {
+      onTrace?.({
+        kind: 'capture',
+        originalBrightness: originalBrightness >= 0 ? originalBrightness : null,
+        exposureLockSupported: api.supportsExposureLocking,
+        whiteBalanceLockSupported: api.supportsWhiteBalanceLocking,
+        lockSucceeded: didLock,
+        lockReleased,
+        brightnessRestored,
+        captured,
+        error,
+      });
+    } catch {
+      // evidence is best-effort; it must never change the capture outcome
     }
   }
 }

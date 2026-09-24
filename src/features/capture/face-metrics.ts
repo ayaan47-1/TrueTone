@@ -2,7 +2,7 @@
 //
 // Pure mapping from face-detector output → FrameMetrics. Kept separate from the device-only
 // frame-output wiring (use-frame-metrics.ts) so the math is fully unit-testable on the host.
-import type { FrameMetrics } from './quality-gate';
+import { THRESHOLDS, type FrameMetrics } from './quality-gate';
 
 export interface DetectedFaceBounds {
   x: number;
@@ -28,7 +28,8 @@ export interface DetectedFace {
 // The face detector reports presence/position/size but NOT exposure or focus. Until a luma-based
 // frame processor is added, brightness/sharpness use neutral-pass values so the gate is driven by
 // the real face signals (presence, centering, distance) without falsely failing on light/focus.
-export const ASSUMED_BRIGHTNESS = 0.6;
+// Derived from the gate band (midpoint) so a band change can't strand the fallback outside it.
+export const ASSUMED_BRIGHTNESS = (THRESHOLDS.brightnessMin + THRESHOLDS.brightnessMax) / 2;
 export const ASSUMED_SHARPNESS = 0.7;
 
 const NO_FACE: FrameMetrics = {

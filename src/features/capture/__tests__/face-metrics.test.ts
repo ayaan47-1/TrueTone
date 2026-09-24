@@ -1,5 +1,5 @@
 import { facesToMetrics, ASSUMED_BRIGHTNESS, ASSUMED_SHARPNESS } from '../face-metrics';
-import { evaluateQuality } from '../quality-gate';
+import { evaluateQuality, THRESHOLDS } from '../quality-gate';
 
 const W = 400;
 const H = 800;
@@ -23,6 +23,13 @@ describe('facesToMetrics', () => {
     const m = facesToMetrics([centered], W, H);
     expect(m.brightness).toBe(ASSUMED_BRIGHTNESS);
     expect(m.sharpness).toBe(ASSUMED_SHARPNESS);
+  });
+
+  it('keeps the neutral-pass brightness inside the lighting gate band (never blocks capture)', () => {
+    // 912a93e narrowed the band to dim ambient; a stale 0.6 fallback made the gate fail forever
+    // whenever no luma frame was available.
+    expect(ASSUMED_BRIGHTNESS).toBeGreaterThanOrEqual(THRESHOLDS.brightnessMin);
+    expect(ASSUMED_BRIGHTNESS).toBeLessThanOrEqual(THRESHOLDS.brightnessMax);
   });
 
   it('maps a centered, well-sized face to an all-pass quality report', () => {

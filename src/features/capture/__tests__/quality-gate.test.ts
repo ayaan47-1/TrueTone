@@ -18,7 +18,7 @@ function extractHintLiterals(source: string): string[] {
 }
 
 const ok: FrameMetrics = {
-  faceDetected: true, faceCenteredness: 0.9, brightness: 0.6, sharpness: 0.8, faceFraction: 0.4,
+  faceDetected: true, faceCenteredness: 0.9, brightness: 0.25, sharpness: 0.8, faceFraction: 0.4,
   yaw: 0, roll: 0, clipping: 0.01, cct: 5200, imbalance: 0.05,
 };
 
@@ -34,9 +34,16 @@ test('no face fails face and is the first hint', () => {
   expect(r.hint).toMatch(/center your face/i);
 });
 test('too dark fails lighting with a move-into-light hint', () => {
-  const r = evaluateQuality({ ...ok, brightness: 0.1 });
+  const r = evaluateQuality({ ...ok, brightness: 0.02 });
   expect(r.lighting).toBe(false);
   expect(r.hint).toMatch(/light/i);
+});
+test('a normally lit room (0.6) fails lighting and asks to dim — the gate wants dim ambient', () => {
+  // Screen-flash capture (Change 3) needs the screen to dominate ambient, so a bright room must
+  // NOT pass. The device runbook's bright-room step expects exactly this hint.
+  const r = evaluateQuality({ ...ok, brightness: 0.6 });
+  expect(r.lighting).toBe(false);
+  expect(r.hint).toBe('Dim the room so the screen can light your face');
 });
 test('a valid deep-tone capture (0.25) passes lighting — the old 0.35 floor wrongly rejected it', () => {
   // handoff-scan-accuracy §5.3: valid deep-skin captures measure 0.18-0.34; the floor must admit them.
@@ -55,7 +62,7 @@ test('blurry fails focus', () => {
 });
 
 const OK = {
-  faceDetected: true, faceCenteredness: 0.9, brightness: 0.6, sharpness: 0.7, faceFraction: 0.4,
+  faceDetected: true, faceCenteredness: 0.9, brightness: 0.25, sharpness: 0.7, faceFraction: 0.4,
   yaw: 0, roll: 0, clipping: 0.01, cct: 5200, imbalance: 0.05,
 };
 
@@ -95,8 +102,8 @@ describe('hardened quality gate', () => {
     { name: 'no face', metrics: { ...OK, faceDetected: false }, hint: 'Center your face in the oval' },
     { name: 'turned head (yaw)', metrics: { ...OK, yaw: THRESHOLDS.poseMax + 10 }, hint: 'Face the camera straight on' },
     { name: 'blown highlights', metrics: { ...OK, clipping: THRESHOLDS.clippingMax + 0.1 }, hint: 'Too much glare — turn away from the light' },
-    { name: 'too dark', metrics: { ...OK, brightness: THRESHOLDS.brightnessMin - 0.1 }, hint: 'Move into better light' },
-    { name: 'too bright', metrics: { ...OK, brightness: THRESHOLDS.brightnessMax + 0.05 }, hint: 'Too bright — reduce glare' },
+    { name: 'too dark', metrics: { ...OK, brightness: THRESHOLDS.brightnessMin - 0.03 }, hint: 'Too dark — add a little light' },
+    { name: 'too bright', metrics: { ...OK, brightness: THRESHOLDS.brightnessMax + 0.05 }, hint: 'Dim the room so the screen can light your face' },
     { name: 'extreme colour cast', metrics: { ...OK, cct: THRESHOLDS.cctMin - 500 }, hint: 'Try more neutral light' },
     { name: 'side lighting', metrics: { ...OK, imbalance: THRESHOLDS.imbalanceMax + 0.2 }, hint: "Light's coming from one side" },
     { name: 'face too small (far)', metrics: { ...OK, faceFraction: THRESHOLDS.faceFractionMin - 0.1 }, hint: 'Move closer' },

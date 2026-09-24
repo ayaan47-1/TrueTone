@@ -92,28 +92,14 @@ controller + screen-flash integration is inherently device-validated by the huma
 
 ## Device-Test Runbook for Capture Reliability (Changes 2 & 3)
 
-**Tester Instructions:**
-This test verifies the new deterministic capture orchestration (screen flash + camera lock). Please run this on a physical device, testing both a bright room and a dim room.
+Superseded by [`docs/ops/device-proof-capture-to-shop.md`](ops/device-proof-capture-to-shop.md),
+which is the single founder checklist + evidence sheet for capture and scan-to-product proof.
 
-### Preconditions
-- Build the app with the preview profile (internal, 2-principal, direct install).
-- Ensure the device OS display filters (Night Shift, True Tone, or Android equivalents) are **turned off** so the screen flash color remains accurate.
-
-### Test Steps
-1. **Bright Room Test:**
-   - Stand in a well-lit room.
-   - Proceed to the capture screen. Verify that the quality gate passes and the prompt does not complain about the lighting.
-   - **Capture:** Observe the screen ramping up to maximum brightness and displaying a white flash over the camera preview for a brief moment.
-   - Ensure the oval framing guide is still visible and active.
-2. **Dim Room Test:**
-   - Move to a dim room.
-   - Proceed to the capture screen. The ambient brightness should now fall into the acceptable range (dim enough for the screen flash to dominate).
-   - If the room is still too bright, verify that the hint correctly instructs: `"Dim the room so the screen can light your face"`.
-   - **Capture:** Observe the same flash behavior and verify that the quality gate passes.
-3. **Clipping Check:**
-   - Review the captured image highlights (forehead/cheeks). Ensure they are not clipped to pure white (RGB>245) due to the flash.
-4. **Dark-Room Delta Check:**
-   - Compare the Lab read from the bright-room scan and the dim-room scan. The difference should be tight (delta-E < 2.0).
-5. **Lock Release Check:**
-   - Cancel or back out of the camera screen.
-   - Open the default OS Camera app (or another app) and ensure the camera isn't stuck in a locked exposure/white-balance state (i.e., it should auto-adjust normally).
+Corrections to the earlier draft of this section (kept here so old notes aren't misread):
+- A **bright room must NOT pass** the gate. The gate admits only dim ambient (brightness
+  0.05–0.4); a bright room shows `Dim the room so the screen can light your face`.
+- The captured image is **deleted right after the read**, so the tester cannot "review the
+  image" for clipping. Clipping and the bright-vs-dim delta-E come from the `[tt-evidence]`
+  console lines (derived numbers only) in the `device-test` build.
+- Delta-E is compared between two lighting conditions that **both pass** the gate, not a
+  bright room vs a dim room.

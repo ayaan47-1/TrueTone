@@ -100,3 +100,56 @@ describe('flash-orchestrator', () => {
     expect(api.setFlashOverlay).toHaveBeenCalledWith(false); // in finally
   });
 });
+
+describe('flash-orchestrator trace (device evidence)', () => {
+  const baseApi = (over: Partial<DeviceAPI> = {}): DeviceAPI => ({
+    getBrightness: jest.fn().mockResolvedValue(0.5),
+    setBrightness: jest.fn().mockResolvedValue(undefined),
+    delay: jest.fn().mockResolvedValue(undefined),
+    supportsExposureLocking: true,
+    supportsWhiteBalanceLocking: true,
+    lockExposure: jest.fn().mockResolvedValue(true),
+    lockWhiteBalance: jest.fn().mockResolvedValue(true),
+    resetFocus: jest.fn().mockResolvedValue(undefined),
+    capture: jest.fn().mockResolvedValue({ uri: 'file://t.jpg' }),
+    setFlashOverlay: jest.fn(),
+    ...over,
+  });
+
+  it('reports lock + release + brightness restore on success', async () => {
+    const onTrace = jest.fn();
+    await orchestrateFlashAndCapture(baseApi(), onTrace);
+    expect(onTrace).toHaveBeenCalledTimes(1);
+    expect(onTrace).toHaveBeenCalledWith({
+      kind: 'capture',
+      originalBrightness: 0.5,
+      exposureLockSupported: true,
+      whiteBalanceLockSupported: true,
+      lockSucceeded: true,
+      lockReleased: true,
+      brightnessRestored: true,
+      captured: true,
+      error: null,
+    });
+  });
+
+  it('reports release + restore and the error when capture throws', async () => {
+    const onTrace = jest.fn();
+    const api = baseApi({ capture: jest.fn().mockRejectedValue(new Error('shutter failed')) });
+    await expect(orchestrateFlashAndCapture(api, onTrace)).rejects.toThrow('shutter failed');
+    expect(onTrace).toHaveBeenCalledWith(
+      expect.objectContaining({ lockReleased: true, brightnessRestored: true, captured: false, error: 'shutter failed' }),
+    );
+  });
+
+  it('reports lockReleased:false when the reset call fails', async () => {
+    const onTrace = jest.fn();
+    await orchestrateFlashAndCapture(baseApi({ resetFocus: jest.fn().mockRejectedValue(new Error('x')) }), onTrace);
+    expect(onTrace).toHaveBeenCalledWith(expect.objectContaining({ lockSucceeded: true, lockReleased: false }));
+  });
+
+  it('never lets a throwing trace sink break the capture', async () => {
+    const photo = await orchestrateFlashAndCapture(baseApi(), () => { throw new Error('sink'); });
+    expect(photo).toEqual({ uri: 'file://t.jpg' });
+  });
+});

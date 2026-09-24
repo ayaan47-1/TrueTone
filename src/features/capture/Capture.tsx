@@ -47,6 +47,7 @@ import {
 import { useFrameMetrics } from './use-frame-metrics';
 import { writeUprightStill, type CaptureMeta } from './capture-upright';
 import { createDeviceAPI, orchestrateFlashAndCapture } from './flash-orchestrator';
+import { logEvidence } from './device-evidence';
 
 const PRIVACY_LINE = 'Analyzed on your device · never leaves your phone · deleted after your read';
 // Shipped "pass / ready" accent = the app's brand green (Quiet Glass), so the capture success
@@ -150,7 +151,7 @@ export function Capture({ onCaptured, onCancel, devForceCapture = false }: Captu
         }
       );
 
-      const { uri, meta } = await orchestrateFlashAndCapture(api);
+      const { uri, meta } = await orchestrateFlashAndCapture(api, logEvidence);
 
       onCaptured(uri, meta);
     } catch (e) {
