@@ -65,6 +65,8 @@
     "waitlist:build": "node scripts/build-waitlist.mjs",
     "check:compliance": "node scripts/check-no-analytics-sdk.mjs && node scripts/check-waitlist-copy.mjs",
     "check:no-egress": "node scripts/check-no-image-egress.mjs",
+    "check:illuminant-unwired": "node scripts/check-illuminant-unwired.mjs",
+    "check:executorch-unwired": "node scripts/check-executorch-unwired.mjs",
     "eval:invariance": "jest -c jest.eval.config.js eval/invariance/__tests__/report-writer.test.ts"
   },
   "private": true,

@@ -13,6 +13,13 @@ jobs:
       # copy in web/ drifts across the cosmetic/medical line (CLAUDE.md §1).
       - run: npm run check:compliance
       - run: npm run check:no-egress
+      # Illuminant correction (cv/illuminant.ts) was deliberately retired unwired (Task 12/12b:
+      # measured regression, see the script for the full reason) -- fail if it silently
+      # reappears in the live read path instead of relying on a code comment alone.
+      - run: npm run check:illuminant-unwired
+      # The trained on-device model track (ExecuTorch) is dataset-gated and has no installed
+      # runtime or model asset -- fail if it's ever wired into a live file by accident.
+      - run: npm run check:executorch-unwired
       # Unit tests (integration tests need a live Supabase and run separately).
       - run: npm test
       # Jest only collects .ts/.tsx, so the node:test suites covering the compliance

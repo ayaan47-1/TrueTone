@@ -1,16 +1,36 @@
 // src/features/read/executorch-engine.ts
 //
-// DEVICE-ONLY SHELL — verify on a physical iPhone via an Expo dev build (the Simulator has
-// no camera; CLAUDE.md §4). This file is intentionally thin: every line of real logic it relies
-// on is a pure, Jest-tested module (preprocess, decode-output, image-lifecycle). The only parts
-// that cannot be host-verified are the two native calls below — both are marked
-// `// DEVICE-ONLY: verify on physical iPhone` and isolated behind small functions.
+// NOT LIVE -- FUTURE-MODEL SHELL, DATASET-GATED. This is a scaffold for the trained on-device
+// model track approved in docs/superpowers/specs/2026-07-02-trained-model-track-design.md,
+// not a device-only build of a model that exists today. Concretely, as of this comment:
+//   - `react-native-executorch` is NOT in package.json -- the import below is a compile-time
+//     shape reference only (`@ts-expect-error`), never a runtime one.
+//   - No `.pte` model asset exists anywhere in this repo (`assets/` doesn't exist under this
+//     directory). One is produced by `scripts/export_stub_model.py` (host-runnable, real but
+//     deliberately trivial "deep stub" -- see that script's header), which has never been run
+//     against this checkout. THIS FILE MUST NEVER `require()` A LITERAL PATH TO THAT ASSET
+//     until it actually exists on disk -- Metro resolves `require()` calls statically while
+//     building the bundle graph, so a literal require of a missing file breaks the ENTIRE build
+//     the moment anything imports this module, not just this feature.
+//   - `decodeToRgb` below unconditionally throws; it was never rewritten to use the real,
+//     already-live `decodeJpegToRgb` (`decode-rgb.ts`), and doing so is more than a rename --
+//     that function returns an `RgbImage` (width/height/RGBA bytes), not the flat 224x224x3
+//     `Uint8Array` `normalizeToTensor` expects, so a resize+channel-flatten step still has to be
+//     written.
+//   - `ExecutorchEngine` has zero live callers: `run-read.ts` always uses `CvReadEngine`.
+//     `scripts/check-executorch-unwired.mjs` (run in CI via `npm run test:scripts`) fails the
+//     build if that ever changes without a deliberate update to that script alongside it.
+// None of this is a bug to "just wire up" -- training is hard-gated on a consented/licensed
+// face dataset that does not exist yet (design doc §0/§1, CLAUDE.md §6). This file exists so the
+// eventual cutover (design doc §6 checklist) has a documented shape to fill in, not because a
+// model is one build step away.
 //
 // Compliance boundary (CLAUDE.md §3): the raw image is read, decoded, and deleted entirely on
 // device; only the derived ScoreVector + skin-type ever leave this module. Nothing is sent to a
 // server or third party — enforced statically by scripts/check-no-image-egress.mjs.
 //
-// API surface confirmed via Context7 (react-native-executorch, 2026-06-17):
+// API surface confirmed via Context7 (react-native-executorch, 2026-06-17), for whoever wires
+// this for real once a dataset and a genuine .pte exist:
 //   import { ExecutorchModule, ScalarType, type TensorPtr } from 'react-native-executorch';
 //   const model = new ExecutorchModule(); await model.load(require('./assets/stub-model.pte'));
 //   const outputs = await model.forward([{ dataPtr, sizes, scalarType: ScalarType.FLOAT }]);
@@ -33,23 +53,34 @@ import type { ReadEngine } from './read-engine';
 import type { ReadResult } from './read-types';
 
 const MODEL_VERSION = 'stub-1';
-const MODEL_SOURCE = require('./assets/stub-model.pte');
-
-// DEVICE-ONLY: verify on physical iPhone.
-// Decodes the captured JPEG to a 224x224 RGB byte buffer (length 3*224*224). The decode/resize
-// helper is native — confirm the exact API on-device (a vision-camera resize plugin or an
-// executorch image utility) via Context7 before wiring. Returning a wrong-length buffer is caught
-// by normalizeToTensor's length guard, which is unit-tested.
-async function decodeToRgb(_uri: string): Promise<Uint8Array> {
-  // DEVICE-ONLY: verify on physical iPhone — replace with the confirmed native decode+resize call.
+// INTENTIONALLY NOT `require('./assets/stub-model.pte')` -- that file does not exist in this
+// repo. A literal require of a missing path is resolved by Metro while it builds the bundle
+// graph, so it would break the WHOLE APP BUILD (not just this feature) the instant any file
+// imports this module -- not a risk worth taking for an asset nobody has generated yet. Run
+// `scripts/export_stub_model.py` (host-only, no device needed) to produce a real "deep stub"
+// asset, then restore this line, before wiring `ExecutorchEngine` into anything live.
+function requireModelSource(): unknown {
   throw new Error(
-    'decodeToRgb is a device-only stub: implement against the confirmed native JPEG decode/resize API',
+    'no .pte model asset exists yet -- run scripts/export_stub_model.py to generate one ' +
+      '(see docs/superpowers/specs/2026-07-02-trained-model-track-design.md §5-6), then replace ' +
+      "this function with `require('./assets/stub-model.pte')`",
   );
 }
 
-// DEVICE-ONLY: verify on physical iPhone.
-// Loads the deep-stub .pte once and runs the forward pass. Lazily cached so repeated reads in a
-// session reuse the loaded module.
+// NOT LIVE -- see file header. Decodes the captured JPEG to a 224x224 RGB byte buffer (length
+// 3*224*224). This is NOT simply "confirm the API on-device": the already-live `decodeJpegToRgb`
+// (`decode-rgb.ts`) returns a differently-shaped `RgbImage`, so a resize-to-224 + RGBA→RGB
+// flatten step still needs writing on top of it before this can call a real decoder. Returning a
+// wrong-length buffer is caught by normalizeToTensor's length guard, which is unit-tested.
+async function decodeToRgb(_uri: string): Promise<Uint8Array> {
+  throw new Error(
+    'decodeToRgb is a not-yet-implemented stub: build it on decodeJpegToRgb (decode-rgb.ts) ' +
+      'plus a resize-to-224 + RGB-flatten step, then verify on a physical iPhone',
+  );
+}
+
+// NOT LIVE -- see file header. Loads the deep-stub .pte once and runs the forward pass. Lazily
+// cached so repeated reads in a session reuse the loaded module.
 let modulePromise: Promise<{ forward: (inputs: unknown[]) => Promise<Array<{ dataPtr: ArrayBuffer; sizes: number[] }>> }> | null =
   null;
 
@@ -59,7 +90,7 @@ async function loadModelOnce(): Promise<{
   if (!modulePromise) {
     modulePromise = (async () => {
       const model = new ExecutorchModule();
-      await model.load(MODEL_SOURCE);
+      await model.load(requireModelSource());
       return model;
     })();
   }
@@ -67,7 +98,8 @@ async function loadModelOnce(): Promise<{
 }
 
 async function runForward(tensor: Float32Array): Promise<Float32Array> {
-  // DEVICE-ONLY: verify on physical iPhone — native ExecuTorch forward pass.
+  // NOT LIVE -- see file header. Native ExecuTorch forward pass; unreachable today because
+  // decodeToRgb and loadModelOnce both throw first.
   const model = await loadModelOnce();
   const inputTensor = {
     dataPtr: tensor,
@@ -83,9 +115,11 @@ async function runForward(tensor: Float32Array): Promise<Float32Array> {
 }
 
 /**
- * Real on-device read engine. The two native calls (decode, forward) are device-only stubs/shells;
- * everything between them is pure tested logic. The raw image is deleted via withImageCleanup
- * regardless of success or failure.
+ * NOT LIVE -- future trained-model read engine, dataset-gated (see file header). Every call path
+ * currently throws (no package installed, no model asset, decode unimplemented); kept as a
+ * documented shape for the eventual cutover, not a device-only build that merely needs testing.
+ * The raw image is still deleted via withImageCleanup regardless of success or failure, matching
+ * every other read engine's compliance guarantee.
  */
 export class ExecutorchEngine implements ReadEngine {
   async run(uri: string): Promise<ReadResult> {
