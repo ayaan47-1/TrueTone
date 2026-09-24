@@ -40,7 +40,7 @@ prior step makes the next one meaningful.
    not skin (`capture-reliability-plan.md` Problem). Calibrating Lab→shade against an uncontrolled
    capture calibrates noise — and the error concentrates on deep tones (auto-exposure over-brightens
    dark faces). `capture-reliability-plan.md` §Sequencing step 4 is explicit: shade calibration comes
-   *only after* capture is controlled. **Blocker owner: Toby + human on-device test.**
+   *only after* capture is controlled. **Blocker owner: capture implementation owner + founder physical-device test.**
 2. **Consent instrument for Tier B is chosen** (`tt-consent-deeptone-scope`) before any real IV–VI
    corpus is acquired. Tier A does **not** wait on this (it acquires no user/third-party corpus).
    **Blocker owner: counsel.**
