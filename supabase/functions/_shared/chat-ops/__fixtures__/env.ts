@@ -1,0 +1,22 @@
+// Contract §3 initial values (gap-9). Test fixture only — production values come from secrets.
+export const VALID_ENV: Record<string, string> = {
+  CHAT_ENABLED: 'true',
+  CHAT_COST_KILLED: 'false',
+  CHAT_MODEL_ID: 'claude-sonnet-4-6',
+  CHAT_MAX_OUTPUT_TOKENS: '600',
+  CHAT_MAX_INPUT_TOKENS: '3000',
+  CHAT_RESERVE_USD: '0.0200',
+  CHAT_USER_DAILY_CALLS: '20',
+  CHAT_USER_DAILY_USD: '0.40',
+  CHAT_GLOBAL_DAILY_USD: '25.00',
+  CHAT_SHORT_WINDOW_MAX: '5',
+  CHAT_ATTEMPT_WINDOW_MAX: '12',
+  CHAT_IP_WINDOW_MAX: '30',
+  CHAT_PRICING_REVISION: 'anthropic-sonnet-4-6-2026-09-24',
+  CHAT_PRICE_INPUT_USD_PER_MTOK: '3.00',
+  CHAT_PRICE_OUTPUT_USD_PER_MTOK: '15.00',
+  CHAT_CONFIG_REVISION: 'cfg-1',
+  CHAT_FUNCTION_REVISION: 'fn-1',
+  CHAT_ENVIRONMENT: 'test',
+  CHAT_USER_KEY_SECRET: 'k'.repeat(32),
+};

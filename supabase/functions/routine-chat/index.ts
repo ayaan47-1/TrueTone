@@ -1,56 +1,66 @@
-// DEVICE/DENO-ONLY SHELL — the only network/LLM piece. All real logic is handleChat (Jest-tested).
+// DEVICE/DENO-ONLY SHELL — the only network/LLM piece. All real logic is handleGuardedChat
+// (../_shared/chat-ops/handler.ts, Jest-tested with a mocked provider).
 // Compliance: loads ONLY the caller's derived scores+routine under RLS; never an image. Anthropic key
-// is server-side only (Supabase secret). Chat is ephemeral — nothing is persisted.
+// is server-side only (Supabase secret). Chat is ephemeral — no transcript is persisted; only the
+// numeric usage event in chat_usage_events (gap-9 contract §4).
 //
-// Import strategy: shared pure modules are copied into ../_shared/recommend/ (source of truth:
-// src/features/recommend/chat/ + src/lib/cosmetic-filter.ts + src/content/cosmetic-vocab.ts).
-// Relative paths reaching outside supabase/functions/ are not confirmed supported by the Supabase
-// bundler (docs consistently show _shared/ as the cross-function sharing pattern), so the _shared
-// fallback from the task brief is used here.
+// Operations (gap-9 contract): DISABLED unless every CHAT_* setting is present and valid — see
+// docs/ops/routine-chat-controls.md. The kill switch, verified JWT, bounds, rate limits and atomic
+// cost reservation all run before the Anthropic client is constructed. Logs carry reason codes only.
+//
+// Import strategy: shared pure modules live in ../_shared/ (the Supabase cross-function pattern).
 import { serve } from 'https://deno.land/std@0.224.0/http/server.ts';
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2';
 import Anthropic from 'https://esm.sh/@anthropic-ai/sdk@0.32.1';
-import { handleChat, type ChatDeps } from '../_shared/recommend/handle.ts';
-import type { ChatTurn } from '../_shared/recommend/prompt.ts';
+import { handleGuardedChat, type GuardedChatDeps, type ProviderRequest } from '../_shared/chat-ops/handler.ts';
+import { loadChatConfig, type ConfigResult } from '../_shared/chat-ops/config.ts';
+import { supabaseQuotaStore } from '../_shared/chat-ops/supabase-store.ts';
+import { hmacSha256Hex } from '../_shared/chat-ops/keyed-hash.ts';
 
-const MODEL = 'claude-sonnet-4-6';
+const PROVIDER_TIMEOUT_MS = 30_000;
+const env = (k: string) => Deno.env.get(k);
 
-serve(async (req) => {
-  if (req.method !== 'POST') return new Response('method not allowed', { status: 405 });
-
-  const authHeader = req.headers.get('Authorization');
-  if (!authHeader) return new Response('unauthorized', { status: 401 });
-
-  // Client scoped to the caller's JWT -> RLS applies to every query.
-  const supabase = createClient(
-    Deno.env.get('SUPABASE_URL')!,
-    Deno.env.get('SUPABASE_ANON_KEY')!,
-    { global: { headers: { Authorization: authHeader } } },
-  );
-  const anthropic = new Anthropic({ apiKey: Deno.env.get('ANTHROPIC_API_KEY')! });
-
-  let body: { scanId?: string; message?: string; history?: unknown };
-  try { body = await req.json(); } catch { return new Response('bad request', { status: 400 }); }
-
-  // Input bounds: reject missing/empty/oversized message and malformed/oversized history.
-  // (The output guard backstops content regardless, but we bound sizes at the boundary.)
-  if (!body.scanId || !body.message) return new Response('bad request', { status: 400 });
-  if (typeof body.message !== 'string' || body.message.trim() === '' || body.message.length > 2000) {
-    return new Response('bad request', { status: 400 });
+function readConfig(): ConfigResult {
+  // Missing platform secrets are equivalent to disabled (§5.2).
+  if (!env('ANTHROPIC_API_KEY') || !env('SUPABASE_URL') || !env('SUPABASE_ANON_KEY') || !env('SUPABASE_SERVICE_ROLE_KEY')) {
+    return { state: 'disabled', reason: 'config_invalid' };
   }
-  if (body.history !== undefined) {
-    if (!Array.isArray(body.history) || body.history.length > 20) {
-      return new Response('bad request', { status: 400 });
-    }
-  }
+  return loadChatConfig(env);
+}
 
-  const deps: ChatDeps = {
+function clientIp(req: Request): string | null {
+  const first = req.headers.get('x-forwarded-for')?.split(',')[0]?.trim();
+  return first ? first : null;
+}
+
+function buildDeps(authHeader: string | null): GuardedChatDeps {
+  // Caller-scoped client -> RLS applies to the scan lookup and the JWT is verified by the auth server.
+  const userClient = () => createClient(env('SUPABASE_URL')!, env('SUPABASE_ANON_KEY')!,
+    { global: { headers: { Authorization: authHeader ?? '' } } });
+  // Service-role client is used ONLY for the quota/usage RPCs, never for scan data.
+  const service = () => createClient(env('SUPABASE_URL')!, env('SUPABASE_SERVICE_ROLE_KEY')!);
+  return {
+    config: readConfig,
+    async verifyUser(header) {
+      const token = header.replace(/^Bearer\s+/i, '').trim();
+      if (!token) return null;
+      const { data, error } = await userClient().auth.getUser(token);
+      if (error) {
+        const status = (error as { status?: number }).status ?? 500;
+        if (status >= 500) throw new Error('auth-unavailable');
+        return null;
+      }
+      return data.user?.id ?? null;
+    },
+    keyedHash: hmacSha256Hex,
+    store: supabaseQuotaStore((fn, args) => service().rpc(fn, args)),
     async loadScan(scanId) {
       // RLS guarantees the row belongs to the caller; a non-owned id returns no row.
-      const { data } = await supabase
+      const { data, error } = await userClient()
         .from('scans')
         .select('score_hydration,score_oiliness,score_texture,score_pores,score_dark_spots,score_redness,score_fine_lines,score_dark_circles,skin_type_feel,routine')
         .eq('id', scanId).maybeSingle();
+      if (error) throw new Error('scan-lookup-failed');
       if (!data) return null;
       return {
         scores: {
@@ -63,28 +73,31 @@ serve(async (req) => {
         routine: data.routine,
       };
     },
-    async complete(system, messages) {
+    async callProvider(p: ProviderRequest) {
+      // Constructed only after every guard has passed. maxRetries: 0 — a retry could double spend.
+      const anthropic = new Anthropic({ apiKey: env('ANTHROPIC_API_KEY')!, maxRetries: 0, timeout: PROVIDER_TIMEOUT_MS });
       const res = await anthropic.messages.create({
-        model: MODEL, max_tokens: 600, system,
-        messages: messages.map((m) => ({ role: m.role, content: m.content })),
+        model: p.model, max_tokens: p.max_tokens, system: p.system,
+        messages: p.messages.map((m) => ({ role: m.role, content: m.content })),
       });
-      const block = res.content[0];
-      return block && block.type === 'text' ? block.text : '';
+      const block = res.content.find((b) => b.type === 'text');
+      return { text: block && block.type === 'text' ? block.text : '', usage: res.usage ?? null };
     },
+    nowMs: () => Date.now(),
+    newId: () => crypto.randomUUID(),
+    // Reason codes only: never the message, reply, identifiers, headers, or provider error bodies.
+    log: (line) => console.info(JSON.stringify({ fn: 'routine-chat', ...line })),
   };
+}
 
-  try {
-    const out = await handleChat(deps, {
-      scanId: body.scanId,
-      message: body.message,
-      history: (body.history as ChatTurn[] | undefined) ?? [],
-    });
-    if (out.blocked) console.warn('routine-chat: output blocked by post-filter');
-    return Response.json(out);
-  } catch (e) {
-    const msg = e instanceof Error ? e.message : 'error';
-    if (msg === 'scan-not-found') return new Response('not found', { status: 404 });
-    console.error('routine-chat: chat failed', e instanceof Error ? e.message : 'unknown');
-    return new Response('chat unavailable', { status: 502 });
-  }
+serve(async (req) => {
+  if (req.method !== 'POST') return new Response('method not allowed', { status: 405 });
+  const authHeader = req.headers.get('Authorization');
+  let body: unknown;
+  try { body = await req.json(); } catch { body = undefined; }
+
+  const out = await handleGuardedChat(buildDeps(authHeader), { authHeader, clientIp: clientIp(req), body });
+  return out.json
+    ? Response.json(out.json, { status: out.status, headers: out.headers })
+    : new Response(out.text ?? '', { status: out.status, headers: out.headers });
 });
