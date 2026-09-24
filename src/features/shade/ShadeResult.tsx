@@ -25,6 +25,9 @@ interface ShadeResultProps {
   onSeeLook?: () => void;
   /** Fired by "Share" (share sheet is a shell this phase). */
   onShare?: () => void;
+  /** When provided, shows an "Ask about your shade" CTA that enters the makeup Q&A domain
+   *  (route-owned navigation). Omitted -> the CTA is not rendered. */
+  onAskAboutShade?: () => void;
 }
 
 // Cosmetic-only tip copy, one per finish. No skin-health claims.
@@ -69,7 +72,7 @@ function Swatch({ color, label, value }: { color: string; label: string; value: 
 }
 
 /** The derived-shade result card. Hero shade + undertone/depth/finish swatches + CTAs. */
-export function ShadeResult({ shade, tip, picks, onSeeLook, onShare }: ShadeResultProps) {
+export function ShadeResult({ shade, tip, picks, onSeeLook, onShare, onAskAboutShade }: ShadeResultProps) {
   const tipLine = tip ?? FINISH_TIP[shade.finish];
 
   return (
@@ -107,6 +110,9 @@ export function ShadeResult({ shade, tip, picks, onSeeLook, onShare }: ShadeResu
 
         <View className="mt-auto gap-3 pb-2">
           <PrimaryButton label="See my look" onPress={onSeeLook} />
+          {onAskAboutShade ? (
+            <PrimaryButton label="Ask about your shade" variant="glass" onPress={onAskAboutShade} />
+          ) : null}
           <PrimaryButton label="Share" variant="glass" onPress={onShare} />
         </View>
       </View>

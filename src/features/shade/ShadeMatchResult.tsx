@@ -18,9 +18,11 @@ interface ShadeMatchResultProps {
   onSeeLook?: () => void;
   /** "Share" -> share sheet is a shell this phase. */
   onShare?: () => void;
+  /** "Ask about your shade" -> the route opens the makeup Q&A domain. */
+  onAskAboutShade?: () => void;
 }
 
-export function ShadeMatchResult({ shade, onSeeLook, onShare }: ShadeMatchResultProps) {
+export function ShadeMatchResult({ shade, onSeeLook, onShare, onAskAboutShade }: ShadeMatchResultProps) {
   const prefs = preferencesStore.get() ?? DEFAULT_SETUP_ANSWERS;
   // A real shade in hand -> a concrete match profile (no demo stub, no image).
   const profile = resolveForYouProfile(true, shade, prefs, false);
@@ -31,6 +33,7 @@ export function ShadeMatchResult({ shade, onSeeLook, onShare }: ShadeMatchResult
       shade={shade}
       onSeeLook={onSeeLook}
       onShare={onShare}
+      onAskAboutShade={onAskAboutShade}
       picks={
         profile ? (
           <ProductRail

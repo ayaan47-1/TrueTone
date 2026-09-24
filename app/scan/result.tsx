@@ -89,6 +89,7 @@ export default function ResultRoute() {
         shade={currentShade}
         onSeeLook={() => router.replace('/')}
         onShare={() => {}}
+        onAskAboutShade={() => router.push('/scan/shade-chat')}
       />
     );
   }
