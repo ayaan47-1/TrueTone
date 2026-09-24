@@ -8,6 +8,7 @@ import {
   purchasePlan,
   restorePurchases,
   createRevenueCatAdapter,
+  defaultEntitlementSource,
 } from '../entitlement';
 
 describe('entitlement', () => {
@@ -105,6 +106,38 @@ describe('entitlement', () => {
     const purchase = await purchasePlan('yearly');
     expect(purchase.success).toBe(false);
     expect(purchase.error).toContain('missing RevenueCat API key');
+  });
+
+  it('RevenueCat adapter never reports restore success without a verified entitlement, even when configured', async () => {
+    const rc = createRevenueCatAdapter({ apiKey: 'test-key' });
+    setEntitlementSource(rc);
+
+    const restore = await restorePurchases();
+    expect(restore.success).toBe(false);
+    expect(restore.entitlement).toBeUndefined();
+  });
+
+  it('production default (defaultEntitlementSource(false)) cannot unlock Plus through the local stub', async () => {
+    const prodSource = defaultEntitlementSource(false);
+    setEntitlementSource(prodSource);
+
+    expect(hasPlusAccess()).toBe(false);
+
+    const purchase = await purchasePlan('yearly');
+    expect(purchase.success).toBe(false);
+    expect(hasPlusAccess()).toBe(false);
+
+    const restore = await restorePurchases();
+    expect(restore.success).toBe(false);
+    expect(hasPlusAccess()).toBe(false);
+  });
+
+  it('dev default (defaultEntitlementSource(true)) is the locked local stub', () => {
+    const devSource = defaultEntitlementSource(true);
+    setEntitlementSource(devSource);
+
+    expect(hasPlusAccess()).toBe(false);
+    expect(hasAgeAccess()).toBe(false);
   });
 
   it('does not import scan/score/read modules (compliance isolation)', () => {

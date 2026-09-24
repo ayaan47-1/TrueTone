@@ -8,7 +8,13 @@ export interface CheckoutLineItem {
 export function computeOrderTotalCents(items: CheckoutLineItem[]): number {
   let serverTotalCents = 0;
   for (const line of items) {
-    if (!line.product || !line.product.id || typeof line.qty !== 'number' || line.qty <= 0) {
+    if (
+      !line.product ||
+      !line.product.id ||
+      typeof line.qty !== 'number' ||
+      !Number.isInteger(line.qty) ||
+      line.qty <= 0
+    ) {
       throw new Error('invalid item');
     }
     const catalogItem = catalog.find((c) => c.id === line.product.id);

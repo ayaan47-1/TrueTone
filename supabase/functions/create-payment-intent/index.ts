@@ -2,6 +2,7 @@ import { serve } from 'https://deno.land/std@0.224.0/http/server.ts';
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2';
 import Stripe from 'https://esm.sh/stripe@14.19.0';
 import { computeOrderTotalCents } from '../_shared/checkout/pricing.ts';
+import { resolveStripeCustomer } from '../_shared/checkout/customer-mapping.ts';
 
 serve(async (req) => {
   if (req.method !== 'POST') return new Response('method not allowed', { status: 405 });
@@ -41,28 +42,22 @@ serve(async (req) => {
   const serviceKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') || Deno.env.get('SERVICE_ROLE_KEY');
   const serviceSupabase = serviceKey
     ? createClient(Deno.env.get('SUPABASE_URL')!, serviceKey)
-    : supabase;
+    : null;
 
   try {
-    // Determine customer and reuse from user_entitlements if already mapped
-    let customerId: string | undefined = undefined;
-    const { data: customerData } = await supabase
-      .from('user_entitlements')
-      .select('stripe_customer_id')
-      .eq('id', user.id)
-      .maybeSingle();
-
-    if (customerData?.stripe_customer_id) {
-      customerId = customerData.stripe_customer_id;
-    } else {
-      const customer = await stripe.customers.create({ email: user.email });
-      customerId = customer.id;
-      // Persist Stripe customer mapping
-      await serviceSupabase.from('user_entitlements').upsert({
-        id: user.id,
-        stripe_customer_id: customerId,
-      });
+    // Determine customer and reuse from user_entitlements if already mapped. Fails closed (never
+    // falls back to the RLS-scoped `supabase` client, which cannot write this table) when the
+    // service role key is absent or the mapping write itself fails -- see customer-mapping.ts.
+    const mapping = await resolveStripeCustomer(
+      { authedSupabase: supabase, serviceSupabase, createStripeCustomer: (args) => stripe.customers.create(args) },
+      user.id,
+      user.email,
+    );
+    if (!mapping.ok) {
+      console.error('Stripe customer mapping failed', mapping.message);
+      return new Response(mapping.message, { status: mapping.status });
     }
+    const customerId = mapping.customerId;
 
     const ephemeralKey = await stripe.ephemeralKeys.create(
       { customer: customerId },

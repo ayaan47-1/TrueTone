@@ -135,12 +135,30 @@ export function createRevenueCatAdapter(config?: {
           error: 'Subscription service not configured (missing RevenueCat API key)',
         };
       }
-      return { success: true };
+      // The real `Purchases.getCustomerInfo()` call above is still a template (not wired to
+      // react-native-purchases yet), so there is no verified entitlement to report even when an
+      // API key is present. Reporting success here would let the UI treat a no-op restore as a
+      // real one -- fail closed until the SDK call is actually implemented.
+      return { success: false, error: 'Purchase restoration is not yet implemented for this build' };
     },
   };
 }
 
-let source: EntitlementSource = localStubEntitlement(false);
+/**
+ * Chooses the entitlement source the app boots with, before any explicit
+ * `setEntitlementSource` call (e.g. from a real StoreKit/RevenueCat bootstrap).
+ * Exported so production-safety can be asserted directly in tests without
+ * depending on the global `__DEV__` flag, which jest-expo always sets true.
+ *
+ * Production (`isDev: false`) must NEVER default to `localStubEntitlement`, whose
+ * `purchase()`/`restorePurchases()` unconditionally grant access -- that would let anyone
+ * unlock TrueTone Plus with no real payment simply by the app never wiring a real source.
+ */
+export function defaultEntitlementSource(isDev: boolean): EntitlementSource {
+  return isDev ? localStubEntitlement(false) : createRevenueCatAdapter();
+}
+
+let source: EntitlementSource = defaultEntitlementSource(__DEV__);
 
 export function setEntitlementSource(src: EntitlementSource): void {
   source = src;

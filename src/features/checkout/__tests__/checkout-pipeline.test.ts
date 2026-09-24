@@ -4,6 +4,8 @@
 
 import { computeOrderTotalCents } from '../pricing';
 import { catalog } from '../../match/product-catalog';
+import { resolveStripeCustomer } from '../customer-mapping';
+import { applyStripeWebhookEvent } from '../webhook-order-update';
 
 describe('Stripe Checkout & PaymentIntent Pipeline Verification', () => {
   describe('Server-Side Pricing & Anti-Tampering Engine', () => {
@@ -38,129 +40,143 @@ describe('Stripe Checkout & PaymentIntent Pipeline Verification', () => {
       expect(() =>
         computeOrderTotalCents([{ product: { id: catalog[0].id }, qty: -2 }])
       ).toThrow();
+      expect(() =>
+        computeOrderTotalCents([{ product: { id: catalog[0].id }, qty: 1.5 }])
+      ).toThrow();
     });
   });
 
-  describe('Edge Function create-payment-intent Flow Simulation', () => {
-    it('simulates customer reuse and order insertion upon valid payment intent request', async () => {
-      const mockUser = { id: 'usr_test_123', email: 'test@example.com' };
-      const items = [{ product: { id: catalog[0].id }, qty: 1 }];
-      const totalCents = computeOrderTotalCents(items);
-
-      // Simulated DB state
-      const userEntitlements: Record<string, { stripe_customer_id?: string }> = {
-        [mockUser.id]: { stripe_customer_id: 'cus_existing_456' },
-      };
-      const orders: any[] = [];
-
-      // Simulated Stripe client
-      const mockStripe = {
-        customers: {
-          create: jest.fn().mockResolvedValue({ id: 'cus_new_789' }),
-        },
-        ephemeralKeys: {
-          create: jest.fn().mockResolvedValue({ secret: 'ek_test_secret' }),
-        },
-        paymentIntents: {
-          create: jest.fn().mockResolvedValue({
-            id: 'pi_test_001',
-            client_secret: 'pi_test_001_secret',
-            amount: totalCents,
+  describe('Edge Function create-payment-intent: resolveStripeCustomer (real extracted handler)', () => {
+    function authedSupabaseReturning(stripe_customer_id: string | null) {
+      return {
+        from: jest.fn().mockReturnValue({
+          select: jest.fn().mockReturnValue({
+            eq: jest.fn().mockReturnValue({
+              maybeSingle: jest.fn().mockResolvedValue({ data: stripe_customer_id ? { stripe_customer_id } : null }),
+            }),
           }),
-        },
+        }),
       };
+    }
 
-      // Handler logic execution
-      let customerId = userEntitlements[mockUser.id]?.stripe_customer_id;
-      if (!customerId) {
-        const customer = await mockStripe.customers.create({ email: mockUser.email });
-        customerId = customer.id;
-        userEntitlements[mockUser.id] = { stripe_customer_id: customerId };
-      }
+    it('reuses an existing mapped Stripe customer without calling Stripe or the service client', async () => {
+      const authedSupabase = authedSupabaseReturning('cus_existing_456');
+      const serviceSupabase = { from: jest.fn() };
+      const createStripeCustomer = jest.fn();
 
-      const ephemeralKey = await mockStripe.ephemeralKeys.create({ customer: customerId });
-      const paymentIntent = await mockStripe.paymentIntents.create({
-        amount: totalCents,
-        currency: 'usd',
-        customer: customerId,
-      });
+      const result = await resolveStripeCustomer(
+        { authedSupabase, serviceSupabase, createStripeCustomer },
+        'usr_test_123',
+        'test@example.com',
+      );
 
-      orders.push({
-        user_id: mockUser.id,
-        stripe_payment_intent_id: paymentIntent.id,
-        amount: totalCents,
-        items,
-        status: 'pending',
-      });
-
-      expect(customerId).toBe('cus_existing_456');
-      expect(mockStripe.customers.create).not.toHaveBeenCalled();
-      expect(paymentIntent.amount).toBe(totalCents);
-      expect(orders[0].status).toBe('pending');
-      expect(orders[0].stripe_payment_intent_id).toBe('pi_test_001');
+      expect(result).toEqual({ ok: true, customerId: 'cus_existing_456' });
+      expect(createStripeCustomer).not.toHaveBeenCalled();
+      expect(serviceSupabase.from).not.toHaveBeenCalled();
     });
 
-    it('creates new Stripe customer and maps to user_entitlements if not previously mapped', async () => {
-      const mockUser = { id: 'usr_new_999', email: 'new@example.com' };
-      const userEntitlements: Record<string, { stripe_customer_id?: string }> = {};
+    it('creates and persists a new Stripe customer mapping when none exists', async () => {
+      const authedSupabase = authedSupabaseReturning(null);
+      const upsert = jest.fn().mockResolvedValue({ error: null });
+      const serviceSupabase = { from: jest.fn().mockReturnValue({ upsert }) };
+      const createStripeCustomer = jest.fn().mockResolvedValue({ id: 'cus_created_111' });
 
-      const mockStripe = {
-        customers: {
-          create: jest.fn().mockResolvedValue({ id: 'cus_created_111' }),
-        },
-      };
+      const result = await resolveStripeCustomer(
+        { authedSupabase, serviceSupabase, createStripeCustomer },
+        'usr_new_999',
+        'new@example.com',
+      );
 
-      let customerId = userEntitlements[mockUser.id]?.stripe_customer_id;
-      if (!customerId) {
-        const customer = await mockStripe.customers.create({ email: mockUser.email });
-        customerId = customer.id;
-        userEntitlements[mockUser.id] = { stripe_customer_id: customerId };
-      }
+      expect(result).toEqual({ ok: true, customerId: 'cus_created_111' });
+      expect(createStripeCustomer).toHaveBeenCalledWith({ email: 'new@example.com' });
+      expect(upsert).toHaveBeenCalledWith({ id: 'usr_new_999', stripe_customer_id: 'cus_created_111' });
+    });
 
-      expect(mockStripe.customers.create).toHaveBeenCalledWith({ email: 'new@example.com' });
-      expect(userEntitlements[mockUser.id].stripe_customer_id).toBe('cus_created_111');
+    it('fails closed when no service-role client is configured, without creating a Stripe customer', async () => {
+      const authedSupabase = authedSupabaseReturning(null);
+      const createStripeCustomer = jest.fn();
+
+      const result = await resolveStripeCustomer(
+        { authedSupabase, serviceSupabase: null, createStripeCustomer },
+        'usr_unconfigured',
+        'nobody@example.com',
+      );
+
+      expect(result.ok).toBe(false);
+      if (!result.ok) expect(result.status).toBe(500);
+      expect(createStripeCustomer).not.toHaveBeenCalled();
+    });
+
+    it('fails closed when the customer-map upsert errors', async () => {
+      const authedSupabase = authedSupabaseReturning(null);
+      const upsert = jest.fn().mockResolvedValue({ error: { message: 'constraint violation' } });
+      const serviceSupabase = { from: jest.fn().mockReturnValue({ upsert }) };
+      const createStripeCustomer = jest.fn().mockResolvedValue({ id: 'cus_orphaned_222' });
+
+      const result = await resolveStripeCustomer(
+        { authedSupabase, serviceSupabase, createStripeCustomer },
+        'usr_upsert_fails',
+        'fails@example.com',
+      );
+
+      expect(result.ok).toBe(false);
+      if (!result.ok) expect(result.status).toBe(500);
     });
   });
 
-  describe('Stripe Webhook Order Settlement Simulation', () => {
-    it('flips order status to paid upon payment_intent.succeeded', () => {
-      const orders = [
-        { id: 'ord_1', stripe_payment_intent_id: 'pi_success_123', status: 'pending' },
-      ];
+  describe('Stripe Webhook Order Settlement: applyStripeWebhookEvent (real extracted handler)', () => {
+    function supabaseUpdating(error: { message: string } | null) {
+      const eq = jest.fn().mockResolvedValue({ error });
+      const update = jest.fn().mockReturnValue({ eq });
+      return { supabase: { from: jest.fn().mockReturnValue({ update }) }, update, eq };
+    }
 
-      const event = {
+    it('flips order status to paid upon payment_intent.succeeded', async () => {
+      const { supabase, update, eq } = supabaseUpdating(null);
+
+      const result = await applyStripeWebhookEvent(supabase, {
         type: 'payment_intent.succeeded',
-        data: {
-          object: { id: 'pi_success_123' },
-        },
-      };
+        data: { object: { id: 'pi_success_123' } },
+      });
 
-      if (event.type === 'payment_intent.succeeded') {
-        const ord = orders.find((o) => o.stripe_payment_intent_id === event.data.object.id);
-        if (ord) ord.status = 'paid';
-      }
-
-      expect(orders[0].status).toBe('paid');
+      expect(result).toEqual({ ok: true, handled: true });
+      expect(update).toHaveBeenCalledWith({ status: 'paid' });
+      expect(eq).toHaveBeenCalledWith('stripe_payment_intent_id', 'pi_success_123');
     });
 
-    it('flips order status to failed upon payment_intent.payment_failed', () => {
-      const orders = [
-        { id: 'ord_2', stripe_payment_intent_id: 'pi_failed_456', status: 'pending' },
-      ];
+    it('flips order status to failed upon payment_intent.payment_failed', async () => {
+      const { supabase, update } = supabaseUpdating(null);
 
-      const event = {
+      const result = await applyStripeWebhookEvent(supabase, {
         type: 'payment_intent.payment_failed',
-        data: {
-          object: { id: 'pi_failed_456' },
-        },
-      };
+        data: { object: { id: 'pi_failed_456' } },
+      });
 
-      if (event.type === 'payment_intent.payment_failed') {
-        const ord = orders.find((o) => o.stripe_payment_intent_id === event.data.object.id);
-        if (ord) ord.status = 'failed';
-      }
+      expect(result).toEqual({ ok: true, handled: true });
+      expect(update).toHaveBeenCalledWith({ status: 'failed' });
+    });
 
-      expect(orders[0].status).toBe('failed');
+    it('reports handled:false for an unrecognized event type without writing to the DB', async () => {
+      const { supabase, update } = supabaseUpdating(null);
+
+      const result = await applyStripeWebhookEvent(supabase, {
+        type: 'customer.created',
+        data: { object: { id: 'irrelevant' } },
+      });
+
+      expect(result).toEqual({ ok: true, handled: false });
+      expect(update).not.toHaveBeenCalled();
+    });
+
+    it('returns ok:false (retryable) when the order-status DB write fails', async () => {
+      const { supabase } = supabaseUpdating({ message: 'connection reset' });
+
+      const result = await applyStripeWebhookEvent(supabase, {
+        type: 'payment_intent.succeeded',
+        data: { object: { id: 'pi_db_down' } },
+      });
+
+      expect(result).toEqual({ ok: false, handled: true });
     });
   });
 });

@@ -20,4 +20,8 @@ describe('computeOrderTotalCents', () => {
     expect(() => computeOrderTotalCents([{ product: { id: 'fake-id' }, qty: 1 }])).toThrow();
     expect(() => computeOrderTotalCents([{ product: { id: 'lum-tint-01' }, qty: -1 }])).toThrow();
   });
+
+  it('rejects a fractional quantity', () => {
+    expect(() => computeOrderTotalCents([{ product: { id: 'lum-tint-01' }, qty: 1.5 }])).toThrow();
+  });
 });
