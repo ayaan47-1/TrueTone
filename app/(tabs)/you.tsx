@@ -6,9 +6,11 @@ import {
   GlassCard,
   ListRow,
   Disclaimer,
+  Caption,
   TAB_BAR_CLEARANCE,
   Rise,
 } from '../../src/components/ui';
+import { nativeVersionLabel } from '../../src/lib/app-version';
 
 /**
  * Account — profile & controls. Surfaces the previously-orphaned data-rights and legal
@@ -18,6 +20,7 @@ import {
  */
 export default function YouScreen() {
   const router = useRouter();
+  const versionLabel = nativeVersionLabel();
   return (
     <Screen className="px-6" topGap={32} bottomGap={TAB_BAR_CLEARANCE}>
       <Rise>
@@ -71,6 +74,15 @@ export default function YouScreen() {
       <Rise index={6}>
         <View className="mt-7"><Disclaimer /></View>
       </Rise>
+
+      {/* Low-emphasis build marker so testers can name the installed version + native
+          build number. Values come from the binary via expo-application (see
+          src/lib/app-version.ts); renders nothing when unavailable (e.g. Expo Go). */}
+      {versionLabel ? (
+        <Rise index={7}>
+          <Caption className="mt-4 text-center text-[11px] text-ink-muted">{versionLabel}</Caption>
+        </Rise>
+      ) : null}
     </Screen>
   );
 }
