@@ -1,22 +1,8 @@
-import { render, fireEvent, waitFor } from '@testing-library/react-native';
+import { render, waitFor } from '@testing-library/react-native';
 
 const mockPush = jest.fn();
 jest.mock('expo-router', () => ({
   useRouter: () => ({ push: mockPush, replace: jest.fn(), back: jest.fn() }),
-  useFocusEffect: (cb: () => void | (() => void)) => {
-    const { useEffect } = require('react');
-    useEffect(cb, []);
-  },
-}));
-
-const mockFetchHistory = jest.fn();
-jest.mock('../../src/lib/scans', () => ({ fetchScanHistory: () => mockFetchHistory() }));
-
-const mockGetMood = jest.fn(() => Promise.resolve(null));
-const mockSetMood = jest.fn((_v?: string) => Promise.resolve());
-jest.mock('../../src/features/diary/diary-storage', () => ({
-  getMood: () => mockGetMood(),
-  setMood: (v: string) => mockSetMood(v),
 }));
 
 // Demo mode is the only way this screen's "Picked for your shade" rail populates without
@@ -26,10 +12,8 @@ jest.mock('../../src/lib/supabase', () => ({ DEMO_MODE: true, supabase: {} }));
 
 import TodayScreen from '../(tabs)/index';
 
-const flush = () => new Promise((resolve) => setTimeout(resolve, 0));
 beforeEach(() => {
   jest.clearAllMocks();
-  mockFetchHistory.mockResolvedValue([]);
 });
 
 test('renders both product rails: Featured always, and Your products via the demo stub shade', async () => {
@@ -41,9 +25,13 @@ test('renders both product rails: Featured always, and Your products via the dem
   expect(view.getAllByTestId('product-name').length).toBeGreaterThan(0);
 });
 
-test('logging a skin-feel mood persists it on-device', async () => {
+test('preserves greeting, shade-match action, and disclaimer while dropping the week strip and mood diary', async () => {
   const view = await render(<TodayScreen />);
-  fireEvent.press(view.getByRole('button', { name: 'Glowy' }));
-  expect(mockSetMood).toHaveBeenCalledWith('glowy');
-  await flush();
+  await waitFor(() => expect(view.getByText('Featured products')).toBeTruthy());
+  // Kept
+  expect(view.getByRole('button', { name: 'Shade match' })).toBeTruthy();
+  expect(view.getByText(/good (morning|afternoon|evening)/i)).toBeTruthy();
+  // Removed: the week strip and skin-feel mood diary no longer render.
+  expect(view.queryByText('How does your skin feel?')).toBeNull();
+  expect(view.queryByRole('button', { name: 'Glowy' })).toBeNull();
 });
