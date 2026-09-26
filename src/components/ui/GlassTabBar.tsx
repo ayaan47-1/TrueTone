@@ -3,14 +3,14 @@ import { GlassCard } from './GlassCard';
 import { Caption } from './Typography';
 import { useInsets } from './use-insets';
 import { palette } from '../../theme/tokens';
-import { TodayGlyph, ShopGlyph, TrendGlyph, YouGlyph, type GlyphProps } from './tab-icons';
+import { TodayGlyph, ShopGlyph, CommunityGlyph, YouGlyph, type GlyphProps } from './tab-icons';
 
 /**
  * Route keys for the four tab screens. `shop` is the primary/home destination and sits
  * first. The shade-match ("Shade match") scan entry is NOT a tab — it lives as a small
  * icon in the For You header, which pushes the pre-camera privacy gate (`/scan-gate`).
  */
-export type TabKey = 'shop' | 'index' | 'trend' | 'you';
+export type TabKey = 'shop' | 'index' | 'community' | 'you';
 
 /**
  * Bottom space a scrollable tab screen should reserve so its last content clears the
@@ -29,7 +29,7 @@ interface TabDef {
 const TABS: readonly TabDef[] = [
   { key: 'shop', label: 'Shop', Glyph: ShopGlyph },
   { key: 'index', label: 'For You', Glyph: TodayGlyph },
-  { key: 'trend', label: 'Trend', Glyph: TrendGlyph },
+  { key: 'community', label: 'Community', Glyph: CommunityGlyph },
   { key: 'you', label: 'Account', Glyph: YouGlyph },
 ];
 
@@ -45,7 +45,7 @@ interface GlassTabBarProps {
 
 /**
  * Floating frosted tab bar for the main app: four evenly-spaced destinations
- * (Shop · For You · Trend · Account). Purely presentational — the route adapter in
+ * (Shop · For You · Community · Account). Purely presentational — the route adapter in
  * `app/(tabs)/_layout.tsx` maps React Navigation state onto this API.
  */
 export function GlassTabBar({ activeKey, onSelect }: GlassTabBarProps) {

@@ -1,6 +1,6 @@
 import { render, fireEvent } from '@testing-library/react-native';
 
-// The bottom bar is now four plain tabs (Shop · For You · Trend · Account). The
+// The bottom bar is now four plain tabs (Shop · For You · Community · Account). The
 // shade-match scan entry no longer lives here — it moved to the For You header (see
 // app/__tests__/for-you.test.tsx for the /scan-gate compliance assertion). This test
 // verifies the layout adapts React Navigation state onto the GlassTabBar and routes a
@@ -18,7 +18,7 @@ jest.mock('expo-router', () => {
           routes: [
             { name: 'shop', key: 'shop' },
             { name: 'index', key: 'index' },
-            { name: 'trend', key: 'trend' },
+            { name: 'community', key: 'community' },
             { name: 'you', key: 'you' },
           ],
         },

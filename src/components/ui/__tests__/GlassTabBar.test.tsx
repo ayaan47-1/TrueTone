@@ -31,7 +31,7 @@ async function press(view: View, label: string) {
 test('renders exactly four tab destinations and no center Shade match button', async () => {
   const { view } = await setup();
   expect(view.queryAllByRole('tab')).toHaveLength(4);
-  ['Shop', 'For You', 'Trend', 'Account'].forEach((label) =>
+  ['Shop', 'For You', 'Community', 'Account'].forEach((label) =>
     expect(tab(view, label)).toBeTruthy(),
   );
   // The floating center scan action is gone from the bar entirely.
@@ -48,8 +48,8 @@ test('Shop is the first (primary) tab destination', async () => {
 });
 
 test('marks the active tab as selected for accessibility', async () => {
-  const { view } = await setup({ activeKey: 'trend' });
-  expect(tab(view, 'Trend').props.accessibilityState).toMatchObject({ selected: true });
+  const { view } = await setup({ activeKey: 'community' });
+  expect(tab(view, 'Community').props.accessibilityState).toMatchObject({ selected: true });
   expect(tab(view, 'For You').props.accessibilityState).toMatchObject({ selected: false });
 });
 
