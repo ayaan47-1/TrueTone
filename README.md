@@ -10,20 +10,23 @@ not a medical device, and it never diagnoses anything.**
 > (BIPA / WA MHMDA / PIPA / FTC) are load-bearing, not style preferences.
 
 - **Platform:** Expo (SDK 56) + React Native + TypeScript · iOS-primary · **US-only for v0** · **18+ only**
-- **Status:** The v0 compliance + scan foundation (build order steps 1–7) is implemented and landed
-  on `main` — the P1 compliance scaffold, P2 guided capture + on-device read, the brand-neutral
-  routine + scores-only chat, the progress-trend + "did this help?" loop, plus the "Mist" design
-  system and the fairness-eval harness. The guided-capture flow runs **end-to-end on a physical
-  device** (Android dev build) against the **real classical-CV on-device read** (fairness-instrumented).
-- **Now building — makeup shade-match pivot (`feat/makeup-rebuild`):** the same on-device read now
-  also derives a **makeup shade** (depth + undertone + finish) and scores a brand-neutral product
-  catalog to a **fit %** for a shoppable shelf. ⚠️ **This layer is mid-wiring:** the shade/match/shop
-  logic is built and unit-tested, but most of it is **not yet reachable** from the running app — the
-  app you open on this branch today is **still the earlier skincare flow**. See
-  [What's built → Makeup shade-match](#makeup-shade-match-in-progress-featmakeup-rebuild) for the
-  exact built-vs-navigable status. Other remaining work: the vision-camera worklet quality metrics,
-  the iOS device path, and gated/dark features awaiting validation data (the absolute "skin age"
-  number; premium billing) — see [Roadmap](#roadmap).
+- **Status (R1 unified release, `release/tt-r1-unified`):** the makeup shade-match pivot has
+  **landed and is wired** — the app you open today is the **Shop-first** experience: a four-tab
+  shell (**Shop · For You · Community · Account**), the on-device shade read feeding a brand-neutral
+  shoppable shelf, a scan-share flow, a Community feed with a user routine-logger that publishes
+  into it, and a username/avatar identity seam. See
+  [What's built → Makeup shade-match, shop & community](#makeup-shade-match-shop--community-shipped)
+  for the full built-and-navigable breakdown, and
+  [`docs/COFOUNDER_HANDOFF.md`](docs/COFOUNDER_HANDOFF.md) for a practical file-by-feature map if
+  you're about to make a change.
+- The P1 compliance scaffold, P2 guided capture + on-device read, the brand-neutral skincare-routine
+  recommender + scores-only chat, the progress-trend + "did this help?" loop, the "Mist" design
+  system, and the fairness-eval harness remain the compliance/scan foundation underneath all of the
+  above. The guided-capture flow runs **end-to-end on a physical device** (Android dev build)
+  against the **real classical-CV on-device read** (fairness-instrumented).
+- Remaining open work: the vision-camera worklet quality metrics, the iOS device path, and
+  gated/dark features awaiting validation data (the absolute "skin age" number; premium billing) —
+  see [Roadmap](#roadmap).
 
 ---
 
@@ -99,12 +102,14 @@ with design tokens in `src/theme/tokens.ts`. The age gate and the policy reader 
 **glass popups** (the reader is a `transparentModal` route); result bands render in soft sage / mauve
 / clay pills via a per-dimension polarity map.
 
-The app home is a five-tab layout — **Today · Routine · ⊙ Scan · Trend · You** — under a **floating
-glass tab bar** (`GlassTabBar`); the center Scan opens the full-screen camera. This also surfaces the
-Routine, chat, Data Rights, and Policies screens that were previously built but unreachable. Layout is
-**foldable-aware** (Galaxy Fold): `Screen` applies safe-area insets additively and caps/centers
-content on wide screens, and `use-responsive` scales surfaces across the folded + unfolded aspect
-ratios (edge-to-edge is mandatory on Expo SDK 56). Portrait stays locked.
+The app home is a four-tab layout — **Shop · For You · Community · Account** — under a **floating
+glass tab bar** (`GlassTabBar`), landing on Shop; the shade scan is a header icon on For You, not a
+tab (see [Makeup shade-match, shop & community](#makeup-shade-match-shop--community-shipped)). This
+also surfaces the Routine (skincare), chat, Data Rights, and Policies screens, plus the within-user
+trend card (`AgeTrendCard`), which now renders on the scan result screen rather than a dedicated
+Trend tab. Layout is **foldable-aware** (Galaxy Fold): `Screen` applies safe-area insets additively
+and caps/centers content on wide screens, and `use-responsive` scales surfaces across the folded +
+unfolded aspect ratios (edge-to-edge is mandatory on Expo SDK 56). Portrait stays locked.
 
 > **Presentation-only, compliance preserved:** all compliance copy and `testID`s are unchanged, and
 > no analytics/ad SDK was added (both CI guards still pass). The design's "tuned fairly for every
@@ -146,48 +151,53 @@ ratios (edge-to-edge is mandatory on Expo SDK 56). Portrait stays locked.
   committed. Thresholds are **provisional and policy-owned** — the harness reports, it does not
   certify fairness.
 
-### Makeup shade-match (in progress, `feat/makeup-rebuild`)
+### Makeup shade-match, shop & community (shipped)
 
-The pivot: the same on-device read feeds a **makeup shade-match** layer. All of it is pure and
-Jest-tested; it consumes **only the derived read descriptors, never the image** (the compliance
-boundary is unchanged, see [`CLAUDE.md` §3](./CLAUDE.md)).
+The pivot has landed: the same on-device read feeds a **makeup shade-match** layer, and the app's
+navigation now runs **Shop-first**. All of the shade/match logic is pure and Jest-tested; it
+consumes **only the derived read descriptors, never the image** (the compliance boundary is
+unchanged, see [`CLAUDE.md` §3](./CLAUDE.md)).
 
+- **Navigation** — four tabs: **Shop · For You · Community · Account** (`app/(tabs)/_layout.tsx`,
+  landing on Shop). There is no Trend tab and no bottom-tab Scan; the shade scan is a camera icon in
+  the For You header (`app/(tabs)/index.tsx`) that pushes `/scan-gate` (on-device privacy reassurance)
+  → the full-screen camera route, which lives **outside** the tab navigator.
 - **Shade derivation** (`src/features/shade/`) — `deriveShade()` maps the read (tone lightness /
   warmth / olive cast / oiliness / skin-type) to a **foundation shade**: a depth (1–10, shown as a
   word — Fair/Light/Medium/Tan/Deep, **never a raw number**), an undertone (warm / cool / neutral /
-  olive), and a flattering finish. `ShadeResult` is the (unwired) result card.
+  olive), and a flattering finish. A branded **share flow** (`ScanShareCard.tsx` +
+  `use-scan-share.ts`) captures the derived-shade card only — never the photo — to the native share
+  sheet.
 - **Match boundary** (`src/features/match/`) — a brand-neutral `product-catalog`, `scoring` that
   emits **only a compatibility fit % (40–99)** from shade proximity + undertone + the user's
   coverage/skip preferences, `fit-reason` (cosmetic-only "why it fits" lines), and `sort`/ranking.
-- **Shop shelf** (`src/features/shop/`) — `ShopList` ranks the catalog best-first per person + filter
-  tab (top card badged "Best match"); pre-scan it shows a neutral shelf with no fit signal. A
-  `shelf-store` tracks saved items. **In-memory only** this phase (no persistence, no payments).
+- **Shop tab** (`app/(tabs)/shop.tsx`, `src/features/shop/ShopList.tsx`) — ranks the catalog
+  best-first per person + filter tab (top card badged "Best match"); pre-scan it shows a neutral
+  shelf with no fit signal. A `BagBar` (`src/features/checkout/`) appears once the bag has items and
+  routes into checkout.
 - **Setup preferences** (`src/features/preferences/` + `setup-ui/`) — structured (non-free-text)
   Setup answers: goals (multi), coverage (single), skips (multi). `session/personalization` holds the
   derived shade for the session (descriptors only, never the image).
 - **Makeup vocabulary** (`src/content/makeup-vocab.ts`) — the single source of truth for makeup
   descriptors (goals / coverage / skips / finishes / undertones / categories / fit-reason fragments),
   **additive to and never widening** the frozen skin-read vocabulary. Every string is blocklist-clean.
-- **Today-home + schedule shells** (`src/features/today-home/`, `schedule/`) — new Today-tab cards
-  (seasonal report, picked-for-you, shade-twins, running-low, today's-pick…) and a routine-schedule
-  store; all **props-only shells** this phase.
+- **Community + identity** (`src/features/community/`, `src/features/identity/`) — a Routines/Feed
+  tab screen seeded from local data (no backend table, no network; media is a color-swatch
+  placeholder, never a real image/video URL), plus a username/avatar identity seam on the Account
+  screen (`community_profile` columns on `profiles`, migration `0021`; the database is the sole
+  username-uniqueness authority).
+- **My Daily Routine** (`src/features/routine/`) — a separate concept from the older skincare-routine
+  recommender in `recommend/`: an on-device AM/PM product logger that can **publish into the
+  Community Routines feed** with one tap. See
+  [`docs/COFOUNDER_HANDOFF.md`](docs/COFOUNDER_HANDOFF.md#routines-my-daily-routine--task-13-new-this-release)
+  for the exact file map — these two "routine" concepts are easy to conflate.
+- **For You** (`app/(tabs)/index.tsx`) — greeting + affirmation + two ranked product rails
+  (`src/features/foryou/`); the week strip and skin-feel diary that used to live here were removed
+  this release.
 
-> ⚠️ **Wiring status — most of the above is not yet navigable.** The logic is built and tested, but
-> the **reachable** app on this branch is still the earlier skincare flow:
->
-> | Piece | State |
-> |-------|-------|
-> | `app/(tabs)/shop.tsx` | route file exists but **not registered** in `(tabs)/_layout.tsx`; `GlassTabBar`'s `TabKey` has no `'shop'` → **unreachable** |
-> | `ShadeResult` / `deriveShade` | built + unit-tested; **zero references under `app/`** → never wired |
-> | `today-home/*` cards | pure shells; **zero references under `app/`** |
-> | `app/setup/{goals,coverage,skips}.tsx`, `app/paywall.tsx`, `app/scan-gate.tsx` | wired route files, but **no entry point** from any screen (reachable only directly / from tests) |
-> | `(tabs)/index.tsx`, `(tabs)/routine.tsx`, `scan/result.tsx` | **still the old skincare flow** (week strip + diary; skincare routine + chat; CV read) — not re-pointed at the makeup path |
->
-> This feature's plan/spec pair is **not** under `docs/superpowers/` (unlike every prior feature) —
-> source comments reference an external "plan B2–B5". Treat the makeup layer as unfinished scaffolding
-> until wired.
-
-The architecture and full module map live in [`docs/ARCHITECTURE.md`](./docs/ARCHITECTURE.md).
+For the exact file-by-feature map (which file to edit for a given change) and build-profile safety
+notes, see [`docs/COFOUNDER_HANDOFF.md`](docs/COFOUNDER_HANDOFF.md). The architecture and full
+module map live in [`docs/ARCHITECTURE.md`](./docs/ARCHITECTURE.md).
 
 ---
 
@@ -220,58 +230,79 @@ The architecture and full module map live in [`docs/ARCHITECTURE.md`](./docs/ARC
 ```
 app/                     Expo Router routes (gated by a fail-closed routing guard)
   _layout.tsx            ProfileProvider + routing guard mount
-  (tabs)/                tab nav (Today · Routine · ⊙ Scan · Trend · You) w/ floating glass tab bar
-    index.tsx            Today dashboard (week strip, routine summary, skin-feel diary, affirmation)
-    routine.tsx          Routine + scoped chat entry
-    trend.tsx            Within-user trend + recent-reads timeline
-    you.tsx              Skin profile + links to Data Rights & Policies
-    shop.tsx             Makeup shop shelf — NOT registered in _layout.tsx yet (unreachable; makeup rebuild)
-  age-gate.tsx           18+ gate
+  (tabs)/                tab nav (Shop · For You · Community · Account) w/ floating glass tab bar
+    shop.tsx             Makeup shop shelf — the landing tab (initialRouteName)
+    index.tsx            For You: greeting, affirmation, ranked product rails, routine summary widget
+    community.tsx        Community tab route wrapper (renders CommunityScreen, no props)
+    you.tsx              Account: skin profile, username/avatar, My Daily Routine logger, version marker,
+                         links to Data Rights & Policies
+  age-gate.tsx           18+ gate (native date picker + local one-time verification cache)
   consent.tsx            Biometric consent
   data/index.tsx         "Your Data" (withdraw / delete / account)
   policies/              Policy list + dynamic policy reader
   region-blocked.tsx     Not-available-in-region screen
-  scan/                  capture → result (+ trend/feedback) → routine (P2 + steps 6–7)
-  setup/                 makeup Setup wizard (goals → coverage → skips) — no entry point yet (makeup rebuild)
-  scan-gate.tsx          pre-scan on-device-privacy reassurance — no entry point yet (makeup rebuild)
-  paywall.tsx            TrueTone Plus pricing shell (no StoreKit) — no entry point yet (makeup rebuild)
+  scan-gate.tsx          Pre-scan on-device-privacy reassurance (pushed from the For You header camera icon)
+  scan/                  capture → result (shade share flow) → routine (P2 + steps 6–7)
+  setup/                 makeup Setup wizard (goals → coverage → skips)
+  routine.tsx            Skincare-routine + scoped chat entry (the OLDER `recommend/` routine, not "My Daily Routine")
+  checkout.tsx           Mock checkout screen (BagBar entry point)
+  paywall.tsx            TrueTone Plus pricing shell (no StoreKit)
   (dev)/                 dev-only routes
 src/
-  lib/                   supabase client, anon auth, region check, routing guard, profile context, scans client
+  lib/                   supabase client, anon auth, region check, routing guard, profile context, scans client,
+                         app-version (native version/build label)
   components/ui/         "Mist" glass primitives (MistBackground, Screen, GlassCard, GlassSheet, Button,
-                         Typography, GlassTabBar, ListRow, SectionLabel, use-responsive foldable sizing)
+                         AppHeader, TextField, Typography, GlassTabBar, ListRow, SectionLabel,
+                         use-responsive foldable sizing)
   theme/                 design tokens (palette, type, glass, Fitzpatrick scale)
   features/
     age-gate, consent, data-rights, onboarding, policies   (P1; reskinned as glass)
     capture/             guided camera + quality gate + auto-capture controller (device-only shell)
     read/                CvReadEngine (classical CV) + cv/ dimensions, image lifecycle, bands, dormant executorch shell
-    recommend/           deterministic routine engine, skincare library, RoutineView, scoped chat
-    today/               week strip, daily affirmation (pure, on-device wellness copy)
-    diary/               skin-feel mood picker + on-device AsyncStorage (purged by delete-everything)
+    recommend/           deterministic SKINCARE routine engine, skincare library, RoutineView, scoped chat
+                         (distinct from features/routine/ below)
+    today/               daily affirmation (pure, on-device wellness copy); WeekStrip module still exists
+                         but is no longer rendered on For You
+    diary/               skin-feel mood picker + on-device AsyncStorage — module exists, no longer rendered
+                         on For You; still purged by delete-everything if reachable elsewhere
     age/                 within-user trend card + skin-age engine (absolute gated dark by age-flags)
     feedback/            "did this help?" routine-feedback prompt (step 7)
     premium/             display-only entitlement seam (RevenueCat deferred; no biometric data)
     personalize/         per-user baseline (median+MAD) + "compared to your usual" copy; emphasizes routine (step 8)
-    ── makeup shade-match (feat/makeup-rebuild; logic built + tested, mostly not yet navigable) ──
-    shade/               deriveShade() read→foundation shade (depth/undertone/finish) + ShadeResult card (unwired)
+    checkout/            BagBar + bag-store — Shop → mock checkout entry point
+    ── makeup shade-match, shop, social (shipped this release) ──
+    shade/               deriveShade() read→foundation shade (depth/undertone/finish), ShadeMatchResult,
+                         ScanShareCard + use-scan-share (branded share flow, derived descriptors only)
     match/               match-types, scoring (fit % 40–99), product-catalog, fit-reason, sort/ranking
     shop/                ShopList shelf + ProductCard + FilterTabs + shelf-store (in-memory saved items)
     preferences/         structured Setup answers (goals/coverage/skips) + preferencesStore
     setup-ui/            pure Setup toggle helpers (goal-selection, skip-selection)
     session/             per-session personalization store — derived shade only, never the image
     schedule/            in-memory routine-schedule store (no notifications this phase)
-    today-home/          new Today-tab cards (seasonal report, picked-for-you, shade-twins, …) — props-only shells
+    today-home/          Today-style cards (seasonal report, picked-for-you, shade-twins, …) — props-only
+                         shells; no `app/` references yet
+    foryou/              For You product rails + pre-scan card (for-you-profile, ProductRail, FindYourShadeCard)
+    identity/            CommunityProfile seam — username/avatar validation, repository, hook (migration 0021)
+    community/           Community screen, seed data, feed hook, post/routine cards (local-only, no backend)
+    routine/             "My Daily Routine" — on-device AM/PM product logger + one-tap publish into
+                         Community (distinct from recommend/'s skincare routine)
   content/               policy manifest (version source of truth) + markdown/bodies; makeup-vocab.ts (shade-match descriptors)
 supabase/
-  migrations/            0001 schema → 0012 routine feedback (scans, RPCs, backup purge, routine, skin-age)
+  migrations/            0001 schema → 0021 profile identity (scans, RPCs, backup purge, routine, skin-age,
+                         username/avatar)
   functions/             routine-chat Edge Function (+ _shared compliance copies)
   tests/                 pgTAP suites (RLS, consent immutability, RPCs, retention, scans)
 scripts/                 check-no-analytics-sdk.mjs + check-no-image-egress.mjs (CI guards)
 eval/                    fairness-eval dev tool (Fitzpatrick metrics; host/CI only, never bundled)
 test/                    Jest setup + node:test integration (gate-flow, scans)
-docs/                    architecture + ops checklists + superpowers plans/specs
+docs/                    architecture + ops checklists + superpowers plans/specs + COFOUNDER_HANDOFF.md
 data/                    compliance spec PDFs (source of truth, not shipped)
 ```
+
+> **Navigating a feature?** [`docs/COFOUNDER_HANDOFF.md`](docs/COFOUNDER_HANDOFF.md) turns this
+> tree into a task-oriented map ("I want to change the Shop ranking / add a Community feature /
+> touch the design system — which files?") plus build-profile safety notes and verified test
+> commands per area.
 
 ---
 
@@ -419,13 +450,14 @@ Build order (P1 first — biometric compliance cannot be retrofitted):
 6. ✅ Brand-neutral routine + scores-only "why this" chat
 7. ✅ Progress re-scan + honest within-user trend + "did this help?" feedback
 
-In progress (`feat/makeup-rebuild`):
+Shipped (`release/tt-r1-unified`):
 
-- 🚧 **Makeup shade-match** — on-device read → foundation shade (depth / undertone / finish) →
-  brand-neutral product fit % → shoppable shelf, plus a structured Setup wizard. **Logic built and
-  unit-tested; wiring incomplete** — the Shop tab is unregistered, `ShadeResult`/`today-home` are
-  unreferenced under `app/`, and the Setup wizard has no entry point, so the reachable app is still
-  the skincare flow. See [What's built → Makeup shade-match](#makeup-shade-match-in-progress-featmakeup-rebuild).
+- ✅ **Makeup shade-match, shop & community** — on-device read → foundation shade (depth /
+  undertone / finish) → brand-neutral product fit % → shoppable shelf, a structured Setup wizard, a
+  scan-share flow, a Community feed with a user routine-logger, and a username/avatar identity seam.
+  **Wired and navigable** — Shop is the landing tab; Community replaces the old Trend tab. See
+  [What's built → Makeup shade-match, shop & community](#makeup-shade-match-shop--community-shipped)
+  and [`docs/COFOUNDER_HANDOFF.md`](docs/COFOUNDER_HANDOFF.md).
 
 Gated / dark (built, awaiting sign-off — not user-visible):
 

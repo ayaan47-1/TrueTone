@@ -1,21 +1,25 @@
 # TrueTone Architecture & Codemap
 
-> **Scope.** Sections 1 through the fairness-eval tool below map what has landed on `main`: the
-> **P1 compliance scaffold**, the **P2 capture + on-device-read pipeline** (shipped read =
-> **classical computer vision**, `CvReadEngine`), the **brand-neutral routine + scores-only chat**
+> **Scope.** This doc maps the codebase as of `release/tt-r1-unified` @ `4e693f9`: the **P1
+> compliance scaffold**, the **P2 capture + on-device-read pipeline** (shipped read = **classical
+> computer vision**, `CvReadEngine`), the **brand-neutral skincare routine + scores-only chat**
 > (build-order step 6), the **"Mist" liquid-glass design system**, the **progress-trend + "did this
-> help?" loop** (step 7), and the **fairness-eval dev tool** (migrations `0001`–`0012`, all modules
-> below). The device-gated pieces are the native JPEG decode + the worklet-backed quality metrics;
-> an `ExecutorchEngine` ML shell exists but is **dormant** (never instantiated — reserved for a
-> future model).
+> help?" loop** (step 7), the **fairness-eval dev tool** (migrations `0001`–`0012`), and the
+> **shipped makeup shade-match / shop / community layer** (migration `0021`, see
+> [Makeup shade-match, shop & community](#makeup-shade-match-shop--community-layer-shipped) below).
+> The device-gated pieces are the native JPEG decode + the worklet-backed quality metrics; an
+> `ExecutorchEngine` ML shell exists but is **dormant** (never instantiated — reserved for a future
+> model).
 >
-> The final section, [**Makeup shade-match layer**](#makeup-shade-match-layer-featmakeup-rebuild--in-progress),
-> covers the in-progress pivot on `feat/makeup-rebuild` — **built + unit-tested, but mostly not yet
-> wired into a route**. Where that layer is unwired, the routing/tab tables in this doc still
-> describe the live app accurately (that is *why* they are still accurate); a note flags where they
-> will go stale once the makeup screens are wired in.
+> **Navigation has changed from the P1–P2 description below.** The app now lands on a **four-tab
+> Shop-first** layout (Shop · For You · Community · Account), not the five-tab Today/Routine/Scan/
+> Trend/You bar this doc originally described. The [App routing](#app-routing-expo-router) section
+> reflects the current tabs; anywhere else in this doc that still says "Today" or "Trend" tab is
+> describing the pre-pivot layout for historical modules that still exist (e.g. the within-user
+> trend card now renders on the scan result screen, not a dedicated tab).
 >
-> Source of truth for *rules*: [`../CLAUDE.md`](../CLAUDE.md). This doc maps *what exists*.
+> Source of truth for *rules*: [`../CLAUDE.md`](../CLAUDE.md). This doc maps *what exists*. For a
+> task-oriented "which file do I edit" map, see [`COFOUNDER_HANDOFF.md`](COFOUNDER_HANDOFF.md).
 
 ## The compliance boundary
 
@@ -62,35 +66,33 @@ that remount-loops `ProfileProvider`) based on the computed `route`:
 | `consent` | biometric consent | `consent.tsx` → `features/consent/Consent` |
 | `home` | **Today dashboard (tab nav)** | `(tabs)/index.tsx` |
 
-`home` resolves to the **`(tabs)` group** (`(tabs)/index.tsx` → path `/`, so the gate redirect is
+`home` resolves to the **`(tabs)` group** (`(tabs)/shop.tsx` → path `/`, so the gate redirect is
 unchanged). A **floating glass tab bar** (`GlassTabBar`, custom `tabBar` prop — the default bar
-can't render glass) carries five items: **Today · Routine · ⊙ Scan · Trend · You**. The center
-**Scan** is a button that `router.push('/scan')` (the camera stays a full-screen route, not a tab).
+can't render glass) carries four items: **Shop · For You · Community · Account**
+(`GlassTabBar`'s `TabKey = 'shop' | 'index' | 'community' | 'you'`). `unstable_settings` in
+`(tabs)/_layout.tsx` sets `initialRouteName: 'shop'`, so **Shop, not For You, is the app's home**.
+There is no dedicated Scan tab; the shade scan is a camera icon in the For You header
+(`app/(tabs)/index.tsx`) that pushes `/scan-gate` (on-device privacy reassurance) → the full-screen
+camera route, outside the tab navigator.
 
 | Tab | Screen | Surfaces |
 |-----|--------|----------|
-| Today | `(tabs)/index.tsx` | week strip, today's-routine summary, skin-feel diary, daily affirmation, disclaimer |
-| Routine | `(tabs)/routine.tsx` | latest routine (`RoutineView`) + scoped chat entry |
-| Trend | `(tabs)/trend.tsx` | within-user trend (`AgeTrendCard`, flag-gated skin-age) + recent-reads timeline |
-| You | `(tabs)/you.tsx` | skin profile + `ListRow` links to **Data Rights** (`/data`) and **Policies** (`/policies`) |
+| Shop | `(tabs)/shop.tsx` | brand-neutral shop shelf (`ShopList`) ranked by the derived shade + Setup preferences; `BagBar` once the bag has items |
+| For You | `(tabs)/index.tsx` | greeting + daily affirmation, ranked product rails (`src/features/foryou/`), the My Daily Routine summary widget, camera icon → `/scan-gate` |
+| Community | `(tabs)/community.tsx` → `CommunityScreen` | Routines/Feed tabs, seeded posts + user-published routines, product-tag drawer |
+| Account | `(tabs)/you.tsx` | username/avatar identity, My Daily Routine logger, native version marker, skin profile + `ListRow` links to **Data Rights** (`/data`) and **Policies** (`/policies`) |
 
 This surfaces what were previously **orphaned** screens (Routine, chat, Data Rights, Policies — built
 but unreachable). The standing cosmetic disclaimer that lived on the old onboarding entry now renders
-in the Today footer (and You). `policies/index.tsx` (list) and `policies/[doc].tsx` (reader) remain
-always-reachable; `data/index.tsx` ("Your Data") is reached from the You tab.
+on the For You / Account screens. `policies/index.tsx` (list) and `policies/[doc].tsx` (reader) remain
+always-reachable; `data/index.tsx` ("Your Data") is reached from the Account tab.
 
 Behind the gates, the scan flow lives under `app/scan/`: `index.tsx` (guided capture) →
-`result.tsx` (fetch latest scan, render the dimension-list read; "Scan again" + feedback render
-inside the scroll via `Result`'s `footer` slot). The routine is also reachable as a tab.
-
-> **Makeup-rebuild caveat (`feat/makeup-rebuild`).** This routing table is still accurate on that
-> branch **only because the makeup screens aren't wired yet.** `app/(tabs)/shop.tsx` exists but is
-> **not registered** in `(tabs)/_layout.tsx`, and `GlassTabBar`'s `TabKey` has no `'shop'` — the
-> Shop tab is unreachable. `app/setup/{goals,coverage,skips}.tsx`, `app/scan-gate.tsx`, and
-> `app/paywall.tsx` are wired route files with **no entry point** from any screen. The moment the
-> Shop tab is registered (or Scan is re-pointed at `scan-gate` → the makeup read), this table and the
-> "five items" tab bar go stale — update them together. See the
-> [Makeup shade-match layer](#makeup-shade-match-layer-featmakeup-rebuild--in-progress) section.
+`result.tsx` (fetch latest scan, render the dimension-list read + the within-user trend card
+(`AgeTrendCard`) + a shade share flow; "Scan again" + feedback render inside the scroll via
+`Result`'s `footer` slot). The **skincare** routine (`recommend/`, distinct from the on-device "My
+Daily Routine" logger under `features/routine/`) is reached from `app/routine.tsx`, a root-level
+route, not a tab.
 
 ## Gating logic — `src/lib/`
 
@@ -120,7 +122,7 @@ nextRoute({ isUS, is18, consent }): 'region-blocked' | 'age-gate' | 'consent' | 
 | Module | What it does | Compliance-critical behavior |
 |--------|--------------|------------------------------|
 | `age-gate/age.ts` | `computeIs18Plus(dob, now)` — precise age | pure; no persistence |
-| `age-gate/AgeGate.tsx` | DOB entry screen | **DOB never persisted** — only `is_18_plus` + `age_verified_at` written; under-18 input is discarded |
+| `age-gate/AgeGate.tsx` | DOB entry screen — **this release replaced free-text DOB entry with the native iOS/Android date picker** + a local, one-time verification cache so a passed user isn't re-asked every launch | **DOB never persisted** — only `is_18_plus` + `age_verified_at` written; under-18 input is discarded |
 | `consent/consent-copy.ts` | Versioned disclosure text | mirrors BIPA §15(b) + MHMDA (what / purpose / retention) |
 | `consent/Consent.tsx` | Consent screen | checkbox **not pre-checked**; button disabled until checked; calls `record_consent` RPC |
 | `data-rights/DataRights.tsx` | Withdraw / delete-data / delete-account | each calls its RPC behind a `confirm()` dialog |
@@ -189,18 +191,23 @@ derived number (or `null`) is persisted via `record_scan`, never the image.
 |--------|--------------|------------------------------|
 | `personalize/` | Per-user personal baseline (median+MAD over the user's own non-stub scan history), deviation classification vs `FRESHNESS_POLARITY`, and relative "compared to your usual" copy; `recommend/emphasize-routine.ts` applies display-time routine emphasis. | **Pure client-side; derived scores only**; cold start (< 3 priors) falls back to the aggregate freshness trend. |
 
-### Today dashboard + skin-feel diary — `today/`, `diary/`
+### For You + orphaned diary — `today/`, `diary/`
 
-The Today tab's content. The **skin-feel diary** is new user data; per `CLAUDE.md` it is stored
-**on-device only** (no server table) and wired into delete-everything.
+`today/AffirmationCard.tsx` is the one module here still rendered, on the **For You** tab
+(`app/(tabs)/index.tsx`) — not a "Today" tab, which no longer exists. `today/WeekStrip.tsx` and the
+entire `diary/` module (mood picker) were **removed from For You** in `release/tt-r1-unified`
+("today-declutter") and have **zero references under `app/`** as of this doc's audit — they are
+orphaned UI, not deleted code. `diary-storage.ts`'s purge function is still wired into
+`DataRights.tsx`'s delete-everything flow, so no user data is stranded by the removal; only the
+input screen is gone.
 
 | Module | What it does | Compliance-critical behavior |
 |--------|--------------|------------------------------|
-| `today/week.ts` | `toDateKey`, `buildWeek`, `formatShortDate` — pure week-strip + date math | pure; no persistence |
-| `today/WeekStrip.tsx` | Row of day pills, marking days with a scan; today highlighted | reads scan dates only |
-| `today/affirmations.ts`, `AffirmationCard.tsx` | Rotating local affirmation (day-of-year) + Share | **pure wellness copy**, cosmetic vocabulary only; no data, no network |
-| `diary/moods.ts`, `MoodPicker.tsx` | 5-face "how does your skin feel today?" row | **cosmetic wording only** (skin *feel*, never a condition) |
-| `diary/diary-storage.ts` | `getMood`/`setMood`/`clearDiary` over AsyncStorage (single key `truetone.diary.v1`) | **on-device only**; `clearDiary()` is called from `delete_my_data`/`delete_account` in `DataRights` so the diary is purged with everything else |
+| `today/week.ts` | `toDateKey`, `buildWeek`, `formatShortDate` — pure week-strip + date math | pure; no persistence; still used by `features/routine/`'s day-key logic |
+| `today/WeekStrip.tsx` | Row of day pills, marking days with a scan; today highlighted | **orphaned — zero `app/` references** since the today-declutter pass |
+| `today/affirmations.ts`, `AffirmationCard.tsx` | Rotating local affirmation (day-of-year) + Share (this release added attribution text, a download link, and a 48pt tap target to the share action) | **pure wellness copy**, cosmetic vocabulary only; no data, no network |
+| `diary/moods.ts`, `MoodPicker.tsx` | 5-face "how does your skin feel today?" row | **orphaned — zero `app/` references**; cosmetic wording only where it was shown |
+| `diary/diary-storage.ts` | `getMood`/`setMood`/`clearDiary` over AsyncStorage (single key `truetone.diary.v1`) | **on-device only**; `clearDiary()` is still called from `delete_my_data`/`delete_account` in `DataRights` so any pre-existing diary data is still purged |
 
 ### Design system — "Mist" (`components/ui/` + `theme/`)
 
@@ -214,6 +221,7 @@ stay green).
 | `components/ui/MistBackground.tsx` | `expo-linear-gradient` mist mesh backdrop |
 | `components/ui/{GlassCard,GlassSheet}.tsx` | `expo-blur` frosted surfaces (the age gate + policy reader render as glass popups; the reader is a `transparentModal` route) |
 | `components/ui/{Screen,Button,Typography}.tsx` | Layout shell + primitives (Fraunces + Mulish via `@expo-google-fonts`). `Screen` applies safe-area insets **additively** (`topGap`/`bottomGap`) and centers + caps content width on wide/unfolded screens |
+| `components/ui/AppHeader.tsx` | Shared screen header (safe-area-aware, centered title, fixed 48pt leading/trailing slots so a long title truncates rather than colliding with an icon). Added this release; not yet adopted on every screen — check call sites before assuming universal use |
 | `components/ui/GlassTabBar.tsx` | Floating frosted pill tab bar (custom `tabBar`); exports `TAB_BAR_CLEARANCE` for screen bottom padding |
 | `components/ui/{ListRow,SectionLabel,Disclaimer}.tsx`, `tab-icons.tsx` | Row link, centered divider label, standing cosmetic disclaimer, hand-drawn tab glyphs (no icon dependency) |
 | `components/ui/use-responsive.ts` | Foldable-aware sizing (`useResponsive`, `clampContentWidth`, `captureOvalSize`, `bloomMetrics`); edge-to-edge is mandatory on SDK 56, so surfaces scale to the Galaxy Fold's folded + unfolded aspect ratios |
@@ -399,12 +407,13 @@ equity claim ships from synthetic results**.
   `fetch`; plain Node works). Needs a running local Supabase. Excluded from the default jest run.
 - **DB** — pgTAP via `npx supabase test db`.
 
-## Makeup shade-match layer (`feat/makeup-rebuild` — in progress)
+## Makeup shade-match, shop & community layer (shipped)
 
 The pivot layers a **makeup shade-match** product on top of the existing on-device read, inside the
 **same compliance boundary** — every module below consumes **only the derived read descriptors
 (tone lightness / warmth / olive / oiliness / skin-type), never the image**, and the only number it
-surfaces to the UI is a compatibility fit %. It is pure and Jest-tested. Data flow:
+surfaces to the UI is a compatibility fit %. It is pure and Jest-tested, and **it is wired**: Shop is
+the app's landing tab. Data flow:
 
 ```
 on-device read (CvReadEngine) → descriptors
@@ -415,27 +424,30 @@ deriveShade()        → foundation shade { depth 1–10 (shown as a WORD), unde
         ▼
 match/scoring        → compatibility fit % (40–99) per catalog product
         ▼
-shop/ShopList        → brand-neutral shelf, ranked best-first ("Best match" badge)
+shop/ShopList (app/(tabs)/shop.tsx)  → brand-neutral shelf, ranked best-first ("Best match" badge)
 ```
 
-| Module (`src/features/`) | What it does |
-|---|---|
-| `shade/` | `deriveShade()` maps the read → a foundation shade (depth, undertone, finish). `ShadeResult` is the result card. **Unwired** — zero references under `app/`. |
-| `match/` | Brand-neutral `product-catalog`, `scoring` (emits only the fit %), `fit-reason` (cosmetic-only "why it fits"), `sort`/ranking. Pure. |
-| `shop/` | `ShopList` + `shelf-store` (saved items). **In-memory only** this phase — no persistence, no payments. `app/(tabs)/shop.tsx` exists but is **not registered** in `(tabs)/_layout.tsx` and `GlassTabBar`'s `TabKey` has no `'shop'` → **unreachable**. |
-| `preferences/` + `setup-ui/` | Structured (non-free-text) Setup answers: goals (multi), coverage (single), skips (multi). Wizard at `app/setup/*` — wired routes, but **no entry point** from another screen yet. |
-| `session/` | Per-session shade store (`personalization`) — holds the derived shade for the session, descriptors only. |
-| `schedule/` | A manual routine-builder store (no notifications). |
-| `today-home/` | New Today-tab cards (seasonal report / picked-for-you / shade-twins). **Pure shells, zero `app/` references.** |
+| Module (`src/features/`) | What it does | Wired at |
+|---|---|---|
+| `shade/` | `deriveShade()` maps the read → a foundation shade (depth, undertone, finish). `ShadeMatchResult` renders it; `ScanShareCard` + `use-scan-share` capture a branded card (descriptors only, never the photo) to the native share sheet. | `app/scan/result.tsx` |
+| `match/` | Brand-neutral `product-catalog`, `scoring` (emits only the fit %), `fit-reason` (cosmetic-only "why it fits"), `sort`/ranking. Pure. | consumed by `shop/`, `foryou/`, `community/` (shared catalog ids) |
+| `shop/` | `ShopList` + `shelf-store` (saved items, in-memory this phase — no persistence, no payments). | `app/(tabs)/shop.tsx`, the tab-bar landing screen |
+| `preferences/` + `setup-ui/` | Structured (non-free-text) Setup answers: goals (multi), coverage (single), skips (multi). | `app/setup/{goals,coverage,skips}.tsx` |
+| `session/` | Per-session shade store (`personalization`) — holds the derived shade for the session, descriptors only. | consumed by Shop + For You |
+| `schedule/` | A manual routine-builder store (no notifications). | not yet referenced under `app/` — still a shell |
+| `today-home/` | Cards (seasonal report / picked-for-you / shade-twins). | **still pure shells, zero `app/` references** — unlike the rest of this section, not yet wired |
+| `foryou/` | `for-you-profile.ts` (`resolveForYouProfile`, `pickedForYourShade`, `featuredProducts`), `ProductRail`, `FindYourShadeCard` (pre-scan neutral state). | `app/(tabs)/index.tsx` |
+| `identity/` | `CommunityProfile` username/avatar seam: validation (`community-profile-types.ts`), Supabase-backed repository, `use-community-profile` hook. DB authority: migration `0021_profile_identity.sql` (case-insensitive unique index on `username`; `avatar_uri` is a local file URI in this release, no cross-device media storage). | `app/(tabs)/you.tsx` |
+| `community/` | `CommunityScreen` (Routines/Feed tabs, no props), `community-seed.ts` (local seed data — **no backend table, no network**; media is a color-swatch placeholder), `use-community-feed` (like/save/share state). | `app/(tabs)/community.tsx` |
+| `routine/` | **"My Daily Routine"** — an on-device AM/PM product logger (`use-daily-routine`, `routine-storage` over AsyncStorage), distinct from `recommend/`'s skincare-routine engine. `routine-publish.ts` builds a `CommunityRoutine` from a day's logged products and appends it to a single on-device published-routines list, which `community/use-published-routines` merges ahead of the seeded routines. | logger UI in `app/(tabs)/you.tsx`; summary widget in `app/(tabs)/index.tsx`; publishes into Community |
 
 Content lives in `src/content/makeup-vocab.ts` — the single source of truth for makeup descriptors
 (goals / coverage / skips / finishes / undertones / categories / fit-reason fragments), **additive
 to and never widening** the frozen skin-read vocabulary.
 
-> ⚠️ **Wiring status — mid-flight.** The logic above is built and unit-tested, but **most of it is
-> not yet reachable from the running app**. The app you open on this branch today is **still the
-> earlier skincare flow** (gates → Today/Routine/Trend/You → the old CV read at `scan/result`).
-> Wiring the makeup path in (registering the Shop tab, re-pointing Scan at the shade read, mounting
-> `ShadeResult` and the `today-home` cards) is the open work — and the routing tables earlier in this
-> doc go stale the moment it lands, so update them together. The compliance rules in
-> [`../CLAUDE.md`](../CLAUDE.md) already cover this path; do not weaken them to ship a screen.
+**Not yet wired:** `today-home/*` remains pure shells with zero `app/` references — the one piece
+of this layer still awaiting integration. Everything else in the table above is reachable from the
+running app as of `release/tt-r1-unified` @ `4e693f9`. The compliance rules in
+[`../CLAUDE.md`](../CLAUDE.md) already cover this whole path (share flow included); do not weaken
+them to ship a screen. For a task-oriented file map, see
+[`COFOUNDER_HANDOFF.md`](COFOUNDER_HANDOFF.md).
