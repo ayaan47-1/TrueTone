@@ -32,7 +32,9 @@ afterEach(() => personalization.reset());
 test('renders the shade name from the persisted shade', async () => {
   personalization.setScan(shade);
   await render(<ResultRoute />);
-  await waitFor(() => expect(screen.getByText('Medium Warm')).toBeTruthy());
+  // The shade name renders in both the visible result and the off-screen share card
+  // (Task 10), so assert one-or-more rather than exactly one.
+  await waitFor(() => expect(screen.getAllByText('Medium Warm').length).toBeGreaterThan(0));
 });
 
 test('renders the product picks rail (matched to the shade)', async () => {
@@ -44,7 +46,7 @@ test('renders the product picks rail (matched to the shade)', async () => {
 test('does NOT show the skin-read analysis (no medical disclaimer / skin-type line)', async () => {
   personalization.setScan(shade);
   await render(<ResultRoute />);
-  await waitFor(() => expect(screen.getByText('Medium Warm')).toBeTruthy());
+  await waitFor(() => expect(screen.getAllByText('Medium Warm').length).toBeGreaterThan(0));
   expect(screen.queryByText(/not a medical diagnosis/i)).toBeNull();
   expect(screen.queryByText(/Skin type feel:/i)).toBeNull();
 });
@@ -52,7 +54,7 @@ test('does NOT show the skin-read analysis (no medical disclaimer / skin-type li
 test('does NOT hit the scan-history network path in the shade flow', async () => {
   personalization.setScan(shade);
   await render(<ResultRoute />);
-  await waitFor(() => expect(screen.getByText('Medium Warm')).toBeTruthy());
+  await waitFor(() => expect(screen.getAllByText('Medium Warm').length).toBeGreaterThan(0));
   expect(mockFetchScanHistory).not.toHaveBeenCalled();
 });
 
