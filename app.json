@@ -63,7 +63,8 @@
           "merchantIdentifier": "",
           "enableGooglePay": false
         }
-      ]
+      ],
+      "expo-sharing"
     ],
     "extra": {
       "router": {},

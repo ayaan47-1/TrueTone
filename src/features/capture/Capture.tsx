@@ -252,19 +252,23 @@ export function Capture({ onCaptured, onCancel, devForceCapture = false }: Captu
         </Animated.View>
       </View>
 
-      {/* per-check status strip */}
+      {/* bottom: check chips + privacy reassurance + shutter + cancel, one frosted overlay in
+          normal flow (not two independently bottom-positioned views) so nothing can collide on a
+          short or notched screen. */}
       <View
-        style={[styles.checkStrip, { bottom: insets.bottom + (isShort ? 84 : 116) }]}
-        pointerEvents="none"
+        testID="capture-bottom-overlay"
+        style={[
+          styles.bottomOverlay,
+          { paddingBottom: insets.bottom + (isShort ? 14 : 20), gap: isShort ? 10 : 14 },
+        ]}
       >
-        <CheckChip label="Face" ok={quality.face} />
-        <CheckChip label="Light" ok={quality.lighting} />
-        <CheckChip label="Framing" ok={quality.distance} />
-        <CheckChip label="Focus" ok={quality.focus} />
-      </View>
+        <View style={styles.checkStrip} pointerEvents="none">
+          <CheckChip label="Face" ok={quality.face} />
+          <CheckChip label="Light" ok={quality.lighting} />
+          <CheckChip label="Framing" ok={quality.distance} />
+          <CheckChip label="Focus" ok={quality.focus} />
+        </View>
 
-      {/* bottom: privacy reassurance + cancel */}
-      <View style={[styles.bottomBar, { paddingBottom: insets.bottom + 16 }]}>
         <Text style={styles.lightHint}>Natural light works best</Text>
         {__DEV__ && devForceCapture ? (
           <Pressable
@@ -384,24 +388,27 @@ const styles = StyleSheet.create({
     shadowOffset: { width: 0, height: 0 },
   },
   countdown: { color: palette.white, fontFamily: fonts.displayLight, fontSize: 96, textShadowColor: 'rgba(0,0,0,0.4)', textShadowRadius: 12 },
-  checkStrip: { position: 'absolute', left: 0, right: 0, flexDirection: 'row', justifyContent: 'center', gap: 8 },
+  // Single frosted overlay holding the check chips + shutter + privacy + cancel, stacked in normal
+  // flow. Replaces two independently bottom-positioned views (a guessed pixel gap between them
+  // could collide on a short or notched screen); the layout engine now owns the spacing.
+  bottomOverlay: { position: 'absolute', left: 0, right: 0, bottom: 0, alignItems: 'center', paddingHorizontal: 24 },
+  checkStrip: { flexDirection: 'row', justifyContent: 'center', gap: 8 },
   chip: {
     flexDirection: 'row',
     alignItems: 'center',
     gap: 6,
-    paddingHorizontal: 11,
+    paddingHorizontal: 12,
     paddingVertical: 7,
     borderRadius: 999,
-    backgroundColor: 'rgba(31,26,20,0.5)', // warm frosted chip
-    borderWidth: StyleSheet.hairlineWidth * 2,
-    borderColor: 'rgba(255,255,255,0.12)',
+    backgroundColor: 'rgba(255,255,255,0.14)', // soft frosted glass, not a dark HUD panel
+    borderWidth: StyleSheet.hairlineWidth,
+    borderColor: 'rgba(255,255,255,0.22)',
   },
-  chipOk: { backgroundColor: 'rgba(47,125,82,0.24)', borderColor: 'rgba(47,125,82,0.45)' },
-  chipDot: { width: 7, height: 7, borderRadius: 4, backgroundColor: 'rgba(255,255,255,0.5)' },
+  chipOk: { backgroundColor: 'rgba(47,125,82,0.22)', borderColor: 'rgba(47,125,82,0.4)' },
+  chipDot: { width: 6, height: 6, borderRadius: 3, backgroundColor: 'rgba(255,255,255,0.55)' },
   chipDotOk: { backgroundColor: PASS },
-  chipText: { color: 'rgba(255,255,255,0.72)', fontFamily: fonts.bodySemibold, fontSize: 13 },
+  chipText: { color: 'rgba(255,255,255,0.78)', fontFamily: fonts.bodyMedium, fontSize: 13 },
   chipTextOk: { color: palette.white },
-  bottomBar: { position: 'absolute', left: 0, right: 0, bottom: 0, alignItems: 'center', gap: 12, paddingHorizontal: 24 },
   lightHint: { color: 'rgba(255,255,255,0.66)', fontFamily: fonts.bodyMedium, fontSize: 14, marginBottom: 2 },
   shutter: { width: 74, height: 74, borderRadius: 37, borderWidth: 4, borderColor: 'rgba(255,255,255,0.92)', alignItems: 'center', justifyContent: 'center', marginBottom: 2 },
   shutterInner: { width: 58, height: 58, borderRadius: 29, backgroundColor: 'rgba(255,255,255,0.22)' },
