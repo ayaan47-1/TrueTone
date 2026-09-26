@@ -7,16 +7,17 @@ import {
   GlassCard,
   ListRow,
   Disclaimer,
+  Caption,
   TAB_BAR_CLEARANCE,
   Rise,
   PrimaryButton,
-  Caption,
   PressableScale,
 } from '../../src/components/ui';
 import { TextField } from '../../src/components/ui/TextField';
 import { useProfile } from '../../src/lib/profile-context';
 import { useCommunityProfile } from '../../src/features/identity/use-community-profile';
 import { RoutineLogger } from '../../src/features/routine/components/RoutineLogger';
+import { nativeVersionLabel } from '../../src/lib/app-version';
 
 /**
  * Account — profile & controls. Surfaces the previously-orphaned data-rights and legal
@@ -36,6 +37,7 @@ export default function YouScreen() {
   const [usernameDraft, setUsernameDraft] = useState('');
   const [usernameError, setUsernameError] = useState<string | null>(null);
   const [saving, setSaving] = useState(false);
+  const versionLabel = nativeVersionLabel();
 
   const draft = usernameDraft || profile?.username || '';
 
@@ -121,7 +123,7 @@ export default function YouScreen() {
       </Rise>
 
       <View className="gap-3">
-      <Rise index={2}>
+      <Rise index={3}>
       <GlassCard flat className="px-6 py-1" radius={22}>
         <ListRow
           label="Your Data"
@@ -129,7 +131,7 @@ export default function YouScreen() {
         />
       </GlassCard>
       </Rise>
-      <Rise index={3}>
+      <Rise index={4}>
       <GlassCard flat className="px-6 py-1" radius={22}>
         <ListRow
           label="Privacy & Policies"
@@ -137,12 +139,12 @@ export default function YouScreen() {
         />
       </GlassCard>
       </Rise>
-      <Rise index={4}>
+      <Rise index={5}>
       <GlassCard flat className="px-6 py-1" radius={22}>
         <ListRow label="Notifications" onPress={() => {}} />
       </GlassCard>
       </Rise>
-      <Rise index={5}>
+      <Rise index={6}>
       <GlassCard flat className="px-6 py-1" radius={22}>
         <ListRow label="Delete everything" destructive hideChevron onPress={() => router.push('/data')} />
       </GlassCard>
@@ -154,16 +156,25 @@ export default function YouScreen() {
           it cost most of a device session on 2026-07-26. Stripped from any release build by the
           __DEV__ guard. */}
       {__DEV__ && (
-        <Rise index={6}>
+        <Rise index={7}>
           <GlassCard flat className="px-6 py-1 mt-3" radius={22}>
             <ListRow label="DEV · Region overlay" onPress={() => router.push('/bbox-overlay')} />
           </GlassCard>
         </Rise>
       )}
 
-      <Rise index={7}>
+      <Rise index={8}>
         <View className="mt-7"><Disclaimer /></View>
       </Rise>
+
+      {/* Low-emphasis build marker so testers can name the installed version + native
+          build number. Values come from the binary via expo-application (see
+          src/lib/app-version.ts); renders nothing when unavailable (e.g. Expo Go). */}
+      {versionLabel ? (
+        <Rise index={9}>
+          <Caption className="mt-4 text-center text-[11px] text-ink-muted">{versionLabel}</Caption>
+        </Rise>
+      ) : null}
     </Screen>
   );
 }
