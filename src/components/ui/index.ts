@@ -1,6 +1,7 @@
 // "Mist" design-system primitives — Soft-Surrealism liquid glass.
 export { MistBackground } from './MistBackground';
 export { Screen, HEADER_CLEARANCE } from './Screen';
+export { AppHeader, APP_HEADER_CONTROL_SIZE } from './AppHeader';
 export { GlassCard } from './GlassCard';
 export { GlassSheet } from './GlassSheet';
 export { PrimaryButton } from './Button';
