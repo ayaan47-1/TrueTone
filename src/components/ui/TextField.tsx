@@ -11,6 +11,7 @@ export interface TextFieldProps {
   autoCapitalize?: TextInputProps['autoCapitalize'];
   keyboardType?: 'default' | 'email-address' | 'number-pad';
   error?: string;
+  testID?: string;
 }
 
 /** Themed single-line text input, controlled by the caller. */
@@ -23,11 +24,13 @@ export function TextField({
   autoCapitalize,
   keyboardType,
   error,
+  testID,
 }: TextFieldProps) {
   return (
     <View className="flex-col">
       {label ? <Body className="mb-1.5">{label}</Body> : null}
       <TextInput
+        testID={testID}
         value={value}
         onChangeText={onChangeText}
         placeholder={placeholder}
