@@ -89,15 +89,15 @@ export const CATEGORY_LABELS: Record<ProductCategory, string> = {
   prep: 'Prep & skincare',
 };
 
-// --- Shop filter tabs (All / Face / Eyes / Lips) -----------------------------------------
-export const FILTERS = ['all', 'face', 'eyes', 'lips'] as const;
+// --- Shop filter tabs (All / Lips / Eyes / Face) -----------------------------------------
+export const FILTERS = ['all', 'lips', 'eyes', 'face'] as const;
 export type Filter = (typeof FILTERS)[number];
 
 export const FILTER_LABELS: Record<Filter, string> = {
   all: 'All',
-  face: 'Face',
-  eyes: 'Eyes',
   lips: 'Lips',
+  eyes: 'Eyes',
+  face: 'Face',
 };
 
 // Badge shown on the top-scoring product per person AND per filter.
