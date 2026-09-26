@@ -41,7 +41,6 @@ jest.mock('../../src/features/identity/use-community-profile', () => ({
 }));
 
 import TodayScreen from '../(tabs)/index';
-import TrendScreen from '../(tabs)/trend';
 import YouScreen from '../(tabs)/you';
 
 const flush = () => new Promise((resolve) => setTimeout(resolve, 0));
@@ -69,10 +68,8 @@ test('For You shows the disclaimer and the shade-match icon opens the scan gate,
   await flush();
 });
 
-test('Trend renders its empty-state shell', async () => {
-  const view = await render(<TrendScreen />);
-  expect(view.getByText('Trend')).toBeTruthy();
-});
+// The Trend tab was removed in commerce-navigation tasks 08-09 (Community replaces it);
+// its screen and test are gone. Tab layout is covered by app/__tests__/tabs-layout.test.tsx.
 
 test('You surfaces the data-rights and policies routes', async () => {
   const view = await render(<YouScreen />);
