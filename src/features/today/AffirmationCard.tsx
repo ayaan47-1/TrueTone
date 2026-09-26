@@ -12,7 +12,7 @@ import { pickAffirmation } from './affirmations';
 export function AffirmationCard({ today = new Date() }: { today?: Date }) {
   const text = pickAffirmation(today);
   const onShare = () => {
-    void Share.share({ message: `${text}\n\n— TrueTone` });
+    void Share.share({ message: `${text}\n\n— TrueTone\nhttps://truetone.app/download` });
   };
   return (
     <View style={styles.card}>
@@ -33,5 +33,12 @@ export function AffirmationCard({ today = new Date() }: { today?: Date }) {
 
 const styles = StyleSheet.create({
   card: { borderRadius: 26, overflow: 'hidden', padding: 24 },
-  share: { marginTop: 14, alignSelf: 'flex-start', paddingVertical: 6 },
+  share: {
+    marginTop: 14,
+    alignSelf: 'flex-start',
+    paddingVertical: 6,
+    minHeight: 48,
+    minWidth: 48,
+    justifyContent: 'center',
+  },
 });
