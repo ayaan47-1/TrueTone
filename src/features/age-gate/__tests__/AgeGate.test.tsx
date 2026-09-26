@@ -11,6 +11,7 @@ jest.mock('../../../lib/supabase', () => ({
     return mockCameraDemo;
   },
 }));
+const logSpy = jest.spyOn(console, 'log').mockImplementation(() => {});
 
 // `@react-native-community/datetimepicker` is auto-mocked via __mocks__/@react-native-community/
 // datetimepicker.js (a bare View forwarding every prop, incl. `onChange`, so tests can drive a
@@ -34,7 +35,7 @@ beforeEach(async () => {
   await AsyncStorage.clear();
 });
 
-test('passes 18+ by writing only the derived flag; no DOB in any call', async () => {
+test('passes 18+ by writing only the derived flag; no DOB in any call/log', async () => {
   const onPass = jest.fn();
   const { getByTestId } = await render(<AgeGate userId="u1" onPass={onPass} />);
   pickDob(getByTestId('dob-picker'), DOB_2000);
@@ -44,6 +45,7 @@ test('passes 18+ by writing only the derived flag; no DOB in any call', async ()
   const payload = JSON.stringify(mockUpdate.mock.calls);
   expect(payload).toContain('is_18_plus');
   expect(payload).not.toContain('2000-01-01'); // DOB never sent
+  expect(JSON.stringify(logSpy.mock.calls)).not.toContain('2000-01-01'); // never logged
 });
 
 test('persists a user-scoped AsyncStorage verification record with no raw DOB', async () => {
