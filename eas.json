@@ -43,6 +43,7 @@
     },
     "camera-demo": {
       "distribution": "internal",
+      "autoIncrement": true,
       "ios": {
         "simulator": false
       },
