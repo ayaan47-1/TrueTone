@@ -102,6 +102,43 @@ export function TrendGlyph({ color, size = 22 }: GlyphProps) {
   );
 }
 
+/** Community — two overlapping person marks. */
+export function CommunityGlyph({ color, size = 22 }: GlyphProps) {
+  const head = size * 0.26;
+  const shoulder = size * 0.5;
+  const person = (offset: number) => (
+    <View style={{ width: shoulder, alignItems: 'center' }}>
+      <View
+        style={{
+          width: head,
+          height: head,
+          borderRadius: head / 2,
+          borderWidth: 2,
+          borderColor: color,
+          marginBottom: size * 0.05,
+        }}
+      />
+      <View
+        style={{
+          width: shoulder,
+          height: size * 0.26,
+          borderTopLeftRadius: size * 0.25,
+          borderTopRightRadius: size * 0.25,
+          borderWidth: 2,
+          borderBottomWidth: 0,
+          borderColor: color,
+        }}
+      />
+    </View>
+  );
+  return (
+    <View style={{ width: size, height: size, flexDirection: 'row', alignItems: 'flex-end', justifyContent: 'center' }}>
+      <View style={{ marginRight: -size * 0.12 }}>{person(0)}</View>
+      <View style={{ marginLeft: -size * 0.12 }}>{person(1)}</View>
+    </View>
+  );
+}
+
 /** You — a head-and-shoulders person mark. */
 export function YouGlyph({ color, size = 22 }: GlyphProps) {
   const head = size * 0.34;
