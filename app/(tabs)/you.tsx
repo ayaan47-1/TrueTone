@@ -16,6 +16,7 @@ import {
 import { TextField } from '../../src/components/ui/TextField';
 import { useProfile } from '../../src/lib/profile-context';
 import { useCommunityProfile } from '../../src/features/identity/use-community-profile';
+import { RoutineLogger } from '../../src/features/routine/components/RoutineLogger';
 
 /**
  * Account — profile & controls. Surfaces the previously-orphaned data-rights and legal
@@ -111,6 +112,12 @@ export default function YouScreen() {
             />
           </View>
         </GlassCard>
+      </Rise>
+
+      <Rise index={2}>
+        <View className="mb-3">
+          <RoutineLogger userId={userId} profile={profile} />
+        </View>
       </Rise>
 
       <View className="gap-3">

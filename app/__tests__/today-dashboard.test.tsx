@@ -10,6 +10,9 @@ jest.mock('expo-router', () => ({
 // be exercised the same way the shipped demo build actually runs.
 jest.mock('../../src/lib/supabase', () => ({ DEMO_MODE: true, supabase: {} }));
 
+// For You now shows the daily-routine summary widget, which reads the signed-in userId.
+jest.mock('../../src/lib/profile-context', () => ({ useProfile: () => ({ userId: 'demo-user' }) }));
+
 import TodayScreen from '../(tabs)/index';
 
 beforeEach(() => {

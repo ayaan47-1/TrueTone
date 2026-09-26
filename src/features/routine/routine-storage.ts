@@ -36,3 +36,13 @@ export async function saveDay(userId: string, day: DailyRoutine): Promise<Routin
 export async function clearRoutine(userId: string): Promise<void> {
   await AsyncStorage.removeItem(routineKey(userId));
 }
+
+/**
+ * Remove every user's routine log. Used by data-rights "delete everything", which has no userId
+ * in scope; scans all keys with the routine prefix so it needs no provider.
+ */
+export async function clearAllRoutines(): Promise<void> {
+  const keys = await AsyncStorage.getAllKeys();
+  const routineKeys = keys.filter((k) => k.startsWith(KEY_PREFIX) && k.endsWith(KEY_SUFFIX));
+  if (routineKeys.length > 0) await AsyncStorage.multiRemove(routineKeys);
+}

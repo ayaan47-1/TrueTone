@@ -23,6 +23,7 @@ import {
 } from '../../src/features/foryou/for-you-profile';
 import { ProductRail } from '../../src/features/foryou/ProductRail';
 import { FindYourShadeCard } from '../../src/features/foryou/FindYourShadeCard';
+import { RoutineSummaryWidget } from '../../src/features/routine/components/RoutineSummaryWidget';
 
 /**
  * For You — the app home. A daily greeting and affirmation plus two product rails:
@@ -76,6 +77,12 @@ export default function TodayScreen() {
       </Rise>
 
       <Rise index={2}>
+        <View className="mt-7">
+          <RoutineSummaryWidget />
+        </View>
+      </Rise>
+
+      <Rise index={3}>
         <View className="mt-9 gap-8">
           {forYouProfile ? (
             <ProductRail
@@ -95,7 +102,7 @@ export default function TodayScreen() {
         </View>
       </Rise>
 
-      <Rise index={3}>
+      <Rise index={4}>
         <View className="mt-6"><Disclaimer /></View>
       </Rise>
     </Screen>

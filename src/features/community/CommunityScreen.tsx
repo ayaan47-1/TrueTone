@@ -7,6 +7,7 @@ import { View } from 'react-native';
 import { Display, PressableScale, Caption, Screen, TAB_BAR_CLEARANCE, Rise } from '../../components/ui';
 import { SEED_POSTS, SEED_ROUTINES } from './community-seed';
 import { useCommunityFeed } from './use-community-feed';
+import { usePublishedRoutines } from '../routine/use-published-routines';
 import { PostCard } from './components/PostCard';
 import { RoutineCard } from './components/RoutineCard';
 import { ProductTagDrawer } from './components/ProductTagDrawer';
@@ -21,6 +22,9 @@ export function CommunityScreen() {
   const [activeTab, setActiveTab] = useState<CommunityTab>('feed');
   const [drawerProductIds, setDrawerProductIds] = useState<readonly string[] | null>(null);
   const { engagementFor, toggleLike, toggleSave, registerShare } = useCommunityFeed(SEED_POSTS);
+  // User-published routines (Task 13) surface ahead of the seeded ones in the Routines tab.
+  const publishedRoutines = usePublishedRoutines();
+  const routines = [...publishedRoutines, ...SEED_ROUTINES];
 
   return (
     <Screen className="px-6" topGap={32} bottomGap={TAB_BAR_CLEARANCE}>
@@ -51,7 +55,7 @@ export function CommunityScreen() {
 
       <View className="gap-4">
         {activeTab === 'routines'
-          ? SEED_ROUTINES.map((routine, index) => (
+          ? routines.map((routine, index) => (
               <Rise key={routine.id} index={index + 2}>
                 <RoutineCard
                   routine={routine}
