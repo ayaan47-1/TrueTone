@@ -88,7 +88,6 @@ export default function ResultRoute() {
       <ShadeMatchResult
         shade={currentShade}
         onSeeLook={() => router.replace('/')}
-        onShare={() => {}}
       />
     );
   }
