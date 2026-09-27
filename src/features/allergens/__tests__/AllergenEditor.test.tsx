@@ -1,4 +1,4 @@
-import { render, fireEvent, waitFor } from '@testing-library/react-native';
+import { render, fireEvent, waitFor, act } from '@testing-library/react-native';
 const mockRpc = jest.fn();
 jest.mock('../../../lib/supabase', () => ({ supabase: { rpc: (...a: unknown[]) => mockRpc(...a) } }));
 import { AllergenEditor } from '../AllergenEditor';
@@ -107,4 +107,27 @@ describe('offline withdrawal (code review M2)', () => {
     await waitFor(() => expect(mockRpc).toHaveBeenCalledWith('withdraw_health_data_consent'));
     await waitFor(async () => expect(await AsyncStorage.getItem(PENDING)).toBeNull());
   });
+});
+
+test('a background reload never overwrites edits made while it was in flight (code review M4)', async () => {
+  await saveAllergenProfile('u1', toggleGroup(emptyProfile('yes', 't'), 'fragrance'));
+  const v = await render(<AllergenEditor userId="u1" />);
+  await waitFor(() => expect(v.getByTestId('group-fragrance').props.accessibilityState.selected).toBe(true));
+  let release: () => void = () => undefined;
+  const gate = new Promise<void>((r) => { release = r; });
+  const real = SecureStore.getItemAsync.getMockImplementation();
+  SecureStore.getItemAsync.mockImplementation(async (k: string) => {
+    if (k === 'truetone.allergens.u1.v1') await gate;
+    return real(k);
+  });
+  await fireEvent.press(v.getByText('Parabens'));
+  await fireEvent.press(v.getByText(C.editor.save));
+  await waitFor(() => expect(v.getByText(C.editor.saved)).toBeTruthy());
+  await fireEvent.press(v.getByText('Sulfates (SLS, SLES)'));
+  await act(async () => {
+    release();
+    await new Promise((r) => setTimeout(r, 20));
+  });
+  SecureStore.getItemAsync.mockImplementation(real);
+  expect(v.getByTestId('group-sulfates').props.accessibilityState.selected).toBe(true);
 });

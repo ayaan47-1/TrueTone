@@ -2,7 +2,7 @@
 // Account → Ingredient flags (design WS-A). Edits the same on-device profile as Setup. A user who
 // never consented (answered No / Skip) sees the wa_health consent sheet before the first save.
 // Withdrawing consent deletes the profile on this phone and logs the withdrawal.
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { ScrollView, View } from 'react-native';
 import { Screen, HEADER_CLEARANCE, Display, Body, Caption, GlassCard, PrimaryButton } from '../../components/ui';
 import { ALLERGEN_COPY as C } from '../../content/allergen-copy';
@@ -38,9 +38,14 @@ export function AllergenEditor({ userId, confirm = async () => true, onOpenPolic
   const ready = loaded.status === 'ready';
   const stored = loaded.status === 'ready' ? loaded.profile : null;
 
+  // Hydrate the draft once per user. A later reload (e.g. after a save) must never overwrite edits
+  // made while it was in flight; persist/withdraw set the draft themselves (code review M4).
+  const hydratedFor = useRef<string | null | undefined>(undefined);
   useEffect(() => {
-    if (ready) setDraft(stored ?? emptyProfile('skipped', now()));
-  }, [ready, stored]);
+    if (!ready || hydratedFor.current === userId) return;
+    hydratedFor.current = userId;
+    setDraft(stored ?? emptyProfile('skipped', now()));
+  }, [ready, stored, userId]);
 
   const consentedBefore = stored?.answer === 'yes';
 
