@@ -1,0 +1,66 @@
+// src/features/allergens/allergen-store.ts
+// Encrypted, per-user, on-device store for the allergen profile (design §2.2; CLAUDE.md §1
+// "encrypt at rest"). iOS Keychain / Android Keystore via expo-secure-store (D4), pinned to this
+// device (no iCloud Keychain sync — founder: no sync). Never synced to a server.
+// SecureStore has no key listing, so an index of user ids lets delete-everything purge all.
+import * as SecureStore from 'expo-secure-store';
+import { parseProfile, type AllergenProfile } from './profile';
+
+const KEY_PREFIX = 'truetone.allergens.';
+const KEY_SUFFIX = '.v1';
+const INDEX_KEY = 'truetone.allergens.index.v1';
+const SAFE_SEGMENT = /^[A-Za-z0-9_-]{1,64}$/;
+const OPTIONS = { keychainAccessible: SecureStore.WHEN_UNLOCKED_THIS_DEVICE_ONLY };
+
+export type LoadResult = { status: 'ok'; profile: AllergenProfile | null } | { status: 'error' };
+
+export function allergenKey(userId: string): string {
+  if (!SAFE_SEGMENT.test(userId)) throw new Error('invalid-user-id');
+  return `${KEY_PREFIX}${userId}${KEY_SUFFIX}`;
+}
+
+async function readIndex(): Promise<string[]> {
+  const raw = await SecureStore.getItemAsync(INDEX_KEY, OPTIONS);
+  if (!raw) return [];
+  try {
+    const ids = JSON.parse(raw) as unknown;
+    return Array.isArray(ids) ? ids.filter((i): i is string => typeof i === 'string' && SAFE_SEGMENT.test(i)) : [];
+  } catch {
+    return [];
+  }
+}
+
+async function writeIndex(ids: readonly string[]): Promise<void> {
+  if (ids.length === 0) await SecureStore.deleteItemAsync(INDEX_KEY, OPTIONS);
+  else await SecureStore.setItemAsync(INDEX_KEY, JSON.stringify(ids), OPTIONS);
+}
+
+/** Fails closed: a read error is reported, never treated as "no flags" (design E17). */
+export async function loadAllergenProfile(userId: string): Promise<LoadResult> {
+  try {
+    const raw = await SecureStore.getItemAsync(allergenKey(userId), OPTIONS);
+    return { status: 'ok', profile: raw ? parseProfile(raw) : null };
+  } catch {
+    return { status: 'error' };
+  }
+}
+
+export async function saveAllergenProfile(userId: string, profile: AllergenProfile): Promise<void> {
+  const key = allergenKey(userId);
+  await SecureStore.setItemAsync(key, JSON.stringify(profile), OPTIONS);
+  const ids = await readIndex();
+  if (!ids.includes(userId)) await writeIndex([...ids, userId]);
+}
+
+export async function clearAllergenProfile(userId: string): Promise<void> {
+  await SecureStore.deleteItemAsync(allergenKey(userId), OPTIONS);
+  const ids = await readIndex();
+  if (ids.includes(userId)) await writeIndex(ids.filter((i) => i !== userId));
+}
+
+/** Delete-everything / delete-account: purge every profile on this device. */
+export async function clearAllAllergenProfiles(): Promise<void> {
+  const ids = await readIndex();
+  for (const id of ids) await SecureStore.deleteItemAsync(allergenKey(id), OPTIONS);
+  await SecureStore.deleteItemAsync(INDEX_KEY, OPTIONS);
+}

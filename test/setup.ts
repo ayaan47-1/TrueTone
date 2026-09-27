@@ -41,6 +41,27 @@ jest.mock('@react-native-async-storage/async-storage', () =>
   require('@react-native-async-storage/async-storage/jest/async-storage-mock'),
 );
 
+// expo-secure-store (Keychain) backs the encrypted on-device allergen profile. In-memory mock;
+// `virtual` so suites run even where the native package isn't linked into node_modules.
+// Tests reach the backing map via require('expo-secure-store').__store.
+jest.mock(
+  'expo-secure-store',
+  () => {
+    const store = new Map<string, string>();
+    return {
+      __store: store,
+      WHEN_UNLOCKED_THIS_DEVICE_ONLY: 'WHEN_UNLOCKED_THIS_DEVICE_ONLY',
+      getItemAsync: jest.fn(async (k: string) => (store.has(k) ? store.get(k) : null)),
+      setItemAsync: jest.fn(async (k: string, v: string) => { store.set(k, v); }),
+      deleteItemAsync: jest.fn(async (k: string) => { store.delete(k); }),
+    };
+  },
+  { virtual: true },
+);
+beforeEach(() => {
+  require('expo-secure-store').__store.clear();
+});
+
 jest.mock('@stripe/stripe-react-native', () => {
   return {
     StripeProvider: ({ children }: any) => children,
