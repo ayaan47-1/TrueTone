@@ -34,3 +34,21 @@ test('missing scan throws scan-not-found', async () => {
   const deps: ChatDeps = { loadScan: async () => null, complete: async () => 'x' };
   await expect(handleChat(deps, { scanId: 'nope', message: 'hi', history: [] })).rejects.toThrow('scan-not-found');
 });
+
+test('allergy-safety query short-circuits to the allergy refusal and NEVER calls the LLM', async () => {
+  const { ALLERGY_REFUSAL } = require('../refusal');
+  const complete = jest.fn();
+  const loadScan = jest.fn(async () => ctx);
+  const out = await handleChat({ loadScan, complete }, { scanId: 's1', message: 'Is this safe for my allergy?', history: [] });
+  expect(out.referred).toBe(true);
+  expect(out.reply).toBe(ALLERGY_REFUSAL);
+  expect(complete).not.toHaveBeenCalled();
+  expect(loadScan).not.toHaveBeenCalled();
+});
+
+test('a medical claim in the LLM reply is replaced by the fallback', async () => {
+  const deps: ChatDeps = { loadScan: async () => ctx, complete: async () => 'This is safe for your skin.' };
+  const out = await handleChat(deps, { scanId: 's1', message: 'why this serum?', history: [] });
+  expect(out.blocked).toBe(true);
+  expect(out.reply).not.toContain('safe for your skin');
+});

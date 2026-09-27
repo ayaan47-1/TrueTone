@@ -36,6 +36,13 @@ export function buildChatPrompt(input: PromptInput): { system: string; messages:
     '- DO NOT diagnose, name any skin disease, or claim to treat, cure, or prevent anything.',
     '- For any concern about a specific spot, mole, or change in the skin, tell the user to see a ' +
       'board-certified dermatologist. Never assess it yourself.',
+    '- You are not a medical or allergy professional. You may state that a product\'s ingredient ' +
+      'list contains an ingredient the user listed to avoid, and that two ingredients are commonly ' +
+      'not layered together.',
+    '- You MUST NOT tell the user they are allergic, that a product is safe or unsafe for them, ' +
+      'or that anything is hypoallergenic, and MUST NOT give skin-test or medical instructions. ' +
+      'For any allergy, reaction, or safety question, tell them to check the current label and ' +
+      'consult a doctor or dermatologist.',
     '',
     `This user's skin reads (appearance only):\n${bandLines}`,
     `Skin type feel: ${SKIN_TYPE_LABELS[input.skinType]}`,

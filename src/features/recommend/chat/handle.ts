@@ -1,6 +1,6 @@
 import type { ScoreVector, SkinTypeFeel } from '../../read/read-types';
 import type { Routine } from '../routine-types';
-import { isMedicalQuery, REFERRAL_MESSAGE } from './refusal';
+import { isAllergyQuery, isMedicalQuery, ALLERGY_REFUSAL, REFERRAL_MESSAGE } from './refusal';
 import { buildChatPrompt, type ChatTurn } from './prompt';
 import { guardReply } from './guard';
 
@@ -16,6 +16,10 @@ export async function handleChat(deps: ChatDeps, input: ChatInput): Promise<Chat
   // Layer 2: refuse medical queries before any LLM call.
   if (isMedicalQuery(input.message)) {
     return { reply: REFERRAL_MESSAGE, referred: true, blocked: false };
+  }
+  // Layer 2b: refuse allergy / reaction / medication questions before any LLM call.
+  if (isAllergyQuery(input.message)) {
+    return { reply: ALLERGY_REFUSAL, referred: true, blocked: false };
   }
   // Layer 1: load the caller's own scan context (RLS enforced by the dep implementation).
   const ctx = await deps.loadScan(input.scanId);

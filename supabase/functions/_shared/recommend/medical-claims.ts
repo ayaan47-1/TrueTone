@@ -1,3 +1,4 @@
+// SOURCE OF TRUTH: src/content/medical-claims.ts — this copy is kept in sync manually.
 // src/content/medical-claims.ts
 // Founder hard rule: the app NEVER gives medical or allergy advice (compliance.md §2).
 // Single source of truth for the banned medical-claim phrases. Imported by the chat output guard

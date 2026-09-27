@@ -58,4 +58,38 @@ describe('Compliance module drift detection', () => {
       expect(sharedContent).toContain('guardReply');
     });
   });
+
+  describe('medical-claim / allergy guard sync check (founder no-medical-advice rule)', () => {
+    const shared = (f: string) =>
+      fs.readFileSync(path.join(repoRoot, 'supabase', 'functions', '_shared', 'recommend', f), 'utf8');
+    const { MEDICAL_CLAIM_BLOCKLIST, ALLERGEN_DISCLAIMER } = require('../content/medical-claims');
+    const { ALLERGY_REFUSAL } = require('../features/recommend/chat/refusal');
+
+    test('_shared medical-claims.ts carries every blocklist phrase and the disclaimer', () => {
+      expect(shared('medical-claims.ts')).toContain('SOURCE OF TRUTH: src/content/medical-claims.ts');
+      const sharedMod = require('../../supabase/functions/_shared/recommend/medical-claims.ts');
+      expect(sharedMod.ALLERGEN_DISCLAIMER).toBe(ALLERGEN_DISCLAIMER);
+      expect([...sharedMod.MEDICAL_CLAIM_BLOCKLIST]).toEqual([...MEDICAL_CLAIM_BLOCKLIST]);
+    });
+
+    test('every ALLERGY_TRIGGER from src refusal.ts appears in _shared refusal.ts', () => {
+      const src = fs.readFileSync(path.join(repoRoot, 'src', 'features', 'recommend', 'chat', 'refusal.ts'), 'utf8');
+      const m = src.match(/const ALLERGY_TRIGGERS = \[([\s\S]*?)\];/);
+      expect(m).not.toBeNull();
+      const triggers = (m![1].match(/'([^']+)'/g) || []).map((t) => t.slice(1, -1));
+      expect(triggers.length).toBeGreaterThan(0);
+      const content = shared('refusal.ts');
+      for (const t of triggers) expect(content).toContain(`'${t}'`);
+      expect(content).toContain('isAllergyQuery');
+      expect(content).toContain('ALLERGY_REFUSAL');
+      expect(ALLERGY_REFUSAL).toContain(ALLERGEN_DISCLAIMER);
+    });
+
+    test('_shared guard.ts and handle.ts run the medical-claim check and allergy refusal', () => {
+      expect(shared('guard.ts')).toContain('findMedicalClaims');
+      expect(shared('guard.ts')).toContain('ALLERGEN_DISCLAIMER');
+      expect(shared('handle.ts')).toContain('isAllergyQuery');
+      expect(shared('prompt.ts')).toContain('not a medical or allergy professional');
+    });
+  });
 });
