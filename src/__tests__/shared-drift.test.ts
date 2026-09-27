@@ -85,6 +85,28 @@ describe('Compliance module drift detection', () => {
       expect(ALLERGY_REFUSAL).toContain(ALLERGEN_DISCLAIMER);
     });
 
+    // Code review M6: presence checks miss a changed regex or a reordered guard. Compare the whole
+    // file, with import statements and full-line comments removed (only import paths may differ).
+    const normalize = (text: string) =>
+      text
+        .replace(/^\s*(?:import|export)\s[^;]*?\sfrom\s+['"][^'"]+['"];?[ \t]*$/gms, '')
+        .replace(/^\s*import\s+['"][^'"]+['"];?[ \t]*$/gm, '')
+        .split('\n')
+        .filter((line) => line.trim() !== '' && !line.trim().startsWith('//'))
+        .join('\n');
+    const SOURCES: [string, string][] = [
+      ['guard.ts', 'src/features/recommend/chat/guard.ts'],
+      ['handle.ts', 'src/features/recommend/chat/handle.ts'],
+      ['refusal.ts', 'src/features/recommend/chat/refusal.ts'],
+      ['prompt.ts', 'src/features/recommend/chat/prompt.ts'],
+      ['medical-claims.ts', 'src/content/medical-claims.ts'],
+    ];
+
+    test.each(SOURCES)('_shared %s matches its src original apart from imports and comments', (file, src) => {
+      const original = fs.readFileSync(path.join(repoRoot, src), 'utf8');
+      expect(normalize(shared(file))).toBe(normalize(original));
+    });
+
     test('_shared guard.ts and handle.ts run the medical-claim check and allergy refusal', () => {
       expect(shared('guard.ts')).toContain('findMedicalClaims');
       expect(shared('guard.ts')).toContain('ALLERGEN_DISCLAIMER');
