@@ -68,16 +68,22 @@ const strings = (v: unknown): string[] => (Array.isArray(v) ? v.filter((x): x is
 
 const unique = (xs: readonly string[]): string[] => xs.filter((x, i) => xs.indexOf(x) === i);
 
+// Dictionary ids are lowercase words joined by underscores/hyphens (see dictionary.ts).
+export const ID_SHAPE = /^[a-z0-9][a-z0-9_-]{0,127}$/;
+
 /**
  * Stored ingredient ids → dictionary ids + readable names for ids the dictionary no longer knows
- * (design E13: moved to `unresolved`, never dropped). Write-time caps are not re-applied on read.
+ * (design E13: moved to `unresolved`, never dropped). A retired id was trusted when saved, so it
+ * skips the free-text rules for user typing. Write-time caps are not re-applied on read. Returns
+ * null when a stored id is not id-shaped: the value is corrupt, so the read fails closed.
  */
-function readFlags(ingredientIds: string[], unresolved: string[]): Pick<AllergenProfile, 'ingredients' | 'unresolved'> {
+function readFlags(ingredientIds: string[], unresolved: string[]): Pick<AllergenProfile, 'ingredients' | 'unresolved'> | null {
+  if (ingredientIds.some((id) => !ID_SHAPE.test(id))) return null;
   const ids = ingredientIds.map((id) => migrateIngredientId(id));
   const known = ids.filter((id) => ingredientById(id));
-  const retired = ids.filter((id) => !ingredientById(id)).map((id) => id.replace(/_/g, ' '));
-  const names = [...unresolved, ...retired].map(validateFreeText).flatMap((v) => (v.ok ? [v.value] : []));
-  return { ingredients: unique(known), unresolved: unique(names) };
+  const retired = ids.filter((id) => !ingredientById(id)).map((id) => id.replace(/[_-]+/g, ' ').trim());
+  const typed = unresolved.map(validateFreeText).flatMap((v) => (v.ok ? [v.value] : []));
+  return { ingredients: unique(known), unresolved: unique([...typed, ...retired]) };
 }
 
 /** Validate stored JSON; malformed entries are dropped, never trusted; retired ids are kept as names. */
@@ -93,9 +99,11 @@ export function parseProfile(raw: string): AllergenProfile | null {
   if (o.version !== 1 || !['yes', 'no', 'skipped'].includes(o.answer as string)) return null;
   const base = emptyProfile(o.answer as AllergenAnswer, typeof o.updatedAt === 'string' ? o.updatedAt : '');
   const withGroups = strings(o.groups).reduce((acc, g) => (acc.groups.includes(g as AllergenGroupId) ? acc : toggleGroup(acc, g)), base);
+  const flags = readFlags(strings(o.ingredients), strings(o.unresolved));
+  if (!flags) return null;
   return {
     ...withGroups,
-    ...readFlags(strings(o.ingredients), strings(o.unresolved)),
+    ...flags,
     display: o.display === 'flag' ? 'flag' : 'hide',
     unknownDisplay: o.unknownDisplay === 'hide' ? 'hide' : 'show',
     taxonomyVersion: typeof o.taxonomyVersion === 'string' ? o.taxonomyVersion : TAXONOMY_VERSION,

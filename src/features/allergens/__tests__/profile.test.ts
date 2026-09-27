@@ -57,6 +57,16 @@ describe('a flag is never silently dropped on read (spec E13, code review M3)', 
     expect(out?.unresolved).toEqual(['retired thing']);
   });
 
+  test('a retired id too long for the free-text rules is still kept, never dropped', () => {
+    const long = 'a_very_long_retired_ingredient_identifier_with_many_words_in_it';
+    const out = parseProfile(JSON.stringify({ ...base, ingredients: [long] }));
+    expect(out?.unresolved).toEqual([long.replace(/_/g, ' ')]);
+  });
+
+  test('a stored ingredient id that is not id-shaped fails closed (corrupt), never silently dropped', () => {
+    expect(parseProfile(JSON.stringify({ ...base, ingredients: ['<script>'] }))).toBeNull();
+  });
+
   test('a renamed id follows the migration map', () => {
     expect(migrateIngredientId('old_linalool', { old_linalool: 'linalool' })).toBe('linalool');
     expect(migrateIngredientId('linalool', {})).toBe('linalool');
@@ -67,4 +77,10 @@ describe('a flag is never silently dropped on read (spec E13, code review M3)', 
     const out = parseProfile(JSON.stringify({ ...base, unresolved: many }));
     expect(out?.unresolved).toHaveLength(MAX_UNRESOLVED + 3);
   });
+});
+
+test('every dictionary id is id-shaped, so a real stored profile never reads as corrupt', () => {
+  const { INGREDIENTS } = require('../../../content/ingredients/dictionary');
+  const { ID_SHAPE } = require('../profile');
+  for (const i of INGREDIENTS) expect(i.id).toMatch(ID_SHAPE);
 });
