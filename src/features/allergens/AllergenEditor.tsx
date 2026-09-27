@@ -1,0 +1,92 @@
+// src/features/allergens/AllergenEditor.tsx
+// Account → Ingredient flags (design WS-A). Edits the same on-device profile as Setup. A user who
+// never consented (answered No / Skip) sees the wa_health consent sheet before the first save.
+// Withdrawing consent deletes the profile on this phone and logs the withdrawal.
+import { useEffect, useState } from 'react';
+import { ScrollView, View } from 'react-native';
+import { Screen, HEADER_CLEARANCE, Display, Body, Caption, GlassCard, PrimaryButton } from '../../components/ui';
+import { ALLERGEN_COPY as C } from '../../content/allergen-copy';
+import { saveAllergenProfile } from './allergen-store';
+import { withdrawHealthDataConsent } from './health-consent';
+import { emptyProfile, hasHealthData, type AllergenProfile } from './profile';
+import { useAllergenProfile } from './use-allergen-profile';
+import { FlagPicker } from './FlagPicker';
+import { HealthDataConsent } from './HealthDataConsent';
+
+type Props = {
+  userId: string | null;
+  confirm?: (msg: string) => Promise<boolean>;
+  onOpenPolicy?: () => void;
+};
+
+const now = () => new Date().toISOString();
+
+export function AllergenEditor({ userId, confirm = async () => true, onOpenPolicy }: Props) {
+  const loaded = useAllergenProfile(userId);
+  const [draft, setDraft] = useState<AllergenProfile | null>(null);
+  const [asking, setAsking] = useState(false);
+  const [saved, setSaved] = useState(false);
+
+  const ready = loaded.status === 'ready';
+  const stored = loaded.status === 'ready' ? loaded.profile : null;
+
+  useEffect(() => {
+    if (ready) setDraft(stored ?? emptyProfile('skipped', now()));
+  }, [ready, stored]);
+
+  const consentedBefore = stored?.answer === 'yes';
+
+  async function persist(p: AllergenProfile) {
+    if (!userId) return;
+    const next = { ...p, answer: 'yes' as const, updatedAt: now() };
+    await saveAllergenProfile(userId, next);
+    setDraft(next);
+    setAsking(false);
+    setSaved(true);
+    loaded.reload();
+  }
+
+  function save() {
+    if (!draft) return;
+    if (!consentedBefore && hasHealthData(draft)) setAsking(true);
+    else void persist(draft);
+  }
+
+  async function withdraw() {
+    if (!userId || !(await confirm(C.editor.withdraw + '?'))) return;
+    await withdrawHealthDataConsent(userId);
+    setDraft(emptyProfile('skipped', now()));
+    loaded.reload();
+  }
+
+  return (
+    <Screen className="px-6" topGap={HEADER_CLEARANCE}>
+      <ScrollView keyboardShouldPersistTaps="handled" contentContainerStyle={{ paddingBottom: 32 }}>
+        <View className="gap-5 pt-4">
+          <Display className="text-3xl">{C.editor.title}</Display>
+          <GlassCard flat radius={22} className="px-5 py-4">
+            <Caption className="text-[11px] leading-[17px] text-ink-muted">{C.disclaimer}</Caption>
+          </GlassCard>
+          {loaded.status === 'error' ? <Body accessibilityRole="alert">{C.loadFailed}</Body> : null}
+          {draft && loaded.status === 'ready' && !asking ? (
+            <View className="gap-5">
+              <FlagPicker profile={draft} onChange={(p) => { setDraft(p); setSaved(false); }} />
+              {saved ? <Caption className="text-ink-muted">{C.editor.saved}</Caption> : null}
+              <PrimaryButton label={C.editor.save} onPress={save} />
+              {consentedBefore ? (
+                <PrimaryButton label={C.editor.withdraw} variant="ghost" onPress={withdraw} />
+              ) : null}
+            </View>
+          ) : null}
+          {asking && draft ? (
+            <HealthDataConsent
+              onConsented={() => void persist(draft)}
+              onDecline={() => setAsking(false)}
+              onOpenPolicy={onOpenPolicy}
+            />
+          ) : null}
+        </View>
+      </ScrollView>
+    </Screen>
+  );
+}
