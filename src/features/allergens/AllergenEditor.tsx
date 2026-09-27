@@ -7,7 +7,7 @@ import { ScrollView, View } from 'react-native';
 import { Screen, HEADER_CLEARANCE, Display, Body, Caption, GlassCard, PrimaryButton } from '../../components/ui';
 import { ALLERGEN_COPY as C } from '../../content/allergen-copy';
 import { saveAllergenProfile } from './allergen-store';
-import { withdrawHealthDataConsent } from './health-consent';
+import { flushPendingWithdrawal, withdrawHealthDataConsent } from './health-consent';
 import { emptyProfile, hasHealthData, type AllergenProfile } from './profile';
 import { useAllergenProfile } from './use-allergen-profile';
 import { FlagPicker } from './FlagPicker';
@@ -28,6 +28,12 @@ export function AllergenEditor({ userId, confirm = async () => true, onOpenPolic
   const [saved, setSaved] = useState(false);
   const [withdrawFailed, setWithdrawFailed] = useState(false);
   const [saveFailed, setSaveFailed] = useState(false);
+  const [withdrawPending, setWithdrawPending] = useState(false);
+
+  // Retry an offline withdrawal whenever the editor opens (code review M2).
+  useEffect(() => {
+    if (userId) void flushPendingWithdrawal(userId);
+  }, [userId]);
 
   const ready = loaded.status === 'ready';
   const stored = loaded.status === 'ready' ? loaded.profile : null;
@@ -62,8 +68,9 @@ export function AllergenEditor({ userId, confirm = async () => true, onOpenPolic
 
   async function withdraw() {
     if (!userId || !(await confirm(C.editor.withdraw + '?'))) return;
-    const { cleared } = await withdrawHealthDataConsent(userId);
+    const { cleared, logged } = await withdrawHealthDataConsent(userId);
     setWithdrawFailed(!cleared);
+    setWithdrawPending(!logged);
     // Reset the screen only when the flags are really gone from the phone.
     if (!cleared) return;
     setDraft(emptyProfile('skipped', now()));
@@ -79,6 +86,7 @@ export function AllergenEditor({ userId, confirm = async () => true, onOpenPolic
             <Caption className="text-[11px] leading-[17px] text-ink-muted">{C.disclaimer}</Caption>
           </GlassCard>
           {loaded.status === 'error' ? <Body accessibilityRole="alert">{C.loadFailed}</Body> : null}
+          {withdrawPending ? <Caption className="text-ink-muted">{C.editor.withdrawPending}</Caption> : null}
           {draft && loaded.status === 'ready' && !asking ? (
             <View className="gap-5">
               <FlagPicker profile={draft} onChange={(p) => { setDraft(p); setSaved(false); }} />
@@ -94,6 +102,7 @@ export function AllergenEditor({ userId, confirm = async () => true, onOpenPolic
           {asking && draft && saveFailed ? <Body accessibilityRole="alert">{C.saveFailed}</Body> : null}
           {asking && draft ? (
             <HealthDataConsent
+              userId={userId}
               onConsented={() => void persist(draft)}
               onDecline={() => setAsking(false)}
               onOpenPolicy={onOpenPolicy}

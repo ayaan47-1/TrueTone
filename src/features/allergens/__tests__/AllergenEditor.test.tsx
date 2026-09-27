@@ -85,3 +85,26 @@ test('a Keychain save failure shows an error, never "Saved" (code review M1)', a
   expect(v.queryByText(C.editor.saved)).toBeNull();
   expect(v.getByTestId('group-parabens').props.accessibilityState.selected).toBe(true);
 });
+
+describe('offline withdrawal (code review M2)', () => {
+  const AsyncStorage = require('@react-native-async-storage/async-storage');
+  const PENDING = 'truetone.allergens.pendingWithdrawal.u1';
+  beforeEach(async () => { await AsyncStorage.clear(); });
+
+  test('an unlogged withdrawal clears the flags and says it will be confirmed online', async () => {
+    await saveAllergenProfile('u1', toggleGroup(emptyProfile('yes', 't'), 'mit'));
+    const v = await render(<AllergenEditor userId="u1" />);
+    await waitFor(() => expect(v.getByText(C.editor.withdraw)).toBeTruthy());
+    mockRpc.mockResolvedValue({ error: { message: 'offline' } });
+    await fireEvent.press(v.getByText(C.editor.withdraw));
+    await waitFor(() => expect(v.getByText(C.editor.withdrawPending)).toBeTruthy());
+    expect(SecureStore.__store.has('truetone.allergens.u1.v1')).toBe(false);
+  });
+
+  test('opening the editor retries a pending withdrawal', async () => {
+    await AsyncStorage.setItem(PENDING, '1');
+    await render(<AllergenEditor userId="u1" />);
+    await waitFor(() => expect(mockRpc).toHaveBeenCalledWith('withdraw_health_data_consent'));
+    await waitFor(async () => expect(await AsyncStorage.getItem(PENDING)).toBeNull());
+  });
+});

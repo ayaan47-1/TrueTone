@@ -48,6 +48,7 @@ export const ALLERGEN_COPY = {
     clearAll: 'Remove all flags',
     withdraw: 'Withdraw consent and delete flags',
     withdrawFailed: "We couldn't delete your flags on this phone. Please try again.",
+    withdrawPending: "Your choice is saved on this phone. We'll confirm it when you're back online.",
   },
   settingsRow: {
     title: 'Ingredient flags', // C12

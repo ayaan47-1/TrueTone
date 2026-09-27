@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useCallback, useState } from 'react';
 import { Image, View } from 'react-native';
 import { useFocusEffect, useRouter } from 'expo-router';
 import {
@@ -20,6 +20,7 @@ import { RoutineLogger } from '../../src/features/routine/components/RoutineLogg
 import { nativeVersionLabel } from '../../src/lib/app-version';
 import { useAllergenProfile } from '../../src/features/allergens/use-allergen-profile';
 import { flaggedCount } from '../../src/features/allergens/profile';
+import { flushPendingWithdrawal } from '../../src/features/allergens/health-consent';
 import { ALLERGEN_COPY } from '../../src/content/allergen-copy';
 
 /**
@@ -43,7 +44,14 @@ export default function YouScreen() {
   const versionLabel = nativeVersionLabel();
   const allergens = useAllergenProfile(userId);
   // Tabs stay mounted, so re-read on focus: flags edited in the editor show when the user returns.
-  useFocusEffect(allergens.reload);
+  // Also retry an allergen withdrawal that could not be logged while offline (code review M2).
+  const reloadAllergens = allergens.reload;
+  useFocusEffect(
+    useCallback(() => {
+      reloadAllergens();
+      if (userId) void flushPendingWithdrawal(userId);
+    }, [reloadAllergens, userId]),
+  );
   const allergenCaption =
     allergens.status === 'ready'
       ? ALLERGEN_COPY.settingsRow.sub(allergens.profile ? flaggedCount(allergens.profile) : 0)

@@ -11,9 +11,9 @@ import { recordHealthDataConsent } from './health-consent';
 
 const C = ALLERGEN_COPY;
 
-type Props = { onConsented: () => void; onDecline: () => void; onOpenPolicy?: () => void };
+type Props = { userId?: string | null; onConsented: () => void; onDecline: () => void; onOpenPolicy?: () => void };
 
-export function HealthDataConsent({ onConsented, onDecline, onOpenPolicy }: Props) {
+export function HealthDataConsent({ userId, onConsented, onDecline, onOpenPolicy }: Props) {
   const [checked, setChecked] = useState(false);
   const [busy, setBusy] = useState(false);
   const [failed, setFailed] = useState(false);
@@ -22,7 +22,7 @@ export function HealthDataConsent({ onConsented, onDecline, onOpenPolicy }: Prop
     if (!checked || busy) return;
     setBusy(true);
     setFailed(false);
-    const ok = await recordHealthDataConsent();
+    const ok = await recordHealthDataConsent(userId);
     setBusy(false);
     if (ok) onConsented();
     else setFailed(true);

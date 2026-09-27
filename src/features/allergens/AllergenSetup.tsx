@@ -81,7 +81,7 @@ export function AllergenSetup({ userId, onDone, onOpenPolicy }: Props) {
           {step === 'consent' ? (
             <View className="gap-3">
               {saveFailed ? <Body accessibilityRole="alert">{C.saveFailed}</Body> : null}
-              <HealthDataConsent onConsented={consented} onDecline={declined} onOpenPolicy={onOpenPolicy} />
+              <HealthDataConsent userId={userId} onConsented={consented} onDecline={declined} onOpenPolicy={onOpenPolicy} />
             </View>
           ) : null}
         </View>

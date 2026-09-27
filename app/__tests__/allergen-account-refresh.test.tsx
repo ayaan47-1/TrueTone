@@ -12,7 +12,8 @@ jest.mock('expo-router', () => ({
   },
 }));
 jest.mock('expo-application', () => ({ nativeApplicationVersion: null, nativeBuildVersion: null }), { virtual: true });
-jest.mock('../../src/lib/supabase', () => ({ supabase: { rpc: jest.fn() } }));
+const mockRpc = jest.fn(async () => ({ error: null }));
+jest.mock('../../src/lib/supabase', () => ({ supabase: { rpc: (...a: unknown[]) => (mockRpc as jest.Mock)(...a) } }));
 jest.mock('../../src/lib/profile-context', () => ({
   useProfile: () => ({ userId: 'u1', loading: false, error: false, route: 'home', refresh: jest.fn() }),
   ProfileProvider: ({ children }: { children: React.ReactNode }) => children,
@@ -31,4 +32,14 @@ test('returning to Account re-reads the count after flags were edited elsewhere'
   await saveAllergenProfile('u1', toggleGroup(toggleGroup(emptyProfile('yes', 't'), 'fragrance'), 'parabens'));
   await act(async () => mockFocus?.());
   await findByText('2 flagged');
+});
+
+test('focusing Account retries an offline allergen withdrawal (code review M2)', async () => {
+  const AsyncStorage = require('@react-native-async-storage/async-storage');
+  await AsyncStorage.setItem('truetone.allergens.pendingWithdrawal.u1', '1');
+  const { findByText } = await render(<YouScreen />);
+  await findByText('None');
+  await act(async () => mockFocus?.());
+  expect(mockRpc).toHaveBeenCalledWith('withdraw_health_data_consent');
+  expect(await AsyncStorage.getItem('truetone.allergens.pendingWithdrawal.u1')).toBeNull();
 });
