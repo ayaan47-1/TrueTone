@@ -3,6 +3,7 @@
 // to Supabase, the chat function, share cards or Community (check-allergen-isolation).
 import { isFlaggableGroup, type AllergenGroupId } from '../../content/ingredients/allergen-groups';
 import { ingredientById, TAXONOMY_VERSION, type IngredientId } from '../../content/ingredients/dictionary';
+import { migrateIngredientId } from '../../content/ingredients/version';
 import { validateFreeText } from './search';
 
 export type AllergenAnswer = 'yes' | 'no' | 'skipped';
@@ -65,7 +66,21 @@ export function removeEntry(p: AllergenProfile, kind: 'ingredient' | 'unresolved
 
 const strings = (v: unknown): string[] => (Array.isArray(v) ? v.filter((x): x is string => typeof x === 'string') : []);
 
-/** Validate stored JSON; unknown ids and malformed entries are dropped, never trusted. */
+const unique = (xs: readonly string[]): string[] => xs.filter((x, i) => xs.indexOf(x) === i);
+
+/**
+ * Stored ingredient ids → dictionary ids + readable names for ids the dictionary no longer knows
+ * (design E13: moved to `unresolved`, never dropped). Write-time caps are not re-applied on read.
+ */
+function readFlags(ingredientIds: string[], unresolved: string[]): Pick<AllergenProfile, 'ingredients' | 'unresolved'> {
+  const ids = ingredientIds.map((id) => migrateIngredientId(id));
+  const known = ids.filter((id) => ingredientById(id));
+  const retired = ids.filter((id) => !ingredientById(id)).map((id) => id.replace(/_/g, ' '));
+  const names = [...unresolved, ...retired].map(validateFreeText).flatMap((v) => (v.ok ? [v.value] : []));
+  return { ingredients: unique(known), unresolved: unique(names) };
+}
+
+/** Validate stored JSON; malformed entries are dropped, never trusted; retired ids are kept as names. */
 export function parseProfile(raw: string): AllergenProfile | null {
   let o: Record<string, unknown>;
   try {
@@ -78,10 +93,9 @@ export function parseProfile(raw: string): AllergenProfile | null {
   if (o.version !== 1 || !['yes', 'no', 'skipped'].includes(o.answer as string)) return null;
   const base = emptyProfile(o.answer as AllergenAnswer, typeof o.updatedAt === 'string' ? o.updatedAt : '');
   const withGroups = strings(o.groups).reduce((acc, g) => (acc.groups.includes(g as AllergenGroupId) ? acc : toggleGroup(acc, g)), base);
-  const withIngredients = strings(o.ingredients).reduce(addIngredient, withGroups);
-  const withText = strings(o.unresolved).reduce(addUnresolved, withIngredients);
   return {
-    ...withText,
+    ...withGroups,
+    ...readFlags(strings(o.ingredients), strings(o.unresolved)),
     display: o.display === 'flag' ? 'flag' : 'hide',
     unknownDisplay: o.unknownDisplay === 'hide' ? 'hide' : 'show',
     taxonomyVersion: typeof o.taxonomyVersion === 'string' ? o.taxonomyVersion : TAXONOMY_VERSION,

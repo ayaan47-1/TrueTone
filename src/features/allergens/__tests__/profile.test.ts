@@ -46,3 +46,25 @@ test('parseProfile validates stored JSON and drops anything malformed', () => {
   expect(parseProfile(JSON.stringify({ ...good, version: 2 }))).toBeNull();
   expect(parseProfile(JSON.stringify({ ...good, groups: ['latex', 'fragrance', 42] }))?.groups).toEqual(['fragrance']);
 });
+
+describe('a flag is never silently dropped on read (spec E13, code review M3)', () => {
+  const { migrateIngredientId } = require('../../../content/ingredients/version');
+  const base = emptyProfile('yes', '2026-09-27T00:00:00Z');
+
+  test('an ingredient id no longer in the dictionary moves to unresolved as a readable name', () => {
+    const out = parseProfile(JSON.stringify({ ...base, ingredients: ['linalool', 'retired_thing'] }));
+    expect(out?.ingredients).toEqual(['linalool']);
+    expect(out?.unresolved).toEqual(['retired thing']);
+  });
+
+  test('a renamed id follows the migration map', () => {
+    expect(migrateIngredientId('old_linalool', { old_linalool: 'linalool' })).toBe('linalool');
+    expect(migrateIngredientId('linalool', {})).toBe('linalool');
+  });
+
+  test('reading never trims stored entries to the write-time caps', () => {
+    const many = Array.from({ length: MAX_UNRESOLVED + 3 }, (_, i) => `name ${String.fromCharCode(97 + i)}`);
+    const out = parseProfile(JSON.stringify({ ...base, unresolved: many }));
+    expect(out?.unresolved).toHaveLength(MAX_UNRESOLVED + 3);
+  });
+});
