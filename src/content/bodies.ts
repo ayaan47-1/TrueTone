@@ -10,5 +10,9 @@ export const POLICY_BODIES: Record<DocKey, string> = {
     'Purpose: estimate skin appearance and suggest a cosmetic routine.\n' +
     'Retention: deleted when purpose is met or within 3 years of last use, whichever is first.',
   retention: '> PLACEHOLDER — Retention Schedule pending counsel review.',
-  wa_health: '> PLACEHOLDER — WA Consumer Health Data Policy pending counsel review.',
+  wa_health:
+    '> PLACEHOLDER — WA Consumer Health Data Policy pending counsel review.\n\n' +
+    'Ingredient flags (optional): the cosmetic ingredient names you ask us to flag, used only to ' +
+    'flag them when we show you products and build routines. Source: you. Shared with: no one. ' +
+    'Stored encrypted, only on this phone. You can view, edit or delete them anytime in Account.',
 };

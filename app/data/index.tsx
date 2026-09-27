@@ -12,6 +12,6 @@ function confirm(msg: string): Promise<boolean> {
 }
 
 export default function DataScreen() {
-  const { refresh } = useProfile();
-  return <DataRights onChanged={() => void refresh()} confirm={confirm} />;
+  const { refresh, userId } = useProfile();
+  return <DataRights userId={userId} onChanged={() => void refresh()} confirm={confirm} />;
 }

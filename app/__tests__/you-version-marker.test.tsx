@@ -2,6 +2,11 @@ import { render } from '@testing-library/react-native';
 
 jest.mock('expo-router', () => ({
   useRouter: () => ({ push: jest.fn(), replace: jest.fn(), back: jest.fn() }),
+  // You re-reads the flag count on focus; run it once on mount.
+  useFocusEffect: (cb: () => void | (() => void)) => {
+    const { useEffect } = require('react');
+    useEffect(cb, []);
+  },
 }));
 
 // The Account screen now also carries the identity seam (Task 11) and the routine logger

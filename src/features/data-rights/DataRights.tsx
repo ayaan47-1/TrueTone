@@ -1,12 +1,16 @@
+import { useState } from 'react';
 import { View, Text, Pressable } from 'react-native';
 import { supabase } from '../../lib/supabase';
 import { clearDiary } from '../diary/diary-storage';
 import { clearAllRoutines } from '../routine/routine-storage';
 import { clearPublishedRoutines } from '../routine/routine-publish';
-import { Screen, GlassCard, Display, Eyebrow, Body, Caption } from '../../components/ui';
+import { clearAllAllergenProfiles } from '../allergens/allergen-store';
+import { Screen, GlassCard, Display, Eyebrow, Body, Caption, PrimaryButton } from '../../components/ui';
 
 type RpcName = 'withdraw_consent' | 'delete_my_data' | 'delete_account';
-type Props = { onChanged: () => void; confirm: (msg: string) => Promise<boolean> };
+type Props = { onChanged: () => void; confirm: (msg: string) => Promise<boolean>; userId?: string | null };
+
+const LOCAL_WIPE_FAILED = "Some data on this phone couldn't be removed. Please try again.";
 
 const ACTIONS: { id: string; rpc: RpcName; label: string; hint: string; danger?: boolean; confirm: string }[] = [
   { id: 'withdraw', rpc: 'withdraw_consent', label: 'Withdraw Consent', hint: 'Stop future scans until you consent again.', confirm: 'Withdraw consent?' },
@@ -14,27 +18,28 @@ const ACTIONS: { id: string; rpc: RpcName; label: string; hint: string; danger?:
   { id: 'delete-account', rpc: 'delete_account', label: 'Delete Account', hint: 'Permanently remove your account.', danger: true, confirm: 'Delete your account permanently?' },
 ];
 
-export function DataRights({ onChanged, confirm }: Props) {
+export function DataRights({ onChanged, confirm, userId }: Props) {
+  const [wipeFailed, setWipeFailed] = useState(false);
+
+  // On-device data the server never sees: the skin-feel diary, the daily-routine tracker + its
+  // locally published Community routines, and the encrypted allergen profile (ingredient flags).
+  // Each wipe runs on its own, so one failure never skips the others (code review H1).
+  async function wipeLocal() {
+    const results = await Promise.allSettled([
+      clearAllAllergenProfiles(userId), clearDiary(), clearAllRoutines(), clearPublishedRoutines(),
+    ]);
+    const failed = results.some((r) => r.status === 'rejected');
+    setWipeFailed(failed);
+    // Never report success while data is still on the phone: stay here with a retry instead.
+    if (!failed) onChanged();
+  }
+
   async function run(fn: RpcName, msg: string) {
     if (!(await confirm(msg))) return;
     const { error } = await supabase.rpc(fn);
     if (error) return;
-    // Deleting data/account also wipes the on-device skin-feel diary so the
-    // data-rights deletion is complete (the diary never reaches the server). Guard
-    // it: the server delete already succeeded, so still refresh even if the local
-    // wipe throws.
-    if (fn === 'delete_my_data' || fn === 'delete_account') {
-      try {
-        // On-device data the server never sees: the skin-feel diary and the daily-routine
-        // tracker + its locally published Community routines. All wiped so deletion is complete.
-        await clearDiary();
-        await clearAllRoutines();
-        await clearPublishedRoutines();
-      } catch {
-        // local wipe failed — server data is already gone; surface nothing.
-      }
-    }
-    onChanged();
+    if (fn === 'delete_my_data' || fn === 'delete_account') await wipeLocal();
+    else onChanged();
   }
   return (
     <Screen className="px-6" topGap={8}>
@@ -59,6 +64,12 @@ export function DataRights({ onChanged, confirm }: Props) {
           </Pressable>
         ))}
       </View>
+      {wipeFailed ? (
+        <View className="gap-3 mt-6">
+          <Body accessibilityRole="alert">{LOCAL_WIPE_FAILED}</Body>
+          <PrimaryButton testID="retry-local-wipe" label="Try again" onPress={() => void wipeLocal()} />
+        </View>
+      ) : null}
       <Body className="text-xs text-ink-muted mt-6 px-1">
         Your face image never leaves your phone. These controls also clear derived scores held on our
         servers.

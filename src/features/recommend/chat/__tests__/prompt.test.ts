@@ -37,3 +37,11 @@ test('history and the new message are appended in order', () => {
   });
   expect(messages.map((m) => m.content)).toEqual(['earlier', 'reply', 'why SPF?']);
 });
+
+test('system prompt forbids medical and allergy advice (compliance.md §3.2.1)', () => {
+  const { system } = buildChatPrompt({ scores, skinType: 'dry', routine, history: [], message: 'hi' });
+  const s = system.toLowerCase();
+  expect(s).toContain('not a medical or allergy professional');
+  expect(s).toContain('must not tell the user they are allergic');
+  expect(s).toContain('consult a doctor or dermatologist');
+});

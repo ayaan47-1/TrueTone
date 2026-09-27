@@ -1,6 +1,6 @@
-import { useState } from 'react';
+import { useCallback, useState } from 'react';
 import { Image, View } from 'react-native';
-import { useRouter } from 'expo-router';
+import { useFocusEffect, useRouter } from 'expo-router';
 import {
   Screen,
   Display,
@@ -18,6 +18,10 @@ import { useProfile } from '../../src/lib/profile-context';
 import { useCommunityProfile } from '../../src/features/identity/use-community-profile';
 import { RoutineLogger } from '../../src/features/routine/components/RoutineLogger';
 import { nativeVersionLabel } from '../../src/lib/app-version';
+import { useAllergenProfile } from '../../src/features/allergens/use-allergen-profile';
+import { flaggedCount } from '../../src/features/allergens/profile';
+import { flushPendingWithdrawal } from '../../src/features/allergens/health-consent';
+import { ALLERGEN_COPY } from '../../src/content/allergen-copy';
 
 /**
  * Account — profile & controls. Surfaces the previously-orphaned data-rights and legal
@@ -38,6 +42,20 @@ export default function YouScreen() {
   const [usernameError, setUsernameError] = useState<string | null>(null);
   const [saving, setSaving] = useState(false);
   const versionLabel = nativeVersionLabel();
+  const allergens = useAllergenProfile(userId);
+  // Tabs stay mounted, so re-read on focus: flags edited in the editor show when the user returns.
+  // Also retry an allergen withdrawal that could not be logged while offline (code review M2).
+  const reloadAllergens = allergens.reload;
+  useFocusEffect(
+    useCallback(() => {
+      reloadAllergens();
+      if (userId) void flushPendingWithdrawal(userId);
+    }, [reloadAllergens, userId]),
+  );
+  const allergenCaption =
+    allergens.status === 'ready'
+      ? ALLERGEN_COPY.settingsRow.sub(allergens.profile ? flaggedCount(allergens.profile) : 0)
+      : undefined;
 
   const draft = usernameDraft || profile?.username || '';
 
@@ -128,6 +146,15 @@ export default function YouScreen() {
         <ListRow
           label="Your Data"
           onPress={() => router.push('/data')}
+        />
+      </GlassCard>
+      </Rise>
+      <Rise index={4}>
+      <GlassCard flat className="px-6 py-1" radius={22}>
+        <ListRow
+          label={ALLERGEN_COPY.settingsRow.title}
+          caption={allergenCaption}
+          onPress={() => router.push('/allergens')}
         />
       </GlassCard>
       </Rise>

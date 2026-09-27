@@ -20,7 +20,7 @@ export default function SkipsScreen() {
   const onContinue = () => {
     const existing = preferencesStore.get() ?? DEFAULT_SETUP_ANSWERS;
     preferencesStore.set({ ...existing, skips: [...selected] });
-    router.push('/paywall');
+    router.push('/setup/allergens');
   };
 
   return (
