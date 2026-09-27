@@ -35,11 +35,14 @@ async function writeIndex(ids: readonly string[]): Promise<void> {
   else await SecureStore.setItemAsync(INDEX_KEY, JSON.stringify(ids), OPTIONS);
 }
 
-/** Fails closed: a read error is reported, never treated as "no flags" (design E17). */
+/** Fails closed: a read error or a corrupt value is reported, never treated as "no flags" (E17). */
 export async function loadAllergenProfile(userId: string): Promise<LoadResult> {
   try {
     const raw = await SecureStore.getItemAsync(allergenKey(userId), OPTIONS);
-    return { status: 'ok', profile: raw ? parseProfile(raw) : null };
+    if (!raw) return { status: 'ok', profile: null };
+    const profile = parseProfile(raw);
+    // A value that exists but will not parse is corrupt, not "no flags" (code review H3).
+    return profile ? { status: 'ok', profile } : { status: 'error' };
   } catch {
     return { status: 'error' };
   }

@@ -49,3 +49,15 @@ test('clearAllAllergenProfiles removes every user\'s profile (delete-everything 
 test('rejects a userId that is not a safe key segment', async () => {
   await expect(saveAllergenProfile('../x', flags)).rejects.toThrow();
 });
+
+describe('fails closed on corrupt data (code review H3)', () => {
+  test('a stored value that will not parse reads as an error, never as "no flags"', async () => {
+    SecureStore.__store.set('truetone.allergens.u1.v1', '{not json');
+    expect(await loadAllergenProfile('u1')).toEqual({ status: 'error' });
+  });
+
+  test('a stored value with an unknown version reads as an error', async () => {
+    SecureStore.__store.set('truetone.allergens.u1.v1', JSON.stringify({ ...flags, version: 9 }));
+    expect(await loadAllergenProfile('u1')).toEqual({ status: 'error' });
+  });
+});
