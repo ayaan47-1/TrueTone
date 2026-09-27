@@ -46,7 +46,7 @@
 | A `'fragrance'` **skip already exists but does nothing**; the scoring code says it is "filters only", and no filter can run without ingredient data | `src/content/makeup-vocab.ts:45-51`, `src/features/match/scoring.ts:57` | Today a user can tick "skip fragrance" and still see fragranced products. This design gives it a real effect (§3.4) |
 | `preferencesStore` defaults to an **in-memory** backend | `src/features/preferences/preferences-store.ts` | Setup answers do not survive a restart. The allergen store must not copy this; it must persist |
 | On-device, per-user AsyncStorage pattern with a Data Rights purge | `src/features/routine/routine-storage.ts`, `DataRights.tsx:30-32` | Same pattern for the allergen profile, plus encryption (§2.2) |
-| `consent_log.policy_doc_key` references `policy_versions`, whose `doc_key` `CHECK` only allows `privacy, terms, biometric, retention, wa_health` | `0001_schema.sql:14,31` | compliance.md §1.2(4) requires a **separate** `'health'` doc key, so P1 needs a small migration to widen the check and seed the new policy version |
+| `consent_log.policy_doc_key` references `policy_versions`, whose `doc_key` `CHECK` already allows `privacy, terms, biometric, retention, wa_health` | `0001_schema.sql:14,31` | compliance.md §1.2(4) requires a **separate** doc key from biometric. `wa_health` is already in the CHECK and already ships a policy doc (`src/content/wa_health.md`, currently a placeholder) — it **is** the WA MHMDA consumer-health-data policy this feature needs. Reusing it means **no migration** on this axis (§2.4) |
 | Two "routines": `recommend/` (category-level skincare engine) and `routine/` (AM/PM logger of catalog products) | `ARCHITECTURE.md` | Clash checks apply differently to each (§3.6) |
 | Cosmetic post-filter + disease blocklist | `src/lib/cosmetic-filter.ts`, `src/content/cosmetic-vocab.ts` | All new copy runs through it, plus a feature-specific banned-phrase list (§5.3) |
 | No E2E framework (no Maestro/Detox); route-level flows are Jest tests in `app/__tests__/` | `package.json`, `app/__tests__/` | "E2E" in this plan = route-level Jest journeys + a written device script (decision D6) |
@@ -65,7 +65,7 @@
 | Clash rules | No | Same bundle | Same, and each rule's wording must pass copy review in a PR |
 | Product formulations (ingredient list per product) | No | Static data keyed by `Product.id`, next to the catalog (`src/features/ingredients/formulations.ts`, generated from `data/ingredients/*.csv`) | The catalog is static today. When the catalog moves to Supabase, formulations move with it into a **world-readable, read-only** table (like `policy_versions`), because they describe products, not people |
 | **User's flagged ingredients** | **Yes: consumer health data** | **On-device only**: encrypted local store, per-user key | Matching already runs on-device, so the server never needs this list. Keeping it off the server keeps it out of backups and breach scope and away from any vendor. It also means the LLM chat never sees it |
-| Consent receipt for health data | Yes (minimal) | Supabase `consent_log`, new `policy_doc_key = 'health'` | Needs an append-only legal record. The receipt says "consented to the ingredient-flag feature". It does not contain the ingredients |
+| Consent receipt for health data | Yes (minimal) | Supabase `consent_log`, reusing `policy_doc_key = 'wa_health'` (already in the schema CHECK — no migration) | Needs an append-only legal record. The receipt says "consented to the ingredient-flag feature". It does not contain the ingredients |
 
 **Cross-device sync is not in P1–P3.** If founders want it later (D3), §2.5 sketches the table and
 what it needs.
@@ -107,6 +107,11 @@ export interface AllergenProfile {
 - **Purpose limit (compliance.md §1.2(2)):** used only "to flag ingredients you listed when we
   show you products and build routines". No aggregate counts of popular allergens, no model
   training, no marketing use. Any of those would need its own separate consent.
+- **The bare `answer` field is a UX flag, not health data.** A stored `'no'` or `'skipped'` value
+  says only "don't show the intake screen again" — it carries no ingredient, no allergen, no
+  health information, and (matching compliance.md §1.2(1) "No/skip must collect nothing") writing
+  it triggers **no** consent receipt. Only `answer: 'yes'` plus a saved `groups`/`ingredients`
+  selection is health data, and only that path goes through the consent sheet in §2.4.
 - **Never sent:** not to Supabase, not to the `routine-chat` Edge Function, not in share cards,
   not in Community posts. A new CI guard (§4, WS-B) checks that `allergen-store` is not imported
   by `supabase.ts`, `routine-chat.ts`, `community/` or `shade/ScanShareCard.tsx`.
@@ -166,17 +171,21 @@ the group, not a frozen list.
 
 ### 2.4 Consent (server, minimal)
 
-- A **separate** consent from the biometric one (compliance.md §1.2(1), §1.2(4)). New doc key
-  `'health'`: a migration widens the `policy_versions.doc_key` check, seeds a `health` policy
-  version, and `src/content/manifest.ts` (`DocKey`, `POLICY_DOCS`) + `bodies.ts` + a new
-  `src/content/health.md` mirror it. The consent-immutability trigger (`0003`) is unchanged and
-  covers the new rows.
+- A **separate** consent from the biometric one (compliance.md §1.2(1), §1.2(4)) — its own screen,
+  never bundled with the biometric checkbox. It does **not** need a new doc key: `DocKey` already
+  includes `'wa_health'` (`src/content/manifest.ts`), the `policy_versions.doc_key` CHECK already
+  allows it (`0001_schema.sql:14`), and `src/content/wa_health.md` already exists as the WA
+  Consumer Health Data Policy — exactly the policy this feature's consent must point at. **No
+  migration on this axis.** (If counsel later decides the allergen feature needs a distinct policy
+  document from the general WA-health policy, add a second doc key then, with a stated reason —
+  not by default.)
 - New `SECURITY DEFINER` RPCs `record_health_data_consent()` / `withdraw_health_data_consent()`
-  insert into `consent_log` with `policy_doc_key = 'health'`, pinned to the current `health`
+  insert into `consent_log` with `policy_doc_key = 'wa_health'`, pinned to the current `wa_health`
   version. Withdrawing purges the on-device profile even if the user keeps their account.
-- The new `health.md` names: category (cosmetic ingredients the user asks us to flag), purpose
-  (flag them in products and routines), source (the user), sharing (**no one**), storage (this
-  phone only), and how to view, edit and delete. Counsel drafts and approves it (D2).
+- `src/content/wa_health.md` (today a placeholder) is finalized to name: category (cosmetic
+  ingredients the user asks us to flag), purpose (flag them in products and routines), source (the
+  user), sharing (**no one**), storage (this phone only), and how to view, edit and delete. Counsel
+  drafts and approves it (D2).
 - A receipt for data that never leaves the device may not be strictly required. This design logs
   it anyway: low cost, and it gives an audit trail.
 
@@ -237,6 +246,14 @@ type FlagState =
   | { kind: 'none_listed' };     // listed, and none of the user's flags appear
 ```
 
+- **Badge color (F6, verified against `src/features/shop/ProductCard.tsx` and `src/theme/tokens.ts`):**
+  `bg-brand-green` is already the locked positive/fit semantic on this card — best-match badge, fit
+  bar, and CTA. A `flagged` badge in green would collide with "best match" and read as *positive*,
+  the opposite of a caution. Badges use distinct tokens instead: `flagged` → `clay`
+  (`palette.clay` / `clayInk`, already a defined non-green, non-destructive semantic token — a
+  caution, not an alarm), `no_list` → a neutral `ink-muted` / mist hairline treatment (no color
+  signal at all, since it means "unknown," not "caution"). Neither reuses `palette.danger` (the
+  destructive-action red) or `brand-green`.
 - Match when: an ingredient id is in `profile.ingredients`, **or** it is a member of a selected
   group, **or** a token equals an `umbrellaToken` of a selected group (e.g. the user flags
   "Fragrance" and the label says `parfum`), **or** a normalized token equals an `unresolved` entry.
@@ -290,7 +307,7 @@ an effect on the user's skin.
 
 | Surface | What is checked | Behaviour |
 |---|---|---|
-| **My Daily Routine logger** (`src/features/routine/`) | Products logged in the same AM/PM slot, or the same day, resolved through formulations → classes | Info banner under the slot, with a dismiss option. Never blocks logging. No banner if a product has `no_list` |
+| **My Daily Routine logger** (`src/features/routine/`) | Products logged in the same AM/PM slot, or the same day, resolved through formulations → classes | **Informational, not a safety alert (F7)** — renders on the existing `GlassCard`/`Caption` system with a neutral, low-emphasis treatment, never `palette.danger` or a full-bleed alert color. A quiet dismiss control. Never blocks logging. No banner if a product has `no_list` |
 | **Skincare routine engine** (`src/features/recommend/`) | `CategoryKey`s tagged with classes (e.g. `gentle_exfoliant` → `aha/bha`) | **Build-time guarantee, not a runtime warning**: a test asserts `routine-engine` never outputs two categories that trip a `same_slot` rule. No user-facing change |
 | Routine publish to Community | The day being published | Same banner in the publish sheet. Publishing is not blocked |
 | Shop bag | Not checked in P3 | A bag is not a routine. Revisit if users ask |
@@ -331,8 +348,8 @@ an effect on the user's skin.
 | C1b | Setup subtitle | "Optional. For example, ingredients you prefer not to use or were advised to avoid. We check product ingredient lists for them. You can change this anytime in Account." |
 | C1c | Setup buttons | "Yes, choose ingredients" · "No" · "Skip for now" |
 | C2 | Standing disclaimer: the canonical string from compliance.md §2.3 (counsel finalizes). Shown on the intake screen above the consent action, on every flagged card and the hidden-count explanation, on the settings page, and injected into chat when allergens or clashes come up | "TrueTone flags ingredients from the product's label against the list you gave us. This is information, not medical or allergy advice. Ingredient lists can change — always check the current label, and talk to a doctor or dermatologist about allergies or reactions." |
-| C3 | Badge + detail, `no_list` | Badge "No ingredient list" · Detail "We don't have a readable ingredient list for this product, so we can't check it against your flags. Check the product label." |
-| C4 | Badge + detail, `flagged` | Badge "Contains a flagged ingredient" · Detail "Lists {ingredient} ({group}), which is on your flag list." |
+| C3 | Badge (neutral `ink-muted` token, §3.3) + detail, `no_list` | Badge "No ingredient list" · Detail "We don't have a readable ingredient list for this product, so we can't check it against your flags. Check the product label." |
+| C4 | Badge (`clay` caution token, §3.3 — never `brand-green`) + detail, `flagged` | Badge "Contains a flagged ingredient" · Detail "Lists {ingredient} ({group}), which is on your flag list." |
 | C5 | `flagged` inside may-contain | "May contain {ingredient}, which is on your flag list. Check the label for your shade." |
 | C6 | Umbrella fragrance vs a single flagged component | "Lists fragrance. Individual fragrance components aren't always listed, so {ingredient} may be included." |
 | C7 | `none_listed` detail (no badge on the card) | "None of your flagged ingredients appear on this product's listed ingredients (as of {date}). Lists can change, so check the label." |
@@ -342,7 +359,7 @@ an effect on the user's skin.
 | C11 | Profile failed to load | "Your ingredient flags couldn't be loaded, so products aren't being checked right now." |
 | C12 | Settings row | "Ingredient flags" · sub "{n} flagged" / "None" |
 | C13 | Search no-match | "We'll look for this exact name on ingredient lists." |
-| C14 | Clash banner header | "Heads-up on this routine" (the body is the rule `note`, §3.5) |
+| C14 | Clash banner header (neutral/informational treatment, never an alarm color — §3.6) | "Heads-up on this routine" (the body is the rule `note`, §3.5) |
 | C15 | Health-data consent (own screen, before first save, never bundled with biometric consent) | "Your ingredient flags are stored only on this phone and used only to flag those ingredients when we show you products and build routines. We never share or sell them. You can delete them anytime." + link to the `health` policy + unticked checkbox "I agree" |
 | C16 | Free-text entry rejected | "Please enter an ingredient name as it appears on product labels." |
 
@@ -383,18 +400,18 @@ Three workstreams. WS-B has no UI and unblocks the other two, so it starts first
 
 | File | Change |
 |---|---|
-| `app/setup/allergens.tsx` (new) | Thin route (props-free convention) → `AllergenSetup` |
-| `app/setup/skips.tsx` | "Next" goes to `/setup/allergens` instead of finishing |
+| `app/setup/allergens.tsx` (new) | Thin route (props-free convention) → `AllergenSetup`. Continues to `/paywall` on **all three** answers (Yes-after-save, No, Skip) — the existing paywall step in `app/paywall.tsx` is preserved, not dropped from the funnel. (Cosmetic-side only: the paywall gates nothing about this feature; MHMDA consent is separate from purchase) |
+| `app/setup/skips.tsx` | "Next" goes to `/setup/allergens` instead of `/paywall` directly |
 | `app/allergens.tsx` (new, root route) | Settings editor, reached from Account |
 | `app/(tabs)/you.tsx` | `ListRow` "Ingredient flags" (C12) |
-| `src/features/allergens/AllergenSetup.tsx`, `AllergenEditor.tsx`, `AllergenSearch.tsx`, `GroupChecklist.tsx` (new) | Yes/No/Skip → group checklist (brief's 10 groups) + search. Uses `GlassCard`, `Button`, `TextField`, `ListRow`. 48pt tap targets |
-| `src/features/allergens/HealthDataConsent.tsx` (new) | C15 sheet before the first save. Calls the consent RPC. Nothing is stored if the user declines |
+| `src/features/allergens/AllergenSetup.tsx`, `AllergenEditor.tsx`, `AllergenSearch.tsx`, `GroupChips.tsx` (new) | Yes/No/Skip → group multi-select (brief's 10 groups) + search. The group multi-select reuses `app/setup/skips.tsx`'s **chip** control (`PressableScale` rounded-full, `bg-brand-green` selected / `border-ink-faint` idle) rather than a checklist, for visual consistency with the rest of Setup. Uses `GlassCard`, `Button`, `TextField`, `ListRow`. 48pt tap targets |
+| `src/features/allergens/HealthDataConsent.tsx` (new) | C15 sheet before the first save. **Confirm button disabled until the "I agree" checkbox is ticked**, gated exactly like `src/features/consent/Consent.tsx` (`disabled={!checked}` + `accessibilityState={{ disabled }}`), with a ghost "Decline" beside the primary confirm. Calls the consent RPC only on confirm; nothing is stored and no consent-log row is written on decline, No, or Skip |
 | `src/features/allergens/allergen-store.ts`, `allergen-types.ts` (new) | Encrypted per-user store (§2.2), immutable updates |
 | `src/features/data-rights/DataRights.tsx` | Call `clearAllergenProfile()` in both delete paths |
 | `src/content/allergen-copy.ts` (new) | All strings from §5 |
-| `src/content/health.md` (new), `manifest.ts`, `bodies.ts`, `privacy.md`, `retention.md` | New `health` policy doc (§2.4) + "on-device only" in retention |
+| `src/content/wa_health.md` (finalize placeholder), `bodies.ts` (`wa_health` entry), `retention.md` | Reused `wa_health` policy doc (§2.4), finalized with the allergen-flag purpose + storage language; no `manifest.ts` change (`'wa_health'` `DocKey` already exists) + "on-device only" in retention |
 | `src/content/medical-claims.ts` (new) + `scripts/check-no-medical-claims.mjs` (new) + `.github/workflows/compliance.yml` | compliance.md §3.1 shared blocklist + CI guard |
-| `supabase/migrations/00xx_health_data_consent.sql` + `supabase/tests/health_consent.test.sql` (new, P1) | Widen `doc_key` check to add `'health'`, seed its policy version, the two consent RPCs, pgTAP. No table for the flags themselves |
+| `supabase/tests/health_consent.test.sql` (new, P1) | The two consent RPCs (`record_health_data_consent`/`withdraw_health_data_consent`, `policy_doc_key = 'wa_health'`), pgTAP. **No migration** — the `doc_key` CHECK already allows `wa_health` — and no table for the flags themselves |
 
 ### WS-B — Ingredient taxonomy + clash matrix (data + pure logic)
 
@@ -476,18 +493,20 @@ yet**, so no product claims can appear.
 
 Acceptance:
 - [ ] Setup shows the allergen step after Skips. "No" and "Skip for now" store nothing except the
-      answer. "Yes" leads to the consent sheet (C15) before anything is saved.
+      answer (a UX flag, not health data — §2.2). "Yes" leads to the consent sheet (C15) before
+      anything is saved. All three answers continue to `/paywall`.
 - [ ] Declining consent saves no flags and returns to Setup with the answer `skipped`.
 - [ ] Flags persist across app restarts (unlike today's in-memory `preferencesStore`), are stored
       encrypted, and are keyed per user.
 - [ ] Account → Ingredient flags edits the same profile. Changes survive restart.
 - [ ] Delete-everything, delete-account and consent withdrawal each remove the profile. A test
       asserts the key is gone.
-- [ ] `consent_log` gets a `health` receipt, separate from the biometric one. pgTAP: RPC scoped to the caller, append-only
+- [ ] `consent_log` gets a `wa_health` receipt, separate from the biometric one. pgTAP: RPC scoped to the caller, append-only
       holds, withdraw logs a row.
 - [ ] Copy test: every string in `allergen-copy.ts` passes the disease filter + banned phrases.
 - [ ] `check-allergen-isolation` passes in `npm run check:compliance`.
-- [ ] Route-level Jest journey: Setup → allergens → consent → Account shows "{n} flagged".
+- [ ] Route-level Jest journey: Setup → allergens → consent → **paywall** (all three answers reach
+      it) → Account shows "{n} flagged".
 
 ### P2 — Ingredient data + allergen filter (≈2 sprints; the rest of WS-B + WS-C filter)
 
@@ -546,7 +565,7 @@ Acceptance:
 | # | Decision | Recommendation |
 |---|---|---|
 | D1 | Move the Shop to real SKUs, and choose the formulation source | Real SKUs from brand partners. Hand-curated, brand-warranted lists (§7 option C). Licensed database later. No scraping. **P2 cannot ship to users without this** |
-| D2 | Who drafts and approves the new `health` policy doc, the consent screen (C15) and the disclaimer (C2) | Counsel, before P1 ships (compliance.md §4 Q4, Q7) |
+| D2 | Who drafts and approves the finalized `wa_health.md` policy doc, the consent screen (C15) and the disclaimer (C2) | Counsel, before P1 ships (compliance.md §4 Q4, Q7) |
 | D3 | Cross-device sync of flags | Not now. It would be new server-side health data (§2.5) |
 | D4 | Add `expo-secure-store` for encrypted-at-rest storage | Yes. It is a first-party Expo module with no network access |
 | D5 | Sign-off on clash rules and their wording | Founder + counsel review of §3.5 before P3 |
@@ -564,7 +583,7 @@ Acceptance:
 |---|---|
 | §1.2(1) separate opt-in consent before collection | C15 is its own screen, before first save, never bundled with the biometric consent |
 | §1.2(2) purpose limitation | Stated in §2.2. No analytics, training or marketing use (D10) |
-| §1.2(3), §1.2(4) own policy doc + own `consent_log` doc key | Switched from reusing `wa_health` to a new `'health'` doc key + `health.md` (§2.4). Needs a small migration |
+| §1.2(3), §1.2(4) own policy doc + own `consent_log` doc key | Reuses the existing `wa_health` doc key + `wa_health.md`, finalized with the allergen purpose (§2.4). **No migration** — verified against `0001_schema.sql`'s CHECK and `manifest.ts`'s `DocKey` |
 | §1.2(5) deletion, edit, withdrawal purge | Already in §2.2. Withdrawal clears the profile |
 | §1.2(6) no sale, no SDK, encrypted at rest | On-device encrypted store (D4) + `check-allergen-isolation` guard |
 | §1.3 on-device default; chat gets only the computed match result | Already on-device. Chat may get a match result, never the profile |
