@@ -28,3 +28,19 @@ test('withdraw purges the on-device profile even if the RPC fails', async () => 
   expect(await loadAllergenProfile('u1')).toEqual({ status: 'ok', profile: null });
   expect(mockRpc).toHaveBeenCalledWith('withdraw_health_data_consent');
 });
+
+test('a Keychain failure never skips the withdrawal receipt (code review H2)', async () => {
+  const SecureStore = require('expo-secure-store');
+  await saveAllergenProfile('u1', toggleGroup(emptyProfile('yes', 't'), 'fragrance'));
+  mockRpc.mockResolvedValue({ error: null });
+  SecureStore.deleteItemAsync.mockRejectedValueOnce(new Error('locked'));
+  expect(await withdrawHealthDataConsent('u1')).toEqual({ cleared: false, logged: true });
+  expect(mockRpc).toHaveBeenCalledWith('withdraw_health_data_consent');
+});
+
+test('withdraw never rejects, even when both the purge and the RPC throw', async () => {
+  const SecureStore = require('expo-secure-store');
+  SecureStore.deleteItemAsync.mockRejectedValueOnce(new Error('locked'));
+  mockRpc.mockRejectedValue(new Error('offline'));
+  expect(await withdrawHealthDataConsent('u1')).toEqual({ cleared: false, logged: false });
+});

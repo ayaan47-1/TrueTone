@@ -26,6 +26,7 @@ export function AllergenEditor({ userId, confirm = async () => true, onOpenPolic
   const [draft, setDraft] = useState<AllergenProfile | null>(null);
   const [asking, setAsking] = useState(false);
   const [saved, setSaved] = useState(false);
+  const [withdrawFailed, setWithdrawFailed] = useState(false);
 
   const ready = loaded.status === 'ready';
   const stored = loaded.status === 'ready' ? loaded.profile : null;
@@ -54,7 +55,10 @@ export function AllergenEditor({ userId, confirm = async () => true, onOpenPolic
 
   async function withdraw() {
     if (!userId || !(await confirm(C.editor.withdraw + '?'))) return;
-    await withdrawHealthDataConsent(userId);
+    const { cleared } = await withdrawHealthDataConsent(userId);
+    setWithdrawFailed(!cleared);
+    // Reset the screen only when the flags are really gone from the phone.
+    if (!cleared) return;
     setDraft(emptyProfile('skipped', now()));
     loaded.reload();
   }
@@ -73,6 +77,7 @@ export function AllergenEditor({ userId, confirm = async () => true, onOpenPolic
               <FlagPicker profile={draft} onChange={(p) => { setDraft(p); setSaved(false); }} />
               {saved ? <Caption className="text-ink-muted">{C.editor.saved}</Caption> : null}
               <PrimaryButton label={C.editor.save} onPress={save} />
+              {withdrawFailed ? <Body accessibilityRole="alert">{C.editor.withdrawFailed}</Body> : null}
               {consentedBefore ? (
                 <PrimaryButton label={C.editor.withdraw} variant="ghost" onPress={withdraw} />
               ) : null}

@@ -50,6 +50,21 @@ test('withdrawing consent deletes the profile and logs the withdrawal', async ()
   await fireEvent.press(v.getByText(C.editor.withdraw));
   await waitFor(() => expect(SecureStore.__store.has('truetone.allergens.u1.v1')).toBe(false));
   expect(mockRpc).toHaveBeenCalledWith('withdraw_health_data_consent');
+  // The screen resets: no flags selected and no Withdraw button (code review M6).
+  await waitFor(() => expect(v.queryByText(C.editor.withdraw)).toBeNull());
+  expect(v.getByTestId('group-mit').props.accessibilityState.selected).toBe(false);
+});
+
+test('a Keychain failure on withdraw shows an error and keeps the flags on screen (H2)', async () => {
+  await saveAllergenProfile('u1', toggleGroup(emptyProfile('yes', 't'), 'mit'));
+  const v = await render(<AllergenEditor userId="u1" />);
+  await waitFor(() => expect(v.getByText(C.editor.withdraw)).toBeTruthy());
+  SecureStore.deleteItemAsync.mockRejectedValueOnce(new Error('locked'));
+  await fireEvent.press(v.getByText(C.editor.withdraw));
+  await waitFor(() => expect(v.getByText(C.editor.withdrawFailed)).toBeTruthy());
+  expect(mockRpc).toHaveBeenCalledWith('withdraw_health_data_consent');
+  expect(v.getByTestId('group-mit').props.accessibilityState.selected).toBe(true);
+  expect(v.getByText(C.editor.withdraw)).toBeTruthy();
 });
 
 test('a storage read failure shows the C11 banner and offers no save (fails closed)', async () => {

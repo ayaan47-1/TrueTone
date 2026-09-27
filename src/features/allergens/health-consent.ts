@@ -13,13 +13,22 @@ export async function recordHealthDataConsent(): Promise<boolean> {
   }
 }
 
-/** Withdrawal purges the on-device profile first, so it is gone even when offline. */
+/**
+ * Withdrawal purges the on-device profile first, so it is gone even when offline. Never rejects:
+ * the purge and the receipt are each attempted on their own, and the result says which worked
+ * (code review H2). The user's intent is clear, so the withdrawal is logged even if the purge fails.
+ */
 export async function withdrawHealthDataConsent(userId: string): Promise<{ cleared: boolean; logged: boolean }> {
-  await clearAllergenProfile(userId);
+  let cleared = true;
+  try {
+    await clearAllergenProfile(userId);
+  } catch {
+    cleared = false;
+  }
   try {
     const { error } = await supabase.rpc('withdraw_health_data_consent');
-    return { cleared: true, logged: !error };
+    return { cleared, logged: !error };
   } catch {
-    return { cleared: true, logged: false };
+    return { cleared, logged: false };
   }
 }
