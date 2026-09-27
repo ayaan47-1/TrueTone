@@ -64,7 +64,16 @@ test('latex shows a see-a-doctor note and is never selected as a flag', async ()
   await fireEvent.press(v.getByText(C.setup.yes));
   await fireEvent.press(v.getByText('Latex'));
   expect(v.getByText(C.referralNote('Latex'))).toBeTruthy();
-  expect(v.getByText(C.setup.save).props).toBeTruthy();
+  // Code review M6: the old `.props).toBeTruthy()` asserted nothing. Save stays disabled and
+  // latex never reaches the stored profile.
+  expect(v.getByRole('button', { name: C.setup.save }).props.accessibilityState.disabled).toBe(true);
+  await fireEvent.press(v.getByText(C.setup.save));
+  expect(v.queryByText(C.consent.body)).toBeNull();
+  await fireEvent.press(v.getByText('Fragrance / parfum'));
+  await fireEvent.press(v.getByText(C.setup.save));
+  await fireEvent.press(v.getByTestId('health-consent-check'));
+  await fireEvent.press(v.getByTestId('health-consent-submit'));
+  await waitFor(async () => expect((await stored())?.groups).toEqual(['fragrance']));
 });
 
 test('search adds a dictionary ingredient; unknown names are kept as typed with the C13 note', async () => {

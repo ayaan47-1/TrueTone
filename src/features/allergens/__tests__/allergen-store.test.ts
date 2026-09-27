@@ -134,3 +134,10 @@ describe('the index never misses a stored profile (code review H4)', () => {
     }
   });
 });
+
+test('clearAllergenProfile rejects when the Keychain delete itself fails (callers must handle it)', async () => {
+  await saveAllergenProfile('u1', flags);
+  SecureStore.deleteItemAsync.mockRejectedValueOnce(new Error('locked'));
+  await expect(clearAllergenProfile('u1')).rejects.toThrow('locked');
+  expect(SecureStore.__store.has('truetone.allergens.u1.v1')).toBe(true);
+});
