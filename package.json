@@ -69,7 +69,7 @@
     "test:integration": "node --test \"test/integration/**/*.test.mjs\"",
     "test:scripts": "node --experimental-strip-types --no-warnings --test \"scripts/__tests__/**/*.test.mjs\" \"test/web/**/*.test.mjs\" \"test/content/**/*.test.mjs\"",
     "waitlist:build": "node scripts/build-waitlist.mjs",
-    "check:compliance": "node scripts/check-no-analytics-sdk.mjs && node scripts/check-waitlist-copy.mjs && node --experimental-strip-types --no-warnings scripts/check-no-medical-claims.mjs",
+    "check:compliance": "node scripts/check-no-analytics-sdk.mjs && node scripts/check-waitlist-copy.mjs && node --experimental-strip-types --no-warnings scripts/check-no-medical-claims.mjs && node scripts/check-allergen-isolation.mjs",
     "check:no-egress": "node scripts/check-no-image-egress.mjs",
     "eval:invariance": "jest -c jest.eval.config.js eval/invariance/__tests__/report-writer.test.ts"
   },
