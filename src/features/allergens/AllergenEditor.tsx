@@ -27,6 +27,7 @@ export function AllergenEditor({ userId, confirm = async () => true, onOpenPolic
   const [asking, setAsking] = useState(false);
   const [saved, setSaved] = useState(false);
   const [withdrawFailed, setWithdrawFailed] = useState(false);
+  const [saveFailed, setSaveFailed] = useState(false);
 
   const ready = loaded.status === 'ready';
   const stored = loaded.status === 'ready' ? loaded.profile : null;
@@ -40,7 +41,13 @@ export function AllergenEditor({ userId, confirm = async () => true, onOpenPolic
   async function persist(p: AllergenProfile) {
     if (!userId) return;
     const next = { ...p, answer: 'yes' as const, updatedAt: now() };
-    await saveAllergenProfile(userId, next);
+    try {
+      await saveAllergenProfile(userId, next);
+    } catch {
+      setSaveFailed(true); // keep the draft and the step; never show "Saved" (code review M1)
+      return;
+    }
+    setSaveFailed(false);
     setDraft(next);
     setAsking(false);
     setSaved(true);
@@ -76,6 +83,7 @@ export function AllergenEditor({ userId, confirm = async () => true, onOpenPolic
             <View className="gap-5">
               <FlagPicker profile={draft} onChange={(p) => { setDraft(p); setSaved(false); }} />
               {saved ? <Caption className="text-ink-muted">{C.editor.saved}</Caption> : null}
+              {saveFailed ? <Body accessibilityRole="alert">{C.saveFailed}</Body> : null}
               <PrimaryButton label={C.editor.save} onPress={save} />
               {withdrawFailed ? <Body accessibilityRole="alert">{C.editor.withdrawFailed}</Body> : null}
               {consentedBefore ? (
@@ -83,6 +91,7 @@ export function AllergenEditor({ userId, confirm = async () => true, onOpenPolic
               ) : null}
             </View>
           ) : null}
+          {asking && draft && saveFailed ? <Body accessibilityRole="alert">{C.saveFailed}</Body> : null}
           {asking && draft ? (
             <HealthDataConsent
               onConsented={() => void persist(draft)}

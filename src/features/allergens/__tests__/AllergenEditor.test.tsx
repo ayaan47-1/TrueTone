@@ -73,3 +73,15 @@ test('a storage read failure shows the C11 banner and offers no save (fails clos
   await waitFor(() => expect(v.getByText(C.loadFailed)).toBeTruthy());
   expect(v.queryByText(C.editor.save)).toBeNull();
 });
+
+test('a Keychain save failure shows an error, never "Saved" (code review M1)', async () => {
+  await saveAllergenProfile('u1', toggleGroup(emptyProfile('yes', 't'), 'fragrance'));
+  const v = await render(<AllergenEditor userId="u1" />);
+  await waitFor(() => expect(v.getByTestId('group-fragrance').props.accessibilityState.selected).toBe(true));
+  await fireEvent.press(v.getByText('Parabens'));
+  SecureStore.setItemAsync.mockRejectedValueOnce(new Error('keychain'));
+  await fireEvent.press(v.getByText(C.editor.save));
+  await waitFor(() => expect(v.getByText(C.saveFailed)).toBeTruthy());
+  expect(v.queryByText(C.editor.saved)).toBeNull();
+  expect(v.getByTestId('group-parabens').props.accessibilityState.selected).toBe(true);
+});

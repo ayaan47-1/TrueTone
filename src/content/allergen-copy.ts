@@ -53,6 +53,7 @@ export const ALLERGEN_COPY = {
     title: 'Ingredient flags', // C12
     sub: (n: number) => (n > 0 ? `${n} flagged` : 'None'),
   },
+  saveFailed: "We couldn't save your flags on this phone. Please try again.",
   loadFailed:
     "Your ingredient flags couldn't be loaded, so products aren't being checked right now.", // C11
   // P2 strings (no filtering ships in P1); kept here so the copy test covers them from day one.

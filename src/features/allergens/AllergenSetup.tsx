@@ -19,6 +19,7 @@ const now = () => new Date().toISOString();
 export function AllergenSetup({ userId, onDone, onOpenPolicy }: Props) {
   const [step, setStep] = useState<Step>('ask');
   const [draft, setDraft] = useState<AllergenProfile>(() => emptyProfile('yes', now()));
+  const [saveFailed, setSaveFailed] = useState(false);
 
   async function storeAnswerOnly(answer: Exclude<AllergenAnswer, 'yes'>) {
     // Best effort: the answer only hides this step next time. Never block Setup on it.
@@ -31,7 +32,12 @@ export function AllergenSetup({ userId, onDone, onOpenPolicy }: Props) {
   }
 
   async function consented() {
-    if (userId) await saveAllergenProfile(userId, { ...draft, answer: 'yes', updatedAt: now() });
+    try {
+      if (userId) await saveAllergenProfile(userId, { ...draft, answer: 'yes', updatedAt: now() });
+    } catch {
+      setSaveFailed(true); // stay on the consent step so the user can try again (code review M1)
+      return;
+    }
     onDone();
   }
 
@@ -73,7 +79,10 @@ export function AllergenSetup({ userId, onDone, onOpenPolicy }: Props) {
           ) : null}
 
           {step === 'consent' ? (
-            <HealthDataConsent onConsented={consented} onDecline={declined} onOpenPolicy={onOpenPolicy} />
+            <View className="gap-3">
+              {saveFailed ? <Body accessibilityRole="alert">{C.saveFailed}</Body> : null}
+              <HealthDataConsent onConsented={consented} onDecline={declined} onOpenPolicy={onOpenPolicy} />
+            </View>
           ) : null}
         </View>
       </ScrollView>

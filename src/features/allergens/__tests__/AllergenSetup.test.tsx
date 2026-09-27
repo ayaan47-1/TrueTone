@@ -81,3 +81,17 @@ test('search adds a dictionary ingredient; unknown names are kept as typed with 
   await fireEvent.press(v.getByText(C.addTyped));
   expect(v.getByText(C.freeTextRejected)).toBeTruthy();
 });
+
+test('a Keychain save failure after consent shows an error and stays on the step (code review M1)', async () => {
+  const onDone = jest.fn();
+  const v = await render(<AllergenSetup userId="u1" onDone={onDone} />);
+  await fireEvent.press(v.getByText(C.setup.yes));
+  await fireEvent.press(v.getByText('Fragrance / parfum'));
+  await fireEvent.press(v.getByText(C.setup.save));
+  await fireEvent.press(v.getByTestId('health-consent-check'));
+  SecureStore.setItemAsync.mockRejectedValueOnce(new Error('keychain'));
+  await fireEvent.press(v.getByTestId('health-consent-submit'));
+  await waitFor(() => expect(v.getByText(C.saveFailed)).toBeTruthy());
+  expect(onDone).not.toHaveBeenCalled();
+  expect(v.getByTestId('health-consent-submit')).toBeTruthy();
+});
