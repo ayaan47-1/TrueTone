@@ -56,7 +56,15 @@ export function HealthDataConsent({ onConsented, onDecline, onOpenPolicy }: Prop
       {failed ? <Body className="text-ink-soft">{C.consent.failed}</Body> : null}
       <View className="flex-row gap-3">
         <View className="flex-1">
-          <PrimaryButton label={C.consent.decline} variant="ghost" fullWidth onPress={onDecline} />
+          <PrimaryButton
+            testID="health-consent-decline"
+            label={C.consent.decline}
+            variant="ghost"
+            fullWidth
+            disabled={busy}
+            accessibilityState={{ disabled: busy }}
+            onPress={() => { if (!busy) onDecline(); }}
+          />
         </View>
         <View className="flex-1">
           <PrimaryButton

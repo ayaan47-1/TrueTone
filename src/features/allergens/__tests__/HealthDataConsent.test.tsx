@@ -49,3 +49,18 @@ test('decline writes no receipt', async () => {
   expect(onDecline).toHaveBeenCalled();
   expect(mockRpc).not.toHaveBeenCalled();
 });
+
+test('Decline is disabled while the consent RPC is in flight (no decline + late consent race)', async () => {
+  let resolve: (v: unknown) => void = () => undefined;
+  mockRpc.mockReturnValue(new Promise((r) => { resolve = r; }));
+  const onDecline = jest.fn();
+  const v = await render(<HealthDataConsent onConsented={jest.fn()} onDecline={onDecline} />);
+  await fireEvent.press(v.getByTestId('health-consent-check'));
+  void fireEvent.press(v.getByTestId('health-consent-submit'));
+  await waitFor(() =>
+    expect(v.getByTestId('health-consent-decline').props.accessibilityState).toMatchObject({ disabled: true }));
+  void fireEvent.press(v.getByTestId('health-consent-decline'));
+  expect(onDecline).not.toHaveBeenCalled();
+  resolve({ error: null });
+  await waitFor(() => expect(mockRpc).toHaveBeenCalledTimes(1));
+});
