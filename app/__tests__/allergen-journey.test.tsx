@@ -5,6 +5,11 @@ import { render, fireEvent, waitFor } from '@testing-library/react-native';
 const mockPush = jest.fn();
 jest.mock('expo-router', () => ({
   useRouter: () => ({ push: mockPush, replace: jest.fn(), back: jest.fn() }),
+  // You re-reads the flag count on focus; run it once on mount.
+  useFocusEffect: (cb: () => void | (() => void)) => {
+    const { useEffect } = require('react');
+    useEffect(cb, []);
+  },
 }));
 const mockRpc = jest.fn();
 jest.mock('../../src/lib/supabase', () => ({ supabase: { rpc: (...a: unknown[]) => mockRpc(...a) } }));

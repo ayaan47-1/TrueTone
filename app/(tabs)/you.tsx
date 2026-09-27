@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { Image, View } from 'react-native';
-import { useRouter } from 'expo-router';
+import { useFocusEffect, useRouter } from 'expo-router';
 import {
   Screen,
   Display,
@@ -42,6 +42,8 @@ export default function YouScreen() {
   const [saving, setSaving] = useState(false);
   const versionLabel = nativeVersionLabel();
   const allergens = useAllergenProfile(userId);
+  // Tabs stay mounted, so re-read on focus: flags edited in the editor show when the user returns.
+  useFocusEffect(allergens.reload);
   const allergenCaption =
     allergens.status === 'ready'
       ? ALLERGEN_COPY.settingsRow.sub(allergens.profile ? flaggedCount(allergens.profile) : 0)
