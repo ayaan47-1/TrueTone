@@ -38,3 +38,18 @@ test('a cancelled confirm clears nothing', async () => {
   expect(mockRpc).not.toHaveBeenCalled();
   expect(mockClearDiary).not.toHaveBeenCalled();
 });
+
+describe('allergen profile purge (allergen P1)', () => {
+  const SecureStore = require('expo-secure-store');
+  const { saveAllergenProfile } = require('../../allergens/allergen-store');
+  const { emptyProfile, toggleGroup } = require('../../allergens/profile');
+  const KEY = 'truetone.allergens.u1.v1';
+
+  test.each(['delete-data', 'delete-account'])('%s removes the on-device allergen profile key', async (id) => {
+    await saveAllergenProfile('u1', toggleGroup(emptyProfile('yes', 't'), 'fragrance'));
+    expect(SecureStore.__store.has(KEY)).toBe(true);
+    const { getByTestId } = await render(<DataRights onChanged={jest.fn()} confirm={async () => true} />);
+    await fireEvent.press(getByTestId(id));
+    await waitFor(() => expect(SecureStore.__store.has(KEY)).toBe(false));
+  });
+});

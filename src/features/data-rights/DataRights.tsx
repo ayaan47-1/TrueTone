@@ -3,6 +3,7 @@ import { supabase } from '../../lib/supabase';
 import { clearDiary } from '../diary/diary-storage';
 import { clearAllRoutines } from '../routine/routine-storage';
 import { clearPublishedRoutines } from '../routine/routine-publish';
+import { clearAllAllergenProfiles } from '../allergens/allergen-store';
 import { Screen, GlassCard, Display, Eyebrow, Body, Caption } from '../../components/ui';
 
 type RpcName = 'withdraw_consent' | 'delete_my_data' | 'delete_account';
@@ -26,7 +27,9 @@ export function DataRights({ onChanged, confirm }: Props) {
     if (fn === 'delete_my_data' || fn === 'delete_account') {
       try {
         // On-device data the server never sees: the skin-feel diary and the daily-routine
-        // tracker + its locally published Community routines. All wiped so deletion is complete.
+        // tracker + its locally published Community routines, and the encrypted allergen
+        // profile (ingredient flags). All wiped so deletion is complete.
+        await clearAllAllergenProfiles();
         await clearDiary();
         await clearAllRoutines();
         await clearPublishedRoutines();
