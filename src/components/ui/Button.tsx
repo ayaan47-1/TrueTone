@@ -1,4 +1,5 @@
-import { Pressable, Text, View, StyleSheet, type PressableProps } from 'react-native';
+import { useState } from 'react';
+import { Pressable, Text, View, StyleSheet, type GestureResponderEvent, type PressableProps } from 'react-native';
 import { BlurView } from 'expo-blur';
 import { palette, glass, softShadow } from '../../theme/tokens';
 
@@ -15,21 +16,46 @@ interface ButtonProps extends Omit<PressableProps, 'children' | 'style'> {
  * - primary: a deep-mauve gradient pill with mauve elevation (the one CTA).
  * - glass:   a frosted pill for secondary actions over the mist background.
  * - ghost:   a quiet hairline pill for tertiary / destructive-adjacent actions.
+ *
+ * `style` is always a static array, never a `({ pressed }) => …` callback: NativeWind's
+ * css-interop wraps Pressable and treats `style` as a style object, so a callback is silently
+ * dropped on device (the pill collapsed to a thin text-height bar). Pressed state is tracked
+ * via onPressIn/onPressOut instead.
  */
-export function PrimaryButton({ label, variant = 'primary', fullWidth, disabled, ...rest }: ButtonProps) {
+export function PrimaryButton({
+  label,
+  variant = 'primary',
+  fullWidth,
+  disabled,
+  onPressIn,
+  onPressOut,
+  ...rest
+}: ButtonProps) {
+  const [pressed, setPressed] = useState(false);
   const block = fullWidth ? styles.block : null;
+  const pressHandlers = {
+    onPressIn: (e: GestureResponderEvent) => {
+      setPressed(true);
+      onPressIn?.(e);
+    },
+    onPressOut: (e: GestureResponderEvent) => {
+      setPressed(false);
+      onPressOut?.(e);
+    },
+  };
 
   if (variant === 'primary') {
     return (
       <Pressable
         accessibilityRole="button"
         disabled={disabled}
-        style={({ pressed }) => [
+        style={[
           styles.pill,
           block,
           softShadow,
           { opacity: disabled ? 0.45 : pressed ? 0.92 : 1, transform: [{ scale: pressed ? 0.985 : 1 }] },
         ]}
+        {...pressHandlers}
         {...rest}
       >
         <View style={styles.clip} />
@@ -48,11 +74,12 @@ export function PrimaryButton({ label, variant = 'primary', fullWidth, disabled,
       <Pressable
         accessibilityRole="button"
         disabled={disabled}
-        style={({ pressed }) => [
+        style={[
           styles.pill,
           block,
           { overflow: 'hidden', opacity: disabled ? 0.5 : 1, transform: [{ scale: pressed ? 0.985 : 1 }] },
         ]}
+        {...pressHandlers}
         {...rest}
       >
         <BlurView intensity={30} tint="light" style={StyleSheet.absoluteFill} />
@@ -67,12 +94,13 @@ export function PrimaryButton({ label, variant = 'primary', fullWidth, disabled,
     <Pressable
       accessibilityRole="button"
       disabled={disabled}
-      style={({ pressed }) => [
+      style={[
         styles.pill,
         styles.ghost,
         block,
         { opacity: disabled ? 0.5 : pressed ? 0.7 : 1 },
       ]}
+      {...pressHandlers}
       {...rest}
     >
       <Text className="font-body-medium text-[15px] text-ink-soft">{label}</Text>

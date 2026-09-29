@@ -1,4 +1,4 @@
-import { render } from '@testing-library/react-native';
+import { act, fireEvent, render } from '@testing-library/react-native';
 import { StyleSheet } from 'react-native';
 import { PrimaryButton } from '../Button';
 
@@ -48,5 +48,50 @@ describe('PrimaryButton — shared tap-target/padding/full-width contract', () =
     const view = await render(<PrimaryButton label="Continue" variant={variant} onPress={() => {}} />);
     const style = flatten(view.getByRole('button').props.style);
     expect(style.alignSelf).toBeUndefined();
+  });
+});
+
+// NativeWind's css-interop wraps Pressable and treats `style` as a style object: a
+// ({ pressed }) => [...] callback has no own keys, so it is silently dropped on device and
+// the pill height/radius/centering/ghost border never apply. Style must be static.
+describe('PrimaryButton — style survives the NativeWind interop', () => {
+  test.each(VARIANTS)('%s variant passes a static (non-function) style', async (variant) => {
+    // The host view only ever sees Pressable's resolved style, so inspect the element
+    // PrimaryButton hands to Pressable (calling it inside a component keeps hooks legal).
+    let element: { props: { style?: unknown } } | null = null;
+    function Probe() {
+      element = PrimaryButton({ label: 'Continue', variant, onPress: () => {} }) as never;
+      return element as never;
+    }
+    await render(<Probe />);
+    expect(element).not.toBeNull();
+    expect(typeof element!.props.style).not.toBe('function');
+  });
+
+  test('ghost variant keeps its visible hairline border', async () => {
+    const view = await render(<PrimaryButton label="Skip" variant="ghost" onPress={() => {}} />);
+    const style = flatten(view.getByRole('button').props.style);
+    expect(style.borderWidth as number).toBeGreaterThan(0);
+    expect(style.borderRadius).toBe(20);
+    expect(style.height).toBe(56);
+  });
+
+  test.each(VARIANTS)('%s variant still dips while pressed and forwards pressIn/pressOut', async (variant) => {
+    const onPressIn = jest.fn();
+    const onPressOut = jest.fn();
+    const view = await render(
+      <PrimaryButton label="Continue" variant={variant} onPress={() => {}} onPressIn={onPressIn} onPressOut={onPressOut} />,
+    );
+    const scaleOf = () =>
+      (flatten(view.getByRole('button').props.style).transform as { scale: number }[] | undefined)?.[0]?.scale ?? 1;
+    const opacityOf = () => flatten(view.getByRole('button').props.style).opacity as number;
+    const restOpacity = opacityOf();
+    await act(async () => fireEvent(view.getByRole('button'), 'pressIn'));
+    expect(onPressIn).toHaveBeenCalled();
+    expect(scaleOf() < 1 || opacityOf() < restOpacity).toBe(true);
+    await act(async () => fireEvent(view.getByRole('button'), 'pressOut'));
+    expect(onPressOut).toHaveBeenCalled();
+    expect(scaleOf()).toBe(1);
+    expect(opacityOf()).toBe(restOpacity);
   });
 });

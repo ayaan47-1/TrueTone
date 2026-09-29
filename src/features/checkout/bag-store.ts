@@ -7,10 +7,17 @@
 import { useSyncExternalStore } from 'react';
 import type { Product } from '../match/match-types';
 
-/** One line in the bag: a catalog product and how many of it. */
+/** One line in the bag: a catalog product, how many of it, and the shade picked (if any). */
 export interface BagLine {
   readonly product: Product;
   readonly qty: number;
+  /** Shade label chosen on the product page (display data only). */
+  readonly shade?: string;
+}
+
+/** Identity of a bag line: the same product in two shades is two lines. */
+export function lineKey(line: Pick<BagLine, 'product' | 'shade'>): string {
+  return `${line.product.id}::${line.shade ?? ''}`;
 }
 
 export interface BagState {
@@ -25,15 +32,24 @@ function createBag(initial: BagState) {
   const emit = (): void => { listeners.forEach((l) => l()); };
   return {
     getState: (): BagState => state,
-    /** Add a product (or bump its qty if already in the bag). Immutable update. */
-    add: (product: Product, qty = 1): void => {
-      const existing = state.lines.find((l) => l.product.id === product.id);
+    /** Add a product in a shade (or bump that line's qty). Immutable update. */
+    add: (product: Product, qty = 1, shade?: string): void => {
+      const key = lineKey({ product, shade });
+      const existing = state.lines.find((l) => lineKey(l) === key);
       const lines = existing
-        ? state.lines.map((l) =>
-            l.product.id === product.id ? { product: l.product, qty: l.qty + qty } : l,
-          )
-        : [...state.lines, { product, qty }];
+        ? state.lines.map((l) => (lineKey(l) === key ? { ...l, qty: l.qty + qty } : l))
+        : [...state.lines, shade === undefined ? { product, qty } : { product, qty, shade }];
       state = { lines };
+      emit();
+    },
+    /** Set one line's quantity; 0 or less removes the line. */
+    setQty: (key: string, qty: number): void => {
+      state = {
+        lines:
+          qty > 0
+            ? state.lines.map((l) => (lineKey(l) === key ? { ...l, qty } : l))
+            : state.lines.filter((l) => lineKey(l) !== key),
+      };
       emit();
     },
     /** Drop a line entirely. */

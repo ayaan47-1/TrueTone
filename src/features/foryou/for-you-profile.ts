@@ -72,7 +72,7 @@ export const PICKED_FOR_YOU_COUNT = 8;
 
 /**
  * The "Picked for your shade" rail: the catalog ranked best-first against `profile`
- * (scoring.ts + sort.ts's documented tiebreak — same engine ShopList uses), trimmed to
+ * (scoring.ts + sort.ts's documented tiebreak — same engine ShopGrid uses), trimmed to
  * a rail-sized slice. Ranking logic is not duplicated here, only composed.
  */
 export function pickedForYourShade(

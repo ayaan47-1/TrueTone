@@ -16,7 +16,7 @@ interface ProductRailProps {
   /**
    * When present, cards show a fit tier and the FIRST card (already best-first out of
    * for-you-profile.ts's ranking) carries the Best-match badge -- the same semantics
-   * ShopList uses. Omit for a neutral, no-fit browsing rail (e.g. Featured).
+   * ShopGrid uses. Omit for a neutral, no-fit browsing rail (e.g. Featured).
    */
   profile?: MatchProfile;
 }
