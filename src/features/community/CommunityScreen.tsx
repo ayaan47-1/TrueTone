@@ -4,7 +4,7 @@
 // `app/(tabs)/community.tsx` (Commerce-owned) renders this directly.
 import { useState } from 'react';
 import { View } from 'react-native';
-import { Display, PressableScale, Caption, Screen, TAB_BAR_CLEARANCE, Rise } from '../../components/ui';
+import { Display, PressableScale, Caption, Screen, tabBarClearance, Rise } from '../../components/ui';
 import { SEED_POSTS, SEED_ROUTINES } from './community-seed';
 import { useCommunityFeed } from './use-community-feed';
 import { usePublishedRoutines } from '../routine/use-published-routines';
@@ -27,7 +27,7 @@ export function CommunityScreen() {
   const routines = [...publishedRoutines, ...SEED_ROUTINES];
 
   return (
-    <Screen className="px-6" topGap={32} bottomGap={TAB_BAR_CLEARANCE}>
+    <Screen className="px-6" topGap={32} bottomGap={tabBarClearance()}>
       <Rise>
         <View className="items-center mt-3 mb-6">
           <Display className="text-[28px]">Community</Display>

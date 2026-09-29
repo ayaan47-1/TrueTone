@@ -6,7 +6,7 @@
 // and the filter sheet (the sort toggle covers the two sorts we can honestly offer).
 import { useState } from 'react';
 import { ScrollView, Text, TextInput, View } from 'react-native';
-import { Body, Caption, Display, PressableScale, Subheading } from '../../components/ui';
+import { Body, Caption, Display, GlassSurface, PressableScale, Subheading } from '../../components/ui';
 import { CameraGlyph, ShopGlyph } from '../../components/ui/tab-icons';
 import { glass, palette } from '../../theme/tokens';
 import type { MatchProfile, Product } from '../match/match-types';
@@ -107,10 +107,16 @@ export function BagButton({ onPress }: { onPress: () => void }) {
       accessibilityRole="button"
       accessibilityLabel={count ? `Bag, ${count} ${count === 1 ? 'item' : 'items'}` : 'Bag'}
       onPress={onPress}
-      className="h-11 w-11 items-center justify-center rounded-full"
-      style={{ backgroundColor: glass.fillStrong, borderWidth: 1, borderColor: glass.edge }}
+      className="h-11 w-11 rounded-full"
     >
-      <ShopGlyph color={palette.ink} size={20} />
+      <GlassSurface
+        interactive
+        intensity={0}
+        style={{ flex: 1, borderRadius: 22, alignItems: 'center', justifyContent: 'center' }}
+        fallbackStyle={{ backgroundColor: glass.fillStrong, borderWidth: 1, borderColor: glass.edge }}
+      >
+        <ShopGlyph color={palette.ink} size={20} />
+      </GlassSurface>
       {count ? (
         <View className="absolute -right-0.5 -top-0.5 h-[18px] min-w-[18px] items-center justify-center rounded-full bg-sage px-1">
           <Text className="font-body-bold text-[10px] text-white">{count}</Text>

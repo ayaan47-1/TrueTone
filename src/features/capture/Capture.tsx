@@ -31,7 +31,7 @@ import {
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { captureOvalSize, SHORT_VIEWPORT_THRESHOLD } from '../../components/ui/use-responsive';
 import { palette, fonts } from '../../theme/tokens';
-import { Screen, GlassCard, Display, Body, PrimaryButton } from '../../components/ui';
+import { Screen, GlassCard, GlassSurface, Display, Body, PrimaryButton } from '../../components/ui';
 import {
   Camera,
   useCameraDevice,
@@ -300,12 +300,20 @@ export function Capture({ onCaptured, onCancel, devForceCapture = false }: Captu
   );
 }
 
+/** Sage tint for a passed check on native glass (mirrors chipOk's green fill). */
+const CHIP_OK_TINT = 'rgba(47,125,82,0.35)';
+
 function CheckChip({ label, ok }: { label: string; ok: boolean }) {
   return (
-    <View style={[styles.chip, ok && styles.chipOk]}>
+    <GlassSurface
+      intensity={0}
+      tintColor={ok ? CHIP_OK_TINT : undefined}
+      style={styles.chip}
+      fallbackStyle={[styles.chipFill, ok && styles.chipOk]}
+    >
       <View style={[styles.chipDot, ok && styles.chipDotOk]} />
       <Text style={[styles.chipText, ok && styles.chipTextOk]}>{label}</Text>
-    </View>
+    </GlassSurface>
   );
 }
 
@@ -400,6 +408,9 @@ const styles = StyleSheet.create({
     paddingHorizontal: 12,
     paddingVertical: 7,
     borderRadius: 999,
+  },
+  // Quiet Glass fallback fill (iOS 26+ renders native Liquid Glass instead).
+  chipFill: {
     backgroundColor: 'rgba(255,255,255,0.14)', // soft frosted glass, not a dark HUD panel
     borderWidth: StyleSheet.hairlineWidth,
     borderColor: 'rgba(255,255,255,0.22)',

@@ -13,7 +13,7 @@ interface ScreenProps {
   edges?: { top?: boolean; bottom?: boolean };
   /** Extra padding ABOVE the safe-area top inset. */
   topGap?: number;
-  /** Extra padding BELOW the safe-area bottom inset (e.g. TAB_BAR_CLEARANCE). */
+  /** Extra padding BELOW the safe-area bottom inset (e.g. tabBarClearance()). */
   bottomGap?: number;
   /** Max content width; content is centered and capped on large/unfolded screens. */
   maxWidth?: number;
@@ -28,7 +28,7 @@ const DEFAULT_MAX_WIDTH = 560;
  * Stack's TRANSPARENT floating header (the back button) instead of rendering under it.
  * Single source of truth -- pass as `topGap={HEADER_CLEARANCE}` on any header-bearing screen
  * (tab screens set their own smaller topGap; they have no floating header). Mirrors
- * TAB_BAR_CLEARANCE for the bottom edge. */
+ * tabBarClearance() for the bottom edge. */
 export const HEADER_CLEARANCE = 56;
 
 /**

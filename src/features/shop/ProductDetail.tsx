@@ -8,8 +8,9 @@
 // over the art so the modal always has a visible way out (not just swipe / hardware back).
 import { useState } from 'react';
 import { Pressable, ScrollView, Text, View } from 'react-native';
-import { Body, Caption, Heading, PressableScale, PrimaryButton } from '../../components/ui';
+import { Body, Caption, GlassSurface, Heading, PressableScale, PrimaryButton } from '../../components/ui';
 import { useInsets } from '../../components/ui/use-insets';
+import { hasLiquidGlass } from '../../components/ui/liquid-glass';
 import { CameraGlyph } from '../../components/ui/tab-icons';
 import { glass, palette, softShadow } from '../../theme/tokens';
 import type { MatchProfile } from '../match/match-types';
@@ -141,25 +142,22 @@ function BackButton({ onPress, top }: { onPress: () => void; top: number }) {
       onPress={onPress}
       hitSlop={4}
       style={[
-        {
-          position: 'absolute',
-          top,
-          left: 20,
-          width: 48,
-          height: 48,
-          borderRadius: 24,
-          alignItems: 'center',
-          justifyContent: 'center',
-          backgroundColor: glass.fillStrong,
-          borderWidth: 1,
-          borderColor: glass.edge,
-        },
+        { position: 'absolute', top, left: 20, width: 48, height: 48, borderRadius: 24 },
+        // Fallback fill lives on the shadow-bearing view so Android elevation still draws.
+        hasLiquidGlass() ? null : { backgroundColor: glass.fillStrong },
         softShadow,
       ]}
     >
-      <View style={{ marginLeft: 3 }}>
-        <ChevronGlyph color={palette.ink} size={9} dir="left" />
-      </View>
+      <GlassSurface
+        interactive
+        intensity={0}
+        style={{ flex: 1, borderRadius: 24, alignItems: 'center', justifyContent: 'center' }}
+        fallbackStyle={{ borderWidth: 1, borderColor: glass.edge }}
+      >
+        <View style={{ marginLeft: 3 }}>
+          <ChevronGlyph color={palette.ink} size={9} dir="left" />
+        </View>
+      </GlassSurface>
     </Pressable>
   );
 }

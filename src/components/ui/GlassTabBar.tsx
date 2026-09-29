@@ -12,12 +12,6 @@ import { TodayGlyph, ShopGlyph, CommunityGlyph, YouGlyph, type GlyphProps } from
  */
 export type TabKey = 'shop' | 'index' | 'community' | 'you';
 
-/**
- * Bottom space a scrollable tab screen should reserve so its last content clears the
- * floating bar (bar height + breathing room + typical bottom inset). Single source of
- * truth — tune once, here. */
-export const TAB_BAR_CLEARANCE = 108;
-
 interface TabDef {
   key: TabKey;
   label: string;
@@ -44,7 +38,8 @@ interface GlassTabBarProps {
 }
 
 /**
- * Floating frosted tab bar for the main app: four evenly-spaced destinations
+ * Quiet Glass fallback tab bar (iOS < 26, Android, web) — iOS 26+ uses the native Liquid
+ * Glass UITabBar instead (see app/(tabs)/_layout.tsx). Floating frosted tab bar for the main app: four evenly-spaced destinations
  * (Shop · For You · Community · Account). Purely presentational — the route adapter in
  * `app/(tabs)/_layout.tsx` maps React Navigation state onto this API.
  */

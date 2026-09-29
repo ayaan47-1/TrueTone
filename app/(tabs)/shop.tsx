@@ -1,5 +1,5 @@
 import { useLocalSearchParams, useRouter } from 'expo-router';
-import { Screen, TAB_BAR_CLEARANCE } from '../../src/components/ui';
+import { Screen, tabBarClearance } from '../../src/components/ui';
 import { ShopGrid } from '../../src/features/shop/ShopGrid';
 import { useMatchProfile } from '../../src/features/shop/use-match-profile';
 import { FILTERS, type Filter } from '../../src/content/makeup-vocab';
@@ -15,7 +15,7 @@ export default function ShopScreen() {
   const initialFilter = isFilter(cat) ? cat : 'all';
 
   return (
-    <Screen className="px-6" topGap={12} bottomGap={TAB_BAR_CLEARANCE}>
+    <Screen className="px-6" topGap={12} bottomGap={tabBarClearance()}>
       <ShopGrid
         key={`${initialFilter}:${focus ?? ''}`}
         initialFilter={initialFilter}

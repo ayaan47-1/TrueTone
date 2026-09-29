@@ -8,7 +8,7 @@ import {
   ListRow,
   Disclaimer,
   Caption,
-  TAB_BAR_CLEARANCE,
+  tabBarClearance,
   Rise,
   PrimaryButton,
   PressableScale,
@@ -54,7 +54,7 @@ export default function YouScreen() {
   };
 
   return (
-    <Screen className="px-6" topGap={32} bottomGap={TAB_BAR_CLEARANCE}>
+    <Screen className="px-6" topGap={32} bottomGap={tabBarClearance()}>
       <Rise>
         <View className="items-center mt-3 mb-8">
           <PressableScale
