@@ -7,6 +7,8 @@ import { render, fireEvent } from '@testing-library/react-native';
 // tab press to navigation.navigate.
 const mockNavigate = jest.fn();
 
+jest.mock('../../src/components/ui/liquid-glass', () => ({ hasLiquidGlass: () => false }));
+
 jest.mock('expo-router', () => {
   // A minimal <Tabs> that immediately renders the supplied tabBar with a fake
   // navigation state (Shop focused), so the layout's route adapter runs.

@@ -5,7 +5,7 @@ import {
   Display,
   Caption,
   Disclaimer,
-  TAB_BAR_CLEARANCE,
+  tabBarClearance,
   Rise,
 } from '../../src/components/ui';
 import { BagButton } from '../../src/features/shop/ShopGrid';
@@ -46,7 +46,7 @@ export default function TodayScreen() {
   const featured = featuredProducts();
 
   return (
-    <Screen className="px-6" topGap={22} bottomGap={TAB_BAR_CLEARANCE}>
+    <Screen className="px-6" topGap={22} bottomGap={tabBarClearance()}>
       <Rise>
         <View className="mt-2 flex-row items-center justify-between gap-3">
           <View className="flex-1 gap-1">
