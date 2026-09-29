@@ -102,6 +102,7 @@ function Guard() {
         }}
       >
         <Stack.Screen name="(tabs)" options={{ headerShown: false }} />
+        <Stack.Screen name="bag" options={{ headerShown: false }} />
         <Stack.Screen name="product/[id]" options={{ presentation: 'modal', headerShown: false }} />
         <Stack.Screen
           name="policies/[doc]"

@@ -11,6 +11,8 @@ jest.mock('expo-router', () => ({
 
 import ShopScreen from '../(tabs)/shop';
 import ProductRoute from '../product/[id]';
+import BagRoute from '../bag';
+import { catalog } from '../../src/features/match/product-catalog';
 import { bag } from '../../src/features/checkout/bag-store';
 
 beforeEach(() => {
@@ -33,4 +35,14 @@ test('product route: adding closes the sheet', async () => {
   await fireEvent.press(view.getByRole('button', { name: 'Add to bag · $33' }));
   expect(bag.getState().lines).toHaveLength(1);
   expect(mockBack).toHaveBeenCalled();
+});
+
+test('bag route: empty state goes to the shop tab; checkout goes to /checkout', async () => {
+  const view = await render(<BagRoute />);
+  await fireEvent.press(view.getByRole('button', { name: 'Start shopping' }));
+  expect(mockPush).toHaveBeenCalledWith('/shop');
+  bag.add(catalog[0]);
+  const full = await render(<BagRoute />);
+  await fireEvent.press(full.getByRole('button', { name: `Checkout · $${catalog[0].price}` }));
+  expect(mockPush).toHaveBeenCalledWith('/checkout');
 });
