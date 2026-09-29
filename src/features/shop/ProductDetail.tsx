@@ -10,6 +10,7 @@ import { useState } from 'react';
 import { Pressable, ScrollView, Text, View } from 'react-native';
 import { Body, Caption, GlassSurface, Heading, PressableScale, PrimaryButton } from '../../components/ui';
 import { useInsets } from '../../components/ui/use-insets';
+import { hasLiquidGlass } from '../../components/ui/liquid-glass';
 import { CameraGlyph } from '../../components/ui/tab-icons';
 import { glass, palette, softShadow } from '../../theme/tokens';
 import type { MatchProfile } from '../match/match-types';
@@ -140,13 +141,18 @@ function BackButton({ onPress, top }: { onPress: () => void; top: number }) {
       accessibilityLabel="Back"
       onPress={onPress}
       hitSlop={4}
-      style={[{ position: 'absolute', top, left: 20, width: 48, height: 48, borderRadius: 24 }, softShadow]}
+      style={[
+        { position: 'absolute', top, left: 20, width: 48, height: 48, borderRadius: 24 },
+        // Fallback fill lives on the shadow-bearing view so Android elevation still draws.
+        hasLiquidGlass() ? null : { backgroundColor: glass.fillStrong },
+        softShadow,
+      ]}
     >
       <GlassSurface
         interactive
         intensity={0}
         style={{ flex: 1, borderRadius: 24, alignItems: 'center', justifyContent: 'center' }}
-        fallbackStyle={{ backgroundColor: glass.fillStrong, borderWidth: 1, borderColor: glass.edge }}
+        fallbackStyle={{ borderWidth: 1, borderColor: glass.edge }}
       >
         <View style={{ marginLeft: 3 }}>
           <ChevronGlyph color={palette.ink} size={9} dir="left" />

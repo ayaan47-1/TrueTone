@@ -1,6 +1,5 @@
 import { Tabs } from 'expo-router';
-import { NativeTabs } from 'expo-router/unstable-native-tabs';
-import type { SFSymbol } from 'sf-symbols-typescript';
+import { NativeTabs, type SFSymbolIcon } from 'expo-router/unstable-native-tabs';
 import { GlassTabBar, type TabKey } from '../../src/components/ui';
 import { hasLiquidGlass } from '../../src/components/ui/liquid-glass';
 import { palette } from '../../src/theme/tokens';
@@ -26,6 +25,9 @@ export const unstable_settings = { initialRouteName: 'shop' };
 export default function TabsLayout() {
   return hasLiquidGlass() ? <NativeTabsLayout /> : <FloatingTabsLayout />;
 }
+
+// SF Symbol name type, taken from the native-tabs Icon props (no direct sf-symbols-typescript dep).
+type SFSymbol = Extract<NonNullable<SFSymbolIcon['sf']>, string>;
 
 // Bar order, left→right. SF Symbols echo the Quiet Glass glyphs in tab-icons.tsx
 // (bag · sun ring · two people · person); the filled variant marks the selected tab.
