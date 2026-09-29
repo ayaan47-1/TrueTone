@@ -38,3 +38,14 @@ test('preserves greeting, shade-match action, and disclaimer while dropping the 
   expect(view.queryByText('How does your skin feel?')).toBeNull();
   expect(view.queryByRole('button', { name: 'Glowy' })).toBeNull();
 });
+
+test('v3 home: search, a static hero, quick actions, categories and a bag button', async () => {
+  const view = await render(<TodayScreen />);
+  await waitFor(() => expect(view.getByText('Featured products')).toBeTruthy());
+  expect(view.getByRole('button', { name: 'Search products' })).toBeTruthy();
+  expect(view.getByRole('button', { name: /^(Start scan|See my matches)$/ })).toBeTruthy();
+  expect(view.getByRole('button', { name: 'Routine' })).toBeTruthy();
+  expect(view.getByRole('button', { name: 'Lips' })).toBeTruthy();
+  expect(view.getByRole('button', { name: 'Bag' })).toBeTruthy();
+  expect(view.queryAllByText(/TRUE15|% off|seasonal/i)).toHaveLength(0);
+});

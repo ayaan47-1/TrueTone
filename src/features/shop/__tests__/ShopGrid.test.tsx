@@ -55,3 +55,9 @@ test('bag button shows the count and opens the bag', async () => {
   await fireEvent.press(view.getByRole('button', { name: 'Bag, 2 items' }));
   expect(h.onBag).toHaveBeenCalled();
 });
+
+test('opens on the category it was sent to (home category shortcuts)', async () => {
+  const view = await render(<ShopGrid initialFilter="eyes" {...handlers()} />);
+  const eyes = catalog.filter((p) => p.category === 'eyes');
+  expect(view.getByText(`${eyes.length} products`)).toBeTruthy();
+});

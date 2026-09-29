@@ -22,13 +22,15 @@ interface ShopGridProps {
   /** Present only after a scan. */
   profile?: MatchProfile;
   products?: readonly Product[];
+  /** Category to open on (home shortcuts). */
+  initialFilter?: Filter;
   onOpen: (id: string) => void;
   onScan: () => void;
   onBag: () => void;
 }
 
-export function ShopGrid({ profile, products = catalog, onOpen, onScan, onBag }: ShopGridProps) {
-  const [filter, setFilter] = useState<Filter>('all');
+export function ShopGrid({ profile, products = catalog, initialFilter = 'all', onOpen, onScan, onBag }: ShopGridProps) {
+  const [filter, setFilter] = useState<Filter>(initialFilter);
   const [query, setQuery] = useState('');
   const [sort, setSort] = useState<ShelfSort>('match');
   const items = shelfItems({ products, profile, filter, query, sort });
@@ -88,7 +90,7 @@ function NoResults() {
   );
 }
 
-function BagButton({ onPress }: { onPress: () => void }) {
+export function BagButton({ onPress }: { onPress: () => void }) {
   const count = bagCount(useBag());
   return (
     <PressableScale
