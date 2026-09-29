@@ -44,7 +44,8 @@ import { Capture } from '../Capture';
 
 test('the four check chips render as native glass', async () => {
   const view = await render(<Capture onCaptured={jest.fn()} onCancel={jest.fn()} />);
-  const overlay = within(view.getByTestId('capture-bottom-overlay'));
-  expect(overlay.getAllByTestId('native-glass')).toHaveLength(4);
+  // Scoped to the check strip: Cancel below it is a glass pill too (v3 design).
+  const strip = within(view.getByTestId('capture-check-strip'));
+  expect(strip.getAllByTestId('native-glass')).toHaveLength(4);
   view.unmount(); // stop the breathing-glow loop + tick interval started on mount
 });
