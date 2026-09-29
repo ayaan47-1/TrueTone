@@ -14,7 +14,7 @@ interface ProductRailProps {
   subtitle?: string;
   products: readonly Product[];
   /**
-   * When present, cards show a fit % and the FIRST card (already best-first out of
+   * When present, cards show a fit tier and the FIRST card (already best-first out of
    * for-you-profile.ts's ranking) carries the Best-match badge -- the same semantics
    * ShopList uses. Omit for a neutral, no-fit browsing rail (e.g. Featured).
    */
