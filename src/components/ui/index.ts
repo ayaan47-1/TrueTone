@@ -4,6 +4,7 @@ export { Screen, HEADER_CLEARANCE } from './Screen';
 export { AppHeader, APP_HEADER_CONTROL_SIZE } from './AppHeader';
 export { GlassCard } from './GlassCard';
 export { GlassSheet } from './GlassSheet';
+export { GlassSurface } from './GlassSurface';
 export { PrimaryButton } from './Button';
 export { Display, Heading, Subheading, Eyebrow, Body, Caption } from './Typography';
 export { useResponsive } from './use-responsive';
