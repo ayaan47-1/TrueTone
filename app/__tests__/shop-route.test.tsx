@@ -6,9 +6,10 @@ const mockPush = jest.fn();
 const mockBack = jest.fn();
 const mockReplace = jest.fn();
 let mockCanGoBack = true;
+let mockParams: Record<string, string> = { id: 'ver-velvet-10' };
 jest.mock('expo-router', () => ({
   useRouter: () => ({ push: mockPush, replace: mockReplace, back: mockBack, canGoBack: () => mockCanGoBack }),
-  useLocalSearchParams: () => ({ id: 'ver-velvet-10' }),
+  useLocalSearchParams: () => mockParams,
 }));
 
 import ShopScreen from '../(tabs)/shop';
@@ -21,7 +22,25 @@ beforeEach(() => {
   jest.clearAllMocks();
   bag.clear();
   mockCanGoBack = true;
-  mockCanGoBack = true;
+  mockParams = { id: 'ver-velvet-10' };
+});
+
+test('shop tab: ?focus=1 (from the home search) autofocuses the search field', async () => {
+  mockParams = { focus: '1' };
+  const view = await render(<ShopScreen />);
+  expect(view.getByPlaceholderText('Search products').props.autoFocus).toBe(true);
+});
+
+test('shop tab: plain /shop does not pop the keyboard', async () => {
+  const view = await render(<ShopScreen />);
+  expect(view.getByPlaceholderText('Search products').props.autoFocus).toBeFalsy();
+});
+
+test('product route: the back button closes the sheet', async () => {
+  const view = await render(<ProductRoute />);
+  await fireEvent.press(view.getByRole('button', { name: 'Back' }));
+  expect(mockBack).toHaveBeenCalled();
+  expect(bag.getState().lines).toHaveLength(0);
 });
 
 test('shop tab: tile opens the product page, scan prompt opens the scan gate', async () => {

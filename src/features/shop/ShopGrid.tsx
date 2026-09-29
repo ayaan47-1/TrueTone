@@ -24,12 +24,22 @@ interface ShopGridProps {
   products?: readonly Product[];
   /** Category to open on (home shortcuts). */
   initialFilter?: Filter;
+  /** Open with the search field focused (the home search bar routes here). */
+  autoFocusSearch?: boolean;
   onOpen: (id: string) => void;
   onScan: () => void;
   onBag: () => void;
 }
 
-export function ShopGrid({ profile, products = catalog, initialFilter = 'all', onOpen, onScan, onBag }: ShopGridProps) {
+export function ShopGrid({
+  profile,
+  products = catalog,
+  initialFilter = 'all',
+  autoFocusSearch = false,
+  onOpen,
+  onScan,
+  onBag,
+}: ShopGridProps) {
   const [filter, setFilter] = useState<Filter>(initialFilter);
   const [query, setQuery] = useState('');
   const [sort, setSort] = useState<ShelfSort>('match');
@@ -42,7 +52,7 @@ export function ShopGrid({ profile, products = catalog, initialFilter = 'all', o
         <Display>Shop</Display>
         <BagButton onPress={onBag} />
       </View>
-      <SearchBar value={query} onChange={setQuery} />
+      <SearchBar value={query} onChange={setQuery} autoFocus={autoFocusSearch} />
       {profile ? null : <ScanPrompt onPress={onScan} />}
       <ScrollView horizontal showsHorizontalScrollIndicator={false} className="-mx-6 mt-[18px]" contentContainerStyle={{ paddingHorizontal: 24 }}>
         <FilterTabs value={filter} onChange={setFilter} />
@@ -110,7 +120,13 @@ export function BagButton({ onPress }: { onPress: () => void }) {
   );
 }
 
-export function SearchBar({ value, onChange }: { value: string; onChange: (v: string) => void }) {
+interface SearchBarProps {
+  value: string;
+  onChange: (v: string) => void;
+  autoFocus?: boolean;
+}
+
+export function SearchBar({ value, onChange, autoFocus = false }: SearchBarProps) {
   return (
     <View
       className="mt-4 h-12 flex-row items-center gap-2.5 rounded-full px-4"
@@ -125,6 +141,7 @@ export function SearchBar({ value, onChange }: { value: string; onChange: (v: st
         accessibilityLabel="Search products"
         className="flex-1 font-body text-[15px] text-ink"
         returnKeyType="search"
+        autoFocus={autoFocus}
       />
     </View>
   );

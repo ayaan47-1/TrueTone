@@ -1,4 +1,4 @@
-import { render, waitFor } from '@testing-library/react-native';
+import { fireEvent, render, waitFor } from '@testing-library/react-native';
 
 const mockPush = jest.fn();
 jest.mock('expo-router', () => ({
@@ -48,4 +48,11 @@ test('v3 home: search, a static hero, quick actions, categories and a bag button
   expect(view.getByRole('button', { name: 'Lips' })).toBeTruthy();
   expect(view.getByRole('button', { name: 'Bag' })).toBeTruthy();
   expect(view.queryAllByText(/TRUE15|% off|seasonal/i)).toHaveLength(0);
+});
+
+test('home search opens the Shop tab with its search field focused', async () => {
+  const view = await render(<TodayScreen />);
+  await waitFor(() => expect(view.getByText('Featured products')).toBeTruthy());
+  await fireEvent.press(view.getByRole('button', { name: 'Search products' }));
+  expect(mockPush).toHaveBeenCalledWith('/shop?focus=1');
 });

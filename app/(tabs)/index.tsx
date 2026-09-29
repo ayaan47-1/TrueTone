@@ -56,7 +56,7 @@ export default function TodayScreen() {
           <BagButton onPress={() => router.push('/bag')} />
         </View>
         <View className="mt-[18px]">
-          <HomeSearch onOpen={() => router.push('/shop')} />
+          <HomeSearch onOpen={() => router.push('/shop?focus=1')} />
         </View>
         <View className="mt-[18px]">
           <HeroCard
