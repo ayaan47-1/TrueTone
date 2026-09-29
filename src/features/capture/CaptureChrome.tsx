@@ -52,7 +52,9 @@ export function GlassCancelButton({ onPress, disabled }: { onPress: () => void; 
       accessibilityLabel="Cancel"
       accessibilityState={{ disabled }}
     >
-      <GlassSurface intensity={0} interactive style={styles.cancelPill} fallbackStyle={styles.pillFill}>
+      {/* Not `interactive`: native interactive glass can take the touch itself and would keep
+          reacting while the Pressable is disabled during the countdown. */}
+      <GlassSurface intensity={0} style={styles.cancelPill} fallbackStyle={styles.pillFill}>
         <Text style={[styles.cancelText, disabled && styles.cancelTextDim]}>Cancel</Text>
       </GlassSurface>
     </Pressable>

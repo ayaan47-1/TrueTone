@@ -45,3 +45,9 @@ test('the cancel pill is dimmed and inert while disabled (countdown)', async () 
   const color = StyleSheet.flatten(view.getByText('Cancel').props.style).color;
   expect(color).toBe('rgba(255,255,255,0.35)');
 });
+
+test('the cancel glass is not interactive, so the Pressable alone owns the tap', async () => {
+  const view = await render(<GlassCancelButton onPress={jest.fn()} disabled />);
+  expect(view.getByTestId('native-glass').props.isInteractive).toBe(false);
+  expect(view.getByRole('button', { name: 'Cancel' }).props.accessibilityState).toEqual({ disabled: true });
+});
