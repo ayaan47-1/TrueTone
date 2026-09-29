@@ -10,7 +10,7 @@ import type { Product } from './match-types';
 
 // Generates a distinct HSL color string for a given shade depth (1-10) and undertone.
 // Deep shades (9, 10) have increased saturation to remain visually distinct.
-const getSwatchColor = (shade: number, undertone: string): string => {
+export const getSwatchColor = (shade: number, undertone: string): string => {
   // Real deep foundation shades sit nearer L=20-25%; 15% reads close to black.
   // We ramp from L=82% (Shade 1) to L=22% (Shade 10).
   const lightness = 82 - (shade - 1) * (60 / 9);
