@@ -103,6 +103,16 @@ export const FILTER_LABELS: Record<Filter, string> = {
 // Badge shown on the top-scoring product per person AND per filter.
 export const BEST_MATCH_BADGE = 'Best match';
 
+// Qualitative fit tiers shown on post-scan product cards in place of a numeric "% fit".
+// A bare "99% fit" reads as a precision/accuracy claim with no validation data on file
+// (FTC §5 / ICFA; shade-history ruling §4), so the 40..99 score ranks but never renders.
+export type FitTier = 'great' | 'good' | 'try';
+export const FIT_TIER_LABELS: Record<FitTier, string> = {
+  great: 'Great match',
+  good: 'Good match',
+  try: 'Worth a try',
+};
+
 // Every makeup-domain string that reaches the UI, gathered for the compliance test.
 // (Fit-reason fragments live in ../features/match/fit-reason.ts and are checked there.)
 export const MAKEUP_APPROVED_LABELS: readonly string[] = [
@@ -114,4 +124,5 @@ export const MAKEUP_APPROVED_LABELS: readonly string[] = [
   ...Object.values(CATEGORY_LABELS),
   ...Object.values(FILTER_LABELS),
   BEST_MATCH_BADGE,
+  ...Object.values(FIT_TIER_LABELS),
 ];

@@ -1,15 +1,18 @@
 // src/features/shop/ProductCard.tsx
 // A single Shop product card. POST-scan (a MatchProfile is present) it shows a
-// compatibility fit % pill + bar + a short cosmetic-only "why it fits" line, all
-// sourced from the match boundary (scoring + fit-reason). PRE-scan (no profile) it
-// stays NEUTRAL — "Shades available", never a fit % (plan Flag 3, hasScanned gating).
+// qualitative fit-tier pill ("Great match" / "Good match" / "Worth a try") + a short
+// cosmetic-only "why it fits" line, all sourced from the match boundary (scoring +
+// fit-tier + fit-reason). The numeric score is never rendered — a "99% fit" reads as an
+// accuracy claim (shade-history ruling §4). PRE-scan (no profile) it stays NEUTRAL —
+// "Shades available" (plan Flag 3, hasScanned gating).
 import { useEffect, useRef, useState } from 'react';
 import { View } from 'react-native';
 import { GlassCard, Heading, Body, Caption, PressableScale } from '../../components/ui';
 import type { Product, MatchProfile } from '../match/match-types';
 import { scoreProduct } from '../match/scoring';
 import { fitReason } from '../match/fit-reason';
-import { BEST_MATCH_BADGE } from '../../content/makeup-vocab';
+import { fitTier } from '../match/fit-tier';
+import { BEST_MATCH_BADGE, FIT_TIER_LABELS } from '../../content/makeup-vocab';
 import { bag } from '../checkout/bag-store';
 
 /** How long the "Added" affordance holds before the button reverts. */
@@ -17,7 +20,7 @@ const ADDED_HOLD_MS = 1200;
 
 interface ProductCardProps {
   product: Product;
-  /** Present ONLY after a scan. Its absence keeps the card neutral (no fit %). */
+  /** Present ONLY after a scan. Its absence keeps the card neutral (no fit tier). */
   profile?: MatchProfile;
   /** True for the single top-ranked card in the current filter view (post-scan only). */
   isBestMatch?: boolean;
@@ -58,13 +61,8 @@ export function ProductCard({ product, profile, isBestMatch = false }: ProductCa
 
       {fit !== null ? (
         <View className="gap-1.5">
-          <View className="flex-row items-center gap-2">
-            <View className="self-start rounded-full border border-brand-green px-2.5 py-1" testID="fit-pill">
-              <Caption className="text-brand-green">{fit}% fit</Caption>
-            </View>
-          </View>
-          <View className="h-1.5 overflow-hidden rounded-full bg-ink-faint/30" testID="fit-bar">
-            <View className="h-full rounded-full bg-brand-green" style={{ width: `${fit}%` }} />
+          <View className="self-start rounded-full border border-brand-green px-2.5 py-1" testID="fit-pill">
+            <Caption className="text-brand-green">{FIT_TIER_LABELS[fitTier(fit)]}</Caption>
           </View>
           <Caption className="text-ink-soft">{reason}</Caption>
         </View>

@@ -1,6 +1,6 @@
 // src/features/shop/__tests__/shop.test.tsx
 // Shop integration: the hasScanned gate (plan Flag 3). Pre-scan the shelf is neutral —
-// no fit %. Post-scan it ranks a shimmer product lower, shows fit pills, and badges the
+// no fit tier. Post-scan it ranks a shimmer product lower, shows fit-tier pills, and badges the
 // single best card. Renders are ASYNC (repo gotcha a): await render, query via `view`.
 import { render } from '@testing-library/react-native';
 import { ShopList } from '../ShopList';
@@ -30,6 +30,13 @@ describe('ShopList', () => {
     // Fit pills appear once a profile is present.
     expect(view.getAllByTestId('fit-pill').length).toBeGreaterThan(0);
     expect(view.queryByText('Shades available')).toBeNull();
+
+    // Qualitative tier only: the numeric score is for ranking, never rendered (FTC ruling).
+    expect(view.queryAllByText(/%/)).toHaveLength(0);
+    expect(view.queryAllByTestId('fit-bar')).toHaveLength(0);
+    const tierText = /^(Great match|Good match|Worth a try)$/;
+    expect(view.getAllByText(tierText)).toHaveLength(view.getAllByTestId('fit-pill').length);
+    expect(view.getAllByText('Great match').length).toBeGreaterThan(0);
 
     // Exactly one Best-match badge, on the top card.
     expect(view.getAllByTestId('best-match-badge')).toHaveLength(1);
