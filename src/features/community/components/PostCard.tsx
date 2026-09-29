@@ -21,7 +21,7 @@ interface PostCardProps {
 export function PostCard({ post, engagement, onToggleLike, onToggleSave, onShare, onShopTheLook }: PostCardProps) {
   return (
     <GlassCard flat radius={26} className="px-5 py-5 gap-3">
-      <CreatorHeader creator={post.creator} />
+      <CreatorHeader creator={post.creator} color={post.creatorColor} />
       <MediaPlaceholder media={post.media} />
       <Body className="text-ink">{post.caption}</Body>
       <View className="flex-row items-center justify-between">

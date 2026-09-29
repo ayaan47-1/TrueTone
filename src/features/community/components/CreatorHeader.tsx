@@ -12,6 +12,8 @@ import type { CommunityProfile } from '../../identity/community-profile-types';
 interface CreatorHeaderProps {
   creator: CommunityProfile;
   size?: number;
+  /** Explicit avatar colour; defaults to a stable hashed palette swatch. */
+  color?: string;
 }
 
 const SWATCHES = [palette.sage, palette.mauve500, palette.mauve400] as const;
@@ -22,7 +24,7 @@ function swatchFor(userId: string): string {
   return SWATCHES[hash % SWATCHES.length];
 }
 
-export function CreatorHeader({ creator, size = 32 }: CreatorHeaderProps) {
+export function CreatorHeader({ creator, size = 32, color }: CreatorHeaderProps) {
   return (
     <View className="flex-row items-center gap-2.5">
       {creator.avatarUri ? (
@@ -38,7 +40,7 @@ export function CreatorHeader({ creator, size = 32 }: CreatorHeaderProps) {
             width: size,
             height: size,
             borderRadius: size / 2,
-            backgroundColor: swatchFor(creator.userId),
+            backgroundColor: color ?? swatchFor(creator.userId),
             alignItems: 'center',
             justifyContent: 'center',
           }}
