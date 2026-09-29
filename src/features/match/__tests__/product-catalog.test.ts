@@ -78,16 +78,16 @@ describe('synthetic product catalog', () => {
     const deepProducts = catalog.filter((p) => deepIds.includes(p.id));
     expect(deepProducts.length).toBe(4);
 
-    const hslToRgb = (h, s, l) => {
+    const hslToRgb = (h: number, s: number, l: number): [number, number, number] => {
       s /= 100;
       l /= 100;
-      const k = n => (n + h / 30) % 12;
+      const k = (n: number) => (n + h / 30) % 12;
       const a = s * Math.min(l, 1 - l);
-      const f = n => l - a * Math.max(-1, Math.min(k(n) - 3, Math.min(9 - k(n), 1)));
+      const f = (n: number) => l - a * Math.max(-1, Math.min(k(n) - 3, Math.min(9 - k(n), 1)));
       return [Math.round(255 * f(0)), Math.round(255 * f(8)), Math.round(255 * f(4))];
     };
 
-    const parseHsl = (colorStr) => {
+    const parseHsl = (colorStr: string): [number, number, number] => {
       const match = colorStr.match(/hsl\((\d+(?:\.\d+)?),\s*(\d+(?:\.\d+)?)%,\s*(\d+(?:\.\d+)?)%\)/);
       if (!match) throw new Error(`Failed to parse HSL: ${colorStr}`);
       return [parseFloat(match[1]), parseFloat(match[2]), parseFloat(match[3])];
@@ -98,7 +98,8 @@ describe('synthetic product catalog', () => {
       return hslToRgb(h, s, l);
     });
 
-    const dist = (c1, c2) => Math.sqrt(Math.pow(c1[0]-c2[0], 2) + Math.pow(c1[1]-c2[1], 2) + Math.pow(c1[2]-c2[2], 2));
+    const dist = (c1: [number, number, number], c2: [number, number, number]) =>
+      Math.sqrt(Math.pow(c1[0]-c2[0], 2) + Math.pow(c1[1]-c2[1], 2) + Math.pow(c1[2]-c2[2], 2));
 
     // Check all pairwise combinations
     for (let i = 0; i < colors.length; i++) {
