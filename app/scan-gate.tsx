@@ -29,7 +29,7 @@ export default function ScanGateScreen() {
 
         <View className="mt-auto gap-6">
           <Disclaimer />
-          <View className="gap-3 pb-2">
+          <View testID="scan-gate-actions" className="gap-4 pb-2">
             <PrimaryButton label="Enable camera" fullWidth onPress={() => router.replace('/scan')} />
             <PrimaryButton label="Skip for now" variant="ghost" fullWidth onPress={() => router.replace('/(tabs)')} />
           </View>
