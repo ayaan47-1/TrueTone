@@ -5,7 +5,7 @@
 // depth range, to make the Shop shelf feel populated on a device build with no backend. A few
 // eyes/lips/prep items keep the Shop filter tabs from reading empty. The scoring boundary
 // matches on `shade`/`undertone` only, so `shadeName`/`color` are inert display data and every
-// consumer (ShopList + the match engine) reads this shape unchanged.
+// consumer (ShopGrid + the match engine) reads this shape unchanged.
 import type { Product } from './match-types';
 
 // Generates a distinct HSL color string for a given shade depth (1-10) and undertone.

@@ -77,7 +77,7 @@ camera route, outside the tab navigator.
 
 | Tab | Screen | Surfaces |
 |-----|--------|----------|
-| Shop | `(tabs)/shop.tsx` | brand-neutral shop shelf (`ShopList`) ranked by the derived shade + Setup preferences; `BagBar` once the bag has items |
+| Shop | `(tabs)/shop.tsx` | brand-neutral shop grid (`ShopGrid`) ranked by the derived shade + Setup preferences; `BagBar` once the bag has items |
 | For You | `(tabs)/index.tsx` | greeting + daily affirmation, ranked product rails (`src/features/foryou/`), the My Daily Routine summary widget, camera icon → `/scan-gate` |
 | Community | `(tabs)/community.tsx` → `CommunityScreen` | Routines/Feed tabs, seeded posts + user-published routines, product-tag drawer |
 | Account | `(tabs)/you.tsx` | username/avatar identity, My Daily Routine logger, native version marker, skin profile + `ListRow` links to **Data Rights** (`/data`) and **Policies** (`/policies`) |
@@ -424,19 +424,19 @@ deriveShade()        → foundation shade { depth 1–10 (shown as a WORD), unde
         ▼
 match/scoring        → compatibility fit % (40–99) per catalog product
         ▼
-shop/ShopList (app/(tabs)/shop.tsx)  → brand-neutral shelf, ranked best-first ("Best match" badge)
+shop/ShopGrid (app/(tabs)/shop.tsx)  → brand-neutral shelf, ranked best-first ("Best match" badge)
 ```
 
 | Module (`src/features/`) | What it does | Wired at |
 |---|---|---|
 | `shade/` | `deriveShade()` maps the read → a foundation shade (depth, undertone, finish). `ShadeMatchResult` renders it; `ScanShareCard` + `use-scan-share` capture a branded card (descriptors only, never the photo) to the native share sheet. | `app/scan/result.tsx` |
 | `match/` | Brand-neutral `product-catalog`, `scoring` (emits only the fit %), `fit-reason` (cosmetic-only "why it fits"), `sort`/ranking. Pure. | consumed by `shop/`, `foryou/`, `community/` (shared catalog ids) |
-| `shop/` | `ShopList` + `shelf-store` (saved items, in-memory this phase — no persistence, no payments). | `app/(tabs)/shop.tsx`, the tab-bar landing screen |
+| `shop/` | `ShopGrid` + `shelf-store` (saved items, in-memory this phase — no persistence, no payments). | `app/(tabs)/shop.tsx`, the tab-bar landing screen |
 | `preferences/` + `setup-ui/` | Structured (non-free-text) Setup answers: goals (multi), coverage (single), skips (multi). | `app/setup/{goals,coverage,skips}.tsx` |
 | `session/` | Per-session shade store (`personalization`) — holds the derived shade for the session, descriptors only. | consumed by Shop + For You |
 | `schedule/` | A manual routine-builder store (no notifications). | not yet referenced under `app/` — still a shell |
 | `today-home/` | Cards (seasonal report / picked-for-you / shade-twins). | **still pure shells, zero `app/` references** — unlike the rest of this section, not yet wired |
-| `foryou/` | `for-you-profile.ts` (`resolveForYouProfile`, `pickedForYourShade`, `featuredProducts`), `ProductRail`, `FindYourShadeCard` (pre-scan neutral state). | `app/(tabs)/index.tsx` |
+| `foryou/` | `for-you-profile.ts` (`resolveForYouProfile`, `pickedForYourShade`, `featuredProducts`), `ProductRail`, `HomeV3Parts` (search, static hero, quick actions, categories). | `app/(tabs)/index.tsx` |
 | `identity/` | `CommunityProfile` username/avatar seam: validation (`community-profile-types.ts`), Supabase-backed repository, `use-community-profile` hook. DB authority: migration `0021_profile_identity.sql` (case-insensitive unique index on `username`; `avatar_uri` is a local file URI in this release, no cross-device media storage). | `app/(tabs)/you.tsx` |
 | `community/` | `CommunityScreen` (Routines/Feed tabs, no props), `community-seed.ts` (local seed data — **no backend table, no network**; media is a color-swatch placeholder), `use-community-feed` (like/save/share state). | `app/(tabs)/community.tsx` |
 | `routine/` | **"My Daily Routine"** — an on-device AM/PM product logger (`use-daily-routine`, `routine-storage` over AsyncStorage), distinct from `recommend/`'s skincare-routine engine. `routine-publish.ts` builds a `CommunityRoutine` from a day's logged products and appends it to a single on-device published-routines list, which `community/use-published-routines` merges ahead of the seeded routines. | logger UI in `app/(tabs)/you.tsx`; summary widget in `app/(tabs)/index.tsx`; publishes into Community |

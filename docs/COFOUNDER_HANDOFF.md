@@ -94,14 +94,14 @@ before you touch EAS.
 |---|---|
 | Change what's on the For You screen | `app/(tabs)/index.tsx` — greeting + `AffirmationCard` + two product rails + the routine summary widget. **The week strip and skin-feel diary were removed this release** (`src/features/today/WeekStrip.tsx` and the diary module still exist in the tree but are no longer rendered here — check for other call sites before deleting) |
 | Change the affirmation card / its share button | `src/features/today/AffirmationCard.tsx` — this release added attribution text + a download link to the shared image, and enforced a 48pt tap target |
-| Change the ranked product rails | `src/features/foryou/for-you-profile.ts` (`resolveForYouProfile`, `pickedForYourShade`, `featuredProducts`), `src/features/foryou/ProductRail.tsx`, `src/features/foryou/FindYourShadeCard.tsx` (pre-scan neutral state) |
+| Change the ranked product rails | `src/features/foryou/for-you-profile.ts` (`resolveForYouProfile`, `pickedForYourShade`, `featuredProducts`), `src/features/foryou/ProductRail.tsx`, `src/features/foryou/HomeV3Parts.tsx` (search, static hero, quick actions, categories) |
 | Change the routine summary card shown here | `src/features/routine/components/RoutineSummaryWidget.tsx` → `RoutineSummaryCard.tsx` (see "Routines" below) |
 
 ### Shop
 
 | Want to... | Edit |
 |---|---|
-| Change the shelf / ranking | `app/(tabs)/shop.tsx` (assembles the `MatchProfile` from the scan + Setup prefs — pre-scan renders a neutral shelf), `src/features/shop/ShopList.tsx`, `src/features/match/{scoring,product-catalog,fit-reason,sort}.ts` |
+| Change the shelf / ranking | `app/(tabs)/shop.tsx` (assembles the `MatchProfile` from the scan + Setup prefs — pre-scan renders a neutral shelf), `src/features/shop/ShopGrid.tsx`, `src/features/match/{scoring,product-catalog,fit-reason,sort}.ts` |
 | Change the bag/checkout entry | `src/features/checkout/BagBar.tsx` (appears above the shelf once the bag has items, routes to `/checkout`), `src/features/checkout/bag-store.ts`. **Not part of this release's diff** — pre-existing, and not documented in `docs/ARCHITECTURE.md` yet; treat as a known doc gap, not something this release changed. |
 | Change filter tabs | Per the git log, filter order was changed to `all/lips/eyes/face` this release — check `src/features/shop/` for the `FILTERS` constant. |
 
