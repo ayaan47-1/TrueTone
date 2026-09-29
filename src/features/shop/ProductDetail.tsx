@@ -4,13 +4,14 @@
 // pinned "Add to bag · $X" CTA. Consumes only the derived MatchProfile — never the image.
 // Left out of the kit on purpose: star ratings + review counts (no real review data), the
 // "In stock" pill (no inventory data), the numeric "% fit" and its bar (tiers only), and
-// the image-pager dots (there is one drawing, not a gallery).
+// the image-pager dots (there is one drawing, not a gallery). The kit's back IconBtn floats
+// over the art so the modal always has a visible way out (not just swipe / hardware back).
 import { useState } from 'react';
-import { ScrollView, Text, View } from 'react-native';
+import { Pressable, ScrollView, Text, View } from 'react-native';
 import { Body, Caption, Heading, PressableScale, PrimaryButton } from '../../components/ui';
 import { useInsets } from '../../components/ui/use-insets';
 import { CameraGlyph } from '../../components/ui/tab-icons';
-import { palette } from '../../theme/tokens';
+import { glass, palette, softShadow } from '../../theme/tokens';
 import type { MatchProfile } from '../match/match-types';
 import { catalog } from '../match/product-catalog';
 import { scoreProduct } from '../match/scoring';
@@ -23,7 +24,7 @@ import { productLine } from './product-visual';
 import { defaultShadeIndex, shadeOptions, type ShadeOption } from './shade-options';
 import { Accordion } from './Accordion';
 import { Stepper } from './Stepper';
-import { CheckGlyph } from './shop-icons';
+import { CheckGlyph, ChevronGlyph } from './shop-icons';
 
 interface ProductDetailProps {
   productId: string;
@@ -33,6 +34,8 @@ interface ProductDetailProps {
   shadeName?: string;
   onScan: () => void;
   onAdded: () => void;
+  /** Dismisses the sheet (the floating back button). */
+  onClose: () => void;
 }
 
 /** Keyed so the shade/qty state resets when the product changes or a scan lands mid-visit. */
@@ -40,7 +43,7 @@ export function ProductDetail(props: ProductDetailProps) {
   return <ProductPage key={`${props.productId}:${props.profile?.shade ?? ''}`} {...props} />;
 }
 
-function ProductPage({ productId, profile, shadeName, onScan, onAdded }: ProductDetailProps) {
+function ProductPage({ productId, profile, shadeName, onScan, onAdded, onClose }: ProductDetailProps) {
   const product = catalog.find((p) => p.id === productId);
   const insets = useInsets();
   const options = product ? shadeOptions(product, profile) : [];
@@ -52,6 +55,7 @@ function ProductPage({ productId, profile, shadeName, onScan, onAdded }: Product
       <View className="flex-1 items-center justify-center px-8">
         <Heading className="text-center">This product isn’t available</Heading>
         <Body className="mt-2 text-center">Head back to the shop to keep browsing.</Body>
+        <BackButton onPress={onClose} top={insets.top + 8} />
       </View>
     );
   }
@@ -123,7 +127,40 @@ function ProductPage({ productId, profile, shadeName, onScan, onAdded }: Product
       >
         <PrimaryButton label={`Add to bag · $${product.price * qty}`} fullWidth onPress={add} />
       </View>
+      <BackButton onPress={onClose} top={insets.top + 8} />
     </View>
+  );
+}
+
+/** Kit IconBtn: a 48px glass circle pinned over the art, outside the scroll so it never scrolls away. */
+function BackButton({ onPress, top }: { onPress: () => void; top: number }) {
+  return (
+    <Pressable
+      accessibilityRole="button"
+      accessibilityLabel="Back"
+      onPress={onPress}
+      hitSlop={4}
+      style={[
+        {
+          position: 'absolute',
+          top,
+          left: 20,
+          width: 48,
+          height: 48,
+          borderRadius: 24,
+          alignItems: 'center',
+          justifyContent: 'center',
+          backgroundColor: glass.fillStrong,
+          borderWidth: 1,
+          borderColor: glass.edge,
+        },
+        softShadow,
+      ]}
+    >
+      <View style={{ marginLeft: 3 }}>
+        <ChevronGlyph color={palette.ink} size={9} dir="left" />
+      </View>
+    </Pressable>
   );
 }
 

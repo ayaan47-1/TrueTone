@@ -8,6 +8,7 @@ export default function ProductRoute() {
   const router = useRouter();
   const { id } = useLocalSearchParams<{ id: string }>();
   const { profile, shadeName } = useMatchProfile();
+  const close = (): void => (router.canGoBack() ? router.back() : router.replace('/shop'));
 
   return (
     <ProductDetail
@@ -15,7 +16,8 @@ export default function ProductRoute() {
       profile={profile}
       shadeName={shadeName}
       onScan={() => router.push('/scan-gate')}
-      onAdded={() => (router.canGoBack() ? router.back() : router.replace('/shop'))}
+      onAdded={close}
+      onClose={close}
     />
   );
 }
