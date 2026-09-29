@@ -103,3 +103,22 @@ export const fonts = {
   bodySemibold: 'Inter_600SemiBold',
   bodyBold: 'Inter_700Bold',
 } as const;
+
+// Corner radii — mirror of the design system's tokens/layout.css radius scale (px).
+export const radii = {
+  input: 12,
+  button: 20,
+  card: 20,
+  row: 22,
+  tabBar: 24,
+  band: 26,
+  hero: 28,
+  glass: 30,
+  heroLg: 32,
+  sheet: 36,
+  pill: 999,
+} as const;
+
+// Layout constants from the design system (px): screen margin, max column, min tap target,
+// and the gap between stacked cards.
+export const layout = { screenMargin: 24, contentMax: 560, control: 48, cardGap: 12 } as const;
