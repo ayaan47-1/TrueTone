@@ -35,7 +35,12 @@ interface ProductDetailProps {
   onAdded: () => void;
 }
 
-export function ProductDetail({ productId, profile, shadeName, onScan, onAdded }: ProductDetailProps) {
+/** Keyed so the shade/qty state resets when the product changes or a scan lands mid-visit. */
+export function ProductDetail(props: ProductDetailProps) {
+  return <ProductPage key={`${props.productId}:${props.profile?.shade ?? ''}`} {...props} />;
+}
+
+function ProductPage({ productId, profile, shadeName, onScan, onAdded }: ProductDetailProps) {
   const product = catalog.find((p) => p.id === productId);
   const insets = useInsets();
   const options = product ? shadeOptions(product, profile) : [];

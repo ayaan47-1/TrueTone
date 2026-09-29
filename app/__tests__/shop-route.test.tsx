@@ -4,8 +4,10 @@ import { render, fireEvent } from '@testing-library/react-native';
 
 const mockPush = jest.fn();
 const mockBack = jest.fn();
+const mockReplace = jest.fn();
+let mockCanGoBack = true;
 jest.mock('expo-router', () => ({
-  useRouter: () => ({ push: mockPush, replace: jest.fn(), back: mockBack }),
+  useRouter: () => ({ push: mockPush, replace: mockReplace, back: mockBack, canGoBack: () => mockCanGoBack }),
   useLocalSearchParams: () => ({ id: 'ver-velvet-10' }),
 }));
 
@@ -18,6 +20,8 @@ import { bag } from '../../src/features/checkout/bag-store';
 beforeEach(() => {
   jest.clearAllMocks();
   bag.clear();
+  mockCanGoBack = true;
+  mockCanGoBack = true;
 });
 
 test('shop tab: tile opens the product page, scan prompt opens the scan gate', async () => {
@@ -45,4 +49,12 @@ test('bag route: empty state goes to the shop tab; checkout goes to /checkout', 
   const full = await render(<BagRoute />);
   await fireEvent.press(full.getByRole('button', { name: `Checkout · $${catalog[0].price}` }));
   expect(mockPush).toHaveBeenCalledWith('/checkout');
+});
+
+test('product route opened cold (no history) falls back to the shop tab', async () => {
+  mockCanGoBack = false;
+  const view = await render(<ProductRoute />);
+  await fireEvent.press(view.getByRole('button', { name: 'Add to bag · $33' }));
+  expect(mockBack).not.toHaveBeenCalled();
+  expect(mockReplace).toHaveBeenCalledWith('/shop');
 });

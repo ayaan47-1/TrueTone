@@ -96,6 +96,7 @@ function LineCard({ line }: { line: BagLine }) {
   const { line: brandLine, title } = productLine(line.product);
   const key = lineKey(line);
   const swatch = shadeColor(line);
+  const describe = line.shade ? `${line.product.name}, ${line.shade}` : line.product.name;
   return (
     <GlassCard radius={22} className="flex-row gap-3 p-2.5">
       <View style={{ width: 86 }}>
@@ -106,7 +107,7 @@ function LineCard({ line }: { line: BagLine }) {
           <Text className="font-body-semibold text-[10.5px] uppercase tracking-[1px] text-sage">{brandLine ?? ''}</Text>
           <PressableScale
             accessibilityRole="button"
-            accessibilityLabel={`Remove ${line.product.name}`}
+            accessibilityLabel={`Remove ${describe}`}
             onPress={() => bag.setQty(key, 0)}
             hitSlop={10}
           >
@@ -122,7 +123,7 @@ function LineCard({ line }: { line: BagLine }) {
         ) : null}
         <View className="mt-auto flex-row items-center justify-between pt-1.5">
           <Text className="font-body-bold text-[15px] text-ink">${line.product.price * line.qty}</Text>
-          <Stepper small value={line.qty} min={0} label="Quantity" onChange={(q) => bag.setQty(key, q)} />
+          <Stepper small value={line.qty} min={0} label={`Quantity, ${describe}`} onChange={(q) => bag.setQty(key, q)} />
         </View>
       </View>
     </GlassCard>

@@ -7,7 +7,7 @@ export default function BagRoute() {
   const router = useRouter();
   return (
     <BagScreen
-      onBack={() => router.back()}
+      onBack={() => (router.canGoBack() ? router.back() : router.replace('/shop'))}
       onShop={() => router.push('/shop')}
       onCheckout={() => router.push('/checkout')}
     />

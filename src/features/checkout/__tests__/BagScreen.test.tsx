@@ -28,7 +28,7 @@ test('lines show shade, qty changes update the total, trash removes', async () =
   const total = a.price + b.price * 2;
   expect(view.getByRole('button', { name: `Checkout · $${total}` })).toBeTruthy();
 
-  await fireEvent.press(view.getAllByRole('button', { name: 'Increase quantity' })[0]);
+  await fireEvent.press(view.getByRole('button', { name: `Increase quantity, ${a.name.toLowerCase()}, honey 5w` }));
   expect(bag.getState().lines.find((l) => lineKey(l) === lineKey({ product: a, shade: 'Honey 5W' }))?.qty).toBe(2);
 
   await fireEvent.press(view.getByRole('button', { name: `Remove ${b.name}` }));
@@ -47,4 +47,12 @@ test('"Finish your look" suggests items not in the bag and adds them', async () 
   expect(addButtons.length).toBeGreaterThan(0);
   await fireEvent.press(addButtons[0]);
   expect(bag.getState().lines).toHaveLength(2);
+});
+
+test('the same product in two shades gets distinct remove labels', async () => {
+  bag.add(a, 1, 'Honey 5W');
+  bag.add(a, 1, 'Amber 7W');
+  const view = await render(<BagScreen {...handlers()} />);
+  await fireEvent.press(view.getByRole('button', { name: `Remove ${a.name}, Amber 7W` }));
+  expect(bag.getState().lines.map((l) => l.shade)).toEqual(['Honey 5W']);
 });

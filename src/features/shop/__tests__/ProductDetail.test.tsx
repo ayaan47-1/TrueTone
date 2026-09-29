@@ -44,3 +44,10 @@ test('an unknown id renders a calm not-found state', async () => {
   const view = await render(<ProductDetail productId="nope" onScan={jest.fn()} onAdded={jest.fn()} />);
   expect(view.getByText('This product isn’t available')).toBeTruthy();
 });
+
+test('a scan that lands while the page is open re-selects your match', async () => {
+  const view = await render(<ProductDetail productId={ID} onScan={jest.fn()} onAdded={jest.fn()} />);
+  expect(view.getByTestId('selected-shade')).toHaveTextContent('Honey 5W');
+  await view.rerender(<ProductDetail productId={ID} profile={PROFILE} onScan={jest.fn()} onAdded={jest.fn()} />);
+  expect(view.getByTestId('selected-shade')).toHaveTextContent('Golden 6W');
+});

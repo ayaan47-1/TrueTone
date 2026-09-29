@@ -15,7 +15,7 @@ export default function ProductRoute() {
       profile={profile}
       shadeName={shadeName}
       onScan={() => router.push('/scan-gate')}
-      onAdded={() => router.back()}
+      onAdded={() => (router.canGoBack() ? router.back() : router.replace('/shop'))}
     />
   );
 }
