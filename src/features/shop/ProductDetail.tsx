@@ -1,6 +1,6 @@
 // src/features/shop/ProductDetail.tsx
 // Quiet Glass v3 product page (ProductV3 port, frames t-11/t-12): photo gallery with page
-// dots, floating Back / Share / Save, line + "In stock" (sample catalog) + title, a sample
+// dots, floating Back / Share / Save, line + a "Sample" pill (no stock claim; the catalog is sample) + title, a sample
 // rating (only behind SAMPLE_RATINGS_ENABLED, with its label) + price, a fit card, a shade
 // picker, size chips, quantity, "Why it fits you" / Details / How to use, and a pinned
 // "Add to bag · $X" CTA. Consumes only the derived MatchProfile — never the image. Fit is a
@@ -23,7 +23,7 @@ import { bag } from '../checkout/bag-store';
 import { ProductGallery } from './ProductGallery';
 import { HeartButton } from './HeartButton';
 import { SampleRatingLine } from './SampleRatingLine';
-import { productSizes } from './sample-content';
+import { SAMPLE_CATALOG_LABEL, productSizes } from './sample-content';
 import { productLine } from './product-visual';
 import { defaultShadeIndex, shadeOptions, type ShadeOption } from './shade-options';
 import { Accordion } from './Accordion';
@@ -89,7 +89,7 @@ function ProductPage({ productId, profile, shadeName, onScan, onAdded, onClose, 
           <View className="flex-row items-center justify-between">
             <Text className="font-body-semibold text-[11px] uppercase tracking-[1.4px] text-sage">{line}</Text>
             <View className="rounded-full bg-brand-tint px-2.5 py-1">
-              <Text className="font-body-semibold text-[11.5px] text-brand-greenDark">In stock</Text>
+              <Text className="font-body-semibold text-[11.5px] text-brand-greenDark">Sample</Text>
             </View>
           </View>
           <Heading className="mt-2">{title}</Heading>
@@ -102,6 +102,7 @@ function ProductPage({ productId, profile, shadeName, onScan, onAdded, onClose, 
             </View>
             <Text className="font-display text-[26px] tracking-[-0.5px] text-ink">${product.price}</Text>
           </View>
+          <Caption testID="sample-catalog-label" className="mt-1.5 text-[11px] text-ink-soft">{SAMPLE_CATALOG_LABEL}</Caption>
 
           {tier && reason ? (
             <View className="mt-5 rounded-card bg-brand-tint px-4 py-3.5">

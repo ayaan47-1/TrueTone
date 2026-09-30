@@ -5,7 +5,7 @@ import { ProductDetail } from '../ProductDetail';
 import { Share } from 'react-native';
 import { bag } from '../../checkout/bag-store';
 import { wishlist } from '../wishlist-store';
-import { SAMPLE_RATINGS_LABEL } from '../sample-content';
+import { SAMPLE_CATALOG_LABEL, SAMPLE_RATINGS_LABEL } from '../sample-content';
 import type { MatchProfile } from '../../match/match-types';
 
 const ID = 'ver-velvet-10'; // Veranda Velvet Matte Foundation, Honey 5W, $33
@@ -76,14 +76,16 @@ test('the not-found state also offers a way back', async () => {
 describe('v3 frames t-11 / t-12', () => {
   const props = { onScan: jest.fn(), onAdded: jest.fn(), onClose: jest.fn() };
 
-  test('photo gallery with page dots, In stock pill, share + save buttons', async () => {
+  test('photo gallery with page dots, Sample pill (no stock claim), share + save buttons', async () => {
     const share = jest.spyOn(Share, 'share').mockResolvedValue({ action: 'sharedAction' });
     wishlist.clear();
     const view = await render(<ProductDetail productId={ID} {...props} />);
     expect(view.getAllByTestId('gallery-slide').length).toBeGreaterThan(1);
     expect(view.getAllByTestId(/^gallery-dot/).length).toBe(view.getAllByTestId('gallery-slide').length);
     expect(view.getByTestId('product-photo')).toBeTruthy();
-    expect(view.getByText('In stock')).toBeTruthy();
+    expect(view.queryByText('In stock')).toBeNull();
+    expect(view.getByText('Sample')).toBeTruthy();
+    expect(view.getAllByText(SAMPLE_CATALOG_LABEL)).toHaveLength(1);
     await fireEvent.press(view.getByRole('button', { name: 'Share' }));
     expect(share).toHaveBeenCalledWith(expect.objectContaining({ message: expect.stringContaining('Veranda Velvet Matte Foundation') }));
     await fireEvent.press(view.getByRole('button', { name: 'Save Veranda Velvet Matte Foundation' }));
