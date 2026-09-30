@@ -2,7 +2,9 @@
 // "Finish your look" and the TRUE15 promo, which carries the required demo label
 // (v3-demo-content-ruling item 3). Never a numeric fit.
 import { render, fireEvent } from '@testing-library/react-native';
+import * as HeroModule from '../HeroCarousel';
 import { HeroCarousel } from '../HeroCarousel';
+import { DEMO_PROMO_LABEL } from '../../shop/sample-content';
 
 const noop = () => undefined;
 
@@ -44,4 +46,10 @@ test('tapping a dot selects that slide', async () => {
   await fireEvent.press(view.getByTestId('hero-dot-2'));
   expect(view.getByTestId('hero-dot-2').props.accessibilityState).toEqual({ selected: true });
   expect(view.getByTestId('hero-dot-0').props.accessibilityState).toEqual({ selected: false });
+});
+
+test('the promo slide uses the one shared DEMO_PROMO_LABEL (no local copy to drift)', async () => {
+  expect('DEMO_PROMO_LABEL' in HeroModule).toBe(false);
+  const view = await render(<HeroCarousel onScan={noop} onShop={noop} />);
+  expect(view.getByText(DEMO_PROMO_LABEL)).toBeTruthy();
 });

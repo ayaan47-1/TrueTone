@@ -17,9 +17,8 @@ import {
 import { LinearGradient } from 'expo-linear-gradient';
 import { PressableScale } from '../../components/ui';
 import { palette, softShadow } from '../../theme/tokens';
+import { DEMO_PROMO_LABEL } from '../shop/sample-content';
 import { HERO_PHOTOS } from './home-photos';
-
-export const DEMO_PROMO_LABEL = 'Demo promo — no purchases in this build.';
 
 const HEIGHT = 188;
 const SLIDES = 3;
