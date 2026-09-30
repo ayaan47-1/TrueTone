@@ -2,6 +2,7 @@
 import { catalog } from '../../match/product-catalog';
 import type { MatchProfile } from '../../match/match-types';
 import { shelfItems, SORT_LABELS } from '../shelf';
+import { sampleRating } from '../sample-content';
 
 const PROFILE: MatchProfile = { shade: 5, undertone: 'warm', coverage: 'everyday', skips: [] };
 
@@ -43,7 +44,32 @@ describe('shelfItems', () => {
     expect(items.every((i) => i.product.category === 'lips')).toBe(true);
   });
 
-  test('no ratings-based sort exists (no real review data)', () => {
-    expect(Object.keys(SORT_LABELS)).toEqual(['match', 'price']);
+  test('sorts are match, price and a sample-only rating sort (UI offers it only behind the flag)', () => {
+    expect(Object.keys(SORT_LABELS)).toEqual(['match', 'price', 'rating']);
+  });
+});
+
+describe('finish filter + sample "Top rated" sort (v3 Sort & filter sheet)', () => {
+  test('a finish keeps only products with that finish; "any" keeps all', () => {
+    const all = shelfItems({ products: catalog, filter: 'all', query: '', sort: 'match' });
+    const satin = shelfItems({ products: catalog, filter: 'all', query: '', sort: 'match', finish: 'satin' });
+    expect(satin.length).toBeGreaterThan(0);
+    expect(satin.length).toBeLessThan(all.length);
+    expect(satin.every((i) => i.product.finish === 'satin')).toBe(true);
+    expect(shelfItems({ products: catalog, filter: 'all', query: '', sort: 'match', finish: 'any' })).toHaveLength(all.length);
+  });
+
+  test('"rating" sorts by the sample rating, highest first, with no best-match badge', () => {
+    const items = shelfItems({ products: catalog, profile: PROFILE, filter: 'all', query: '', sort: 'rating' });
+    const ratings = items.map((i) => sampleRating(i.product.id).rating);
+    expect([...ratings].sort((a, b) => b - a)).toEqual(ratings);
+    expect(items.some((i) => i.isBestMatch)).toBe(false);
+    expect(SORT_LABELS.rating.scanned).toBe('Top rated');
+  });
+
+  test('search also matches the brand line', () => {
+    const items = shelfItems({ products: catalog, filter: 'all', query: 'solene', sort: 'match' });
+    expect(items.length).toBeGreaterThan(0);
+    expect(items.every((i) => i.product.name.startsWith('Solene'))).toBe(true);
   });
 });

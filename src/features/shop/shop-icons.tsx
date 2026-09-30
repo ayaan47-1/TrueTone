@@ -57,3 +57,19 @@ export function TrashGlyph({ color, size = 16 }: GlyphProps) {
     </View>
   );
 }
+
+/** Kit FilterG3: three slider rails, each with a knob. */
+export function FilterGlyph({ color, size = 18 }: GlyphProps) {
+  const knobs = [0.68, 0.3, 0.55];
+  return (
+    <View testID="glyph-filter" style={{ width: size, height: size, justifyContent: 'space-between', paddingVertical: size * 0.1 }}>
+      {knobs.map((x, i) => (
+        <View key={i} style={{ height: 2, borderRadius: 1, backgroundColor: color, justifyContent: 'center' }}>
+          <View
+            style={{ position: 'absolute', left: size * x - 3, width: 6, height: 6, borderRadius: 3, backgroundColor: color }}
+          />
+        </View>
+      ))}
+    </View>
+  );
+}

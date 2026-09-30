@@ -1,8 +1,9 @@
-// Pure helpers behind the CSS-drawn product art (v3 ProductArt3 port). No photos ship:
-// the art is shape + tone, and a licensed photo can be swapped in per product later.
+// Pure helpers behind the product art (v3 ProductArt3 port): bundled local AI photos per
+// product, with the drawn shape + tone kept as the fallback.
 import { catalog } from '../../match/product-catalog';
 import type { Product } from '../../match/match-types';
 import { productShape, productTone, productLine, productPhoto } from '../product-visual';
+import { KIT_PHOTOS, photoKey } from '../product-photos';
 
 const byId = (id: string): Product => {
   const p = catalog.find((c) => c.id === id);
@@ -55,8 +56,24 @@ describe('productLine', () => {
 });
 
 describe('productPhoto', () => {
-  test('ships no photos by default (licence unknown) so the drawn art is used', () => {
-    catalog.forEach((p) => expect(productPhoto(p.id)).toBeUndefined());
+  test('every catalog product has a bundled local AI photo (founder ruling 2026-09-29)', () => {
+    catalog.forEach((p) => expect(productPhoto(p.id)).toBeDefined());
+  });
+
+  test.each([
+    ['lum-tint-01', 'p1'], // skin tint → white bottles
+    ['lum-satin-02', 'p2'], // foundation → amber dropper
+    ['lum-bright-17', 'p8'], // concealer → tube
+    ['ver-primer-27', 'p7'], // prep → jar
+    ['lum-lip-29', 'p5'], // lips → balm
+    ['sol-eye-30', 'p6'], // eyes → palette
+  ])('%s shows the kit photo %s', (id, key) => {
+    expect(photoKey(byId(id))).toBe(key);
+    expect(productPhoto(id)).toBe(KIT_PHOTOS[key as keyof typeof KIT_PHOTOS]);
+  });
+
+  test('an unknown id has no photo, so the drawn art stays the fallback', () => {
+    expect(productPhoto('not-a-product')).toBeUndefined();
   });
 
   test('returns a licensed local photo when one is registered for that product', () => {
