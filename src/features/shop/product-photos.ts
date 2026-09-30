@@ -42,3 +42,29 @@ export function photoKey(product: Product): KitPhotoKey {
 export const PRODUCT_PHOTOS: Readonly<Record<string, ImageSourcePropType>> = Object.freeze(
   Object.fromEntries(catalog.map((p) => [p.id, KIT_PHOTOS[photoKey(p)]])),
 );
+
+/** Look-alike stand-ins per kit photo, used when a neighbour already shows the first choice. */
+const ALTERNATES: Readonly<Record<KitPhotoKey, readonly KitPhotoKey[]>> = {
+  p1: ['p2', 'p8'],
+  p2: ['p1', 'p8'],
+  p3: ['p5', 'p7'],
+  p4: ['p6', 'p3'],
+  p5: ['p3', 'p8'],
+  p6: ['p4', 'p3'],
+  p7: ['p1', 'p2'],
+  p8: ['p2', 'p1'],
+};
+
+/**
+ * Kit photo per product for one displayed list (a grid read row by row, or a rail), so two
+ * products side by side never share an image. Keeps each product's kind photo unless the
+ * previous item already shows it. Deterministic: same list order, same photos.
+ */
+export function spreadPhotoKeys(products: readonly Product[]): KitPhotoKey[] {
+  return products.reduce<KitPhotoKey[]>((keys, product) => {
+    const prev = keys[keys.length - 1];
+    const first = photoKey(product);
+    const pick = first !== prev ? first : ALTERNATES[first].find((k) => k !== prev) ?? first;
+    return [...keys, pick];
+  }, []);
+}

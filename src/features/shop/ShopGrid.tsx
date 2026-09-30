@@ -18,6 +18,7 @@ import { FilterSheet } from './FilterSheet';
 import { SAMPLE_CATALOG_LABEL, SAMPLE_RATINGS_ENABLED } from './sample-content';
 import { useWishlist } from './wishlist-store';
 import { ProductTile } from './ProductTile';
+import { KIT_PHOTOS, spreadPhotoKeys } from './product-photos';
 import { shelfItems, SORT_LABELS, type FinishFilter, type ShelfItem, type ShelfSort } from './shelf';
 import { ChevronGlyph, FilterGlyph, SearchGlyph } from './shop-icons';
 
@@ -123,6 +124,8 @@ interface GridProps {
 function Grid({ items, showRatings, onOpen }: GridProps) {
   const rows: ShelfItem[][] = [];
   for (let i = 0; i < items.length; i += 2) rows.push(items.slice(i, i + 2));
+  const keys = spreadPhotoKeys(items.map((i) => i.product));
+  const photoFor = new Map(items.map((i, n) => [i.product.id, KIT_PHOTOS[keys[n]]]));
   return (
     <View className="gap-3">
       {rows.map((row) => (
@@ -135,6 +138,7 @@ function Grid({ items, showRatings, onOpen }: GridProps) {
               isBestMatch={i.isBestMatch}
               showRatings={showRatings}
               onOpen={onOpen}
+              photo={photoFor.get(i.product.id)}
             />
           ))}
           {row.length === 1 ? <View style={{ flex: 1 }} /> : null}

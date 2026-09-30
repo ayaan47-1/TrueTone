@@ -4,7 +4,7 @@
 // price and a round add button. Star ratings are SAMPLE data and render only behind
 // SAMPLE_RATINGS_ENABLED with their label (Dwight's ruling). Never a numeric "% fit".
 import { useEffect, useRef, useState } from 'react';
-import { Text, View } from 'react-native';
+import { Text, View, type ImageSourcePropType } from 'react-native';
 import { Caption, PressableScale, Eyebrow } from '../../components/ui';
 import { glass, palette, softShadow } from '../../theme/tokens';
 import type { Product } from '../match/match-types';
@@ -28,9 +28,11 @@ interface ProductTileProps {
   /** Sample ratings; defaults to the SAMPLE_RATINGS_ENABLED build flag. */
   showRatings?: boolean;
   onOpen: (id: string) => void;
+  /** List-assigned photo (spreadPhotoKeys) so row neighbours differ; defaults to the registry. */
+  photo?: ImageSourcePropType;
 }
 
-export function ProductTile({ product, tier, isBestMatch = false, artHeight = 136, showRatings, onOpen }: ProductTileProps) {
+export function ProductTile({ product, tier, isBestMatch = false, artHeight = 136, showRatings, onOpen, photo }: ProductTileProps) {
   const { line, title } = productLine(product);
   const [added, setAdded] = useState(false);
   const timer = useRef<ReturnType<typeof setTimeout> | null>(null);
@@ -60,7 +62,7 @@ export function ProductTile({ product, tier, isBestMatch = false, artHeight = 13
           softShadow,
         ]}
       >
-        <ProductArt product={product} height={artHeight} radius={16}>
+        <ProductArt product={product} height={artHeight} radius={16} photo={photo}>
           {isBestMatch && tier ? (
             <View testID="best-match-badge" className="absolute left-2.5 top-2.5 rounded-full bg-sage px-2.5 py-0.5">
               <Text className="font-body-semibold text-[10.5px] text-white">{BEST_MATCH_BADGE}</Text>
