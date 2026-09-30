@@ -20,3 +20,10 @@ test('every rendered string is free of disease/diagnostic terms', async () => {
   const view = await render(<ScanShareCard shade={shade} />);
   expect(findDiseaseTerms(JSON.stringify(view.toJSON()))).toEqual([]);
 });
+
+test('card background is the palette mist token, not an off-palette cream', async () => {
+  const { palette } = jest.requireActual('../../../theme/tokens');
+  const view = await render(<ScanShareCard shade={shade} />);
+  expect(JSON.stringify(view.toJSON())).not.toMatch(/#FBF6EF/i);
+  expect(JSON.stringify(view.toJSON())).toContain(palette.mist100);
+});
