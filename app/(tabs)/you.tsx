@@ -1,9 +1,8 @@
-import { useState } from 'react';
-import { Image, View } from 'react-native';
-import { useRouter } from 'expo-router';
+import { useCallback, useState } from 'react';
+import { Alert, View } from 'react-native';
+import { useFocusEffect, useRouter } from 'expo-router';
 import {
   Screen,
-  Display,
   GlassCard,
   ListRow,
   Disclaimer,
@@ -11,33 +10,66 @@ import {
   tabBarClearance,
   Rise,
   PrimaryButton,
-  PressableScale,
 } from '../../src/components/ui';
+import { CameraGlyph, ShopGlyph, TodayGlyph, TrendGlyph } from '../../src/components/ui/tab-icons';
 import { TextField } from '../../src/components/ui/TextField';
 import { useProfile } from '../../src/lib/profile-context';
+import { DEMO_MODE } from '../../src/lib/supabase';
+import { fetchScanHistory } from '../../src/lib/scans';
+import { palette } from '../../src/theme/tokens';
 import { useCommunityProfile } from '../../src/features/identity/use-community-profile';
 import { RoutineLogger } from '../../src/features/routine/components/RoutineLogger';
+import { useDailyRoutine } from '../../src/features/routine/use-daily-routine';
+import { usePersonalization } from '../../src/features/session/personalization';
+import { shelfStore } from '../../src/features/shop/shelf-store';
+import { HeartGlyph } from '../../src/features/community/community-icons';
+import { accountSummary } from '../../src/features/account/account-summary';
+import { AccountGroup, AccountHeader, ProfileCard } from '../../src/features/account/AccountParts';
 import { nativeVersionLabel } from '../../src/lib/app-version';
 
+const MUTE = palette.inkSoft;
+const comingSoon = (title: string) => Alert.alert(title, 'Coming soon — there are no purchases in this build.');
+
 /**
- * Account — profile & controls. Surfaces the previously-orphaned data-rights and legal
- * screens (both are reachability requirements: data deletion per CLAUDE.md §1, and
- * policies must be reachable before a scan per the build order). The route stays `you`
- * internally to avoid deep-link churn; only the visible title reads "Account".
- *
- * Task 11: adds the CommunityProfile username/avatar identity seam (see
- * src/features/identity). Avatar picking is only offered once a username exists --
- * CommunityProfile has no "username unset" state, so there is nothing to attach a
- * picked avatar to before then.
+ * Account — the v3 profile + shopping hub (video frames t-15/t-17): header with bell, profile
+ * card (avatar, name, handle, shade chip, Edit) with Orders / Saved / Day-streak stats, then
+ * the Shopping and Your shade sections. Every earlier account control stays reachable below
+ * them: data rights + delete (CLAUDE.md §1), policies, the username editor (behind Edit), the
+ * routine logger and the build marker. The route stays `you` to avoid deep-link churn.
  */
 export default function YouScreen() {
   const router = useRouter();
   const { userId } = useProfile();
   const { profile, saveUsername, pickAvatar, avatarStatus } = useCommunityProfile(userId);
+  const { hasScanned, currentShade } = usePersonalization();
+  const { summary: routine } = useDailyRoutine(userId);
+  const [editing, setEditing] = useState(false);
   const [usernameDraft, setUsernameDraft] = useState('');
   const [usernameError, setUsernameError] = useState<string | null>(null);
   const [saving, setSaving] = useState(false);
+  const [scanCount, setScanCount] = useState(0);
+  const [savedCount, setSavedCount] = useState(() => shelfStore.get().length);
   const versionLabel = nativeVersionLabel();
+
+  useFocusEffect(
+    useCallback(() => {
+      let cancelled = false;
+      setSavedCount(shelfStore.get().length);
+      fetchScanHistory()
+        .then((scans) => { if (!cancelled) setScanCount(scans.length); })
+        .catch(() => { if (!cancelled) setScanCount(0); });
+      return () => { cancelled = true; };
+    }, []),
+  );
+
+  const summary = accountSummary({
+    username: profile?.username ?? null,
+    savedCount,
+    streak: routine.streak,
+    scanCount,
+    shadeName: hasScanned ? currentShade?.shadeName ?? null : null,
+    demo: DEMO_MODE,
+  });
 
   const draft = usernameDraft || profile?.username || '';
 
@@ -54,42 +86,36 @@ export default function YouScreen() {
   };
 
   return (
-    <Screen className="px-6" topGap={32} bottomGap={tabBarClearance()}>
+    <Screen className="px-6" topGap={22} bottomGap={tabBarClearance()}>
       <Rise>
-        <View className="items-center mt-3 mb-8">
-          <PressableScale
-            testID="avatar-picker"
-            accessibilityRole="button"
-            accessibilityLabel="Change avatar"
-            disabled={!profile}
-            onPress={() => {
-              void pickAvatar();
-            }}
-          >
-            {profile?.avatarUri ? (
-              <Image
-                testID="avatar-image"
-                source={{ uri: profile.avatarUri }}
-                className="h-20 w-20 rounded-full mb-4"
-              />
-            ) : (
-              <View className="h-20 w-20 rounded-full bg-mist-300 mb-4" />
-            )}
-          </PressableScale>
-          <Display className="text-[28px]">Account</Display>
-          {avatarStatus === 'unavailable' && (
-            <Caption className="mt-1 text-ink-soft">
-              Photo access is off -- enable it in Settings to add a photo.
-            </Caption>
-          )}
-          {avatarStatus === 'error' && (
-            <Caption className="mt-1 text-red-600">Couldn&apos;t update your photo. Try again.</Caption>
-          )}
+        <AccountHeader onBell={() => Alert.alert('Notifications', "You're all caught up.")} />
+        <View className="mt-[18px]">
+          <ProfileCard
+            summary={summary}
+            scanned={hasScanned}
+            avatarUri={profile?.avatarUri ?? null}
+            avatarDisabled={!profile}
+            onAvatar={() => { void pickAvatar(); }}
+            onEdit={() => setEditing((v) => !v)}
+          />
         </View>
+        {avatarStatus === 'unavailable' && (
+          <Caption className="mt-2 text-center text-ink-soft">
+            Photo access is off -- enable it in Settings to add a photo.
+          </Caption>
+        )}
+        {avatarStatus === 'error' && (
+          <Caption className="mt-2 text-center text-red-600">Couldn&apos;t update your photo. Try again.</Caption>
+        )}
+        {!hasScanned ? (
+          <View className="mt-3.5">
+            <PrimaryButton label="Find my shade" onPress={() => router.push('/scan-gate')} />
+          </View>
+        ) : null}
       </Rise>
 
-      <Rise index={1}>
-        <GlassCard flat className="px-6 py-4 mb-3" radius={22}>
+      {editing ? (
+        <GlassCard flat className="mt-3 px-6 py-4" radius={22}>
           <TextField
             testID="username-input"
             label={profile ? 'Username' : 'Choose a username'}
@@ -114,56 +140,59 @@ export default function YouScreen() {
             />
           </View>
         </GlassCard>
+      ) : null}
+
+      <Rise index={1}>
+        <AccountGroup
+          title="Shopping"
+          rows={[
+            { label: 'Orders', caption: summary.ordersCaption, icon: <ShopGlyph color={MUTE} size={18} />, onPress: () => comingSoon('Orders') },
+            { label: 'Saved items', caption: summary.savedCaption, icon: <HeartGlyph color={MUTE} size={15} filled />, onPress: () => router.push('/shop') },
+            { label: 'Addresses & payment', icon: <TodayGlyph color={MUTE} size={18} />, onPress: () => comingSoon('Addresses & payment') },
+          ]}
+        />
       </Rise>
 
       <Rise index={2}>
-        <View className="mb-3">
+        <AccountGroup
+          title="Your shade"
+          rows={[
+            { label: 'Shade & preferences', caption: 'Coverage, finish, things you skip', icon: <CameraGlyph color={MUTE} size={18} />, onPress: () => router.push('/setup/goals') },
+            { label: 'Seasonal report', caption: summary.seasonalCaption, icon: <TrendGlyph color={MUTE} size={16} />, onPress: () => router.push('/scan-gate') },
+          ]}
+        />
+      </Rise>
+
+      <Rise index={3}>
+        <AccountGroup
+          title="Privacy"
+          rows={[
+            { label: 'Your Data', onPress: () => router.push('/data') },
+            { label: 'Privacy & Policies', onPress: () => router.push('/policies') },
+            { label: 'Delete everything', destructive: true, onPress: () => router.push('/data') },
+          ]}
+        />
+      </Rise>
+
+      <Rise index={4}>
+        <View className="mt-6">
           <RoutineLogger userId={userId} profile={profile} />
         </View>
       </Rise>
-
-      <View className="gap-3">
-      <Rise index={3}>
-      <GlassCard flat className="px-6 py-1" radius={22}>
-        <ListRow
-          label="Your Data"
-          onPress={() => router.push('/data')}
-        />
-      </GlassCard>
-      </Rise>
-      <Rise index={4}>
-      <GlassCard flat className="px-6 py-1" radius={22}>
-        <ListRow
-          label="Privacy & Policies"
-          onPress={() => router.push('/policies')}
-        />
-      </GlassCard>
-      </Rise>
-      <Rise index={5}>
-      <GlassCard flat className="px-6 py-1" radius={22}>
-        <ListRow label="Notifications" onPress={() => {}} />
-      </GlassCard>
-      </Rise>
-      <Rise index={6}>
-      <GlassCard flat className="px-6 py-1" radius={22}>
-        <ListRow label="Delete everything" destructive hideChevron onPress={() => router.push('/data')} />
-      </GlassCard>
-      </Rise>
-      </View>
 
       {/* Dev-only entry to the region overlay (app/(dev)/bbox-overlay.tsx). Reaching that screen
           otherwise needs an adb deep link, which is unavailable whenever USB is not cooperating —
           it cost most of a device session on 2026-07-26. Stripped from any release build by the
           __DEV__ guard. */}
       {__DEV__ && (
-        <Rise index={7}>
+        <Rise index={5}>
           <GlassCard flat className="px-6 py-1 mt-3" radius={22}>
             <ListRow label="DEV · Region overlay" onPress={() => router.push('/bbox-overlay')} />
           </GlassCard>
         </Rise>
       )}
 
-      <Rise index={8}>
+      <Rise index={6}>
         <View className="mt-7"><Disclaimer /></View>
       </Rise>
 
@@ -171,7 +200,7 @@ export default function YouScreen() {
           build number. Values come from the binary via expo-application (see
           src/lib/app-version.ts); renders nothing when unavailable (e.g. Expo Go). */}
       {versionLabel ? (
-        <Rise index={9}>
+        <Rise index={7}>
           <Caption className="mt-4 text-center text-[11px] text-ink-muted">{versionLabel}</Caption>
         </Rise>
       ) : null}

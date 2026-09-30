@@ -2,7 +2,12 @@ import { render } from '@testing-library/react-native';
 
 jest.mock('expo-router', () => ({
   useRouter: () => ({ push: jest.fn(), replace: jest.fn(), back: jest.fn() }),
+  useFocusEffect: (cb: () => void | (() => void)) => {
+    const { useEffect } = require('react');
+    useEffect(cb, []);
+  },
 }));
+jest.mock('../../src/lib/scans', () => ({ fetchScanHistory: jest.fn(() => Promise.resolve([])) }));
 
 // The Account screen now also carries the identity seam (Task 11) and the routine logger
 // (Task 13), so this suite mocks the same app-context deps tabs.test uses: a signed-in
