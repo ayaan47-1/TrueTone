@@ -47,3 +47,6 @@ export const SAMPLE_RUNNING_LOW: readonly SampleRunningLowItem[] = [
   { product: byId('lum-tint-01'), note: 'Almost out', urgent: true },
   { product: byId('lum-lip-29'), note: 'About a week left', urgent: false },
 ];
+
+/** Shown on the Running low card: the stock notes above are sample, not the user's supplies. */
+export const SAMPLE_RUNNING_LOW_LABEL = 'Sample items — not based on your purchases.';

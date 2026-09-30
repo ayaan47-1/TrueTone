@@ -8,7 +8,7 @@ import { palette } from '../../theme/tokens';
 import { bag } from '../checkout/bag-store';
 import { ProductArt } from '../shop/ProductArt';
 import { SectionHead } from './HomeV3Parts';
-import { SAMPLE_RUNNING_LOW } from './home-sample-data';
+import { SAMPLE_RUNNING_LOW, SAMPLE_RUNNING_LOW_LABEL } from './home-sample-data';
 
 export function RunningLowCard() {
   return (
@@ -41,6 +41,7 @@ export function RunningLowCard() {
           </PressableScale>
         </View>
       ))}
+      <Caption className="text-ink-faint mb-1.5 mt-1 text-[11px]">{SAMPLE_RUNNING_LOW_LABEL}</Caption>
     </GlassCard>
   );
 }

@@ -2,7 +2,7 @@
 // product to the bag.
 import { render, fireEvent } from '@testing-library/react-native';
 import { RunningLowCard } from '../RunningLowCard';
-import { SAMPLE_RUNNING_LOW } from '../home-sample-data';
+import { SAMPLE_RUNNING_LOW, SAMPLE_RUNNING_LOW_LABEL } from '../home-sample-data';
 import { bag } from '../../checkout/bag-store';
 
 beforeEach(() => bag.clear());
@@ -23,4 +23,10 @@ test('Reorder adds that product to the bag', async () => {
   const first = SAMPLE_RUNNING_LOW[0].product;
   await fireEvent.press(view.getByRole('button', { name: `Reorder ${first.name}` }));
   expect(bag.getState().lines.map((l) => l.product.id)).toEqual([first.id]);
+});
+
+test('shows a visible sample label so the stock notes are not read as real', async () => {
+  const view = await render(<RunningLowCard />);
+  expect(SAMPLE_RUNNING_LOW_LABEL).toMatch(/^Sample/);
+  expect(view.getByText(SAMPLE_RUNNING_LOW_LABEL)).toBeTruthy();
 });
