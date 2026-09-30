@@ -19,6 +19,8 @@ interface ProductArtProps {
   style?: StyleProp<ViewStyle>;
   /** Override the registry lookup (tests, previews). */
   photo?: ImageSourcePropType;
+  /** Force the drawn shade art even when a photo is registered (gallery shade slide). */
+  drawn?: boolean;
   /** Overlays (save button, best-match badge). */
   children?: ReactNode;
 }
@@ -101,8 +103,8 @@ function Drawing({ shape, color, k }: { shape: ProductShape; color: string; k: n
 }
 
 /** Product visual: registered licensed photo if any, else the drawn shape. */
-export function ProductArt({ product, height, radius = 18, style, photo, children }: ProductArtProps) {
-  const source = photo ?? productPhoto(product.id);
+export function ProductArt({ product, height, radius = 18, style, photo, drawn = false, children }: ProductArtProps) {
+  const source = drawn ? undefined : photo ?? productPhoto(product.id);
   const tone = productTone(product);
   return (
     <View
