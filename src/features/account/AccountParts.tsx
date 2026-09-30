@@ -48,7 +48,7 @@ export function AccountHeader({ onBell }: { onBell: () => void }) {
     <View className="mt-1 flex-row items-center justify-between gap-3">
       <View className="flex-row items-center gap-2.5">
         <LogoMark />
-        <Display className="text-[30px] leading-[36px]">Account</Display>
+        <Display>Account</Display>
       </View>
       <PressableScale accessibilityRole="button" accessibilityLabel="Notifications" onPress={onBell} className="h-11 w-11 rounded-full">
         <GlassSurface

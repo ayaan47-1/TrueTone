@@ -63,3 +63,11 @@ test('Shop the look opens a drawer listing the tagged catalog product, and it cl
   await fireEvent.press(view.getByLabelText('Close'));
   expect(view.queryByTestId(`tagged-product-${firstPostProduct.id}`)).toBeNull();
 });
+
+test('screen title matches the Account/Shop title: default Display size, left-aligned', async () => {
+  const view = await render(<CommunityScreen />);
+  const title = view.getByText('Community');
+  const header = view.getByTestId('community-title');
+  expect(String(title.props.className ?? '').match(/text-\[\d+px\]/g)).toEqual(['text-[30px]']);
+  expect(String(header.props.className ?? '')).not.toMatch(/items-center/);
+});

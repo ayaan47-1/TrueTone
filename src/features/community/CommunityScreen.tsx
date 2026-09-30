@@ -29,8 +29,8 @@ export function CommunityScreen() {
   return (
     <Screen className="px-6" topGap={32} bottomGap={tabBarClearance()}>
       <Rise>
-        <View className="items-center mt-3 mb-6">
-          <Display className="text-[28px]">Community</Display>
+        <View testID="community-title" className="mt-1 mb-6">
+          <Display>Community</Display>
         </View>
       </Rise>
 
