@@ -105,12 +105,41 @@ describe('Account tab (v3 video t-15/t-17)', () => {
     expect(mockPush).toHaveBeenCalledWith('/setup/goals');
   });
 
+  it('says notifications are coming soon (no inbox exists yet)', async () => {
+    const alert = jest.spyOn(Alert, 'alert').mockImplementation(() => {});
+    const view = await render(<YouScreen />);
+    fireEvent.press(view.getByRole('button', { name: 'Notifications' }));
+    await flush();
+    expect(alert).toHaveBeenCalledWith('Notifications', expect.stringMatching(/coming soon/i));
+  });
+
+  it('hides the seasonal caption when scan history fails to load', async () => {
+    const { fetchScanHistory } = require('../../src/lib/scans');
+    fetchScanHistory.mockImplementationOnce(() => Promise.reject(new Error('offline')));
+    const view = await render(<YouScreen />);
+    await flush();
+    expect(view.queryByText(/of 5 scans logged/)).toBeNull();
+  });
+
+  it('labels each stat as one screen-reader node', async () => {
+    const view = await render(<YouScreen />);
+    expect(view.getByLabelText('0 Orders')).toBeTruthy();
+    await flush();
+  });
+
   it('keeps the username editor behind Edit', async () => {
     const view = await render(<YouScreen />);
     expect(view.queryByTestId('username-input')).toBeNull();
     fireEvent.press(view.getByRole('button', { name: 'Edit profile' }));
     await flush();
     expect(view.getByTestId('username-input')).toBeTruthy();
+    await fireEvent.changeText(view.getByTestId('username-input'), 'draft');
+    await flush();
+    fireEvent.press(view.getByRole('button', { name: 'Edit profile' }));
+    await flush();
+    fireEvent.press(view.getByRole('button', { name: 'Edit profile' }));
+    await flush();
+    expect(view.getByTestId('username-input').props.value).toBe('ada');
     await flush();
   });
 

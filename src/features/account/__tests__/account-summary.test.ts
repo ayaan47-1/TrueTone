@@ -48,4 +48,18 @@ describe('accountSummary', () => {
     expect(accountSummary(base).seasonalCaption).toBe('3 of 5 scans logged');
     expect(accountSummary({ ...base, scanCount: 9 }).seasonalCaption).toBe('5 of 5 scans logged');
   });
+
+  it('takes the first whole character for the initial (emoji-safe)', () => {
+    expect(accountSummary({ ...base, username: '\u{1F600}x' }).initial).toBe('\u{1F600}');
+  });
+
+  it('shows "Member since" only in demo builds (no join date is stored yet)', () => {
+    expect(accountSummary(base).profileLine).toBe('@ayaan');
+    expect(accountSummary({ ...base, demo: true }).profileLine).toBe('@ayaan · Member since 2026');
+    expect(accountSummary({ ...base, username: null }).profileLine).toBeNull();
+  });
+
+  it('hides the seasonal caption when the scan count is unknown', () => {
+    expect(accountSummary({ ...base, scanCount: null }).seasonalCaption).toBeUndefined();
+  });
 });

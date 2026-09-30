@@ -71,6 +71,7 @@ interface ProfileCardProps {
   avatarDisabled: boolean;
   onAvatar: () => void;
   onEdit: () => void;
+  editing: boolean;
 }
 
 function Avatar({ initial, scanned, uri }: { initial: string; scanned: boolean; uri: string | null }) {
@@ -83,16 +84,16 @@ function Avatar({ initial, scanned, uri }: { initial: string; scanned: boolean; 
   );
 }
 
-export function ProfileCard({ summary, scanned, avatarUri, avatarDisabled, onAvatar, onEdit }: ProfileCardProps) {
+export function ProfileCard({ summary, scanned, avatarUri, avatarDisabled, onAvatar, onEdit, editing }: ProfileCardProps) {
   return (
     <GlassCard flat radius={26} className="px-[18px] py-[18px]">
       <View className="flex-row items-center gap-3.5">
-        <PressableScale testID="avatar-picker" accessibilityRole="button" accessibilityLabel="Change avatar" disabled={avatarDisabled} onPress={onAvatar}>
+        <PressableScale testID="avatar-picker" accessibilityRole="button" accessibilityLabel="Change avatar" accessibilityState={{ disabled: avatarDisabled }} disabled={avatarDisabled} onPress={onAvatar}>
           <Avatar initial={summary.initial} scanned={scanned} uri={avatarUri} />
         </PressableScale>
         <View className="flex-1">
           <Text className="font-display text-[18px] font-bold text-ink" numberOfLines={1}>{summary.displayName}</Text>
-          {summary.handle ? <Caption>{summary.handle}</Caption> : null}
+          {summary.profileLine ? <Caption numberOfLines={1}>{summary.profileLine}</Caption> : null}
           <View
             className="mt-1.5 flex-row items-center self-start gap-1.5 rounded-full py-1 pl-[5px] pr-2.5"
             style={{ backgroundColor: scanned ? palette.tint : palette.mist300 }}
@@ -103,13 +104,13 @@ export function ProfileCard({ summary, scanned, avatarUri, avatarDisabled, onAva
             </Text>
           </View>
         </View>
-        <PressableScale accessibilityRole="button" accessibilityLabel="Edit profile" onPress={onEdit} className="min-h-[44px] justify-center px-1">
+        <PressableScale accessibilityRole="button" accessibilityLabel="Edit profile" accessibilityState={{ expanded: editing }} onPress={onEdit} className="min-h-[44px] justify-center px-1">
           <Text className="font-body text-[13px] font-semibold" style={{ color: palette.sage }}>Edit</Text>
         </PressableScale>
       </View>
       <View className="mt-4 flex-row border-t pt-3.5" style={{ borderTopColor: 'rgba(168,159,143,0.2)' }}>
         {summary.stats.map((s, i) => (
-          <View key={s.label} className="flex-1 items-center" style={i ? { borderLeftWidth: 1, borderLeftColor: 'rgba(168,159,143,0.2)' } : undefined}>
+          <View key={s.label} accessible accessibilityLabel={`${s.value} ${s.label}`} className="flex-1 items-center" style={i ? { borderLeftWidth: 1, borderLeftColor: 'rgba(168,159,143,0.2)' } : undefined}>
             <Text className="font-display text-[20px] font-bold text-ink">{s.value}</Text>
             <Caption>{s.label}</Caption>
           </View>

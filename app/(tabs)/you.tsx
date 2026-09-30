@@ -47,7 +47,7 @@ export default function YouScreen() {
   const [usernameDraft, setUsernameDraft] = useState('');
   const [usernameError, setUsernameError] = useState<string | null>(null);
   const [saving, setSaving] = useState(false);
-  const [scanCount, setScanCount] = useState(0);
+  const [scanCount, setScanCount] = useState<number | null>(0);
   const [savedCount, setSavedCount] = useState(() => shelfStore.get().length);
   const versionLabel = nativeVersionLabel();
 
@@ -57,7 +57,7 @@ export default function YouScreen() {
       setSavedCount(shelfStore.get().length);
       fetchScanHistory()
         .then((scans) => { if (!cancelled) setScanCount(scans.length); })
-        .catch(() => { if (!cancelled) setScanCount(0); });
+        .catch(() => { if (!cancelled) setScanCount(null); });
       return () => { cancelled = true; };
     }, []),
   );
@@ -88,7 +88,7 @@ export default function YouScreen() {
   return (
     <Screen className="px-6" topGap={22} bottomGap={tabBarClearance()}>
       <Rise>
-        <AccountHeader onBell={() => Alert.alert('Notifications', "You're all caught up.")} />
+        <AccountHeader onBell={() => Alert.alert('Notifications', 'Coming soon — notifications are not in this build yet.')} />
         <View className="mt-[18px]">
           <ProfileCard
             summary={summary}
@@ -96,7 +96,15 @@ export default function YouScreen() {
             avatarUri={profile?.avatarUri ?? null}
             avatarDisabled={!profile}
             onAvatar={() => { void pickAvatar(); }}
-            onEdit={() => setEditing((v) => !v)}
+            editing={editing}
+            onEdit={() => {
+              // Closing the editor discards an unsaved draft + its error.
+              if (editing) {
+                setUsernameDraft('');
+                setUsernameError(null);
+              }
+              setEditing(!editing);
+            }}
           />
         </View>
         {avatarStatus === 'unavailable' && (

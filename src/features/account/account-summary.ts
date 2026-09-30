@@ -8,11 +8,15 @@ export const SEASONAL_REPORT_SCANS = 5;
 /** SAMPLE DATA (demo builds only): no order history exists yet. Matches the v3 video. */
 export const SAMPLE_ORDERS = { count: 3, caption: 'Last order arriving Friday' } as const;
 
+/** SAMPLE DATA (demo builds only): profiles store no join date yet. Matches the v3 video. */
+export const SAMPLE_MEMBER_SINCE = '2026';
+
 export interface AccountSummaryInput {
   username: string | null;
   savedCount: number;
   streak: number;
-  scanCount: number;
+  /** null = unknown (history failed to load) — the seasonal caption is hidden, not shown as 0. */
+  scanCount: number | null;
   shadeName: string | null;
   demo: boolean;
 }
@@ -25,12 +29,14 @@ export interface AccountStat {
 export interface AccountSummary {
   displayName: string;
   handle: string | null;
+  /** "@handle" plus, in demo builds, "· Member since …". */
+  profileLine: string | null;
   initial: string;
   shadeLabel: string;
   stats: readonly AccountStat[];
   ordersCaption: string;
   savedCaption: string;
-  seasonalCaption: string;
+  seasonalCaption: string | undefined;
 }
 
 function savedCaption(n: number): string {
@@ -42,10 +48,12 @@ export function accountSummary(input: AccountSummaryInput): AccountSummary {
   const { username, savedCount, streak, scanCount, shadeName, demo } = input;
   const displayName = username ?? 'Your account';
   const orders = demo ? SAMPLE_ORDERS.count : 0;
+  const handle = username ? `@${username}` : null;
   return {
     displayName,
-    handle: username ? `@${username}` : null,
-    initial: (username ?? 'TrueTone').charAt(0).toUpperCase(),
+    handle,
+    profileLine: handle && demo ? `${handle} · Member since ${SAMPLE_MEMBER_SINCE}` : handle,
+    initial: (Array.from(username ?? 'TrueTone')[0] ?? 'T').toUpperCase(),
     shadeLabel: shadeName ?? 'No shade yet',
     stats: [
       { value: String(orders), label: 'Orders' },
@@ -54,6 +62,9 @@ export function accountSummary(input: AccountSummaryInput): AccountSummary {
     ],
     ordersCaption: demo ? SAMPLE_ORDERS.caption : 'No orders yet',
     savedCaption: savedCaption(savedCount),
-    seasonalCaption: `${Math.min(Math.max(0, scanCount), SEASONAL_REPORT_SCANS)} of ${SEASONAL_REPORT_SCANS} scans logged`,
+    seasonalCaption:
+      scanCount === null
+        ? undefined
+        : `${Math.min(Math.max(0, scanCount), SEASONAL_REPORT_SCANS)} of ${SEASONAL_REPORT_SCANS} scans logged`,
   };
 }
