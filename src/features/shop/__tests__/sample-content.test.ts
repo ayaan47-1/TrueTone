@@ -4,6 +4,7 @@ import { catalog } from '../../match/product-catalog';
 import { findDiseaseTerms } from '../../../lib/cosmetic-filter';
 import {
   DEMO_PROMO_LABEL,
+  DEMO_TOTALS_LABEL,
   SAMPLE_CATALOG_LABEL,
   SAMPLE_RATINGS_ENABLED,
   SAMPLE_RATINGS_LABEL,
@@ -19,7 +20,8 @@ test('labels use the exact ruled wording', () => {
   expect(SAMPLE_CATALOG_LABEL).toBe('Sample catalog — products and images are for demonstration only.');
   expect(SAMPLE_RATINGS_LABEL).toBe('Sample data — not real ratings or reviews.');
   expect(DEMO_PROMO_LABEL).toBe('Demo promo — no purchases in this build.');
-  [SAMPLE_CATALOG_LABEL, SAMPLE_RATINGS_LABEL, DEMO_PROMO_LABEL].forEach((l) => expect(findDiseaseTerms(l)).toEqual([]));
+  expect(DEMO_TOTALS_LABEL).toBe('Demo checkout — sample pricing and shipping; no real orders.');
+  [SAMPLE_CATALOG_LABEL, SAMPLE_RATINGS_LABEL, DEMO_PROMO_LABEL, DEMO_TOTALS_LABEL].forEach((l) => expect(findDiseaseTerms(l)).toEqual([]));
 });
 
 test('every product has a stable sample rating in 4.0..5.0 with a positive count', () => {

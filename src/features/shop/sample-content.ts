@@ -15,7 +15,7 @@ export const SAMPLE_CATALOG_LABEL = 'Sample catalog — products and images are 
 export const SAMPLE_RATINGS_LABEL = 'Sample data — not real ratings or reviews.';
 export const DEMO_PROMO_LABEL = 'Demo promo — no purchases in this build.';
 /** Under the bag totals card: shipping terms, discount and total are demo figures too. */
-export const DEMO_TOTALS_LABEL = 'Demo pricing — shipping, discount and total are examples; no purchases in this build.';
+export const DEMO_TOTALS_LABEL = 'Demo checkout — sample pricing and shipping; no real orders.';
 
 export interface SampleRating {
   readonly rating: number;

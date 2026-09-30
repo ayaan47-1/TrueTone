@@ -88,7 +88,7 @@ test('the demo label covers the whole totals card (shipping, discount, total), n
   expect(card.getByText('Shipping')).toBeTruthy();
   expect(card.getByText('Total')).toBeTruthy();
   expect(DEMO_TOTALS_LABEL).toMatch(/shipping/i);
-  expect(DEMO_TOTALS_LABEL).toMatch(/no purchases in this build/);
+  expect(DEMO_TOTALS_LABEL).toMatch(/no real orders/);
   expect(card.getByText(DEMO_TOTALS_LABEL)).toBeTruthy();
 });
 
