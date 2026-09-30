@@ -28,12 +28,12 @@ beforeEach(() => {
 test('shop tab: ?focus=1 (from the home search) autofocuses the search field', async () => {
   mockParams = { focus: '1' };
   const view = await render(<ShopScreen />);
-  expect(view.getByPlaceholderText('Search products').props.autoFocus).toBe(true);
+  expect(view.getByPlaceholderText('Search products, shades, brands').props.autoFocus).toBe(true);
 });
 
 test('shop tab: plain /shop does not pop the keyboard', async () => {
   const view = await render(<ShopScreen />);
-  expect(view.getByPlaceholderText('Search products').props.autoFocus).toBeFalsy();
+  expect(view.getByPlaceholderText('Search products, shades, brands').props.autoFocus).toBeFalsy();
 });
 
 test('product route: the back button closes the sheet', async () => {

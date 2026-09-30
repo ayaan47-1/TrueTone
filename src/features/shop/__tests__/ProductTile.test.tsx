@@ -43,3 +43,13 @@ test('the + button adds the product to the bag and confirms', async () => {
   expect(view.queryByTestId('glyph-check')).toBeNull();
   jest.useRealTimers();
 });
+
+test('has a save heart, and shows sample ratings only when enabled (with the label)', async () => {
+  const off = await render(<ProductTile product={product} onOpen={jest.fn()} />);
+  expect(off.getByRole('button', { name: `Save ${product.name}` })).toBeTruthy();
+  expect(off.queryByText(/★/)).toBeNull();
+  off.unmount();
+  const on = await render(<ProductTile product={product} onOpen={jest.fn()} showRatings />);
+  expect(on.getByText('★')).toBeTruthy();
+  expect(on.getByText('Sample data — not real ratings or reviews.')).toBeTruthy();
+});
