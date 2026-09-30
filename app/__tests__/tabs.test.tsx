@@ -83,6 +83,7 @@ test('You surfaces the data-rights and policies routes', async () => {
 
 test('You pre-fills the existing username and saves an edit', async () => {
   const view = await render(<YouScreen />);
+  await fireEvent.press(view.getByRole('button', { name: 'Edit profile' }));
   const input = view.getByTestId('username-input');
   expect(input.props.value).toBe('ada');
 
@@ -96,6 +97,7 @@ test('You pre-fills the existing username and saves an edit', async () => {
 test('You shows the save error inline when the username is taken', async () => {
   mockSaveUsername.mockResolvedValue({ ok: false, error: 'That username is taken.' });
   const view = await render(<YouScreen />);
+  await fireEvent.press(view.getByRole('button', { name: 'Edit profile' }));
 
   await fireEvent.changeText(view.getByTestId('username-input'), 'taken');
   await fireEvent.press(view.getByText('Save username'));
@@ -107,6 +109,7 @@ test('You shows the save error inline when the username is taken', async () => {
 test('You offers "Create username" (not "Save") and disables the avatar picker before a profile exists', async () => {
   mockCommunityProfile.profile = null;
   const view = await render(<YouScreen />);
+  await fireEvent.press(view.getByRole('button', { name: 'Edit profile' }));
 
   expect(view.getByText('Create username')).toBeTruthy();
   await fireEvent.press(view.getByTestId('avatar-picker'));
