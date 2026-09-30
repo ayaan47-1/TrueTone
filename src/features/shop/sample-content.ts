@@ -10,9 +10,16 @@ import type { Product } from '../match/match-types';
 
 /** Fabricated ratings are shown only when this is true. Keep false for any external build. */
 export const SAMPLE_RATINGS_ENABLED = false;
+/**
+ * Seeded like/save counts on Community posts are fabricated engagement (FTC 16 CFR 465), so they
+ * show only while this is true: internal TestFlight at most. Set false for any external build;
+ * the icons stay, the numbers go.
+ */
+export const SAMPLE_ENGAGEMENT_ENABLED = true;
 
 export const SAMPLE_CATALOG_LABEL = 'Sample catalog — products and images are for demonstration only.';
 export const SAMPLE_RATINGS_LABEL = 'Sample data — not real ratings or reviews.';
+export const SAMPLE_COMMUNITY_LABEL = 'Sample community — demo creators and posts, not real users.';
 export const DEMO_PROMO_LABEL = 'Demo promo — no purchases in this build.';
 /** Under the bag totals card: shipping terms, discount and total are demo figures too. */
 export const DEMO_TOTALS_LABEL = 'Demo checkout — sample pricing and shipping; no real orders.';
