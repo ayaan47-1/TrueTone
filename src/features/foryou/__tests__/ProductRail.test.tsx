@@ -1,6 +1,6 @@
 // src/features/foryou/__tests__/ProductRail.test.tsx
 // Renders are ASYNC (repo gotcha a): await render, query via `view`.
-import { render } from '@testing-library/react-native';
+import { fireEvent, render } from '@testing-library/react-native';
 import { ProductRail } from '../ProductRail';
 import { pickedForYourShade, featuredProducts, DEMO_SHADE } from '../for-you-profile';
 import type { MatchProfile } from '../../match/match-types';
@@ -43,6 +43,15 @@ describe('ProductRail', () => {
     expect(view.queryByTestId('best-match-badge')).toBeNull();
     const names = view.getAllByTestId('product-name').map((n) => n.props.children);
     expect(names).toEqual(featured.map((p) => p.name));
+  });
+
+  test('an optional See all action sits beside the title', async () => {
+    const onSeeAll = jest.fn();
+    const view = await render(
+      <ProductRail title="Picked for your shade" products={featuredProducts()} onSeeAll={onSeeAll} />,
+    );
+    await fireEvent.press(view.getByRole('button', { name: 'See all Picked for your shade' }));
+    expect(onSeeAll).toHaveBeenCalled();
   });
 
   test('renders nothing for an empty product list', async () => {
