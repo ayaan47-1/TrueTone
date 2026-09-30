@@ -1,13 +1,14 @@
 // src/features/checkout/BagPromo.tsx
 // v3 bag promo + totals (frame t-08): a code field with an Apply → "Applied" state, then a
 // card with Subtotal / Discount (15%) / Shipping / Total. DEMO ONLY — the math lives in
-// promo.ts and DEMO_PROMO_LABEL sits right under the promo field (Dwight's v3 demo-content ruling).
+// promo.ts; DEMO_PROMO_LABEL sits under the promo field (Dwight's v3 demo-content ruling) and
+// DEMO_TOTALS_LABEL + SAMPLE_CATALOG_LABEL close the totals card so shipping is covered too.
 import { useState } from 'react';
 import { Text, TextInput, View } from 'react-native';
 import { Caption, GlassCard, PressableScale } from '../../components/ui';
 import { palette } from '../../theme/tokens';
-import { DEMO_PROMO_LABEL } from '../shop/sample-content';
-import { formatCents, isPromoCode, type BagTotals } from './promo';
+import { DEMO_PROMO_LABEL, DEMO_TOTALS_LABEL, SAMPLE_CATALOG_LABEL } from '../shop/sample-content';
+import { PROMO_PERCENT, formatCents, isPromoCode, type BagTotals } from './promo';
 
 interface PromoFieldProps {
   applied: boolean;
@@ -69,10 +70,10 @@ function Row({ label, value, tone = 'text-ink' }: { label: string; value: string
 
 export function BagSummary({ totals }: { totals: BagTotals }) {
   return (
-    <GlassCard radius={22} className="px-[18px] py-3.5">
+    <GlassCard testID="bag-summary" radius={22} className="px-[18px] py-3.5">
         <Row label="Subtotal" value={formatCents(totals.subtotalCents)} tone="text-ink-soft" />
         {totals.discountCents ? (
-          <Row label="Discount (15%)" value={`−${formatCents(totals.discountCents)}`} tone="text-brand-greenDark" />
+          <Row label={`Discount (${PROMO_PERCENT}%)`} value={`−${formatCents(totals.discountCents)}`} tone="text-brand-greenDark" />
         ) : null}
         <Row label="Shipping" value={totals.shippingCents ? formatCents(totals.shippingCents) : 'Free'} tone="text-ink-soft" />
         {totals.freeShippingGapCents ? (
@@ -82,6 +83,8 @@ export function BagSummary({ totals }: { totals: BagTotals }) {
           <Text className="font-display text-[18px] text-ink">Total</Text>
           <Text className="font-display text-[18px] text-ink">{formatCents(totals.totalCents)}</Text>
         </View>
+        <Caption className="mt-2.5">{DEMO_TOTALS_LABEL}</Caption>
+        <Caption className="mt-1 text-[11px] text-ink-faint">{SAMPLE_CATALOG_LABEL}</Caption>
     </GlassCard>
   );
 }

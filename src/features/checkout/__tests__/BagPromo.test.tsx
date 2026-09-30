@@ -5,7 +5,8 @@ import { BagScreen } from '../BagScreen';
 import { bag } from '../bag-store';
 import { catalog } from '../../match/product-catalog';
 import type { Product } from '../../match/match-types';
-import { DEMO_PROMO_LABEL } from '../../shop/sample-content';
+import { within } from '@testing-library/react-native';
+import { DEMO_PROMO_LABEL, DEMO_TOTALS_LABEL, SAMPLE_CATALOG_LABEL } from '../../shop/sample-content';
 
 const handlers = () => ({ onShop: jest.fn(), onCheckout: jest.fn(), onBack: jest.fn() });
 const flush = () => new Promise((r) => setTimeout(r, 0));
@@ -78,4 +79,21 @@ test('emptying the bag clears the promo, so a refilled bag starts undiscounted',
   await flush();
   expect(view.queryByText('Discount (15%)')).toBeNull();
   expect(view.getByRole('button', { name: 'Apply promo code' })).toBeTruthy();
+});
+
+test('the demo label covers the whole totals card (shipping, discount, total), not just the promo', async () => {
+  bag.add(p42);
+  const view = await render(<BagScreen {...handlers()} />);
+  const card = within(view.getByTestId('bag-summary'));
+  expect(card.getByText('Shipping')).toBeTruthy();
+  expect(card.getByText('Total')).toBeTruthy();
+  expect(DEMO_TOTALS_LABEL).toMatch(/shipping/i);
+  expect(DEMO_TOTALS_LABEL).toMatch(/no purchases in this build/);
+  expect(card.getByText(DEMO_TOTALS_LABEL)).toBeTruthy();
+});
+
+test('the bag carries the sample-catalog label once', async () => {
+  bag.add(p42);
+  const view = await render(<BagScreen {...handlers()} />);
+  expect(view.getAllByText(SAMPLE_CATALOG_LABEL)).toHaveLength(1);
 });

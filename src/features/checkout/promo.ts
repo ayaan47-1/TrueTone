@@ -4,6 +4,8 @@
 // it, per Dwight's v3 demo-content ruling). Display math in whole cents; nothing is charged.
 export const PROMO_CODE = 'TRUE15';
 const PROMO_RATE = 0.15;
+/** For the "Discount (15%)" line, so the copy can't drift from the math. */
+export const PROMO_PERCENT = Math.round(PROMO_RATE * 100);
 const SHIPPING_CENTS = 500;
 const FREE_SHIPPING_FROM_CENTS = 5000;
 
