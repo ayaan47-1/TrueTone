@@ -9,12 +9,12 @@ const product = catalog.find((p) => p.id === 'lum-tint-01')!;
 
 beforeEach(() => bag.clear());
 
-test('shows line, title, price and drawn art, with no fit signal pre-scan', async () => {
+test('shows line, title, price and the product photo, with no fit signal pre-scan', async () => {
   const view = await render(<ProductTile product={product} onOpen={jest.fn()} />);
   expect(view.getByText('Lumira')).toBeTruthy();
   expect(view.getByText('Weightless Skin Tint')).toBeTruthy();
   expect(view.getByText('$24')).toBeTruthy();
-  expect(view.getByTestId('product-art-pump')).toBeTruthy();
+  expect(view.getByTestId('product-photo')).toBeTruthy();
   expect(view.queryByTestId('fit-tier')).toBeNull();
 });
 

@@ -1,7 +1,7 @@
 // src/features/shop/ProductArt.tsx
 // The Quiet Glass v3 product visual (port of the design kit's ProductArt3 fallback): the
 // product drawn as a simple container shape in its own swatch colour over a pale wash.
-// Licence-free, offline, no remote images. When a licensed LOCAL photo is registered for
+// Offline, no remote images. When a bundled LOCAL photo is registered for
 // the product (product-photos.ts) it is shown instead, full-bleed.
 import type { ReactNode } from 'react';
 import { Image, View, type ImageSourcePropType, type StyleProp, type ViewStyle } from 'react-native';
