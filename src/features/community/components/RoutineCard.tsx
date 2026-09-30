@@ -14,7 +14,7 @@ interface RoutineCardProps {
 export function RoutineCard({ routine, onShopTheLook }: RoutineCardProps) {
   return (
     <GlassCard flat radius={26} className="px-5 py-5 gap-3">
-      <CreatorHeader creator={routine.creator} />
+      <CreatorHeader creator={routine.creator} color={routine.creatorColor} />
       <Subheading>{routine.title}</Subheading>
       <Body className="text-ink-muted">{routine.summary}</Body>
       <View className="gap-2 mt-1">

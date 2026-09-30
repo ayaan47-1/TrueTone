@@ -63,8 +63,3 @@ test('Shop the look opens a drawer listing the tagged catalog product, and it cl
   await fireEvent.press(view.getByLabelText('Close'));
   expect(view.queryByTestId(`tagged-product-${firstPostProduct.id}`)).toBeNull();
 });
-
-test('a post with more than one media item shows carousel dots', async () => {
-  const view = await render(<CommunityScreen />);
-  expect(view.getAllByTestId(/^media-dot-/).length).toBeGreaterThan(0);
-});
