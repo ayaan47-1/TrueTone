@@ -53,3 +53,21 @@ test('RunningLow lists items and shows an empty state', async () => {
   const empty = await render(<RunningLow items={[]} />);
   expect(empty.getByText("You're all stocked up.")).toBeTruthy();
 });
+
+test('RunningLow (v3 video): subtitle, product art and a Reorder button per item', async () => {
+  const { fireEvent } = jest.requireActual('@testing-library/react-native');
+  const { catalog } = jest.requireActual('../../match/product-catalog');
+  const onReorder = jest.fn();
+  const product = catalog[0];
+  const view = await render(
+    <RunningLow
+      subtitle="Restock before you run out"
+      items={[{ id: product.id, name: product.name, note: 'Almost out', urgent: true, product }]}
+      onReorder={onReorder}
+    />,
+  );
+  expect(view.getByText('Restock before you run out')).toBeTruthy();
+  expect(view.getByTestId(`running-low-art-${product.id}`)).toBeTruthy();
+  await fireEvent.press(view.getByRole('button', { name: `Reorder ${product.name}` }));
+  expect(onReorder).toHaveBeenCalledWith(product.id);
+});
