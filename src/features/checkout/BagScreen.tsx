@@ -6,7 +6,7 @@
 // DEMO_PROMO_LABEL — allowed with that label per Dwight's v3 demo-content ruling.
 import { useState } from 'react';
 import { ScrollView, Text, View } from 'react-native';
-import { AppHeader, Body, Caption, GlassCard, Heading, MistBackground, PressableScale, PrimaryButton } from '../../components/ui';
+import { AppHeader, Body, Caption, GlassCard, Heading, MistBackground, PressableScale, PrimaryButton, Eyebrow } from '../../components/ui';
 import { ShopGlyph } from '../../components/ui/tab-icons';
 import { useInsets } from '../../components/ui/use-insets';
 import { palette } from '../../theme/tokens';
@@ -105,7 +105,7 @@ function LineCard({ line }: { line: BagLine }) {
       </View>
       <View className="flex-1 pr-0.5 pt-0.5">
         <View className="flex-row justify-between gap-2">
-          <Text className="font-body-semibold text-[10.5px] uppercase tracking-[1px] text-sage">{brandLine ?? ''}</Text>
+          <Eyebrow>{brandLine ?? ''}</Eyebrow>
           <PressableScale
             accessibilityRole="button"
             accessibilityLabel={`Remove ${describe}`}

@@ -6,7 +6,7 @@
 import type { ReactNode } from 'react';
 import { Image, Text, View } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
-import { Caption, Display, GlassCard, GlassSurface, ListRow, PressableScale } from '../../components/ui';
+import { Caption, Display, GlassCard, GlassSurface, ListRow, PressableScale, Eyebrow } from '../../components/ui';
 import { glass, palette, shadeGradient } from '../../theme/tokens';
 import type { AccountSummary } from './account-summary';
 
@@ -131,7 +131,7 @@ export interface AccountRow {
 export function AccountGroup({ title, rows }: { title: string; rows: readonly AccountRow[] }) {
   return (
     <View className="mt-6">
-      <Text className="mb-2.5 ml-1 font-body text-[11px] font-semibold uppercase tracking-[1.4px] text-ink-muted">{title}</Text>
+      <Eyebrow className="mb-2.5 ml-1">{title}</Eyebrow>
       <GlassCard flat radius={22} className="px-5 py-1">
         {rows.map((r, i) => (
           <View key={r.label} style={i ? { borderTopWidth: 1, borderTopColor: 'rgba(168,159,143,0.2)' } : undefined}>

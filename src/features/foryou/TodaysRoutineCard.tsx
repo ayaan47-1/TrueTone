@@ -5,9 +5,10 @@
 // the user that we do not track.
 import { useState } from 'react';
 import { Text, View } from 'react-native';
-import { Caption, GlassCard, PressableScale, Subheading } from '../../components/ui';
+import { Caption, GlassCard, PressableScale } from '../../components/ui';
 import { palette } from '../../theme/tokens';
 import { CheckGlyph } from '../shop/shop-icons';
+import { SectionTitle } from './HomeV3Parts';
 import { SAMPLE_ROUTINE, SAMPLE_ROUTINE_DONE, type RoutineSlot } from './home-sample-data';
 
 const SLOTS: readonly RoutineSlot[] = ['AM', 'PM'];
@@ -23,7 +24,7 @@ export function TodaysRoutineCard() {
     <GlassCard radius={26} className="px-[18px] pb-2 pt-[18px]">
       <View className="flex-row items-center justify-between">
         <View>
-          <Subheading>Today&apos;s routine</Subheading>
+          <SectionTitle>{"Today's routine"}</SectionTitle>
           <Caption>{`${count} of ${steps.length} done`}</Caption>
         </View>
         <SlotToggle slot={slot} onChange={setSlot} />

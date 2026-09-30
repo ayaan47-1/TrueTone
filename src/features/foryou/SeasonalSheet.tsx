@@ -2,7 +2,7 @@
 // The "Seasonal" quick action (video t-01, badged NEW): a glass sheet inviting a rescan as
 // the seasons change. Deliberately no progress numbers — seasonal scans are not tracked yet.
 import { Text, View } from 'react-native';
-import { Body, GlassSheet, PressableScale, PrimaryButton } from '../../components/ui';
+import { Body, GlassSheet, PressableScale, PrimaryButton, Eyebrow } from '../../components/ui';
 
 interface SeasonalSheetProps {
   onScan: () => void;
@@ -12,7 +12,7 @@ interface SeasonalSheetProps {
 export function SeasonalSheet({ onScan, onClose }: SeasonalSheetProps) {
   return (
     <GlassSheet onClose={onClose} align="bottom" className="p-6">
-      <Text className="font-body-semibold text-[10.5px] uppercase tracking-[1.6px] text-sage">Seasonal</Text>
+      <Eyebrow>Seasonal</Eyebrow>
       <Text accessibilityRole="header" className="mt-2 font-display text-[22px] leading-[27px] text-ink">
         Seasonal shade check
       </Text>

@@ -4,7 +4,7 @@
 // "Top rated" ranks by SAMPLE ratings, so it is offered only when those are enabled.
 import { useEffect, useState } from 'react';
 import { Modal, Text, View } from 'react-native';
-import { GlassSheet, PrimaryButton, PressableScale, Subheading } from '../../components/ui';
+import { GlassSheet, PrimaryButton, PressableScale, Subheading, Eyebrow } from '../../components/ui';
 import { FINISH_LABELS } from '../../content/makeup-vocab';
 import type { FinishFilter, ShelfSort } from './shelf';
 
@@ -80,7 +80,7 @@ export function FilterSheet({ visible, sort, finish, scanned, showRatingSort, on
 }
 
 function Label({ text }: { text: string }) {
-  return <Text className="mt-5 font-body-semibold text-[11px] uppercase tracking-[1.2px] text-ink-soft">{text}</Text>;
+  return <Eyebrow className="mt-5">{text}</Eyebrow>;
 }
 
 function Chip({ label, selected, onPress }: { label: string; selected: boolean; onPress: () => void }) {

@@ -8,7 +8,7 @@
 // button floats over the art so the modal always has a visible way out.
 import { useState, type ReactNode } from 'react';
 import { Pressable, ScrollView, Share, Text, View, type PressableProps } from 'react-native';
-import { Body, Caption, GlassSurface, Heading, PressableScale, PrimaryButton } from '../../components/ui';
+import { Body, Caption, GlassSurface, Heading, PressableScale, PrimaryButton, Eyebrow } from '../../components/ui';
 import { useInsets } from '../../components/ui/use-insets';
 import { hasLiquidGlass } from '../../components/ui/liquid-glass';
 import { CameraGlyph } from '../../components/ui/tab-icons';
@@ -87,7 +87,7 @@ function ProductPage({ productId, profile, shadeName, onScan, onAdded, onClose, 
         <ProductGallery product={product} height={380} />
         <View className="-mt-7 rounded-t-[28px] bg-mist-50 px-6 pt-6">
           <View className="flex-row items-center justify-between">
-            <Text className="font-body-semibold text-[11px] uppercase tracking-[1.4px] text-sage">{line}</Text>
+            <Eyebrow>{line}</Eyebrow>
             <View className="rounded-full bg-brand-tint px-2.5 py-1">
               <Text className="font-body-semibold text-[11.5px] text-brand-greenDark">Sample</Text>
             </View>

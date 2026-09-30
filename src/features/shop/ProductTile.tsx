@@ -5,7 +5,7 @@
 // SAMPLE_RATINGS_ENABLED with their label (Dwight's ruling). Never a numeric "% fit".
 import { useEffect, useRef, useState } from 'react';
 import { Text, View } from 'react-native';
-import { Caption, PressableScale } from '../../components/ui';
+import { Caption, PressableScale, Eyebrow } from '../../components/ui';
 import { glass, palette, softShadow } from '../../theme/tokens';
 import type { Product } from '../match/match-types';
 import { BEST_MATCH_BADGE, FIT_TIER_LABELS, type FitTier } from '../../content/makeup-vocab';
@@ -72,7 +72,7 @@ export function ProductTile({ product, tier, isBestMatch = false, artHeight = 13
         </ProductArt>
         <View className="flex-1 gap-1 px-1.5 pb-1 pt-2.5">
           {line ? (
-            <Text className="font-body-semibold text-[10.5px] uppercase tracking-[1px] text-sage">{line}</Text>
+            <Eyebrow>{line}</Eyebrow>
           ) : null}
           <Text numberOfLines={2} className="min-h-[38px] font-display-md text-[14px] leading-[19px] text-ink">
             {title}

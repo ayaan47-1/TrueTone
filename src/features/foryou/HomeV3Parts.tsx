@@ -154,14 +154,21 @@ interface SectionHeadProps {
   onAction?: () => void;
 }
 
+/** The one home section-title style (display face, 20px) — SectionHead and card titles share it. */
+export function SectionTitle({ children }: { children: string }) {
+  return (
+    <Text accessibilityRole="header" className="font-display text-[20px] tracking-[-0.3px] text-ink">
+      {children}
+    </Text>
+  );
+}
+
 /** A home section title (display face) with an optional subtitle and "See all ›". */
 export function SectionHead({ title, sub, onAction }: SectionHeadProps) {
   return (
     <View className="mb-3.5 flex-row items-end justify-between gap-3">
       <View className="flex-1">
-        <Text accessibilityRole="header" className="font-display text-[20px] tracking-[-0.3px] text-ink">
-          {title}
-        </Text>
+        <SectionTitle>{title}</SectionTitle>
         {sub ? <Text className="mt-0.5 font-body text-[13px] text-ink-muted">{sub}</Text> : null}
       </View>
       {onAction ? (
