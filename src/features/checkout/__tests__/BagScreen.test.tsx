@@ -1,9 +1,10 @@
-// v3 bag: lines per product + shade, qty stepper, remove, "Finish your look", subtotal,
-// checkout CTA. No promo code, no discount, no invented shipping rules.
+// v3 bag: lines per product + shade, qty stepper, remove, "Finish your look", totals card,
+// checkout CTA. The TRUE15 demo promo is covered in BagPromo.test.tsx.
 import { render, fireEvent } from '@testing-library/react-native';
 import { BagScreen } from '../BagScreen';
 import { bag, lineKey } from '../bag-store';
 import { catalog } from '../../match/product-catalog';
+import { bagTotals, formatCents } from '../promo';
 
 const [a, b] = catalog;
 const handlers = () => ({ onShop: jest.fn(), onCheckout: jest.fn(), onBack: jest.fn() });
@@ -25,8 +26,8 @@ test('lines show shade, qty changes update the total, trash removes', async () =
   const view = await render(<BagScreen {...h} />);
   expect(view.getByText('Honey 5W')).toBeTruthy();
   expect(view.getByText('3 items')).toBeTruthy();
-  const total = a.price + b.price * 2;
-  expect(view.getByRole('button', { name: `Checkout · $${total}` })).toBeTruthy();
+  const total = formatCents(bagTotals(a.price + b.price * 2, false).totalCents);
+  expect(view.getByRole('button', { name: `Checkout · ${total}` })).toBeTruthy();
 
   await fireEvent.press(view.getByRole('button', { name: `Increase quantity, ${a.name.toLowerCase()}, honey 5w` }));
   expect(bag.getState().lines.find((l) => lineKey(l) === lineKey({ product: a, shade: 'Honey 5W' }))?.qty).toBe(2);
@@ -34,9 +35,9 @@ test('lines show shade, qty changes update the total, trash removes', async () =
   await fireEvent.press(view.getByRole('button', { name: `Remove ${b.name}` }));
   expect(bag.getState().lines).toHaveLength(1);
 
-  await fireEvent.press(view.getByRole('button', { name: `Checkout · $${a.price * 2}` }));
+  const after = formatCents(bagTotals(a.price * 2, false).totalCents);
+  await fireEvent.press(view.getByRole('button', { name: `Checkout · ${after}` }));
   expect(h.onCheckout).toHaveBeenCalled();
-  expect(view.queryAllByText(/promo|discount|%|TRUE15/i)).toHaveLength(0);
 });
 
 test('"Finish your look" suggests items not in the bag and adds them', async () => {

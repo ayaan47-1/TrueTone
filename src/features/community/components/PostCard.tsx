@@ -16,12 +16,13 @@ interface PostCardProps {
   onToggleSave: () => void;
   onShare: () => void;
   onShopTheLook: () => void;
+  showCounts?: boolean;
 }
 
-export function PostCard({ post, engagement, onToggleLike, onToggleSave, onShare, onShopTheLook }: PostCardProps) {
+export function PostCard({ post, engagement, onToggleLike, onToggleSave, onShare, onShopTheLook, showCounts }: PostCardProps) {
   return (
     <GlassCard flat radius={26} className="px-5 py-5 gap-3">
-      <CreatorHeader creator={post.creator} />
+      <CreatorHeader creator={post.creator} color={post.creatorColor} />
       <MediaPlaceholder media={post.media} />
       <Body className="text-ink">{post.caption}</Body>
       <View className="flex-row items-center justify-between">
@@ -30,6 +31,7 @@ export function PostCard({ post, engagement, onToggleLike, onToggleSave, onShare
           onToggleLike={onToggleLike}
           onToggleSave={onToggleSave}
           onShare={onShare}
+          showCounts={showCounts}
         />
         {post.taggedProductIds.length > 0 ? (
           <PressableScale

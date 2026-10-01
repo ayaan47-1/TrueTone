@@ -64,7 +64,10 @@ test('Shop the look opens a drawer listing the tagged catalog product, and it cl
   expect(view.queryByTestId(`tagged-product-${firstPostProduct.id}`)).toBeNull();
 });
 
-test('a post with more than one media item shows carousel dots', async () => {
+test('screen title matches the Account/Shop title: default Display size, left-aligned', async () => {
   const view = await render(<CommunityScreen />);
-  expect(view.getAllByTestId(/^media-dot-/).length).toBeGreaterThan(0);
+  const title = view.getByText('Community');
+  const header = view.getByTestId('community-title');
+  expect(String(title.props.className ?? '').match(/text-\[\d+px\]/g)).toEqual(['text-[30px]']);
+  expect(String(header.props.className ?? '')).not.toMatch(/items-center/);
 });

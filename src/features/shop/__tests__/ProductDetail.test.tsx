@@ -1,8 +1,11 @@
 // v3 product page: shade picker, qty, "Why it fits you", add to bag with the chosen shade.
-// Fit is a tier word only; no ratings, reviews, stock claims or promo copy.
+// Fit is a tier word only; ratings/reviews only behind SAMPLE_RATINGS_ENABLED, with the label.
 import { render, fireEvent } from '@testing-library/react-native';
 import { ProductDetail } from '../ProductDetail';
+import { Share } from 'react-native';
 import { bag } from '../../checkout/bag-store';
+import { wishlist } from '../wishlist-store';
+import { SAMPLE_CATALOG_LABEL, SAMPLE_RATINGS_LABEL } from '../sample-content';
 import type { MatchProfile } from '../../match/match-types';
 
 const ID = 'ver-velvet-10'; // Veranda Velvet Matte Foundation, Honey 5W, $33
@@ -26,8 +29,8 @@ test('post-scan: tier word for your shade, why-it-fits, your match preselected',
   );
   expect(view.getByTestId('fit-tier')).toHaveTextContent(/^(Great match|Good match|Worth a try) for Golden 6W$/);
   expect(view.getByTestId('selected-shade')).toHaveTextContent('Golden 6W');
-  expect(view.getByText(/Your match/)).toBeTruthy();
-  expect(view.queryAllByText(/%|★|review|in stock|off/i)).toHaveLength(0);
+  expect(view.getAllByText(/Your match/).length).toBeGreaterThan(0);
+  expect(view.queryAllByText(/%|★|review|off/i)).toHaveLength(0);
 });
 
 test('picking a shade + qty adds that line to the bag', async () => {
@@ -68,4 +71,53 @@ test('the not-found state also offers a way back', async () => {
   const view = await render(<ProductDetail productId="nope" onScan={jest.fn()} onAdded={jest.fn()} onClose={onClose} />);
   await fireEvent.press(view.getByRole('button', { name: 'Back' }));
   expect(onClose).toHaveBeenCalled();
+});
+
+describe('v3 frames t-11 / t-12', () => {
+  const props = { onScan: jest.fn(), onAdded: jest.fn(), onClose: jest.fn() };
+
+  test('photo gallery with page dots, Sample pill (no stock claim), share + save buttons', async () => {
+    const share = jest.spyOn(Share, 'share').mockResolvedValue({ action: 'sharedAction' });
+    wishlist.clear();
+    const view = await render(<ProductDetail productId={ID} {...props} />);
+    expect(view.getAllByTestId('gallery-slide').length).toBeGreaterThan(1);
+    expect(view.getAllByTestId(/^gallery-dot/).length).toBe(view.getAllByTestId('gallery-slide').length);
+    expect(view.getByTestId('product-photo')).toBeTruthy();
+    expect(view.queryByText('In stock')).toBeNull();
+    expect(view.getByText('Sample')).toBeTruthy();
+    expect(view.getAllByText(SAMPLE_CATALOG_LABEL)).toHaveLength(1);
+    await fireEvent.press(view.getByRole('button', { name: 'Share' }));
+    expect(share).toHaveBeenCalledWith(expect.objectContaining({ message: expect.stringContaining('Veranda Velvet Matte Foundation') }));
+    await fireEvent.press(view.getByRole('button', { name: 'Save Veranda Velvet Matte Foundation' }));
+    expect(wishlist.getState()).toEqual([ID]);
+  });
+
+  test('size chips (30 ml / 50 ml) are selectable on liquid bases', async () => {
+    const view = await render(<ProductDetail productId={ID} {...props} />);
+    const big = view.getByRole('button', { name: 'Size 50 ml' });
+    await fireEvent.press(big);
+    expect(view.getByRole('button', { name: 'Size 50 ml' })).toHaveAccessibilityState({ selected: true });
+    expect(view.getByRole('button', { name: 'Size 30 ml' })).toHaveAccessibilityState({ selected: false });
+  });
+
+  test('no size row for products without sizes', async () => {
+    const view = await render(<ProductDetail productId="lum-lip-29" {...props} />);
+    expect(view.queryByText('Size')).toBeNull();
+  });
+
+  test('a great-match product says "Your match" in the fit card, never a %', async () => {
+    const view = await render(<ProductDetail productId="aur-tint-12" profile={PROFILE} shadeName="Golden 6W" {...props} />);
+    expect(view.getByTestId('fit-tier')).toHaveTextContent('Great match for Golden 6W');
+    expect(view.getByTestId('fit-your-match')).toHaveTextContent('Your match');
+    expect(view.queryAllByText(/%/)).toHaveLength(0);
+  });
+
+  test('sample rating shows only when enabled, with its label', async () => {
+    const off = await render(<ProductDetail productId={ID} {...props} />);
+    expect(off.queryByText('★')).toBeNull();
+    off.unmount();
+    const on = await render(<ProductDetail productId={ID} showRatings {...props} />);
+    expect(on.getByText('★')).toBeTruthy();
+    expect(on.getByText(SAMPLE_RATINGS_LABEL)).toBeTruthy();
+  });
 });

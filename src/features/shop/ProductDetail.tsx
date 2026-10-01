@@ -1,14 +1,14 @@
 // src/features/shop/ProductDetail.tsx
-// Quiet Glass v3 product page (ProductV3 port): full-bleed drawn art, line + title + price,
-// a fit card, a shade picker, quantity, "Why it fits you" / Details / How to use, and a
-// pinned "Add to bag · $X" CTA. Consumes only the derived MatchProfile — never the image.
-// Left out of the kit on purpose: star ratings + review counts (no real review data), the
-// "In stock" pill (no inventory data), the numeric "% fit" and its bar (tiers only), and
-// the image-pager dots (there is one drawing, not a gallery). The kit's back IconBtn floats
-// over the art so the modal always has a visible way out (not just swipe / hardware back).
-import { useState } from 'react';
-import { Pressable, ScrollView, Text, View } from 'react-native';
-import { Body, Caption, GlassSurface, Heading, PressableScale, PrimaryButton } from '../../components/ui';
+// Quiet Glass v3 product page (ProductV3 port, frames t-11/t-12): photo gallery with page
+// dots, floating Back / Share / Save, line + a "Sample" pill (no stock claim; the catalog is sample) + title, a sample
+// rating (only behind SAMPLE_RATINGS_ENABLED, with its label) + price, a fit card, a shade
+// picker, size chips, quantity, "Why it fits you" / Details / How to use, and a pinned
+// "Add to bag · $X" CTA. Consumes only the derived MatchProfile — never the image. Fit is a
+// tier word only: no numeric "% fit" and no fit bar (Dwight's ruling, PR #38). The Back
+// button floats over the art so the modal always has a visible way out.
+import { useState, type ReactNode } from 'react';
+import { Pressable, ScrollView, Share, Text, View, type PressableProps } from 'react-native';
+import { Body, Caption, GlassSurface, Heading, PressableScale, PrimaryButton, Eyebrow } from '../../components/ui';
 import { useInsets } from '../../components/ui/use-insets';
 import { hasLiquidGlass } from '../../components/ui/liquid-glass';
 import { CameraGlyph } from '../../components/ui/tab-icons';
@@ -20,7 +20,10 @@ import { fitReason } from '../match/fit-reason';
 import { fitTier } from '../match/fit-tier';
 import { CATEGORY_LABELS, FINISH_LABELS, FIT_TIER_LABELS } from '../../content/makeup-vocab';
 import { bag } from '../checkout/bag-store';
-import { ProductArt } from './ProductArt';
+import { ProductGallery } from './ProductGallery';
+import { HeartButton } from './HeartButton';
+import { SampleRatingLine } from './SampleRatingLine';
+import { SAMPLE_CATALOG_LABEL, productSizes } from './sample-content';
 import { productLine } from './product-visual';
 import { defaultShadeIndex, shadeOptions, type ShadeOption } from './shade-options';
 import { Accordion } from './Accordion';
@@ -37,6 +40,8 @@ interface ProductDetailProps {
   onAdded: () => void;
   /** Dismisses the sheet (the floating back button). */
   onClose: () => void;
+  /** Sample ratings; defaults to the SAMPLE_RATINGS_ENABLED build flag. */
+  showRatings?: boolean;
 }
 
 /** Keyed so the shade/qty state resets when the product changes or a scan lands mid-visit. */
@@ -44,12 +49,13 @@ export function ProductDetail(props: ProductDetailProps) {
   return <ProductPage key={`${props.productId}:${props.profile?.shade ?? ''}`} {...props} />;
 }
 
-function ProductPage({ productId, profile, shadeName, onScan, onAdded, onClose }: ProductDetailProps) {
+function ProductPage({ productId, profile, shadeName, onScan, onAdded, onClose, showRatings }: ProductDetailProps) {
   const product = catalog.find((p) => p.id === productId);
   const insets = useInsets();
   const options = product ? shadeOptions(product, profile) : [];
   const [shade, setShade] = useState(() => defaultShadeIndex(options));
   const [qty, setQty] = useState(1);
+  const [size, setSize] = useState(0);
 
   if (!product) {
     return (
@@ -64,6 +70,11 @@ function ProductPage({ productId, profile, shadeName, onScan, onAdded, onClose }
   const { line, title } = productLine(product);
   const picked = options[shade];
   const reason = profile ? fitReason(product, profile) : null;
+  const tier = profile ? fitTier(scoreProduct(product, profile)) : null;
+  const sizes = productSizes(product);
+  const share = (): void => {
+    Share.share({ message: `${product.name} — $${product.price} on TrueTone (sample catalog)` }).catch(() => undefined);
+  };
 
   const add = (): void => {
     bag.add(product, qty, picked?.label);
@@ -73,23 +84,37 @@ function ProductPage({ productId, profile, shadeName, onScan, onAdded, onClose }
   return (
     <View className="flex-1 bg-mist-50">
       <ScrollView contentContainerStyle={{ paddingBottom: 130 + insets.bottom }}>
-        <ProductArt product={product} height={360} radius={0} />
+        <ProductGallery product={product} height={380} />
         <View className="-mt-7 rounded-t-[28px] bg-mist-50 px-6 pt-6">
-          {line ? <Text className="font-body-semibold text-[11px] uppercase tracking-[1.4px] text-sage">{line}</Text> : null}
+          <View className="flex-row items-center justify-between">
+            <Eyebrow>{line}</Eyebrow>
+            <View className="rounded-full bg-brand-tint px-2.5 py-1">
+              <Text className="font-body-semibold text-[11.5px] text-brand-greenDark">Sample</Text>
+            </View>
+          </View>
           <Heading className="mt-2">{title}</Heading>
-          <View className="mt-2.5 flex-row items-center justify-between">
-            <Caption>
-              {FINISH_LABELS[product.finish]} finish · {CATEGORY_LABELS[product.category]}
-            </Caption>
+          <View className="mt-2.5 flex-row items-center justify-between gap-3">
+            <View className="flex-1">
+              <SampleRatingLine productId={product.id} enabled={showRatings} size={13} />
+              <Caption>
+                {FINISH_LABELS[product.finish]} finish · {CATEGORY_LABELS[product.category]}
+              </Caption>
+            </View>
             <Text className="font-display text-[26px] tracking-[-0.5px] text-ink">${product.price}</Text>
           </View>
+          <Caption testID="sample-catalog-label" className="mt-1.5 text-[11px] text-ink-soft">{SAMPLE_CATALOG_LABEL}</Caption>
 
-          {profile && reason ? (
+          {tier && reason ? (
             <View className="mt-5 rounded-card bg-brand-tint px-4 py-3.5">
-              <Text testID="fit-tier" className="font-body-bold text-[14px] text-brand-greenDark">
-                {FIT_TIER_LABELS[fitTier(scoreProduct(product, profile))]}
-                {shadeName ? ` for ${shadeName}` : ''}
-              </Text>
+              <View className="flex-row items-baseline justify-between gap-2">
+                <Text testID="fit-tier" className="flex-1 font-body-bold text-[14px] text-brand-greenDark">
+                  {FIT_TIER_LABELS[tier]}
+                  {shadeName ? ` for ${shadeName}` : ''}
+                </Text>
+                {tier === 'great' ? (
+                  <Text testID="fit-your-match" className="font-body text-[12px] text-brand-greenDark">Your match</Text>
+                ) : null}
+              </View>
               <Text className="mt-1.5 font-body text-[13px] text-brand-greenDark">{reason}</Text>
             </View>
           ) : (
@@ -97,6 +122,7 @@ function ProductPage({ productId, profile, shadeName, onScan, onAdded, onClose }
           )}
 
           <ShadePicker options={options} selected={shade} onSelect={setShade} scanned={!!profile} />
+          {sizes.length ? <SizePicker sizes={sizes} selected={size} onSelect={setSize} /> : null}
 
           <View className="mt-5 flex-row items-center justify-between">
             <Text className="font-body text-[14px] text-ink-soft">Quantity</Text>
@@ -129,7 +155,62 @@ function ProductPage({ productId, profile, shadeName, onScan, onAdded, onClose }
         <PrimaryButton label={`Add to bag · $${product.price * qty}`} fullWidth onPress={add} />
       </View>
       <BackButton onPress={onClose} top={insets.top + 8} />
+      <View className="absolute right-5 flex-row gap-2.5" style={{ top: insets.top + 8 }}>
+        <FloatingIconButton accessibilityLabel="Share" onPress={share}>
+          <Text className="font-body-bold text-[17px] text-ink">↗</Text>
+        </FloatingIconButton>
+        <View style={[{ borderRadius: 21 }, softShadow]}>
+          <HeartButton productId={product.id} name={product.name} size={42} />
+        </View>
+      </View>
     </View>
+  );
+}
+
+function SizePicker({ sizes, selected, onSelect }: { sizes: readonly string[]; selected: number; onSelect: (i: number) => void }) {
+  return (
+    <View className="mt-5">
+      <Text className="font-body text-[14px] text-ink-soft">Size</Text>
+      <View className="mt-2.5 flex-row gap-2.5">
+        {sizes.map((s, i) => {
+          const on = i === selected;
+          return (
+            <PressableScale
+              key={s}
+              accessibilityRole="button"
+              accessibilityLabel={`Size ${s}`}
+              accessibilityState={{ selected: on }}
+              onPress={() => onSelect(i)}
+            >
+              <View className={'rounded-[14px] border px-[18px] py-[9px] ' + (on ? 'border-ink bg-ink' : 'border-ink-faint bg-transparent')}>
+                <Text className={'font-body-semibold text-[13px] ' + (on ? 'text-white' : 'text-ink-soft')}>{s}</Text>
+              </View>
+            </PressableScale>
+          );
+        })}
+      </View>
+    </View>
+  );
+}
+
+/** 42px glass circle over the art (kit IconBtn3), for Share. */
+function FloatingIconButton({ children, ...rest }: PressableProps & { children: ReactNode }) {
+  return (
+    <Pressable
+      accessibilityRole="button"
+      hitSlop={4}
+      style={[{ width: 42, height: 42, borderRadius: 21 }, hasLiquidGlass() ? null : { backgroundColor: glass.fillStrong }, softShadow]}
+      {...rest}
+    >
+      <GlassSurface
+        interactive
+        intensity={0}
+        style={{ flex: 1, borderRadius: 21, alignItems: 'center', justifyContent: 'center' }}
+        fallbackStyle={{ borderWidth: 1, borderColor: glass.edge }}
+      >
+        {children}
+      </GlassSurface>
+    </Pressable>
   );
 }
 

@@ -17,6 +17,7 @@ import ProductRoute from '../product/[id]';
 import BagRoute from '../bag';
 import { catalog } from '../../src/features/match/product-catalog';
 import { bag } from '../../src/features/checkout/bag-store';
+import { bagTotals, formatCents } from '../../src/features/checkout/promo';
 
 beforeEach(() => {
   jest.clearAllMocks();
@@ -28,12 +29,12 @@ beforeEach(() => {
 test('shop tab: ?focus=1 (from the home search) autofocuses the search field', async () => {
   mockParams = { focus: '1' };
   const view = await render(<ShopScreen />);
-  expect(view.getByPlaceholderText('Search products').props.autoFocus).toBe(true);
+  expect(view.getByPlaceholderText('Search products, shades, brands').props.autoFocus).toBe(true);
 });
 
 test('shop tab: plain /shop does not pop the keyboard', async () => {
   const view = await render(<ShopScreen />);
-  expect(view.getByPlaceholderText('Search products').props.autoFocus).toBeFalsy();
+  expect(view.getByPlaceholderText('Search products, shades, brands').props.autoFocus).toBeFalsy();
 });
 
 test('product route: the back button closes the sheet', async () => {
@@ -66,7 +67,7 @@ test('bag route: empty state goes to the shop tab; checkout goes to /checkout', 
   expect(mockPush).toHaveBeenCalledWith('/shop');
   bag.add(catalog[0]);
   const full = await render(<BagRoute />);
-  await fireEvent.press(full.getByRole('button', { name: `Checkout · $${catalog[0].price}` }));
+  await fireEvent.press(full.getByRole('button', { name: `Checkout · ${formatCents(bagTotals(catalog[0].price, false).totalCents)}` }));
   expect(mockPush).toHaveBeenCalledWith('/checkout');
 });
 

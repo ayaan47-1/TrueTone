@@ -46,6 +46,7 @@ import {
 } from './capture-controller';
 import { useFrameMetrics } from './use-frame-metrics';
 import { writeUprightStill, type CaptureMeta } from './capture-upright';
+import { CaptureBackdrop, GlassCancelButton, GlassHintPill, GLASS_OK_TINT } from './CaptureChrome';
 
 const PRIVACY_LINE = 'Analyzed on your device · never leaves your phone · deleted after your read';
 // Shipped "pass / ready" accent = the app's brand green (Quiet Glass), so the capture success
@@ -54,6 +55,9 @@ const PASS = palette.sage;
 // PASS_GREEN stays a bright emerald for the __DEV__ metrics overlay ONLY (a diagnostic, never shipped).
 const PASS_GREEN = '#34d399';
 const TICK_MS = 33; // ~30fps drive for the auto-capture state machine
+// The v3 design lifts the oval above the bottom controls instead of centring it on the whole screen.
+const OVAL_LIFT = 130;
+const OVAL_LIFT_SHORT = 96;
 
 interface CaptureProps {
   /** `meta` is diagnostic — the URI already points at an upright still (see capture-upright.ts). */
@@ -208,6 +212,7 @@ export function Capture({ onCaptured, onCancel, devForceCapture = false }: Captu
 
   return (
     <View style={styles.root}>
+      <CaptureBackdrop />
       <Camera
         style={StyleSheet.absoluteFill}
         device={device}
@@ -225,13 +230,15 @@ export function Capture({ onCaptured, onCancel, devForceCapture = false }: Captu
       {/* top scrim + guidance hint */}
       <View style={[styles.topScrim, { paddingTop: insets.top + 12 }]}>
         <Text style={styles.wordmark}>Hold steady</Text>
-        <View style={[styles.hintPill, allPass && styles.hintPillPass]}>
-          <Text style={[styles.hintText, allPass && styles.hintTextPass]}>{quality.hint}</Text>
-        </View>
+        <GlassHintPill text={quality.hint} pass={allPass} />
       </View>
 
       {/* center oval guide */}
-      <View style={styles.centerArea} pointerEvents="none">
+      <View
+        testID="capture-oval-area"
+        style={[styles.centerArea, { paddingBottom: isShort ? OVAL_LIFT_SHORT : OVAL_LIFT }]}
+        pointerEvents="none"
+      >
         {!allPass && (
           <Animated.View
             style={[
@@ -262,7 +269,7 @@ export function Capture({ onCaptured, onCancel, devForceCapture = false }: Captu
           { paddingBottom: insets.bottom + (isShort ? 14 : 20), gap: isShort ? 10 : 14 },
         ]}
       >
-        <View style={styles.checkStrip} pointerEvents="none">
+        <View testID="capture-check-strip" style={styles.checkStrip} pointerEvents="none">
           <CheckChip label="Face" ok={quality.face} />
           <CheckChip label="Light" ok={quality.lighting} />
           <CheckChip label="Framing" ok={quality.distance} />
@@ -286,9 +293,7 @@ export function Capture({ onCaptured, onCancel, devForceCapture = false }: Captu
           <Text style={styles.forceHint}>DEV: tap the shutter to capture regardless of the gate</Text>
         )}
         <Text style={styles.privacy}>{PRIVACY_LINE}</Text>
-        <Pressable style={styles.cancelBtn} onPress={onCancel} disabled={counting}>
-          <Text style={[styles.cancelText, counting && styles.cancelTextDim]}>Cancel</Text>
-        </Pressable>
+        <GlassCancelButton onPress={onCancel} disabled={counting} />
       </View>
 
       {/* capture flash */}
@@ -300,14 +305,11 @@ export function Capture({ onCaptured, onCancel, devForceCapture = false }: Captu
   );
 }
 
-/** Sage tint for a passed check on native glass (mirrors chipOk's green fill). */
-const CHIP_OK_TINT = 'rgba(47,125,82,0.35)';
-
 function CheckChip({ label, ok }: { label: string; ok: boolean }) {
   return (
     <GlassSurface
       intensity={0}
-      tintColor={ok ? CHIP_OK_TINT : undefined}
+      tintColor={ok ? GLASS_OK_TINT : undefined}
       style={styles.chip}
       fallbackStyle={[styles.chipFill, ok && styles.chipOk]}
     >
@@ -369,17 +371,6 @@ const styles = StyleSheet.create({
     backgroundColor: 'rgba(31,26,20,0.34)', // warm ink scrim, not a cold black
   },
   wordmark: { color: 'rgba(255,255,255,0.95)', fontFamily: fonts.displayMedium, fontSize: 19, letterSpacing: 0.3, marginBottom: 12 },
-  hintPill: {
-    paddingHorizontal: 16,
-    paddingVertical: 9,
-    borderRadius: 999,
-    backgroundColor: 'rgba(255,255,255,0.15)',
-    borderWidth: StyleSheet.hairlineWidth * 2,
-    borderColor: 'rgba(255,255,255,0.22)',
-  },
-  hintPillPass: { backgroundColor: 'rgba(47,125,82,0.26)', borderColor: 'rgba(47,125,82,0.5)' },
-  hintText: { color: 'rgba(255,255,255,0.92)', fontFamily: fonts.bodyMedium, fontSize: 15 },
-  hintTextPass: { color: palette.white },
   centerArea: { position: 'absolute', top: 0, left: 0, right: 0, bottom: 0, alignItems: 'center', justifyContent: 'center' },
   ovalGlow: {
     position: 'absolute',
@@ -429,16 +420,6 @@ const styles = StyleSheet.create({
   shutterInnerArmed: { backgroundColor: 'rgba(217,70,239,0.55)' },
   forceHint: { color: '#f0abfc', fontSize: 11, fontWeight: '700', textAlign: 'center' },
   privacy: { color: 'rgba(255,255,255,0.6)', fontFamily: fonts.body, fontSize: 12, textAlign: 'center' },
-  cancelBtn: {
-    paddingHorizontal: 28,
-    paddingVertical: 12,
-    borderRadius: 999,
-    backgroundColor: 'rgba(255,255,255,0.14)',
-    borderWidth: StyleSheet.hairlineWidth * 2,
-    borderColor: 'rgba(255,255,255,0.2)',
-  },
-  cancelText: { color: palette.white, fontFamily: fonts.bodySemibold, fontSize: 15 },
-  cancelTextDim: { color: 'rgba(255,255,255,0.35)' },
   flash: { backgroundColor: palette.white },
   // dev-only calibration overlay
   dbgPanel: {

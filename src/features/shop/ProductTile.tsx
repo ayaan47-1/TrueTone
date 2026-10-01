@@ -1,16 +1,18 @@
 // src/features/shop/ProductTile.tsx
-// Quiet Glass v3 product card (ProductCard3 port) for the Shop grid and home rails: drawn
-// product art, line eyebrow, title, qualitative fit tier (post-scan only), price and a
-// round add button. Deliberately left out of the kit's card: star ratings + review counts
-// (no real review data — FTC fake-review risk) and the numeric "% fit" (tiers only).
+// Quiet Glass v3 product card (ProductCard3 port, frames t-04/t-13) for the Shop grid:
+// product photo, save heart, line eyebrow, title, qualitative fit tier (post-scan only),
+// price and a round add button. Star ratings are SAMPLE data and render only behind
+// SAMPLE_RATINGS_ENABLED with their label (Dwight's ruling). Never a numeric "% fit".
 import { useEffect, useRef, useState } from 'react';
-import { Text, View } from 'react-native';
-import { Caption, PressableScale } from '../../components/ui';
+import { Text, View, type ImageSourcePropType } from 'react-native';
+import { Caption, PressableScale, Eyebrow } from '../../components/ui';
 import { glass, palette, softShadow } from '../../theme/tokens';
 import type { Product } from '../match/match-types';
 import { BEST_MATCH_BADGE, FIT_TIER_LABELS, type FitTier } from '../../content/makeup-vocab';
 import { bag } from '../checkout/bag-store';
 import { ProductArt } from './ProductArt';
+import { HeartButton } from './HeartButton';
+import { SampleRatingLine } from './SampleRatingLine';
 import { productLine } from './product-visual';
 import { CheckGlyph, PlusGlyph } from './shop-icons';
 
@@ -23,10 +25,14 @@ interface ProductTileProps {
   tier?: FitTier;
   isBestMatch?: boolean;
   artHeight?: number;
+  /** Sample ratings; defaults to the SAMPLE_RATINGS_ENABLED build flag. */
+  showRatings?: boolean;
   onOpen: (id: string) => void;
+  /** List-assigned photo (spreadPhotoKeys) so row neighbours differ; defaults to the registry. */
+  photo?: ImageSourcePropType;
 }
 
-export function ProductTile({ product, tier, isBestMatch = false, artHeight = 136, onOpen }: ProductTileProps) {
+export function ProductTile({ product, tier, isBestMatch = false, artHeight = 136, showRatings, onOpen, photo }: ProductTileProps) {
   const { line, title } = productLine(product);
   const [added, setAdded] = useState(false);
   const timer = useRef<ReturnType<typeof setTimeout> | null>(null);
@@ -56,20 +62,24 @@ export function ProductTile({ product, tier, isBestMatch = false, artHeight = 13
           softShadow,
         ]}
       >
-        <ProductArt product={product} height={artHeight} radius={16}>
+        <ProductArt product={product} height={artHeight} radius={16} photo={photo}>
           {isBestMatch && tier ? (
             <View testID="best-match-badge" className="absolute left-2.5 top-2.5 rounded-full bg-sage px-2.5 py-0.5">
               <Text className="font-body-semibold text-[10.5px] text-white">{BEST_MATCH_BADGE}</Text>
             </View>
           ) : null}
+          <View className="absolute right-2 top-2">
+            <HeartButton productId={product.id} name={product.name} />
+          </View>
         </ProductArt>
         <View className="flex-1 gap-1 px-1.5 pb-1 pt-2.5">
           {line ? (
-            <Text className="font-body-semibold text-[10.5px] uppercase tracking-[1px] text-sage">{line}</Text>
+            <Eyebrow>{line}</Eyebrow>
           ) : null}
           <Text numberOfLines={2} className="min-h-[38px] font-display-md text-[14px] leading-[19px] text-ink">
             {title}
           </Text>
+          <SampleRatingLine productId={product.id} enabled={showRatings} />
           {tier ? (
             <Caption testID="fit-tier" className="font-body-bold text-[11px] text-brand-greenDark">
               {FIT_TIER_LABELS[tier]}

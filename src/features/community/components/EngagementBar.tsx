@@ -12,9 +12,11 @@ interface EngagementBarProps {
   onToggleLike: () => void;
   onToggleSave: () => void;
   onShare: () => void;
+  /** False hides the like/save numbers (fabricated sample engagement); the icons stay. */
+  showCounts?: boolean;
 }
 
-export function EngagementBar({ engagement, onToggleLike, onToggleSave, onShare }: EngagementBarProps) {
+export function EngagementBar({ engagement, onToggleLike, onToggleSave, onShare, showCounts = true }: EngagementBarProps) {
   const activeColor = palette.sageInk;
   const idleColor = palette.mauve500;
 
@@ -29,7 +31,7 @@ export function EngagementBar({ engagement, onToggleLike, onToggleSave, onShare 
       >
         <View className="flex-row items-center gap-1.5">
           <HeartGlyph color={engagement.liked ? activeColor : idleColor} filled={engagement.liked} />
-          <Caption className="text-ink-soft">{engagement.likeCount}</Caption>
+          {showCounts ? <Caption className="text-ink-soft">{engagement.likeCount}</Caption> : null}
         </View>
       </PressableScale>
 
@@ -42,7 +44,7 @@ export function EngagementBar({ engagement, onToggleLike, onToggleSave, onShare 
       >
         <View className="flex-row items-center gap-1.5">
           <BookmarkGlyph color={engagement.saved ? activeColor : idleColor} filled={engagement.saved} />
-          <Caption className="text-ink-soft">{engagement.saveCount}</Caption>
+          {showCounts ? <Caption className="text-ink-soft">{engagement.saveCount}</Caption> : null}
         </View>
       </PressableScale>
 

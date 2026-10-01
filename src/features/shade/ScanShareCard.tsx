@@ -7,6 +7,7 @@
 import { View } from 'react-native';
 import { Display, Body, Caption, Eyebrow } from '../../components/ui';
 import { UNDERTONE_LABELS, FINISH_LABELS } from '../../content/makeup-vocab';
+import { palette } from '../../theme/tokens';
 import { depthWord } from './derive-shade';
 import type { CurrentShade } from './shade-types';
 
@@ -24,7 +25,7 @@ interface ScanShareCardProps {
 export function ScanShareCard({ shade }: ScanShareCardProps) {
   return (
     <View
-      style={{ width: SCAN_SHARE_CARD_WIDTH, height: SCAN_SHARE_CARD_HEIGHT, backgroundColor: '#FBF6EF' }}
+      style={{ width: SCAN_SHARE_CARD_WIDTH, height: SCAN_SHARE_CARD_HEIGHT, backgroundColor: palette.mist100 }}
       className="items-center justify-center gap-10 px-20"
     >
       <Eyebrow>My TrueTone shade</Eyebrow>

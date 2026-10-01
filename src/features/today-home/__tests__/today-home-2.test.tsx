@@ -27,3 +27,11 @@ test('ShadeTwins shows the teaser count', async () => {
   expect(view.getByText('Shade twins')).toBeTruthy();
   expect(view.getByText('12 people share your shade match')).toBeTruthy();
 });
+
+test('ShadeTwins (v3 video) is a button when given onPress', async () => {
+  const { fireEvent } = jest.requireActual('@testing-library/react-native');
+  const onPress = jest.fn();
+  const view = await render(<ShadeTwins count={128} onPress={onPress} />);
+  await fireEvent.press(view.getByRole('button', { name: 'Shade twins' }));
+  expect(onPress).toHaveBeenCalled();
+});

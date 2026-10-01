@@ -11,6 +11,7 @@ import { usePublishedRoutines } from '../routine/use-published-routines';
 import { PostCard } from './components/PostCard';
 import { RoutineCard } from './components/RoutineCard';
 import { ProductTagDrawer } from './components/ProductTagDrawer';
+import { SAMPLE_COMMUNITY_LABEL, SAMPLE_ENGAGEMENT_ENABLED } from '../shop/sample-content';
 import type { CommunityTab } from './community-types';
 
 const TABS: readonly { key: CommunityTab; label: string }[] = [
@@ -29,8 +30,11 @@ export function CommunityScreen() {
   return (
     <Screen className="px-6" topGap={32} bottomGap={tabBarClearance()}>
       <Rise>
-        <View className="items-center mt-3 mb-6">
-          <Display className="text-[28px]">Community</Display>
+        <View testID="community-title" className="mt-1 mb-6">
+          <Display>Community</Display>
+          <Caption testID="sample-community-label" className="mt-1 text-[11px] text-ink-soft">
+            {SAMPLE_COMMUNITY_LABEL}
+          </Caption>
         </View>
       </Rise>
 
@@ -72,6 +76,7 @@ export function CommunityScreen() {
                   onToggleSave={() => toggleSave(post.id)}
                   onShare={() => registerShare(post.id)}
                   onShopTheLook={() => setDrawerProductIds(post.taggedProductIds)}
+                  showCounts={SAMPLE_ENGAGEMENT_ENABLED}
                 />
               </Rise>
             ))}
