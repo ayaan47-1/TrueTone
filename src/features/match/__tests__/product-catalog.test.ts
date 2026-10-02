@@ -18,6 +18,14 @@ const isFoundation = (name: string) => /foundation|skin tint/i.test(name);
 const isConcealer = (name: string) => /concealer/i.test(name);
 
 describe('synthetic product catalog', () => {
+  it('has no entry whose image field is a remote http(s) URL (TrueTone: no remote image URLs)', () => {
+    for (const p of catalog as readonly { image?: string }[]) {
+      if (p.image !== undefined) {
+        expect(p.image).not.toMatch(/^https?:\/\//);
+      }
+    }
+  });
+
   it('is populated enough to fill the Shop shelf (24..40 products)', () => {
     expect(catalog.length).toBeGreaterThanOrEqual(24);
     expect(catalog.length).toBeLessThanOrEqual(40);
