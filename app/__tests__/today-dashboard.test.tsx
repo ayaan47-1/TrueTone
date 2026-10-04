@@ -54,9 +54,9 @@ test('below the fold: shade picks rail, today\'s routine, running low, disclaime
   expect(view.getAllByRole('button', { name: /^Reorder / }).length).toBe(2);
   // Replaced by the video's cards.
   expect(view.queryByText('Featured products')).toBeNull();
-  // Fit stays qualitative; the promo is labelled demo.
+  // Fit stays qualitative; the retired promo is not shown.
   expect(view.queryAllByText(/\d+% fit/)).toHaveLength(0);
-  expect(view.getByText('Demo promo — no purchases in this build.')).toBeTruthy();
+  expect(view.queryByText('Demo promo — no purchases in this build.')).toBeNull();
 });
 
 test('entry points route: search, filter, scan, see-all, bell', async () => {

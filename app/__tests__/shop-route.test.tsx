@@ -17,7 +17,7 @@ import ProductRoute from '../product/[id]';
 import BagRoute from '../bag';
 import { catalog } from '../../src/features/match/product-catalog';
 import { bag } from '../../src/features/checkout/bag-store';
-import { bagTotals, formatCents } from '../../src/features/checkout/promo';
+import { computeOrderTotalCents, formatCents } from '../../src/features/checkout/pricing';
 
 beforeEach(() => {
   jest.clearAllMocks();
@@ -67,7 +67,7 @@ test('bag route: empty state goes to the shop tab; checkout goes to /checkout', 
   expect(mockPush).toHaveBeenCalledWith('/shop');
   bag.add(catalog[0]);
   const full = await render(<BagRoute />);
-  await fireEvent.press(full.getByRole('button', { name: `Checkout · ${formatCents(bagTotals(catalog[0].price, false).totalCents)}` }));
+  await fireEvent.press(full.getByRole('button', { name: `Checkout · ${formatCents(computeOrderTotalCents(bag.getState().lines))}` }));
   expect(mockPush).toHaveBeenCalledWith('/checkout');
 });
 

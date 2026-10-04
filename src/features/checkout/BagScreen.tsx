@@ -1,10 +1,7 @@
 // src/features/checkout/BagScreen.tsx
 // Quiet Glass v3 bag (BagV3 port): one glass card per product + shade line with a qty
-// stepper and remove, a "Finish your look" add-on list, a subtotal card and a pinned
-// "Checkout · $X" CTA, plus the TRUE15 demo promo field and a Subtotal / Discount / Shipping /
-// Total card (BagPromo.tsx; math in promo.ts). The promo is DEMO ONLY and carries
-// DEMO_PROMO_LABEL — allowed with that label per Dwight's v3 demo-content ruling.
-import { useState } from 'react';
+// stepper and remove, a "Finish your look" add-on list, a total card and a pinned
+// "Checkout · $X" CTA. The displayed total uses the same catalog-only item pricing as checkout.
 import { ScrollView, Text, View } from 'react-native';
 import { AppHeader, Body, Caption, GlassCard, Heading, MistBackground, PressableScale, PrimaryButton, Eyebrow } from '../../components/ui';
 import { ShopGlyph } from '../../components/ui/tab-icons';
@@ -14,12 +11,12 @@ import type { Product } from '../match/match-types';
 import { catalog } from '../match/product-catalog';
 import { ProductArt } from '../shop/ProductArt';
 import { productLine } from '../shop/product-visual';
+import { SAMPLE_CATALOG_LABEL } from '../shop/sample-content';
 import { shadeOptions } from '../shop/shade-options';
 import { Stepper } from '../shop/Stepper';
 import { TrashGlyph } from '../shop/shop-icons';
-import { BagSummary, PromoField } from './BagPromo';
-import { bag, bagCount, bagSubtotal, lineKey, useBag, type BagLine } from './bag-store';
-import { bagTotals, formatCents } from './promo';
+import { bag, bagCount, lineKey, useBag, type BagLine } from './bag-store';
+import { computeOrderTotalCents, formatCents } from './pricing';
 
 const SUGGESTION_COUNT = 2;
 
@@ -33,11 +30,8 @@ export function BagScreen({ onBack, onShop, onCheckout }: BagScreenProps) {
   const state = useBag();
   const insets = useInsets();
   const count = bagCount(state);
-  const [promoApplied, setPromoApplied] = useState(false);
 
   if (!count) {
-    // An emptied bag drops the promo, so a refilled bag starts undiscounted.
-    if (promoApplied) setPromoApplied(false);
     return (
       <MistBackground>
         <View style={{ paddingTop: insets.top }}>
@@ -59,7 +53,7 @@ export function BagScreen({ onBack, onShop, onCheckout }: BagScreenProps) {
 
   const inBag = new Set(state.lines.map((l) => l.product.id));
   const suggestions = catalog.filter((p) => p.category !== 'prep' && !inBag.has(p.id)).slice(0, SUGGESTION_COUNT);
-  const totals = bagTotals(bagSubtotal(state), promoApplied);
+  const totalCents = computeOrderTotalCents(state.lines);
 
   return (
     <MistBackground>
@@ -73,16 +67,21 @@ export function BagScreen({ onBack, onShop, onCheckout }: BagScreenProps) {
           {state.lines.map((l) => <LineCard key={lineKey(l)} line={l} />)}
         </View>
         {suggestions.length ? <FinishYourLook products={suggestions} /> : null}
-        <View className="mt-5 gap-3 px-6">
-          <PromoField applied={promoApplied} onApply={() => setPromoApplied(true)} />
-          <BagSummary totals={totals} />
+        <View className="mt-5 px-6">
+          <GlassCard testID="bag-summary" radius={22} className="px-[18px] py-3.5">
+            <View className="flex-row justify-between">
+              <Text className="font-display text-[18px] text-ink">Total</Text>
+              <Text className="font-display text-[18px] text-ink">{formatCents(totalCents)}</Text>
+            </View>
+            <Caption className="mt-2 text-[11px] text-ink-faint">{SAMPLE_CATALOG_LABEL}</Caption>
+          </GlassCard>
         </View>
       </ScrollView>
       <View
         className="absolute bottom-0 left-0 right-0 border-t border-ink-faint/20 bg-mist-50/95 px-5 pt-3"
         style={{ paddingBottom: 16 + insets.bottom }}
       >
-        <PrimaryButton label={`Checkout · ${formatCents(totals.totalCents)}`} fullWidth onPress={onCheckout} />
+        <PrimaryButton label={`Checkout · ${formatCents(totalCents)}`} fullWidth onPress={onCheckout} />
       </View>
     </MistBackground>
   );

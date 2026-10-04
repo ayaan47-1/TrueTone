@@ -9,7 +9,6 @@ export const HOME_LOCKUP: ImageSourcePropType = require('../../../assets/photos/
 export const HERO_PHOTOS = {
   scan: require('../../../assets/photos/home/hero_scan.jpg') as ImageSourcePropType,
   look: require('../../../assets/photos/home/hero_look.jpg') as ImageSourcePropType,
-  promo: require('../../../assets/photos/home/hero_promo.jpg') as ImageSourcePropType,
 } as const;
 
 export const CATEGORY_PHOTOS = {
