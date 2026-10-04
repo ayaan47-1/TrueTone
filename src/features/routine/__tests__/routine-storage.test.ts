@@ -36,3 +36,10 @@ test('corrupt storage fails safe to empty', async () => {
   await AsyncStorage.setItem(routineKey('u1'), 'not-json{{{');
   expect(await getRoutineLog('u1')).toEqual({});
 });
+
+test('the routine log is encrypted at rest (no plaintext in AsyncStorage)', async () => {
+  await saveDay('u1', addProduct(emptyDay('2026-09-26'), 'am', 'lum-tint-01'));
+  const raw = await AsyncStorage.getItem(routineKey('u1'));
+  expect(raw).not.toContain('lum-tint-01');
+  expect(raw!.startsWith('enc1:')).toBe(true);
+});

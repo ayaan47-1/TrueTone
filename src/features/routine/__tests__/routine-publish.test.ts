@@ -75,3 +75,11 @@ describe('publishDailyRoutine (storage)', () => {
     expect(await getPublishedRoutines()).toEqual([]);
   });
 });
+
+test('the published feed is encrypted at rest (no plaintext in AsyncStorage)', async () => {
+  await publishDailyRoutine(profile, dayWith(['lum-tint-01'], []), CAT);
+  const raw = await AsyncStorage.getItem('truetone.community.published.v1');
+  expect(raw).not.toContain('maya');
+  expect(raw!.startsWith('enc1:')).toBe(true);
+  expect(await getPublishedRoutines()).toHaveLength(1);
+});

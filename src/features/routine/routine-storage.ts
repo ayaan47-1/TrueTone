@@ -1,8 +1,8 @@
 // src/features/routine/routine-storage.ts
-// On-device, USER-SCOPED persistence for the daily-routine tracker. One AsyncStorage key per
+// On-device, USER-SCOPED persistence for the daily-routine tracker. One encrypted AsyncStorage key per
 // user holds a { dateKey: DailyRoutine } map -- never synced to a server in v0. `clearRoutine`
 // is exported so data-rights "delete everything" can wipe it alongside the diary.
-import AsyncStorage from '@react-native-async-storage/async-storage';
+import { encryptedStorage } from '../../lib/encrypted-storage';
 import type { DailyRoutine, RoutineLog } from './routine-types';
 
 const KEY_PREFIX = 'truetone.routine.';
@@ -14,7 +14,7 @@ export function routineKey(userId: string): string {
 
 export async function getRoutineLog(userId: string): Promise<RoutineLog> {
   try {
-    const raw = await AsyncStorage.getItem(routineKey(userId));
+    const raw = await encryptedStorage.getItem(routineKey(userId));
     if (!raw) return {};
     const parsed = JSON.parse(raw) as unknown;
     if (!parsed || typeof parsed !== 'object') return {};
@@ -46,7 +46,7 @@ export function saveDay(userId: string, day: DailyRoutine, source?: object): Pro
   const run = queue.then(async () => {
     const log = await getRoutineLog(userId);
     const next: RoutineLog = { ...log, [day.date]: day };
-    await AsyncStorage.setItem(routineKey(userId), JSON.stringify(next));
+    await encryptedStorage.setItem(routineKey(userId), JSON.stringify(next));
     listeners.forEach((l) => l(userId, source));
     return next;
   });
@@ -55,7 +55,7 @@ export function saveDay(userId: string, day: DailyRoutine, source?: object): Pro
 }
 
 export async function clearRoutine(userId: string): Promise<void> {
-  await AsyncStorage.removeItem(routineKey(userId));
+  await encryptedStorage.removeItem(routineKey(userId));
   listeners.forEach((l) => l(userId));
 }
 
@@ -64,8 +64,8 @@ export async function clearRoutine(userId: string): Promise<void> {
  * in scope; scans all keys with the routine prefix so it needs no provider.
  */
 export async function clearAllRoutines(): Promise<void> {
-  const keys = await AsyncStorage.getAllKeys();
+  const keys = await encryptedStorage.getAllKeys();
   const routineKeys = keys.filter((k) => k.startsWith(KEY_PREFIX) && k.endsWith(KEY_SUFFIX));
-  if (routineKeys.length > 0) await AsyncStorage.multiRemove(routineKeys);
+  if (routineKeys.length > 0) await encryptedStorage.multiRemove(routineKeys);
   listeners.forEach((l) => l(null));
 }

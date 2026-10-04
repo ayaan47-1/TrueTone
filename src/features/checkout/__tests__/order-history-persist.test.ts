@@ -1,4 +1,5 @@
 import AsyncStorage from '@react-native-async-storage/async-storage';
+import { encryptedStorage } from '../../../lib/encrypted-storage';
 import { createOrderHistory, ORDER_HISTORY_KEY, type OrderStorage } from '../order-history-store';
 
 /** A tiny in-memory stand-in for AsyncStorage that survives "restarts" (new store instances). */
@@ -99,11 +100,14 @@ test('subscribers hear about loads, orders and clears', async () => {
   expect(listener).toHaveBeenCalledTimes(3);
 });
 
-test('the app-wide store persists through AsyncStorage', async () => {
+test('the app-wide store persists through AsyncStorage, encrypted at rest', async () => {
   await AsyncStorage.clear();
   const { orderHistory } = jest.requireActual('../order-history-store');
   await orderHistory.record(['p1']);
-  expect(JSON.parse((await AsyncStorage.getItem(ORDER_HISTORY_KEY)) ?? 'null')).toEqual(['p1']);
+  const raw = await AsyncStorage.getItem(ORDER_HISTORY_KEY);
+  expect(raw).not.toContain('p1');
+  expect(raw!.startsWith('enc1:')).toBe(true);
+  expect(JSON.parse((await encryptedStorage.getItem(ORDER_HISTORY_KEY)) ?? 'null')).toEqual(['p1']);
 });
 
 test('a failed delete is reported, so delete-everything never claims success falsely', async () => {

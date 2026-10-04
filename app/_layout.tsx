@@ -19,6 +19,7 @@ import { StripeProvider } from '@stripe/stripe-react-native';
 import { ProfileProvider, useProfile } from '../src/lib/profile-context';
 import type { Route } from '../src/lib/routing-guard';
 import { DEMO_MODE } from '../src/lib/supabase';
+import { migrateLegacyPlaintext } from '../src/lib/encrypted-storage';
 import { MistBackground, GlassCard, Heading, Body, PrimaryButton } from '../src/components/ui';
 import { palette } from '../src/theme/tokens';
 
@@ -136,6 +137,11 @@ export default function RootLayout() {
     Inter_600SemiBold,
     Inter_700Bold,
   });
+
+  // Encrypt any on-device data an older build left in plaintext (never throws; retried next launch).
+  useEffect(() => {
+    void migrateLegacyPlaintext();
+  }, []);
 
   // Seed metrics so children render synchronously (real values in-app; a zeroed
   // fallback under Jest, where no layout pass ever fires).

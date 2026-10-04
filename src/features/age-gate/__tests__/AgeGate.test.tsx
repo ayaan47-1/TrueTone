@@ -1,6 +1,7 @@
 import { render, fireEvent, waitFor } from '@testing-library/react-native';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { AgeGate } from '../AgeGate';
+import { encryptedStorage } from '../../../lib/encrypted-storage';
 import { cameraDemoState, cameraDemoReset } from '../../../lib/camera-demo-profile';
 
 const mockUpdate = jest.fn().mockReturnValue({ eq: jest.fn().mockResolvedValue({ error: null }) });
@@ -52,7 +53,9 @@ test('persists a user-scoped AsyncStorage verification record with no raw DOB', 
   await pickDob(getByTestId('dob-picker'), DOB_2000);
   await fireEvent.press(getByTestId('dob-submit'));
   await waitFor(() => expect(onPass).toHaveBeenCalled());
-  const raw = await AsyncStorage.getItem('age-gate:verified:u1');
+  const stored = await AsyncStorage.getItem('age-gate:verified:u1');
+  expect(stored!.startsWith('enc1:')).toBe(true); // encrypted at rest
+  const raw = await encryptedStorage.getItem('age-gate:verified:u1');
   expect(JSON.parse(raw as string)).toEqual({ userId: 'u1', verifiedAt: expect.any(String) });
   expect(raw).not.toContain('2000-01-01');
 });

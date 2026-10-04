@@ -5,6 +5,7 @@ import { clearDiary } from '../diary/diary-storage';
 import { clearAllRoutines } from '../routine/routine-storage';
 import { orderHistory } from '../checkout/order-history-store';
 import { clearPublishedRoutines } from '../routine/routine-publish';
+import { wipeEncryptedLocalData } from '../../lib/encrypted-storage';
 import { Screen, GlassCard, Display, Eyebrow, Body, Caption } from '../../components/ui';
 
 type RpcName = 'withdraw_consent' | 'delete_my_data' | 'delete_account';
@@ -17,7 +18,7 @@ const ACTIONS: { id: string; rpc: RpcName; label: string; hint: string; danger?:
 ];
 
 // On-device data the server never sees: the skin-feel diary, the daily-routine tracker + its
-// locally published Community routines, and the order history. All must go for deletion to be complete.
+// locally published Community routines, and order history. All must go for deletion to be complete.
 const LOCAL_WIPES: (() => Promise<void>)[] = [
   () => orderHistory.clear(),
   clearDiary,
@@ -27,8 +28,11 @@ const LOCAL_WIPES: (() => Promise<void>)[] = [
 
 /** Runs every wipe even if one fails; true only when all of them succeeded. */
 async function wipeLocalData(): Promise<boolean> {
-  const results = await Promise.allSettled(LOCAL_WIPES.map((wipe) => wipe()));
-  return results.every((r) => r.status === 'fulfilled');
+  const localResults = await Promise.allSettled(LOCAL_WIPES.map((wipe) => wipe()));
+  // Finish by removing every managed ciphertext and destroying the key. This runs even if an
+  // earlier store failed, and its own failure is reported without hiding the earlier results.
+  const [encryptedResult] = await Promise.allSettled([wipeEncryptedLocalData()]);
+  return localResults.every((r) => r.status === 'fulfilled') && encryptedResult.status === 'fulfilled';
 }
 
 export function DataRights({ onChanged, confirm }: Props) {
