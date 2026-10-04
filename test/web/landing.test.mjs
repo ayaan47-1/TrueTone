@@ -59,3 +59,30 @@ test('the mobile menu stays open for other clicks and keys', () => {
   assert.equal(shouldCloseMenu({ type: 'click', target: plain }), false);
   assert.equal(shouldCloseMenu({ type: 'keydown', key: 'Tab' }), false);
 });
+
+// ── category opens on hover, focus or tap ─────────────────────────────────────
+import { shouldSelectOn } from '../../web/landing.js';
+
+test('a mouse hovering a category opens it on hover-capable devices', () => {
+  assert.equal(shouldSelectOn({ type: 'pointerenter', pointerType: 'mouse' }, true), true);
+});
+
+test('keyboard focus opens a category', () => {
+  assert.equal(shouldSelectOn({ type: 'focus' }, true), true);
+  assert.equal(shouldSelectOn({ type: 'focus' }, false), true);
+});
+
+test('a tap or click still opens a category, with or without hover', () => {
+  assert.equal(shouldSelectOn({ type: 'click' }, false), true);
+  assert.equal(shouldSelectOn({ type: 'click' }, true), true);
+});
+
+test('a touch pointer entering does not count as hover', () => {
+  assert.equal(shouldSelectOn({ type: 'pointerenter', pointerType: 'touch' }, true), false);
+  assert.equal(shouldSelectOn({ type: 'pointerenter', pointerType: 'mouse' }, false), false);
+});
+
+test('unrelated events do not open a category', () => {
+  assert.equal(shouldSelectOn({ type: 'pointerleave', pointerType: 'mouse' }, true), false);
+  assert.equal(shouldSelectOn({ type: 'blur' }, true), false);
+});
