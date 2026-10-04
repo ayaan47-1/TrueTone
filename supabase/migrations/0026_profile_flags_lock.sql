@@ -48,7 +48,9 @@ begin
 end; $$;
 
 revoke all on function public.ensure_profile() from public;
+revoke execute on function public.ensure_profile() from anon;
 revoke all on function public.verify_age_18_plus() from public;
+revoke execute on function public.verify_age_18_plus() from anon;
 grant execute on function public.ensure_profile() to authenticated;
 grant execute on function public.verify_age_18_plus() to authenticated;
 
@@ -126,4 +128,5 @@ begin
 end; $$;
 
 revoke all on function public.record_scan(jsonb, text, text, boolean, jsonb, text, int, numeric, text) from public;
+revoke execute on function public.record_scan(jsonb, text, text, boolean, jsonb, text, int, numeric, text) from anon;
 grant execute on function public.record_scan(jsonb, text, text, boolean, jsonb, text, int, numeric, text) to authenticated;
