@@ -4,15 +4,27 @@
 // the server-computed amount — never anything the caller sent.
 import { readFileSync } from 'fs';
 import { join } from 'path';
-import { buildPendingOrderRow, insertPendingOrder, type OrderInsertDb } from '../pending-order';
+import {
+  buildPendingOrderRow,
+  insertPendingOrder,
+  type OrderInsertDb,
+  type PendingOrderInput,
+} from '../pending-order';
 
 const input = {
   userId: 'user-1',
   paymentIntentId: 'pi_123',
   amountCents: 2500,
   items: [{ product: { id: 'p1' }, qty: 1 }],
-  shippingAddress: { line1: '1 Main St' },
-};
+  shippingAddress: {
+    name: 'Jordan Rivera',
+    line1: '1 Main St',
+    city: 'Chicago',
+    state: 'IL',
+    postalCode: '60601',
+    country: 'US',
+  },
+} satisfies PendingOrderInput;
 
 function fakeDb(error: unknown = null) {
   const inserted: { table: string; row: unknown }[] = [];
@@ -34,7 +46,7 @@ describe('buildPendingOrderRow', () => {
       stripe_payment_intent_id: 'pi_123',
       amount: 2500,
       items: input.items,
-      shipping_address: { line1: '1 Main St' },
+      shipping_address: input.shippingAddress,
       status: 'pending',
     });
   });
@@ -46,8 +58,10 @@ describe('buildPendingOrderRow', () => {
     expect(row.amount).toBe(2500);
   });
 
-  it('stores a missing shipping address as null', () => {
-    expect(buildPendingOrderRow({ ...input, shippingAddress: undefined }).shipping_address).toBeNull();
+  it('rejects a missing shipping address instead of creating an unfulfillable order', () => {
+    expect(() => buildPendingOrderRow({ ...input, shippingAddress: undefined } as any)).toThrow(
+      'invalid shipping address',
+    );
   });
 
   it.each([0, -5, 1.5, NaN])('rejects a non-positive or non-integer amount (%p)', (amountCents) => {
@@ -89,5 +103,11 @@ describe('create-payment-intent wiring', () => {
 
   it('never inserts into orders with the JWT-scoped client', () => {
     expect(src).not.toMatch(/supabase\s*\.from\(\s*['"]orders['"]\s*\)/);
+  });
+
+  it('validates and normalizes the request before creating anything in Stripe', () => {
+    expect(src).toContain('checkoutRequestSchema.safeParse');
+    const validation = src.indexOf('checkoutRequestSchema.safeParse');
+    expect(validation).toBeLessThan(src.indexOf('new Stripe('));
   });
 });

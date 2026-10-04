@@ -22,6 +22,14 @@ import {
 import { bag, useBag, bagCount, bagSubtotal, lineKey, type BagState } from './bag-store';
 import { Field } from './Field';
 import { orderHistory } from './order-history-store';
+import {
+  EMPTY_SHIPPING_ADDRESS,
+  SHIPPING_ADDRESS_LIMITS,
+  getShippingAddressErrors,
+  shippingAddressSchema,
+  type ShippingAddressDraft,
+  type ShippingAddressField,
+} from '../../../supabase/functions/_shared/checkout/shipping-address';
 
 /** A short human-readable pseudo order number (display only — not a real order). */
 function makeOrderNumber(): string {
@@ -36,9 +44,15 @@ export function CheckoutScreen() {
     null,
   );
   const [loading, setLoading] = useState(false);
+  const [shippingAddress, setShippingAddress] = useState<ShippingAddressDraft>({
+    ...EMPTY_SHIPPING_ADDRESS,
+  });
+  const [touched, setTouched] = useState<Partial<Record<ShippingAddressField, boolean>>>({});
   // State updates land a render late, so a fast second tap would still see loading=false;
   // the ref blocks it synchronously (each tap creates a PaymentIntent + a pending order).
   const inFlight = useRef(false);
+  const parsedAddress = shippingAddressSchema.safeParse(shippingAddress);
+  const addressErrors = getShippingAddressErrors(shippingAddress);
 
   if (placed) return <Confirmation orderNo={placed.orderNo} onDone={() => router.replace('/')} />;
 
@@ -46,14 +60,20 @@ export function CheckoutScreen() {
 
   const placeOrder = async (): Promise<void> => {
     if (inFlight.current) return;
+    const address = shippingAddressSchema.safeParse(shippingAddress);
+    if (!address.success) {
+      setTouched(Object.fromEntries(Object.keys(shippingAddress).map((key) => [key, true])));
+      return;
+    }
     inFlight.current = true;
     setLoading(true);
     try {
       // 1. Create PaymentIntent via edge function
       const { data, error } = await supabase.functions.invoke('create-payment-intent', {
-        body: { 
-          items: state.lines 
-        }
+        body: {
+          items: state.lines,
+          shippingAddress: address.data,
+        },
       });
 
       if (error || !data?.paymentIntent) {
@@ -89,6 +109,17 @@ export function CheckoutScreen() {
     }
   };
 
+  const updateAddress = (field: ShippingAddressField, value: string): void => {
+    setShippingAddress((current) => ({ ...current, [field]: value }));
+  };
+
+  const touchAddress = (field: ShippingAddressField): void => {
+    setTouched((current) => ({ ...current, [field]: true }));
+  };
+
+  const fieldError = (field: ShippingAddressField): string | undefined =>
+    touched[field] ? addressErrors[field] : undefined;
+
   return (
     <Screen className="gap-6 px-6" topGap={HEADER_CLEARANCE} bottomGap={32}>
       <View className="gap-1">
@@ -101,21 +132,91 @@ export function CheckoutScreen() {
       <View className="gap-3">
         <Subheading>Shipping address</Subheading>
         <GlassCard className="gap-3 p-4" flat>
-          <Field label="Full name" placeholder="Jordan Rivera" autoComplete="name" />
-          <Field label="Address" placeholder="123 Maple Street" autoComplete="street-address" />
+          <Field
+            label="Full name"
+            placeholder="Jordan Rivera"
+            autoComplete="name"
+            value={shippingAddress.name}
+            onChangeText={(value) => updateAddress('name', value)}
+            onBlur={() => touchAddress('name')}
+            error={fieldError('name')}
+            maxLength={SHIPPING_ADDRESS_LIMITS.name}
+            testID="shipping-full-name"
+          />
+          <Field
+            label="Address line 1"
+            placeholder="123 Maple Street"
+            autoComplete="address-line1"
+            value={shippingAddress.line1}
+            onChangeText={(value) => updateAddress('line1', value)}
+            onBlur={() => touchAddress('line1')}
+            error={fieldError('line1')}
+            maxLength={SHIPPING_ADDRESS_LIMITS.line1}
+            testID="shipping-line1"
+          />
+          <Field
+            label="Address line 2 (optional)"
+            placeholder="Apartment, suite, etc."
+            autoComplete="address-line2"
+            value={shippingAddress.line2}
+            onChangeText={(value) => updateAddress('line2', value)}
+            onBlur={() => touchAddress('line2')}
+            error={fieldError('line2')}
+            maxLength={SHIPPING_ADDRESS_LIMITS.line2}
+            testID="shipping-line2"
+          />
           <View className="flex-row gap-3">
             <View className="flex-1">
-              <Field label="City" placeholder="Chicago" />
+              <Field
+                label="City"
+                placeholder="Chicago"
+                autoComplete="postal-address-locality"
+                value={shippingAddress.city}
+                onChangeText={(value) => updateAddress('city', value)}
+                onBlur={() => touchAddress('city')}
+                error={fieldError('city')}
+                maxLength={SHIPPING_ADDRESS_LIMITS.city}
+                testID="shipping-city"
+              />
             </View>
             <View className="w-24">
-              <Field label="State" placeholder="IL" autoCapitalize="characters" maxLength={2} />
+              <Field
+                label="State"
+                placeholder="IL"
+                autoComplete="postal-address-region"
+                autoCapitalize="characters"
+                value={shippingAddress.state}
+                onChangeText={(value) => updateAddress('state', value.toUpperCase())}
+                onBlur={() => touchAddress('state')}
+                error={fieldError('state')}
+                maxLength={SHIPPING_ADDRESS_LIMITS.state}
+                testID="shipping-state"
+              />
             </View>
           </View>
           <Field
             label="ZIP code"
             placeholder="60601"
-            keyboardType="number-pad"
-            maxLength={5}
+            autoComplete="postal-code"
+            keyboardType="numbers-and-punctuation"
+            value={shippingAddress.postalCode}
+            onChangeText={(value) => updateAddress('postalCode', value)}
+            onBlur={() => touchAddress('postalCode')}
+            error={fieldError('postalCode')}
+            maxLength={SHIPPING_ADDRESS_LIMITS.postalCode}
+            testID="shipping-postal-code"
+          />
+          <Field
+            label="Country"
+            placeholder="US"
+            autoComplete="country"
+            autoCapitalize="characters"
+            value={shippingAddress.country}
+            onChangeText={(value) => updateAddress('country', value.toUpperCase())}
+            onBlur={() => touchAddress('country')}
+            error={fieldError('country')}
+            maxLength={SHIPPING_ADDRESS_LIMITS.country}
+            testID="shipping-country"
           />
         </GlassCard>
       </View>
@@ -123,7 +224,7 @@ export function CheckoutScreen() {
       <PrimaryButton
         label={loading ? 'Processing...' : 'Pay securely with Stripe'}
         fullWidth
-        disabled={loading}
+        disabled={loading || !parsedAddress.success}
         onPress={placeOrder}
         testID="place-order"
       />
