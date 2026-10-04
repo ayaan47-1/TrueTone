@@ -10,12 +10,29 @@ const scores = {
   hydration: 0.5, oiliness: 0.5, texture: 0.5, pores: 0.5,
   darkSpots: 0.5, redness: 0.5, fineLines: 0.5, darkCircles: 0.5,
 };
+const routine = { version: 'skincare-1', am: [], pm: [] };
+
+function recordScan(c, skinType) {
+  return c.rpc('record_scan', {
+    p_scores: scores,
+    p_skin_type: skinType,
+    p_model_version: 'stub-1',
+    p_is_stub: true,
+    p_routine: routine,
+    p_routine_version: routine.version,
+  });
+}
 
 async function freshUser() {
   const c = createClient(URL, ANON);
   const { data, error } = await c.auth.signInAnonymously();
   assert.ifError(error);
-  await c.from('profiles').upsert({ id: data.user.id, consent_active: true });
+  const { error: profileError } = await c.rpc('ensure_profile');
+  assert.ifError(profileError);
+  const { error: ageError } = await c.rpc('verify_age_18_plus');
+  assert.ifError(ageError);
+  const { error: consentError } = await c.rpc('record_consent');
+  assert.ifError(consentError);
   return { c, id: data.user.id };
 }
 
@@ -23,9 +40,7 @@ before(() => { assert.ok(ANON, 'set SUPABASE_ANON_KEY from `npx supabase status`
 
 test('record a scan then read it back', async () => {
   const { c } = await freshUser();
-  const { error } = await c.rpc('record_scan', {
-    p_scores: scores, p_skin_type: 'combination', p_model_version: 'stub-1', p_is_stub: true,
-  });
+  const { error } = await recordScan(c, 'combination');
   assert.ifError(error);
   const { data } = await c.from('scans').select('*').order('captured_at', { ascending: false }).limit(1);
   assert.equal(data.length, 1);
@@ -34,7 +49,8 @@ test('record a scan then read it back', async () => {
 
 test('a second user cannot read the first user scans (RLS)', async () => {
   const a = await freshUser();
-  await a.c.rpc('record_scan', { p_scores: scores, p_skin_type: 'dry', p_model_version: 'stub-1', p_is_stub: true });
+  const { error } = await recordScan(a.c, 'dry');
+  assert.ifError(error);
   const b = await freshUser();
   const { data } = await b.c.from('scans').select('*');
   assert.equal(data.length, 0);
@@ -42,7 +58,8 @@ test('a second user cannot read the first user scans (RLS)', async () => {
 
 test('delete_my_data purges scans and writes a deletion audit', async () => {
   const { c } = await freshUser();
-  await c.rpc('record_scan', { p_scores: scores, p_skin_type: 'oily', p_model_version: 'stub-1', p_is_stub: true });
+  const { error: scanError } = await recordScan(c, 'oily');
+  assert.ifError(scanError);
   const { error } = await c.rpc('delete_my_data');
   assert.ifError(error);
   const { data } = await c.from('scans').select('*');

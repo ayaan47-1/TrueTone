@@ -4,7 +4,8 @@ select plan(10);
 
 -- ── primary user (user1) ──────────────────────────────────────────────────────
 insert into auth.users(id) values ('dddddddd-dddd-dddd-dddd-dddddddddddd');
-insert into public.profiles(id, consent_active) values ('dddddddd-dddd-dddd-dddd-dddddddddddd', true);
+insert into public.profiles(id, is_18_plus, consent_active)
+  values ('dddddddd-dddd-dddd-dddd-dddddddddddd', true, true);
 
 set local role authenticated;
 set local request.jwt.claims = '{"sub":"dddddddd-dddd-dddd-dddd-dddddddddddd","role":"authenticated"}';
@@ -56,7 +57,8 @@ select throws_ok($$
 -- real scan UUID that belongs to user2 (not just a nil/unknown UUID).
 reset role;
 insert into auth.users(id) values ('88888888-8888-8888-8888-888888888888');
-insert into public.profiles(id, consent_active) values ('88888888-8888-8888-8888-888888888888', true);
+insert into public.profiles(id, is_18_plus, consent_active)
+  values ('88888888-8888-8888-8888-888888888888', true, true);
 
 -- Create the temp table as superuser and grant access to the authenticated role
 -- so we can pass user2's scan id across the role boundary.

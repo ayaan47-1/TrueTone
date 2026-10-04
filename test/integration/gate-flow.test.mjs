@@ -16,7 +16,8 @@ test('anon user: gate locked until 18+ AND consent, then unlocked; delete tears 
   const { data: anon, error: anonErr } = await sb.auth.signInAnonymously();
   assert.equal(anonErr, null, 'anonymous sign-in succeeds');
   const uid = anon.user.id;
-  await sb.from('profiles').upsert({ id: uid });
+  const { error: profileErr } = await sb.rpc('ensure_profile');
+  assert.equal(profileErr, null, 'self-scoped profile bootstrap succeeds');
 
   // initially locked: not 18+, no consent
   let { data: p } = await sb.from('profiles').select('is_18_plus, consent_active').eq('id', uid).single();
@@ -24,7 +25,8 @@ test('anon user: gate locked until 18+ AND consent, then unlocked; delete tears 
   assert.equal(p.consent_active, false, 'starts without consent');
 
   // pass age gate + record consent
-  await sb.from('profiles').update({ is_18_plus: true, age_verified_at: new Date().toISOString() }).eq('id', uid);
+  const { error: ageErr } = await sb.rpc('verify_age_18_plus');
+  assert.equal(ageErr, null, 'self-scoped age verification succeeds');
   const { error: consentErr } = await sb.rpc('record_consent');
   assert.equal(consentErr, null, 'record_consent succeeds');
 

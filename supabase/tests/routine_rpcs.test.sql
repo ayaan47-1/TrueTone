@@ -3,7 +3,8 @@ begin;
 select plan(6);
 
 insert into auth.users(id) values ('dddddddd-dddd-dddd-dddd-dddddddddddd');
-insert into public.profiles(id, consent_active) values ('dddddddd-dddd-dddd-dddd-dddddddddddd', true);
+insert into public.profiles(id, is_18_plus, consent_active)
+  values ('dddddddd-dddd-dddd-dddd-dddddddddddd', true, true);
 set local role authenticated;
 set local request.jwt.claims = '{"sub":"dddddddd-dddd-dddd-dddd-dddddddddddd","role":"authenticated"}';
 

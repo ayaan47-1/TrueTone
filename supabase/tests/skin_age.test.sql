@@ -11,8 +11,8 @@ select plan(15);
 
 -- ── user setup (UUIDs not used by any other suite) ───────────────────────────
 insert into auth.users(id) values ('eeeeeeee-eeee-eeee-eeee-eeeeeeeeeeee');
-insert into public.profiles(id, consent_active)
-  values ('eeeeeeee-eeee-eeee-eeee-eeeeeeeeeeee', true);
+insert into public.profiles(id, is_18_plus, consent_active)
+  values ('eeeeeeee-eeee-eeee-eeee-eeeeeeeeeeee', true, true);
 
 -- ── 1. columns exist ─────────────────────────────────────────────────────────
 select has_column('public', 'scans', 'skin_age_estimate',
@@ -132,8 +132,8 @@ select is(
 -- ── 8. consent-withdrawn trigger purges rows with skin-age data ───────────────
 -- Set up a fresh user, give them a scan with skin-age, then withdraw consent.
 insert into auth.users(id) values ('ffffffff-ffff-ffff-ffff-ffffffffffff');
-insert into public.profiles(id, consent_active)
-  values ('ffffffff-ffff-ffff-ffff-ffffffffffff', true);
+insert into public.profiles(id, is_18_plus, consent_active)
+  values ('ffffffff-ffff-ffff-ffff-ffffffffffff', true, true);
 
 set local role authenticated;
 set local request.jwt.claims = '{"sub":"ffffffff-ffff-ffff-ffff-ffffffffffff","role":"authenticated"}';

@@ -4,10 +4,10 @@ import { AgeGate } from '../AgeGate';
 import { encryptedStorage } from '../../../lib/encrypted-storage';
 import { cameraDemoState, cameraDemoReset } from '../../../lib/camera-demo-profile';
 
-const mockUpdate = jest.fn().mockReturnValue({ eq: jest.fn().mockResolvedValue({ error: null }) });
+const mockRpc = jest.fn().mockResolvedValue({ error: null });
 let mockCameraDemo = false;
 jest.mock('../../../lib/supabase', () => ({
-  supabase: { from: () => ({ update: mockUpdate }) },
+  supabase: { rpc: (...args: unknown[]) => mockRpc(...args) },
   get CAMERA_DEMO() {
     return mockCameraDemo;
   },
@@ -29,20 +29,20 @@ async function pickDob(picker: unknown, dob: Date) {
 
 beforeEach(async () => {
   mockCameraDemo = false;
-  mockUpdate.mockClear();
+  mockRpc.mockClear();
   cameraDemoReset();
   await AsyncStorage.clear();
 });
 
-test('passes 18+ by writing only the derived flag; no DOB in any call/log', async () => {
+test('passes 18+ through the self-scoped RPC; no user id or DOB is sent', async () => {
   const onPass = jest.fn();
   const { getByTestId } = await render(<AgeGate userId="u1" onPass={onPass} />);
   await pickDob(getByTestId('dob-picker'), DOB_2000);
   await fireEvent.press(getByTestId('dob-submit'));
   await waitFor(() => expect(onPass).toHaveBeenCalled());
-  expect(mockUpdate).toHaveBeenCalled();
-  const payload = JSON.stringify(mockUpdate.mock.calls);
-  expect(payload).toContain('is_18_plus');
+  expect(mockRpc).toHaveBeenCalledWith('verify_age_18_plus');
+  const payload = JSON.stringify(mockRpc.mock.calls);
+  expect(payload).not.toContain('u1');
   expect(payload).not.toContain('2000-01-01'); // DOB never sent
   expect(JSON.stringify(logSpy.mock.calls)).not.toContain('2000-01-01'); // never logged
 });
@@ -67,7 +67,7 @@ test('CAMERA_DEMO: a real 18+ pass flips local state, never touches Supabase', a
   await pickDob(getByTestId('dob-picker'), DOB_2000);
   await fireEvent.press(getByTestId('dob-submit'));
   await waitFor(() => expect(onPass).toHaveBeenCalled());
-  expect(mockUpdate).not.toHaveBeenCalled();
+  expect(mockRpc).not.toHaveBeenCalled();
   expect(cameraDemoState().is18).toBe(true);
 });
 
@@ -84,12 +84,12 @@ test('CAMERA_DEMO: under 18 still blocks -- does not flip local state or persist
 });
 
 test('a Supabase failure blocks the write -- no local verification, no onPass', async () => {
-  mockUpdate.mockReturnValueOnce({ eq: jest.fn().mockResolvedValue({ error: { message: 'down' } }) });
+  mockRpc.mockResolvedValueOnce({ error: { message: 'down' } });
   const onPass = jest.fn();
   const { getByTestId } = await render(<AgeGate userId="u1" onPass={onPass} />);
   await pickDob(getByTestId('dob-picker'), DOB_2000);
   await fireEvent.press(getByTestId('dob-submit'));
-  await waitFor(() => expect(mockUpdate).toHaveBeenCalled());
+  await waitFor(() => expect(mockRpc).toHaveBeenCalledWith('verify_age_18_plus'));
   expect(onPass).not.toHaveBeenCalled();
   expect(await AsyncStorage.getItem('age-gate:verified:u1')).toBeNull();
 });
@@ -102,7 +102,7 @@ test('calls onPass on mount for an existing verified record for the same user --
   const onPass = jest.fn();
   await render(<AgeGate userId="u1" onPass={onPass} />);
   await waitFor(() => expect(onPass).toHaveBeenCalled());
-  expect(mockUpdate).not.toHaveBeenCalled();
+  expect(mockRpc).not.toHaveBeenCalled();
 });
 
 test('ignores a verified record stored for a different user -- keeps the picker up', async () => {

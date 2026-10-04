@@ -8,10 +8,9 @@ export async function bootstrapSession(): Promise<string> {
     if (error || !anon.user) throw new Error('auth-bootstrap-failed');
     userId = anon.user.id;
   }
-  // ensure a profile row exists + bump last_interaction_at
-  await supabase.from('profiles').upsert(
-    { id: userId, last_interaction_at: new Date().toISOString() },
-    { onConflict: 'id' }
-  );
+  // The RPC derives the profile id from auth.uid(); clients cannot insert profiles or write
+  // compliance-owned columns directly.
+  const { error: profileError } = await supabase.rpc('ensure_profile');
+  if (profileError) throw new Error('profile-bootstrap-failed');
   return userId;
 }
