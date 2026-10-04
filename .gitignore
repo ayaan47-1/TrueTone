@@ -66,3 +66,6 @@ web/_headers
 *.p8
 AuthKey_*.p8
 TrueTone Update/
+
+# Local session file (never commit)
+:memory:.ses
