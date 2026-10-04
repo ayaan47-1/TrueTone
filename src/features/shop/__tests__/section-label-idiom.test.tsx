@@ -1,6 +1,8 @@
 // Cross-screen drift guard (Pam, integrated build review): every small uppercase section /
 // brand-line label routes through the shared Eyebrow, and home section titles share one size.
 import { render } from '@testing-library/react-native';
+
+jest.mock('expo-router', () => ({ useRouter: () => ({ push: jest.fn() }) }));
 import { catalog } from '../../match/product-catalog';
 import { productLine } from '../product-visual';
 import { ProductTile } from '../ProductTile';
@@ -8,7 +10,7 @@ import { ProductDetail } from '../ProductDetail';
 import { FilterSheet } from '../FilterSheet';
 import { AccountGroup } from '../../account/AccountParts';
 import { SeasonalSheet } from '../../foryou/SeasonalSheet';
-import { TodaysRoutineCard } from '../../foryou/TodaysRoutineCard';
+import { TodaysRoutineCardView } from '../../foryou/TodaysRoutineCard';
 import { SectionHead } from '../../foryou/HomeV3Parts';
 import { BagScreen } from '../../checkout/BagScreen';
 import { bag } from '../../checkout/bag-store';
@@ -49,6 +51,6 @@ test('section labels use Eyebrow on Account, Sort & filter and Seasonal', async 
 
 test("home card titles share SectionHead's size (Today's routine included)", async () => {
   const head = await render(<SectionHead title="Running low" />);
-  const routine = await render(<TodaysRoutineCard />);
+  const routine = await render(<TodaysRoutineCardView routine={{ date: '2026-10-04', am: [], pm: [] }} onOpen={noop} />);
   expect(routine.getByText("Today's routine").props.className).toBe(head.getByText('Running low').props.className);
 });

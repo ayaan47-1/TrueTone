@@ -53,3 +53,35 @@ export function summarize(log: RoutineLog, today: Date = new Date()): RoutineSum
   const pmCount = day.pm.length;
   return { amCount, pmCount, todayCount: amCount + pmCount, streak: computeStreak(log, today) };
 }
+
+/**
+ * Edit a step: swap `oldId` for `newId` in place, immutably, keeping step order. A no-op if
+ * `oldId` is not in the slot; if `newId` is already elsewhere in the slot the old step is
+ * dropped instead (a slot never holds duplicates).
+ */
+export function replaceProduct(
+  day: DailyRoutine,
+  slot: RoutineSlot,
+  oldId: string,
+  newId: string,
+): DailyRoutine {
+  if (!day[slot].includes(oldId)) return day;
+  if (oldId === newId) return day;
+  if (day[slot].includes(newId)) return removeProduct(day, slot, oldId);
+  return { ...day, [slot]: day[slot].map((id) => (id === oldId ? newId : id)) };
+}
+
+/**
+ * The routine to show for `dateKey`. A routine repeats day to day, so when that day has no
+ * saved entry the most recent EARLIER day's steps carry forward (re-dated, not saved until the
+ * user edits). A saved-but-empty day wins: the user cleared it on purpose.
+ */
+export function routineForDay(log: RoutineLog, dateKey: string): DailyRoutine {
+  const saved = log[dateKey];
+  if (saved) return saved;
+  const earlier = Object.keys(log)
+    .filter((k) => k < dateKey)
+    .sort();
+  const last = earlier.length > 0 ? log[earlier[earlier.length - 1]] : undefined;
+  return last ? { date: dateKey, am: [...last.am], pm: [...last.pm] } : emptyDay(dateKey);
+}
