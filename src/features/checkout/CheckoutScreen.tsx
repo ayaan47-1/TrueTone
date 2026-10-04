@@ -74,7 +74,7 @@ export function CheckoutScreen() {
 
       // Success
       setPlaced({ orderNo: makeOrderNumber(), total: bagSubtotal(state), items: bagCount(state) });
-      orderHistory.record(state.lines.map((l) => l.product.id));
+      void orderHistory.record(state.lines.map((l) => l.product.id));
       bag.clear();
     } catch (e) {
       Alert.alert('Payment Error', e instanceof Error ? e.message : 'Something went wrong');

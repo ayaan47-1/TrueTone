@@ -11,7 +11,7 @@ import { ScanRoutineSuggestions } from '../src/features/recommend/ScanRoutineSug
 import type { Routine } from '../src/features/recommend/routine-types';
 import { RoutineEditor } from '../src/features/routine/components/RoutineEditor';
 import { shelfStore } from '../src/features/shop/shelf-store';
-import { orderHistory } from '../src/features/checkout/order-history-store';
+import { usePurchasedIds } from '../src/features/checkout/order-history-store';
 import { Screen, HEADER_CLEARANCE, Display, Caption, GlassCard, PressableScale, Body, Rise } from '../src/components/ui';
 import { palette } from '../src/theme/tokens';
 
@@ -45,6 +45,7 @@ async function loadScanRoutine(): Promise<ScanState> {
 export default function RoutineRoute() {
   const router = useRouter();
   const { userId } = useProfile();
+  const purchasedIds = usePurchasedIds();
   const [scanState, setScanState] = useState<ScanState>(DEMO_MODE ? { kind: 'none' } : { kind: 'loading' });
   const [refreshing, setRefreshing] = useState(false);
   const mounted = useRef(true);
@@ -88,7 +89,7 @@ export default function RoutineRoute() {
         </View>
       </Rise>
       <Rise index={1}>
-        <RoutineEditor userId={userId} purchasedIds={orderHistory.purchasedIds()} savedIds={shelfStore.get()} />
+        <RoutineEditor userId={userId} purchasedIds={purchasedIds} savedIds={shelfStore.get()} />
       </Rise>
       <Rise index={2}>
         <View className="mt-4">

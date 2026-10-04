@@ -27,8 +27,8 @@ export function DataRights({ onChanged, confirm }: Props) {
     if (fn === 'delete_my_data' || fn === 'delete_account') {
       try {
         // On-device data the server never sees: the skin-feel diary and the daily-routine
-        // tracker + its locally published Community routines + the in-memory order history. All wiped so deletion is complete.
-        orderHistory.clear();
+        // tracker + its locally published Community routines + the on-device order history. All wiped so deletion is complete.
+        await orderHistory.clear();
         await clearDiary();
         await clearAllRoutines();
         await clearPublishedRoutines();

@@ -1,4 +1,5 @@
 import { render, fireEvent, waitFor } from '@testing-library/react-native';
+import AsyncStorage from '@react-native-async-storage/async-storage';
 import { DataRights } from '../DataRights';
 const mockRpc = jest.fn().mockResolvedValue({ error: null });
 jest.mock('../../../lib/supabase', () => ({ supabase: { rpc: (...a: unknown[]) => mockRpc(...a) } }));
@@ -45,4 +46,13 @@ test('deleting data also clears the on-device order history used for routine sug
   const { getByTestId } = await render(<DataRights onChanged={jest.fn()} confirm={async () => true} />);
   await fireEvent.press(getByTestId('delete-data'));
   await waitFor(() => expect(orderHistory.purchasedIds()).toEqual([]));
+});
+
+test('deleting data removes the stored order history from the device', async () => {
+  const { orderHistory, ORDER_HISTORY_KEY } = jest.requireActual('../../checkout/order-history-store');
+  await orderHistory.record(['p1']);
+  expect(await AsyncStorage.getItem(ORDER_HISTORY_KEY)).not.toBeNull();
+  const { getByTestId } = await render(<DataRights onChanged={jest.fn()} confirm={async () => true} />);
+  await fireEvent.press(getByTestId('delete-data'));
+  await waitFor(async () => expect(await AsyncStorage.getItem(ORDER_HISTORY_KEY)).toBeNull());
 });
