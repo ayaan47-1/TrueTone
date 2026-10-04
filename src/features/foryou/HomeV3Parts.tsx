@@ -1,12 +1,12 @@
 // src/features/foryou/HomeV3Parts.tsx
 // Quiet Glass v3 For You home pieces, matched to the designer's walkthrough video
-// (t-01..t-03): a search row with a sort-and-filter button, four quick actions (Seasonal
+// (t-01..t-03): a search row with a sort-and-filter button, three quick actions (Seasonal
 // badged NEW), photo category shortcuts and a section header with "See all".
 // Deliberately kept from compliance: no "20 seconds" timing claim, no numeric fit.
 import type { ComponentType } from 'react';
 import { Image, Text, View } from 'react-native';
 import { PressableScale } from '../../components/ui';
-import { CameraGlyph, CommunityGlyph, RoutineGlyph, TrendGlyph } from '../../components/ui/tab-icons';
+import { CameraGlyph, RoutineGlyph, TrendGlyph } from '../../components/ui/tab-icons';
 import { glass, palette, softShadow } from '../../theme/tokens';
 import { SearchGlyph, ChevronGlyph } from '../shop/shop-icons';
 import { FilterGlyph } from './home-icons';
@@ -60,7 +60,6 @@ interface QuickAction {
 const ACTIONS: readonly QuickAction[] = [
   { label: 'Shade match', Icon: CameraGlyph, path: '/scan-gate' },
   { label: 'Routine', Icon: RoutineGlyph, path: '/routine' },
-  { label: 'Shade twins', Icon: CommunityGlyph, path: '/community' },
   { label: 'Seasonal', Icon: TrendGlyph, isNew: true },
 ];
 
@@ -152,6 +151,8 @@ interface SectionHeadProps {
   title: string;
   sub?: string;
   onAction?: () => void;
+  /** Visible text of the action; defaults to "See all". */
+  actionLabel?: string;
 }
 
 /** The one home section-title style (display face, 20px) — SectionHead and card titles share it. */
@@ -164,7 +165,7 @@ export function SectionTitle({ children }: { children: string }) {
 }
 
 /** A home section title (display face) with an optional subtitle and "See all ›". */
-export function SectionHead({ title, sub, onAction }: SectionHeadProps) {
+export function SectionHead({ title, sub, onAction, actionLabel = 'See all' }: SectionHeadProps) {
   return (
     <View className="mb-3.5 flex-row items-end justify-between gap-3">
       <View className="flex-1">
@@ -174,11 +175,11 @@ export function SectionHead({ title, sub, onAction }: SectionHeadProps) {
       {onAction ? (
         <PressableScale
           accessibilityRole="button"
-          accessibilityLabel={`See all ${title}`}
+          accessibilityLabel={`${actionLabel} ${title}`}
           onPress={onAction}
           className="flex-row items-center gap-1.5 pb-0.5"
         >
-          <Text className="font-body-semibold text-[14px] text-sage">See all</Text>
+          <Text className="font-body-semibold text-[14px] text-sage">{actionLabel}</Text>
           <ChevronGlyph color={palette.sage} size={8} />
         </PressableScale>
       ) : null}

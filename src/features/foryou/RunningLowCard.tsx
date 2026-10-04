@@ -1,5 +1,5 @@
 // src/features/foryou/RunningLowCard.tsx
-// "Running low" (kit RunningLow3): items to restock, each with a Reorder button that adds
+// "Buy Again" (kit RunningLow3, renamed by the founder): items to restock, each with a Reorder button that adds
 // the product to the bag. Runs on SAMPLE items (home-sample-data.ts) until a real refill
 // signal exists.
 import { Text, View } from 'react-native';
@@ -13,7 +13,7 @@ import { SAMPLE_RUNNING_LOW, SAMPLE_RUNNING_LOW_LABEL } from './home-sample-data
 export function RunningLowCard() {
   return (
     <GlassCard radius={26} className="px-[18px] pb-2 pt-4">
-      <SectionHead title="Running low" sub="Restock before you run out" />
+      <SectionHead title="Buy Again" sub="Restock before you run out" />
       {SAMPLE_RUNNING_LOW.map(({ product, note, urgent }, i) => (
         <View
           key={product.id}

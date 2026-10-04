@@ -47,8 +47,8 @@ beforeEach(() => {
 test('renders the four native tabs in bar order with their labels', async () => {
   await render(<TabsLayout />);
   expect(mockTriggers.map((t) => [t.name, t.label])).toEqual([
+    ['index', 'Home'],
     ['shop', 'Shop'],
-    ['index', 'For You'],
     ['community', 'Community'],
     ['you', 'Account'],
   ]);
@@ -61,8 +61,8 @@ test('every tab has an SF Symbol with a filled selected variant', async () => {
   }
 });
 
-test('selected tint is the locked sage accent and Shop stays the initial tab', async () => {
+test('selected tint is the locked sage accent and Home is the initial tab', async () => {
   await render(<TabsLayout />);
   expect(mockHost.props?.tintColor).toBe(palette.sage);
-  expect(unstable_settings.initialRouteName).toBe('shop');
+  expect(unstable_settings.initialRouteName).toBe('index');
 });

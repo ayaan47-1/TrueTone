@@ -9,7 +9,7 @@ beforeEach(() => bag.clear());
 
 test('lists each sample item with its note and a Reorder button', async () => {
   const view = await render(<RunningLowCard />);
-  expect(view.getByText('Running low')).toBeTruthy();
+  expect(view.getByText('Buy Again')).toBeTruthy();
   expect(view.getByText('Restock before you run out')).toBeTruthy();
   expect(SAMPLE_RUNNING_LOW.length).toBe(2);
   for (const item of SAMPLE_RUNNING_LOW) {

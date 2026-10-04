@@ -12,6 +12,7 @@ import { usePublishedRoutines } from '../routine/use-published-routines';
 import { PostCard } from './components/PostCard';
 import { RoutineCard } from './components/RoutineCard';
 import { ProductTagDrawer } from './components/ProductTagDrawer';
+import { ShadeTwins } from '../today-home/ShadeTwins';
 import { SAMPLE_COMMUNITY_LABEL, SAMPLE_ENGAGEMENT_ENABLED } from '../shop/sample-content';
 import type { CommunityTab } from './community-types';
 
@@ -40,7 +41,12 @@ export function CommunityScreen() {
         </View>
       </Rise>
 
+      {/* Shade twins moved here from Home (founder). No count: there is no real twin data. */}
       <Rise index={1}>
+        <View className="mb-5"><ShadeTwins /></View>
+      </Rise>
+
+      <Rise index={2}>
         <View className="flex-row justify-center gap-2 mb-5" accessibilityRole="tablist">
           {TABS.map((tab) => (
             <PressableScale

@@ -8,16 +8,16 @@ import { palette } from '../../src/theme/tokens';
 // @react-navigation/bottom-tabs types directly, which aren't resolvable here).
 type TabBarProps = Parameters<NonNullable<React.ComponentProps<typeof Tabs>['tabBar']>>[0];
 
-// Land on Shop (the primary/home destination) when the group is entered, rather than the
-// default `index` route. expo-router reads initialRouteName from this exported settings object.
-export const unstable_settings = { initialRouteName: 'shop' };
+// Land on Home (`index`) when the group is entered, so Home is the one home surface and is
+// always reachable. expo-router reads initialRouteName from this exported settings object.
+export const unstable_settings = { initialRouteName: 'index' };
 
 /**
- * Main app shell: four tabbed destinations (Shop · For You · Community · Account). The
+ * Main app shell: four tabbed destinations (Home · Shop · Community · Account). The
  * shade-match ("Shade match") scan entry is NOT a tab — it lives as a small icon in the
- * For You header, which pushes the pre-camera scan gate (`/scan-gate`, the on-device
+ * Home header, which pushes the pre-camera scan gate (`/scan-gate`, the on-device
  * privacy screen) BEFORE the full-screen camera route (capture lives OUTSIDE the tab
- * navigator, as a focused, chrome-free flow). Shop is primary/home. The 18+ age gate +
+ * navigator, as a focused, chrome-free flow). Home is the landing tab. The 18+ age gate +
  * biometric consent are enforced UPSTREAM by the root layout's Guard (CLAUDE.md §1) —
  * this group only renders once those boot gates have cleared, so the camera can never
  * mount for a user who has not passed them.
@@ -30,10 +30,10 @@ export default function TabsLayout() {
 type SFSymbol = Extract<NonNullable<SFSymbolIcon['sf']>, string>;
 
 // Bar order, left→right. SF Symbols echo the Quiet Glass glyphs in tab-icons.tsx
-// (bag · sun ring · two people · person); the filled variant marks the selected tab.
+// (sun ring · bag · two people · person); the filled variant marks the selected tab.
 const NATIVE_TABS: readonly { name: TabKey; label: string; sf: SFSymbol; sfSelected: SFSymbol }[] = [
+  { name: 'index', label: 'Home', sf: 'sun.max', sfSelected: 'sun.max.fill' },
   { name: 'shop', label: 'Shop', sf: 'bag', sfSelected: 'bag.fill' },
-  { name: 'index', label: 'For You', sf: 'sun.max', sfSelected: 'sun.max.fill' },
   { name: 'community', label: 'Community', sf: 'person.2', sfSelected: 'person.2.fill' },
   { name: 'you', label: 'Account', sf: 'person.crop.circle', sfSelected: 'person.crop.circle.fill' },
 ];
@@ -63,8 +63,8 @@ function FloatingTabsLayout() {
       tabBar={(props) => <TabBar {...props} />}
       screenOptions={{ headerShown: false, sceneStyle: { backgroundColor: 'transparent' } }}
     >
+      <Tabs.Screen name="index" options={{ title: 'Home' }} />
       <Tabs.Screen name="shop" options={{ title: 'Shop' }} />
-      <Tabs.Screen name="index" options={{ title: 'For You' }} />
       <Tabs.Screen name="community" options={{ title: 'Community' }} />
       <Tabs.Screen name="you" options={{ title: 'Account' }} />
     </Tabs>
@@ -73,7 +73,7 @@ function FloatingTabsLayout() {
 
 /** Adapts React Navigation's tab state onto the presentational GlassTabBar. */
 function TabBar({ state, navigation }: TabBarProps) {
-  const activeKey = state.routes[state.index]?.name ?? 'shop';
+  const activeKey = state.routes[state.index]?.name ?? 'index';
 
   const onSelect = (key: TabKey) => {
     const route = state.routes.find((r) => r.name === key);

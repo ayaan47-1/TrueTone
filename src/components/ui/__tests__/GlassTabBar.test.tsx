@@ -31,7 +31,7 @@ async function press(view: View, label: string) {
 test('renders exactly four tab destinations and no center Shade match button', async () => {
   const { view } = await setup();
   expect(view.queryAllByRole('tab')).toHaveLength(4);
-  ['Shop', 'For You', 'Community', 'Account'].forEach((label) =>
+  ['Shop', 'Home', 'Community', 'Account'].forEach((label) =>
     expect(tab(view, label)).toBeTruthy(),
   );
   // The floating center scan action is gone from the bar entirely.
@@ -41,24 +41,28 @@ test('renders exactly four tab destinations and no center Shade match button', a
   expect(scan).toBeUndefined();
 });
 
-test('Shop is the first (primary) tab destination', async () => {
-  const { view } = await setup();
-  const firstTab = view.queryAllByRole('tab')[0];
-  expect(firstTab.props.accessibilityLabel).toBe('Shop');
-});
-
 test('marks the active tab as selected for accessibility', async () => {
   const { view } = await setup({ activeKey: 'community' });
   expect(tab(view, 'Community').props.accessibilityState).toMatchObject({ selected: true });
-  expect(tab(view, 'For You').props.accessibilityState).toMatchObject({ selected: false });
+  expect(tab(view, 'Home').props.accessibilityState).toMatchObject({ selected: false });
 });
 
 test('pressing a tab calls onSelect with its route key', async () => {
   const { view, onSelect } = await setup();
   await press(view, 'Shop');
   expect(onSelect).toHaveBeenCalledWith('shop');
-  await press(view, 'For You');
+  await press(view, 'Home');
   expect(onSelect).toHaveBeenCalledWith('index');
   await press(view, 'Account');
   expect(onSelect).toHaveBeenCalledWith('you');
+});
+
+test('Home leads the bar, left to right: Home · Shop · Community · Account', async () => {
+  const { view } = await setup();
+  expect(view.queryAllByRole('tab').map((t) => t.props.accessibilityLabel)).toEqual([
+    'Home',
+    'Shop',
+    'Community',
+    'Account',
+  ]);
 });

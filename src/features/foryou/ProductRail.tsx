@@ -21,18 +21,20 @@ interface ProductRailProps {
   profile?: MatchProfile;
   /** Adds a "See all ›" action beside the title (video t-02). */
   onSeeAll?: () => void;
+  /** Visible text of that action; defaults to "See all". */
+  seeAllLabel?: string;
 }
 
 const railTestId = (title: string): string =>
   `rail-${title.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/(^-|-$)/g, '')}`;
 
 /** A titled horizontal rail of ProductCards. Renders nothing for an empty product list. */
-export function ProductRail({ title, subtitle, products, profile, onSeeAll }: ProductRailProps) {
+export function ProductRail({ title, subtitle, products, profile, onSeeAll, seeAllLabel }: ProductRailProps) {
   if (products.length === 0) return null;
 
   return (
     <View testID={railTestId(title)}>
-      <SectionHead title={title} sub={subtitle} onAction={onSeeAll} />
+      <SectionHead title={title} sub={subtitle} onAction={onSeeAll} actionLabel={seeAllLabel} />
       <ScrollView
         horizontal
         showsHorizontalScrollIndicator={false}

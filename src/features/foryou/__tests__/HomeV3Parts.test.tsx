@@ -15,14 +15,15 @@ test('search row opens the shop search, and the filter button opens sort & filte
   expect(onFilter).toHaveBeenCalled();
 });
 
-test('four quick actions in video order; Seasonal is badged NEW', async () => {
+test('three quick actions; Shade twins moved to Community; Seasonal is badged NEW', async () => {
   const go = jest.fn();
   const onSeasonal = jest.fn();
   const view = await render(<QuickActions onGo={go} onSeasonal={onSeasonal} />);
-  for (const name of ['Shade match', 'Routine', 'Shade twins']) {
+  for (const name of ['Shade match', 'Routine']) {
     await fireEvent.press(view.getByRole('button', { name }));
   }
-  expect(go.mock.calls.map((c) => c[0])).toEqual(['/scan-gate', '/routine', '/community']);
+  expect(go.mock.calls.map((c) => c[0])).toEqual(['/scan-gate', '/routine']);
+  expect(view.queryByRole('button', { name: 'Shade twins' })).toBeNull();
   await fireEvent.press(view.getByRole('button', { name: 'Seasonal, new' }));
   expect(onSeasonal).toHaveBeenCalled();
   expect(view.getByText('NEW')).toBeTruthy();
