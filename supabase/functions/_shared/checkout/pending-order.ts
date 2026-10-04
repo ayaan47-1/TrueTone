@@ -2,13 +2,14 @@
 // Orders are written only server-side (migration 0025 revoked client writes): the caller passes
 // a service-role client, status is always 'pending', and the amount is the server-computed total.
 // Only stripe-webhook (signature-verified) moves a row to 'succeeded' / 'failed'.
+import type { ShippingAddress } from './shipping-address.ts';
 
 export interface PendingOrderInput {
   userId: string;
   paymentIntentId: string;
   amountCents: number;
   items: unknown;
-  shippingAddress?: unknown;
+  shippingAddress: ShippingAddress;
 }
 
 export interface PendingOrderRow {
@@ -16,7 +17,7 @@ export interface PendingOrderRow {
   stripe_payment_intent_id: string;
   amount: number;
   items: unknown;
-  shipping_address: unknown;
+  shipping_address: ShippingAddress;
   status: 'pending';
 }
 
@@ -29,12 +30,13 @@ export function buildPendingOrderRow(input: PendingOrderInput): PendingOrderRow 
   if (!input.userId) throw new Error('invalid user');
   if (!input.paymentIntentId) throw new Error('invalid payment intent');
   if (!Number.isInteger(input.amountCents) || input.amountCents <= 0) throw new Error('invalid amount');
+  if (!input.shippingAddress) throw new Error('invalid shipping address');
   return {
     user_id: input.userId,
     stripe_payment_intent_id: input.paymentIntentId,
     amount: input.amountCents,
     items: input.items,
-    shipping_address: input.shippingAddress ?? null,
+    shipping_address: input.shippingAddress,
     status: 'pending',
   };
 }

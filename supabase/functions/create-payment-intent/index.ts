@@ -3,6 +3,7 @@ import { createClient } from 'https://esm.sh/@supabase/supabase-js@2';
 import Stripe from 'https://esm.sh/stripe@14.19.0';
 import { computeOrderTotalCents } from '../_shared/checkout/pricing.ts';
 import { insertPendingOrder } from '../_shared/checkout/pending-order.ts';
+import { checkoutRequestSchema } from '../_shared/checkout/shipping-address.ts';
 
 serve(async (req) => {
   if (req.method !== 'POST') return new Response('method not allowed', { status: 405 });
@@ -20,12 +21,11 @@ serve(async (req) => {
   const { data: { user } } = await supabase.auth.getUser();
   if (!user) return new Response('unauthorized', { status: 401 });
 
-  let body: { items?: { product: { id: string; price?: number }; qty: number }[]; shippingAddress?: unknown };
-  try { body = await req.json(); } catch { return new Response('bad request', { status: 400 }); }
-
-  if (!body.items || !Array.isArray(body.items) || body.items.length === 0) {
-    return new Response('bad request: missing items', { status: 400 });
-  }
+  let rawBody: unknown;
+  try { rawBody = await req.json(); } catch { return new Response('bad request', { status: 400 }); }
+  const parsedBody = checkoutRequestSchema.safeParse(rawBody);
+  if (!parsedBody.success) return new Response('bad request: invalid checkout', { status: 400 });
+  const body = parsedBody.data;
 
   let serverTotalCents = 0;
   try {
@@ -86,7 +86,8 @@ serve(async (req) => {
     });
 
     if (error) {
-        console.error('Failed to create order', error);
+        // Do not attach the database error: constraint details can echo the PII-bearing row.
+        console.error('Failed to create pending order');
         return new Response('internal error', { status: 500 });
     }
 
