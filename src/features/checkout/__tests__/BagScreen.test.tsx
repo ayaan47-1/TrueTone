@@ -1,10 +1,14 @@
-// v3 bag: lines per product + shade, qty stepper, remove, "Finish your look", totals card,
-// checkout CTA. The TRUE15 demo promo is covered in BagPromo.test.tsx.
+// v3 bag: lines per product + shade, qty stepper, remove, "Finish your look", total and checkout CTA.
 import { render, fireEvent } from '@testing-library/react-native';
 import { BagScreen } from '../BagScreen';
 import { bag, lineKey } from '../bag-store';
 import { catalog } from '../../match/product-catalog';
-import { bagTotals, formatCents } from '../promo';
+import { computeOrderTotalCents, formatCents } from '../pricing';
+
+type PriceItems = (items: readonly { product: { id: string; price?: number }; qty: number }[]) => number;
+const { computeOrderTotalCents: computeServerTotalCents } = require('../../../../supabase/functions/_shared/checkout/pricing') as {
+  computeOrderTotalCents: PriceItems;
+};
 
 const [a, b] = catalog;
 const handlers = () => ({ onShop: jest.fn(), onCheckout: jest.fn(), onBack: jest.fn() });
@@ -26,7 +30,7 @@ test('lines show shade, qty changes update the total, trash removes', async () =
   const view = await render(<BagScreen {...h} />);
   expect(view.getByText('Honey 5W')).toBeTruthy();
   expect(view.getByText('3 items')).toBeTruthy();
-  const total = formatCents(bagTotals(a.price + b.price * 2, false).totalCents);
+  const total = formatCents(computeOrderTotalCents(bag.getState().lines));
   expect(view.getByRole('button', { name: `Checkout · ${total}` })).toBeTruthy();
 
   await fireEvent.press(view.getByRole('button', { name: `Increase quantity, ${a.name.toLowerCase()}, honey 5w` }));
@@ -35,7 +39,7 @@ test('lines show shade, qty changes update the total, trash removes', async () =
   await fireEvent.press(view.getByRole('button', { name: `Remove ${b.name}` }));
   expect(bag.getState().lines).toHaveLength(1);
 
-  const after = formatCents(bagTotals(a.price * 2, false).totalCents);
+  const after = formatCents(computeOrderTotalCents(bag.getState().lines));
   await fireEvent.press(view.getByRole('button', { name: `Checkout · ${after}` }));
   expect(h.onCheckout).toHaveBeenCalled();
 });
@@ -56,4 +60,15 @@ test('the same product in two shades gets distinct remove labels', async () => {
   const view = await render(<BagScreen {...handlers()} />);
   await fireEvent.press(view.getByRole('button', { name: `Remove ${a.name}, Amber 7W` }));
   expect(bag.getState().lines.map((l) => l.shade)).toEqual(['Honey 5W']);
+});
+
+test('bag total matches server pricing with no promo or shipping adjustment', async () => {
+  bag.add(a, 1, 'Honey 5W');
+  const expectedCents = computeServerTotalCents(bag.getState().lines);
+  const view = await render(<BagScreen {...handlers()} />);
+
+  expect(view.getByTestId('bag-summary')).toHaveTextContent(new RegExp(`Total\\$${(expectedCents / 100).toFixed(2)}`));
+  expect(view.getByRole('button', { name: `Checkout · $${(expectedCents / 100).toFixed(2)}` })).toBeTruthy();
+  expect(view.queryByText('Shipping')).toBeNull();
+  expect(view.queryByLabelText('Promo code')).toBeNull();
 });

@@ -4,8 +4,7 @@
 //  - the Shop shows SAMPLE_CATALOG_LABEL once;
 //  - star ratings + review counts are fabricated, so they render ONLY when
 //    SAMPLE_RATINGS_ENABLED is true (internal TestFlight at most — never App Store or
-//    external TestFlight), and always with SAMPLE_RATINGS_LABEL beside each one;
-//  - the TRUE15 promo carries DEMO_PROMO_LABEL (no purchases in this build).
+//    external TestFlight), and always with SAMPLE_RATINGS_LABEL beside each one.
 import type { Product } from '../match/match-types';
 
 /** Fabricated ratings are shown only when this is true. Keep false for any external build. */
@@ -20,9 +19,6 @@ export const SAMPLE_ENGAGEMENT_ENABLED = true;
 export const SAMPLE_CATALOG_LABEL = 'Sample catalog — products and images are for demonstration only.';
 export const SAMPLE_RATINGS_LABEL = 'Sample data — not real ratings or reviews.';
 export const SAMPLE_COMMUNITY_LABEL = 'Sample community — demo creators and posts, not real users.';
-export const DEMO_PROMO_LABEL = 'Demo promo — no purchases in this build.';
-/** Under the bag totals card: shipping terms, discount and total are demo figures too. */
-export const DEMO_TOTALS_LABEL = 'Demo checkout — sample pricing and shipping; no real orders.';
 
 export interface SampleRating {
   readonly rating: number;

@@ -1,7 +1,6 @@
 // src/features/foryou/HeroCarousel.tsx
-// The For You hero (video t-01, kit HeroCarousel3): three swipeable photo slides with page
-// dots — the shade slide, "Finish your look", and the TRUE15 promo. Compliance:
-// • the promo carries "Demo promo — no purchases in this build." (v3-demo-content-ruling §3);
+// The For You hero (video t-01, kit HeroCarousel3): two swipeable photo slides with page dots —
+// the shade slide and "Finish your look". Compliance:
 // • the shade slide names the shade and a pick count only, never a numeric fit (§4);
 // • pre-scan copy makes no timing claim. Photos are bundled locally (home-photos.ts).
 import { useRef, useState, type ReactNode } from 'react';
@@ -17,11 +16,10 @@ import {
 import { LinearGradient } from 'expo-linear-gradient';
 import { PressableScale } from '../../components/ui';
 import { palette, softShadow } from '../../theme/tokens';
-import { DEMO_PROMO_LABEL } from '../shop/sample-content';
 import { HERO_PHOTOS } from './home-photos';
 
 const HEIGHT = 188;
-const SLIDES = 3;
+const SLIDES = 2;
 
 interface HeroCarouselProps {
   /** The derived shade word (post-scan only). */
@@ -60,7 +58,6 @@ export function HeroCarousel({ shadeName, pickCount, onScan, onShop }: HeroCarou
       >
         <ShadeSlide width={width} shadeName={shadeName} pickCount={pickCount} onScan={onScan} onShop={onShop} />
         <LookSlide width={width} onShop={onShop} />
-        <PromoSlide width={width} />
       </ScrollView>
       <Dots index={index} dark={index === 0} onSelect={goTo} />
     </View>
@@ -154,36 +151,6 @@ function LookSlide({ width, onShop }: { width: number; onShop: () => void }) {
         Tint, blush and brow, picked to go together.
       </Text>
       <Pill label="Shop the set" onPress={onShop} dark />
-    </Slide>
-  );
-}
-
-function PromoSlide({ width }: { width: number }) {
-  return (
-    <Slide
-      testID="hero-slide-promo"
-      width={width}
-      photo={HERO_PHOTOS.promo}
-      wash={['rgba(248,238,231,0.97)', 'rgba(248,238,231,0.85)', 'rgba(248,238,231,0)']}
-    >
-      <Text
-        className="font-display text-[34px] leading-[38px] tracking-[-1px]"
-        style={{ color: palette.clayInk }}
-      >
-        15% off
-      </Text>
-      <Text className="mt-0.5 font-body text-[14px] text-ink">your first matched bag</Text>
-      <View
-        className="mt-3.5 flex-row items-center gap-2 self-start rounded-xl bg-white/50 px-3 py-2"
-        style={{ borderWidth: 1.5, borderStyle: 'dashed', borderColor: palette.clay }}
-      >
-        <Text className="font-body-bold text-[13px] tracking-[1px]" style={{ color: palette.clayInk }}>
-          TRUE15
-        </Text>
-      </View>
-      <Text className="mt-2 max-w-[190px] font-body text-[11px] leading-[14px] text-ink-soft">
-        {DEMO_PROMO_LABEL}
-      </Text>
     </Slide>
   );
 }
