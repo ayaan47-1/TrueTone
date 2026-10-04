@@ -3,6 +3,10 @@ import { CommunityScreen } from '../CommunityScreen';
 import { SEED_POSTS, SEED_ROUTINES } from '../community-seed';
 import { catalog } from '../../match/product-catalog';
 
+jest.mock('expo-router', () => ({
+  useRouter: () => ({ push: jest.fn() }),
+}));
+
 const firstPost = SEED_POSTS[0];
 const firstPostProduct = catalog.find((p) => p.id === firstPost.taggedProductIds[0])!;
 const firstRoutine = SEED_ROUTINES[0];

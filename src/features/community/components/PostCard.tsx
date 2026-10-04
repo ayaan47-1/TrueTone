@@ -25,7 +25,8 @@ export function PostCard({ post, engagement, onToggleLike, onToggleSave, onShare
       <CreatorHeader creator={post.creator} color={post.creatorColor} />
       <MediaPlaceholder media={post.media} />
       <Body className="text-ink">{post.caption}</Body>
-      <View className="flex-row items-center justify-between">
+      {/* Wraps on narrow phones so "Shop the look" drops below rather than clipping like/save. */}
+      <View testID="post-actions" className="flex-row flex-wrap items-center justify-between gap-y-1">
         <EngagementBar
           engagement={engagement}
           onToggleLike={onToggleLike}
@@ -39,6 +40,7 @@ export function PostCard({ post, engagement, onToggleLike, onToggleSave, onShare
             accessibilityRole="button"
             accessibilityLabel="Shop the look"
             onPress={onShopTheLook}
+            className="min-h-[44px] justify-center"
           >
             <Caption className="text-sage font-body-semibold">Shop the look</Caption>
           </PressableScale>

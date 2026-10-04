@@ -21,13 +21,14 @@ export function EngagementBar({ engagement, onToggleLike, onToggleSave, onShare,
   const idleColor = palette.mauve500;
 
   return (
-    <View className="flex-row items-center gap-5 mt-2">
+    <View testID="engagement-bar" className="flex-row items-center gap-3 mt-2 shrink-0">
       <PressableScale
         testID="engagement-like"
         accessibilityRole="button"
         accessibilityLabel={engagement.liked ? 'Unlike' : 'Like'}
         onPress={onToggleLike}
         hitSlop={8}
+        className="min-w-[44px] min-h-[44px] justify-center"
       >
         <View className="flex-row items-center gap-1.5">
           <HeartGlyph color={engagement.liked ? activeColor : idleColor} filled={engagement.liked} />
@@ -41,6 +42,7 @@ export function EngagementBar({ engagement, onToggleLike, onToggleSave, onShare,
         accessibilityLabel={engagement.saved ? 'Unsave' : 'Save'}
         onPress={onToggleSave}
         hitSlop={8}
+        className="min-w-[44px] min-h-[44px] justify-center"
       >
         <View className="flex-row items-center gap-1.5">
           <BookmarkGlyph color={engagement.saved ? activeColor : idleColor} filled={engagement.saved} />
@@ -54,6 +56,7 @@ export function EngagementBar({ engagement, onToggleLike, onToggleSave, onShare,
         accessibilityLabel="Share"
         onPress={onShare}
         hitSlop={8}
+        className="min-w-[44px] min-h-[44px] justify-center"
       >
         <View className="flex-row items-center gap-1.5">
           <ShareGlyph color={idleColor} />
