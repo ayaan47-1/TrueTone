@@ -23,7 +23,7 @@ export function HeartGlyph({ color, size = 20, filled = false }: CommunityGlyphP
       testID="heart-glyph"
       accessible={false}
       allowFontScaling={false}
-      style={{ color, fontSize: size, lineHeight: size * 1.15, width: size, textAlign: 'center' }}
+      style={{ color, fontSize: size, lineHeight: size * 1.15, width: size, textAlign: 'center', includeFontPadding: false, textAlignVertical: 'center' }}
     >
       {filled ? HEART_FILLED : HEART_OUTLINE}
     </Text>
