@@ -3,193 +3,222 @@
 <head>
 <meta charset="utf-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1" />
-<title>TrueTone — your real shade, for every tone</title>
-<meta name="description" content="TrueTone reads your real tone and undertone from one selfie, in seconds, and matches you to makeup built for every tone — especially the deep and in-between ones everyone else skips. iPhone, United States, 18+." />
+<title>TrueTone — makeup discovery and preference-based skincare</title>
+<meta name="description" content="TrueTone is a makeup discovery and preference-based skincare app in development. Explore makeup shades and build cosmetic routines around your preferences. iPhone first, United States, 18+." />
 
 <!-- Open Graph / Twitter. Every URL on this page is relative on purpose: nothing
      third-party may touch it (CLAUDE.md §1), and scripts/check-waitlist-copy.mjs fails
      the build on any foreign origin — so og:image points at a self-hosted asset and there
      is no absolute og:url. The branded card lives at /og.svg. -->
 <meta property="og:type" content="website" />
-<meta property="og:title" content="TrueTone — your real shade, for every tone" />
-<meta property="og:description" content="One selfie. Your real tone and undertone, in seconds. Built for every tone — especially the deep and in-between ones everyone else skips." />
+<meta property="og:title" content="TrueTone — makeup discovery and preference-based skincare" />
+<meta property="og:description" content="Explore makeup shades and build cosmetic routines around your preferences. In development, iPhone first, United States, 18+." />
 <meta property="og:image" content="/og.svg" />
 <meta name="twitter:card" content="summary_large_image" />
-<meta name="twitter:title" content="TrueTone — your real shade, for every tone" />
-<meta name="twitter:description" content="One selfie. Your real tone and undertone, in seconds. Built for every tone." />
+<meta name="twitter:title" content="TrueTone — makeup discovery and preference-based skincare" />
+<meta name="twitter:description" content="Explore makeup shades and build cosmetic routines around your preferences." />
 <meta name="twitter:image" content="/og.svg" />
 
 <!-- No analytics, no pixel, no tag manager, and no third-party origin of any kind.
      Enforced two ways, not left to discipline:
        • scripts/check-waitlist-copy.mjs fails the build on any foreign host in this file
        • web/_headers ships a CSP that blocks one at runtime even if it slipped through
+         (it also forbids inline styles and scripts, so everything lives in landing.css /
+         landing.js / app.js)
      UTM/referrer attribution is first-party only: it is stored on our own waitlist row
-     via the join RPC, never sent to a third party. Fonts are self-hosted from /fonts. -->
+     via the join RPC, never sent to a third party. Fonts and photos are self-hosted. -->
 
 <link rel="icon" href="/favicon.svg" type="image/svg+xml" />
-<link rel="stylesheet" href="/styles.css" />
+<link rel="stylesheet" href="/landing.css" />
 <link rel="preload" href="/fonts/plus-jakarta-sans.woff2" as="font" type="font/woff2" crossorigin />
 <link rel="preload" href="/fonts/inter.woff2" as="font" type="font/woff2" crossorigin />
 </head>
 <body>
+<a class="skip-link" href="#main">Skip to content</a>
 
-<div class="glow" aria-hidden="true"><i class="g1"></i><i class="g2"></i></div>
+<header class="site">
+  <nav class="site-nav" aria-label="Main navigation">
+    <a href="#experience">Experience</a>
+    <a href="#brands">For brands</a>
+    <a href="#principles">Approach</a>
+  </nav>
+  <a class="mark" href="/" aria-label="TrueTone home"><span class="swatches" aria-hidden="true"><span class="sw sw1"></span><span class="sw sw2"></span><span class="sw sw3"></span><span class="sw sw4"></span></span><span class="wordmark">truetone</span></a>
+  <a class="link-arrow site-cta" href="#partnership">Explore a partnership <span aria-hidden="true">→</span></a>
+  <!-- Small screens: a no-JS disclosure menu, so the CSP's script-src stays untouched. -->
+  <details class="menu">
+    <summary>Menu</summary>
+    <nav aria-label="Mobile navigation">
+      <a href="#experience">Experience</a>
+      <a href="#brands">For brands</a>
+      <a href="#principles">Approach</a>
+      <a href="#partnership">Explore a partnership</a>
+      <a href="#join">Join the waitlist</a>
+    </nav>
+  </details>
+</header>
 
-<div class="wrap">
+<main id="main">
 
-  <header class="site">
-    <a class="mark" href="/" aria-label="truetone"><span class="swatches" aria-hidden="true"><span class="sw sw1"></span><span class="sw sw2"></span><span class="sw sw3"></span><span class="sw sw4"></span></span><span class="wordmark">truetone</span></a>
-    <a class="nav-join" href="#join">join the list</a>
-  </header>
-
-  <!-- ── 1 · hero + email ─────────────────────────────────────────────────── -->
-  <section class="hero" id="join">
-    <p class="ref-banner" id="ref-banner" hidden>a friend saved you a spot — join to move up the line.</p>
-    <h1>your real shade,<br />built for <em>every</em> tone.</h1>
-    <p class="lede">
-      one selfie. truetone reads your real tone and undertone — in seconds — and
-      matches you to makeup that actually disappears into your skin. built for every tone,
-      especially the deep and in-between ones everyone else skips.
-    </p>
-
-    <form id="waitlist-form" class="signup" novalidate>
-      <div class="field">
-        <label for="email">email</label>
-        <input id="email" name="email" type="email" required
-               placeholder="you@example.com" autocomplete="email" />
-      </div>
-      <label class="check">
-        <input id="attest" name="attest" type="checkbox" required />
-        <span>i'm 18 or older and in the united states.</span>
-      </label>
-      <button id="submit" type="submit">join the waitlist</button>
-
-      <!-- aria-live so the outcome is announced, and always present so submitting
-           doesn't shift the layout underneath the button. -->
-      <p class="status" id="status" role="status" aria-live="polite"></p>
-
-      <noscript>
-        <p class="status" data-tone="err">
-          the signup form needs javascript. email us instead and we'll add you by hand.
-        </p>
-      </noscript>
-    </form>
-
-    <ul class="facts">
-      <li>iphone first</li>
-      <li>united states</li>
-      <li>18+</li>
-      <li>cosmetic — not a medical device</li>
-    </ul>
-  </section>
-
-  <!-- ── 2 · the problem ──────────────────────────────────────────────────── -->
-  <section class="band problem">
-    <p class="eyebrow">the problem</p>
-    <h2>the shade that's "close enough"<br />never actually is.</h2>
-    <p>
-      foundation ranges thin out fast past the middle. deep and in-between tones get a
-      handful of options, all a little off — too ashy, too orange, a shade too light. so you
-      buy, you blend, you settle. truetone is designed for the full range — not the middle
-      of it.
-    </p>
-  </section>
-
-  <!-- ── 3 · how it works ─────────────────────────────────────────────────── -->
-  <section class="how">
-    <p class="eyebrow">how it works</p>
-    <div class="steps">
-      <div class="step">
-        <div class="n" aria-hidden="true">1</div>
-        <h3>one guided selfie</h3>
-        <p>the camera waits for good light and framing before it counts down. your face never leaves your phone.</p>
-      </div>
-      <div class="step">
-        <div class="n" aria-hidden="true">2</div>
-        <h3>your real tone &amp; undertone</h3>
-        <p>we read how your skin actually looks right now — tone, undertone, depth — in seconds. no quiz, no guessing.</p>
-      </div>
-      <div class="step">
-        <div class="n" aria-hidden="true">3</div>
-        <h3>your match</h3>
-        <p>shades to look for and the ones to skip, in terms you can shop with at any counter and any budget.</p>
+  <!-- ── 1 · hero ─────────────────────────────────────────────────────────── -->
+  <section class="hero frame" aria-labelledby="hero-title">
+    <p class="ref-banner" id="ref-banner" hidden>A friend shared TrueTone with you. <a href="#join">Join the early-access list</a>.</p>
+    <div class="ledger-strip"><span>For skincare &amp; makeup brands</span><span>In development · iPhone first · US · 18+</span></div>
+    <div class="hero-grid">
+      <h1 id="hero-title">A more personal place for good products to be found.</h1>
+      <div class="hero-side">
+        <p>TrueTone is a makeup discovery and preference-based skincare app. Explore makeup shades and build cosmetic routines around your preferences. TrueTone does not provide medical advice.</p>
+        <a class="link-arrow" href="#brands">Meet your next shelf <span aria-hidden="true">→</span></a>
       </div>
     </div>
   </section>
 
-  <!-- ── 4 · three pillars ────────────────────────────────────────────────── -->
-  <section class="pillars">
-    <div class="pillar">
-      <h3>built for every tone</h3>
-      <p>especially the deep and in-between ones everyone else skips. that range is the point of the product, not an afterthought.</p>
+  <figure class="photo frame">
+    <img src="/images/skincare-ritual.jpg" alt="Facial oil poured into a hand during a quiet skincare moment" width="900" height="600" fetchpriority="high" />
+    <figcaption><span>Fig. 01 — The everyday ritual</span><span>Editorial image, not a scan result</span></figcaption>
+  </figure>
+
+  <!-- ── 2 · the experience: two kinds of help ────────────────────────────── -->
+  <section class="experience frame" id="experience" aria-labelledby="experience-title">
+    <h2 id="experience-title">Two kinds of help, kept honestly apart.</h2>
+    <div class="kinds">
+      <article class="kind kind-makeup">
+        <p class="eyebrow">Makeup · estimates</p>
+        <h3>Explore shades that feel like you.</h3>
+        <p>Shade and undertone reads are estimates. Coverage and finish are choices the person makes.</p>
+      </article>
+      <article class="kind kind-skin">
+        <p class="eyebrow">Skincare · stated preferences</p>
+        <h3>Build a routine around what you prefer.</h3>
+        <p>Budget, fragrance, texture and routine choices. A selfie doesn’t determine skincare needs.</p>
+      </article>
     </div>
-    <div class="pillar">
-      <h3>your real shade</h3>
-      <p>matched to your real shade and undertone from your own skin — not the nearest guess on a shelf. designed for the full range.</p>
-    </div>
-    <div class="pillar">
-      <h3>the photo never leaves your phone</h3>
-      <p>your selfie is read on the device and deleted the moment the read finishes. your face data is yours — we never sell it.</p>
-    </div>
+    <p class="kinds-note">Every recommendation comes with context: product details and reasons tied to stated preferences and verified product attributes.</p>
   </section>
 
-  <!-- ── 5 · urgency + live counter ───────────────────────────────────────── -->
-  <section class="band urgency">
-    <p class="eyebrow">early access</p>
-    <h2>the first builds are limited.</h2>
-    <p class="counter"><span id="waitlist-count" aria-live="polite">—</span> already in line</p>
-    <p>
-      we're letting people in a batch at a time, starting with the earliest on the list.
-      join now to be near the front — then invite friends to move up.
-    </p>
-    <a class="cta-secondary" href="#join">join the waitlist</a>
-  </section>
-
-  <!-- ── 6 · referral: move up the line ───────────────────────────────────── -->
-  <section class="band referral">
-    <p class="eyebrow">move up the line</p>
-    <h2>invite friends. move up.</h2>
-    <p>every friend who joins with your link moves you ahead of everyone with fewer invites. no purchase, no catch.</p>
-
-    <!-- Revealed by app.js once a signup succeeds; carries the visitor's own link. -->
-    <div class="share" id="share" hidden>
-      <p class="position" id="position">you're on the list. invite friends to move up.</p>
-      <label class="share-field" for="share-link">your invite link</label>
-      <div class="share-row">
-        <input id="share-link" type="text" readonly aria-label="your invite link" />
-        <button id="copy-link" type="button">copy</button>
+  <!-- ── 3 · for brands (ink band, ledger category switch) ────────────────── -->
+  <section class="brands" id="brands" aria-labelledby="brands-title">
+    <div class="brands-inner frame">
+      <div class="brands-copy">
+        <p class="eyebrow">For the brands behind the ritual</p>
+        <h2 id="brands-title">Your products. Part of their everyday.</h2>
+        <div class="ledger" role="group" aria-label="Product categories">
+          <div class="ledger-row">
+            <button type="button" data-category="skincare" aria-controls="cat-skincare" aria-pressed="true"><span>Skincare</span><span class="plus" aria-hidden="true">+</span></button>
+            <p id="cat-skincare" class="ledger-panel">Verified product details, textures, fragrance information and prices — cleansers, moisturizers, cosmetic serums.</p>
+          </div>
+          <div class="ledger-row">
+            <button type="button" data-category="makeup" aria-controls="cat-makeup" aria-pressed="false"><span>Makeup</span><span class="plus" aria-hidden="true">+</span></button>
+            <p id="cat-makeup" class="ledger-panel" hidden>Your shade range, undertones, finishes and coverage options — complexion, cheek &amp; lip, color cosmetics.</p>
+          </div>
+        </div>
+        <p class="fineprint">Early partnership discussions. Listings and commercial terms are agreed individually.</p>
       </div>
-      <p class="referrals"><span id="referrals">0</span> friends joined with your link so far.</p>
+      <figure class="brands-photo">
+        <img src="/images/makeup-ritual.jpg" alt="Lip color being applied as part of a makeup routine" width="900" height="600" loading="lazy" />
+        <figcaption>Fig. 02 — A routine is personal. So is what goes into it.</figcaption>
+      </figure>
     </div>
   </section>
 
-  <!-- ── 7 · footer ───────────────────────────────────────────────────────── -->
-  <footer class="foot">
-    <p>
-      truetone is a cosmetic and general-wellness product — not a medical device. it does
-      not diagnose, treat, cure or prevent any condition, and it is not a substitute for
-      professional medical advice. for anything concerning on your skin, see a dermatologist.
-    </p>
-    <p>
-      your face data is yours — we never sell it.
+  <!-- ── 4 · trust principles (ledger) ────────────────────────────────────── -->
+  <section class="principles frame" id="principles" aria-labelledby="principles-title">
+    <h2 id="principles-title">Trust belongs in the routine.</h2>
+    <ol class="principle-list">
+      <li><span class="numeral" aria-hidden="true">i.</span><h3>Personal doesn’t mean public.</h3><p>The photo stays on the phone and is deleted after the read. Face data is never sold.</p></li>
+      <li><span class="numeral" aria-hidden="true">ii.</span><h3>Useful guidance. Honest limits.</h3><p>Not a medical device. It does not diagnose or assess skin health. TrueTone does not provide medical advice.</p></li>
+      <li><span class="numeral" aria-hidden="true">iii.</span><h3>The person comes first.</h3><p>Independent recommendations stay brand-neutral. Paid placement is labelled and separate; commissions are disclosed beside links.</p></li>
+    </ol>
+  </section>
+
+  <!-- ── 5 · partnership conversation ─────────────────────────────────────── -->
+  <!-- The partner contact address is not confirmed yet, so there is deliberately no
+       mailto or form here. Add the real destination as a link when the owner supplies it. -->
+  <section class="partnership frame" id="partnership" aria-labelledby="partner-title">
+    <h2 id="partner-title">Good beauty starts with a conversation.</h2>
+    <div class="partner-side">
+      <p>Bring your brand story, the collection you’d like to introduce, and product information with US availability. Already speaking with us? Reply to your TrueTone conversation with a link to your collection.</p>
+      <p>A direct partner contact is coming soon.</p>
+      <p class="partner-note">No access to face images, scan scores, or scan-based targeting.</p>
+    </div>
+  </section>
+
+  <!-- ── 6 · consumer waitlist + referral ─────────────────────────────────── -->
+  <section class="join" id="join" aria-labelledby="join-title">
+    <div class="join-inner frame">
+      <div class="join-copy">
+        <h2 id="join-title">Here for your own routine?</h2>
+        <p>Early access for adults in the US, on iPhone. We let people in a batch at a time, starting with the earliest on the list.</p>
+        <p class="counter"><span id="waitlist-count" aria-live="polite">—</span> already in line</p>
+      </div>
+      <div class="join-form">
+        <form id="waitlist-form" class="signup" novalidate>
+          <div class="signup-row">
+            <label class="visually-hidden" for="email">Email address</label>
+            <input id="email" name="email" type="email" required placeholder="Email address" autocomplete="email" aria-describedby="signup-privacy" />
+            <button id="submit" type="submit">Join the waitlist</button>
+          </div>
+          <label class="check">
+            <input id="attest" name="attest" type="checkbox" required />
+            <span>I’m 18 or older and in the United States.</span>
+          </label>
+          <p id="signup-privacy" class="signup-privacy">Your email is used for early-access updates. <a href="/policies/privacy.html">Privacy policy</a></p>
+
+          <!-- aria-live so the outcome is announced, and always present so submitting
+               doesn't shift the layout underneath the button. -->
+          <p class="status" id="status" role="status" aria-live="polite"></p>
+
+          <noscript>
+            <p class="status" data-tone="err">The signup form needs JavaScript. Please enable it to join the waitlist.</p>
+          </noscript>
+        </form>
+
+        <!-- Revealed by app.js once a signup succeeds; carries the visitor's own link. -->
+        <div class="share" id="share" hidden>
+          <p class="position" id="position">You’re on the list. Invite friends to move up.</p>
+          <label class="share-field" for="share-link">Your invite link</label>
+          <div class="share-row">
+            <input id="share-link" type="text" readonly aria-label="Your invite link" />
+            <button id="copy-link" type="button">copy</button>
+          </div>
+          <p class="referrals"><span id="referrals">0</span> friends joined with your link so far. Every friend who joins with your link moves you up the line — no purchase, no catch.</p>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ── 7 · FAQ ──────────────────────────────────────────────────────────── -->
+  <section class="faq frame" aria-labelledby="faq-title">
+    <h2 id="faq-title">A few things to know.</h2>
+    <div class="faq-list">
+      <details><summary>Is TrueTone available yet?</summary><p>TrueTone is in development. Join the waitlist for early-access updates. The initial app is intended for people 18 or older in the United States, starting on iPhone.</p></details>
+      <details><summary>Which brands are you interested in?</summary><p>We’re open to conversations with skincare and makeup brands with products available in the United States. Assortment, product information, and commercial arrangements are discussed together.</p></details>
+      <details><summary>Does a partnership guarantee a listing?</summary><p>No. We’re in early discussions. Listings, timing, and commercial terms are agreed individually. A partnership does not buy a place in independent recommendation rankings or guarantee sales.</p></details>
+      <details><summary>Do brands receive scan information?</summary><p>No. Face images, scan scores, and scan-based targeting segments are kept away from brands and advertising partners. Photos stay on the phone and are deleted after the read. This website does not collect photos or skin data.</p></details>
+    </div>
+  </section>
+
+</main>
+
+<footer class="foot frame">
+  <p class="foot-mark" aria-hidden="true">truetone</p>
+  <p class="disclaimer">TrueTone is a makeup discovery and preference-based skincare app in development, not a medical device. It does not diagnose, treat, cure, or prevent any condition. TrueTone does not provide medical advice or assess skin health. For anything concerning on your skin, see a dermatologist. Your face data is yours — we never sell it.</p>
+  <div class="foot-bottom">
+    <span>© 2026 TrueTone · United States only · 18+</span>
+    <nav aria-label="Legal">
       <a href="/policies/privacy.html">Privacy</a>
-    </p>
-    <p class="meta">
-      united states only · 18+ ·
-      <a href="/policies/privacy.html">Privacy</a> ·
-      <a href="/policies/terms.html">Terms</a> ·
-      <a href="/policies/biometric.html">Biometric Data Policy</a> ·
+      <a href="/policies/terms.html">Terms</a>
+      <a href="/policies/biometric.html">Biometric data</a>
       <a href="/policies/retention.html">Retention</a>
-    </p>
-  </footer>
+    </nav>
+  </div>
+</footer>
 
-</div>
-
-<!-- config.js is a classic script so it runs before the deferred module below. It is
+<!-- config.js is a classic script so it runs before the deferred modules below. It is
      generated from the environment by scripts/build-waitlist.mjs and is not committed.
      web/ contains exactly what gets deployed — tests live in test/web/ so they are
      never served publicly. -->
 <script src="/config.js"></script>
 <script type="module" src="/app.js"></script>
+<script type="module" src="/landing.js"></script>
 </body>
 </html>
