@@ -46,7 +46,8 @@ export function ProfileProvider({ children }: { children: React.ReactNode }) {
       return;
     }
     try {
-      setError(false);
+      // Clear a previous error only once the reload succeeds: dropping it up front would mount
+      // the app on the stale route while a retry is still in flight.
       const uid = await bootstrapSession();
       setUserId(uid);
       const { data, error: e } = await supabase
@@ -57,6 +58,7 @@ export function ProfileProvider({ children }: { children: React.ReactNode }) {
       if (e || !data) throw new Error('profile-load-failed');
       const p = data as Profile;
       setRoute(nextRoute({ isUS: isUSRegion(), is18: p.is_18_plus, consent: p.consent_active }));
+      setError(false);
     } catch {
       setError(true); // fail closed: never advance on unknown identity
     } finally {
