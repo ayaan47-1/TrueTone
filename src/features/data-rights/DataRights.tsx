@@ -4,6 +4,7 @@ import { clearDiary } from '../diary/diary-storage';
 import { clearAllRoutines } from '../routine/routine-storage';
 import { orderHistory } from '../checkout/order-history-store';
 import { clearPublishedRoutines } from '../routine/routine-publish';
+import { wipeEncryptedLocalData } from '../../lib/encrypted-storage';
 import { Screen, GlassCard, Display, Eyebrow, Body, Caption } from '../../components/ui';
 
 type RpcName = 'withdraw_consent' | 'delete_my_data' | 'delete_account';
@@ -32,6 +33,9 @@ export function DataRights({ onChanged, confirm }: Props) {
         await clearDiary();
         await clearAllRoutines();
         await clearPublishedRoutines();
+        // Then the rest of the encrypted local data (community profile, age-gate record) and the
+        // data key itself, so any copy that escaped deletion can no longer be decrypted.
+        await wipeEncryptedLocalData();
       } catch {
         // local wipe failed — server data is already gone; surface nothing.
       }

@@ -1,6 +1,8 @@
 import { render, fireEvent, waitFor } from '@testing-library/react-native';
 import AsyncStorage from '@react-native-async-storage/async-storage';
+import * as SecureStore from 'expo-secure-store';
 import { DataRights } from '../DataRights';
+import { encryptedStorage, ENCRYPTION_KEY_NAME } from '../../../lib/encrypted-storage';
 const mockRpc = jest.fn().mockResolvedValue({ error: null });
 jest.mock('../../../lib/supabase', () => ({ supabase: { rpc: (...a: unknown[]) => mockRpc(...a) } }));
 const mockClearDiary = jest.fn(() => Promise.resolve());
@@ -55,4 +57,15 @@ test('deleting data removes the stored order history from the device', async () 
   const { getByTestId } = await render(<DataRights onChanged={jest.fn()} confirm={async () => true} />);
   await fireEvent.press(getByTestId('delete-data'));
   await waitFor(async () => expect(await AsyncStorage.getItem(ORDER_HISTORY_KEY)).toBeNull());
+});
+
+test('deleting data wipes every encrypted on-device store and destroys the data key', async () => {
+  await encryptedStorage.setItem('truetone.community-profile.v1.u1', '{"username":"maya"}');
+  await encryptedStorage.setItem('age-gate:verified:u1', '{"userId":"u1"}');
+  expect(await SecureStore.getItemAsync(ENCRYPTION_KEY_NAME)).not.toBeNull();
+  const { getByTestId } = await render(<DataRights onChanged={jest.fn()} confirm={async () => true} />);
+  await fireEvent.press(getByTestId('delete-data'));
+  await waitFor(async () => expect(await SecureStore.getItemAsync(ENCRYPTION_KEY_NAME)).toBeNull());
+  expect(await AsyncStorage.getItem('truetone.community-profile.v1.u1')).toBeNull();
+  expect(await AsyncStorage.getItem('age-gate:verified:u1')).toBeNull();
 });

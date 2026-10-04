@@ -1,6 +1,6 @@
 // src/features/identity/community-profile-repository.ts
 // Repository boundary for CommunityProfile. Demo/camera-demo modes persist a
-// user-scoped identity on-device (AsyncStorage, no network); live mode reads/writes
+// user-scoped identity on-device (encrypted AsyncStorage, no network); live mode reads/writes
 // Supabase `profiles.username` / `profiles.avatar_uri`.
 //
 // DEFERRED (explicit boundary): `avatarUri` is a user-scoped LOCAL file URI in this
@@ -9,7 +9,7 @@
 // approved bucket/policy for it yet. Do not add an upload path behind this repository
 // without that approval; a picked avatar simply does not follow the user to a second
 // device this release.
-import AsyncStorage from '@react-native-async-storage/async-storage';
+import { encryptedStorage } from '../../lib/encrypted-storage';
 import { supabase } from '../../lib/supabase';
 import type { CommunityProfile } from './community-profile-types';
 
@@ -26,12 +26,12 @@ function isCommunityProfileShape(v: unknown): v is { username: string; avatarUri
   return !!v && typeof v === 'object' && typeof (v as Record<string, unknown>).username === 'string';
 }
 
-/** Demo / camera-demo backend: user-scoped AsyncStorage, no network, no cross-user check. */
+/** Demo / camera-demo backend: user-scoped encrypted AsyncStorage, no network, no cross-user check. */
 export function createLocalCommunityProfileRepository(): CommunityProfileRepository {
   return {
     async load(userId) {
       try {
-        const raw = await AsyncStorage.getItem(localKey(userId));
+        const raw = await encryptedStorage.getItem(localKey(userId));
         if (!raw) return null;
         const parsed: unknown = JSON.parse(raw);
         if (!isCommunityProfileShape(parsed)) return null;
@@ -51,7 +51,7 @@ export function createLocalCommunityProfileRepository(): CommunityProfileReposit
         username: profile.username,
         avatarUri: profile.avatarUri,
       };
-      await AsyncStorage.setItem(localKey(profile.userId), JSON.stringify(next));
+      await encryptedStorage.setItem(localKey(profile.userId), JSON.stringify(next));
       return next;
     },
   };

@@ -1,9 +1,9 @@
-import AsyncStorage from '@react-native-async-storage/async-storage';
+import { encryptedStorage } from '../../lib/encrypted-storage';
 import { toDateKey } from '../today/week';
 import { isMoodValue, type MoodValue } from './moods';
 
 /**
- * Skin-feel diary, stored ON-DEVICE only (never synced to a server in v0). A single
+ * Skin-feel diary, stored ON-DEVICE only and encrypted at rest (never synced to a server in v0). A single
  * key holds a { dateKey: mood } map so it's trivial to read and to wipe. `clearDiary`
  * is wired into delete-everything so the diary is covered by data-rights deletion.
  */
@@ -13,7 +13,7 @@ type DiaryMap = Record<string, MoodValue>;
 
 async function readMap(): Promise<DiaryMap> {
   try {
-    const raw = await AsyncStorage.getItem(KEY);
+    const raw = await encryptedStorage.getItem(KEY);
     if (!raw) return {};
     const parsed = JSON.parse(raw) as unknown;
     if (!parsed || typeof parsed !== 'object') return {};
@@ -33,9 +33,9 @@ export async function getMood(today: Date = new Date()): Promise<MoodValue | nul
 export async function setMood(value: MoodValue, today: Date = new Date()): Promise<void> {
   const map = await readMap();
   const next: DiaryMap = { ...map, [toDateKey(today)]: value };
-  await AsyncStorage.setItem(KEY, JSON.stringify(next));
+  await encryptedStorage.setItem(KEY, JSON.stringify(next));
 }
 
 export async function clearDiary(): Promise<void> {
-  await AsyncStorage.removeItem(KEY);
+  await encryptedStorage.removeItem(KEY);
 }

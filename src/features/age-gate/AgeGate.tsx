@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react';
 import { View, Text } from 'react-native';
 import DateTimePicker, { type DateTimePickerEvent } from '@react-native-community/datetimepicker';
-import AsyncStorage from '@react-native-async-storage/async-storage';
+import { encryptedStorage } from '../../lib/encrypted-storage';
 import { supabase, CAMERA_DEMO } from '../../lib/supabase';
 import { cameraDemoSetIs18 } from '../../lib/camera-demo-profile';
 import { computeIs18Plus } from './age';
@@ -54,7 +54,7 @@ export function AgeGate({ userId, onPass }: { userId: string; onPass: () => void
     let cancelled = false;
     (async () => {
       try {
-        const raw = await AsyncStorage.getItem(verificationKey(userId));
+        const raw = await encryptedStorage.getItem(verificationKey(userId));
         if (raw == null) return;
         const parsed: unknown = JSON.parse(raw);
         if (!cancelled && isValidVerification(parsed, userId)) {
@@ -87,7 +87,7 @@ export function AgeGate({ userId, onPass }: { userId: string; onPass: () => void
       if (error) return; // backend failure must not write local verification
     }
     const record: StoredVerification = { userId, verifiedAt: new Date().toISOString() };
-    await AsyncStorage.setItem(verificationKey(userId), JSON.stringify(record));
+    await encryptedStorage.setItem(verificationKey(userId), JSON.stringify(record));
     onPass();
   }
 

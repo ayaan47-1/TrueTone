@@ -39,3 +39,16 @@ test('ignores corrupt stored data without throwing', async () => {
   await AsyncStorage.setItem('truetone.diary.v1', '{not json');
   expect(await getMood(new Date(2026, 5, 24))).toBeNull();
 });
+
+test('the diary is encrypted at rest (no plaintext in AsyncStorage)', async () => {
+  await setMood('glowy', new Date(2026, 5, 24));
+  const raw = await AsyncStorage.getItem('truetone.diary.v1');
+  expect(raw).not.toContain('glowy');
+  expect(raw!.startsWith('enc1:')).toBe(true);
+});
+
+test('a plaintext diary from an older build still reads, then is stored encrypted', async () => {
+  await AsyncStorage.setItem('truetone.diary.v1', JSON.stringify({ '2026-06-24': 'calm' }));
+  expect(await getMood(new Date(2026, 5, 24))).toBe('calm');
+  expect((await AsyncStorage.getItem('truetone.diary.v1'))!.startsWith('enc1:')).toBe(true);
+});

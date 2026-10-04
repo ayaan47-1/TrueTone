@@ -1,9 +1,9 @@
 // src/features/checkout/order-history-store.ts
 // On-device record of products the user has bought through checkout, so the routine editor
-// can suggest them. Persisted to AsyncStorage (one device-local key) so it survives an app
+// can suggest them. Persisted encrypted to AsyncStorage (one device-local key) so it survives an app
 // restart; nothing leaves the device. Holds catalog product ids only -- no payment data.
 import { useEffect, useSyncExternalStore } from 'react';
-import AsyncStorage from '@react-native-async-storage/async-storage';
+import { encryptedStorage } from '../../lib/encrypted-storage';
 
 export const ORDER_HISTORY_KEY = 'truetone.orderHistory.v1';
 
@@ -119,7 +119,7 @@ export function createOrderHistory(storage?: OrderStorage): OrderHistory {
   };
 }
 
-export const orderHistory = createOrderHistory(AsyncStorage);
+export const orderHistory = createOrderHistory(encryptedStorage);
 
 // A stable snapshot per change, as useSyncExternalStore requires.
 let snapshot: readonly string[] = orderHistory.purchasedIds();

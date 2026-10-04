@@ -3,7 +3,7 @@
 // Builds a CommunityRoutine (Task 12 types) from the day's logged products, tagging the real
 // shop-catalog ids, and appends it to an on-device feed (a single device-local key -- no backend
 // table, no network). CommunityScreen merges these ahead of the seeded routines.
-import AsyncStorage from '@react-native-async-storage/async-storage';
+import { encryptedStorage } from '../../lib/encrypted-storage';
 import type { CommunityRoutine, CommunityRoutineStep } from '../community/community-types';
 import type { CommunityProfile } from '../identity/community-profile-types';
 import { catalog as defaultCatalog } from '../match/product-catalog';
@@ -60,7 +60,7 @@ export function buildCommunityRoutine(
 
 export async function getPublishedRoutines(): Promise<readonly CommunityRoutine[]> {
   try {
-    const raw = await AsyncStorage.getItem(PUBLISHED_KEY);
+    const raw = await encryptedStorage.getItem(PUBLISHED_KEY);
     if (!raw) return [];
     const parsed = JSON.parse(raw) as unknown;
     return Array.isArray(parsed) ? (parsed as CommunityRoutine[]) : [];
@@ -83,10 +83,10 @@ export async function publishDailyRoutine(
   const existing = await getPublishedRoutines();
   const deduped = existing.filter((r) => r.id !== routine.id);
   const next = [routine, ...deduped];
-  await AsyncStorage.setItem(PUBLISHED_KEY, JSON.stringify(next));
+  await encryptedStorage.setItem(PUBLISHED_KEY, JSON.stringify(next));
   return routine;
 }
 
 export async function clearPublishedRoutines(): Promise<void> {
-  await AsyncStorage.removeItem(PUBLISHED_KEY);
+  await encryptedStorage.removeItem(PUBLISHED_KEY);
 }
