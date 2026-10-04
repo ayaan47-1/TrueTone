@@ -2,6 +2,7 @@ import { View, Text, Pressable } from 'react-native';
 import { supabase } from '../../lib/supabase';
 import { clearDiary } from '../diary/diary-storage';
 import { clearAllRoutines } from '../routine/routine-storage';
+import { orderHistory } from '../checkout/order-history-store';
 import { clearPublishedRoutines } from '../routine/routine-publish';
 import { Screen, GlassCard, Display, Eyebrow, Body, Caption } from '../../components/ui';
 
@@ -26,7 +27,8 @@ export function DataRights({ onChanged, confirm }: Props) {
     if (fn === 'delete_my_data' || fn === 'delete_account') {
       try {
         // On-device data the server never sees: the skin-feel diary and the daily-routine
-        // tracker + its locally published Community routines. All wiped so deletion is complete.
+        // tracker + its locally published Community routines + the in-memory order history. All wiped so deletion is complete.
+        orderHistory.clear();
         await clearDiary();
         await clearAllRoutines();
         await clearPublishedRoutines();

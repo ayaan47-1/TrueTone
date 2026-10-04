@@ -1,5 +1,5 @@
-import type { ReactNode } from 'react';
-import { View, ScrollView, type ViewStyle, type StyleProp } from 'react-native';
+import type { ReactElement, ReactNode } from 'react';
+import { View, ScrollView, type RefreshControlProps, type ViewStyle, type StyleProp } from 'react-native';
 import { MistBackground } from './MistBackground';
 import { useInsets } from './use-insets';
 
@@ -19,6 +19,10 @@ interface ScreenProps {
   maxWidth?: number;
   /** Extra container styles. Avoid setting paddingTop/Bottom here — use the gap props. */
   contentStyle?: StyleProp<ViewStyle>;
+  /** Pull-to-refresh control for the scroll view (scroll screens only). */
+  refreshControl?: ReactElement<RefreshControlProps>;
+  /** testID for the scroll view (scroll screens only). */
+  scrollTestID?: string;
 }
 
 const DEFAULT_MAX_WIDTH = 560;
@@ -48,6 +52,8 @@ export function Screen({
   bottomGap = 0,
   maxWidth = DEFAULT_MAX_WIDTH,
   contentStyle,
+  refreshControl,
+  scrollTestID,
 }: ScreenProps) {
   const insets = useInsets();
   const paddingTop = ((edges?.top ?? true) ? insets.top : 0) + topGap;
@@ -69,6 +75,8 @@ export function Screen({
           contentContainerStyle={[{ paddingTop, paddingBottom, flexGrow: 1 }, contentStyle]}
           showsVerticalScrollIndicator={false}
           keyboardShouldPersistTaps="handled"
+          refreshControl={refreshControl}
+          testID={scrollTestID}
         >
           {column}
         </ScrollView>

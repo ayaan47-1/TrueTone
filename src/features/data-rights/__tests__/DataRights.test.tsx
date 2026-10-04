@@ -38,3 +38,11 @@ test('a cancelled confirm clears nothing', async () => {
   expect(mockRpc).not.toHaveBeenCalled();
   expect(mockClearDiary).not.toHaveBeenCalled();
 });
+
+test('deleting data also clears the on-device order history used for routine suggestions', async () => {
+  const { orderHistory } = jest.requireActual('../../checkout/order-history-store');
+  orderHistory.record(['p1']);
+  const { getByTestId } = await render(<DataRights onChanged={jest.fn()} confirm={async () => true} />);
+  await fireEvent.press(getByTestId('delete-data'));
+  await waitFor(() => expect(orderHistory.purchasedIds()).toEqual([]));
+});

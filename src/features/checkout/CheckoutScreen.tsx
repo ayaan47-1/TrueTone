@@ -21,6 +21,7 @@ import {
 } from '../../components/ui';
 import { bag, useBag, bagCount, bagSubtotal, type BagState } from './bag-store';
 import { Field } from './Field';
+import { orderHistory } from './order-history-store';
 
 /** A short human-readable pseudo order number (display only — not a real order). */
 function makeOrderNumber(): string {
@@ -73,6 +74,7 @@ export function CheckoutScreen() {
 
       // Success
       setPlaced({ orderNo: makeOrderNumber(), total: bagSubtotal(state), items: bagCount(state) });
+      orderHistory.record(state.lines.map((l) => l.product.id));
       bag.clear();
     } catch (e) {
       Alert.alert('Payment Error', e instanceof Error ? e.message : 'Something went wrong');

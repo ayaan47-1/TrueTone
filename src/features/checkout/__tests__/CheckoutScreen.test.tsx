@@ -3,6 +3,7 @@ import { CheckoutScreen } from '../CheckoutScreen';
 import { useStripe } from '@stripe/stripe-react-native';
 import { supabase } from '../../../lib/supabase';
 import { bag } from '../bag-store';
+import { orderHistory } from '../order-history-store';
 
 jest.mock('@stripe/stripe-react-native', () => ({
   useStripe: jest.fn(),
@@ -27,6 +28,7 @@ describe('CheckoutScreen', () => {
   beforeEach(() => {
     jest.clearAllMocks();
     bag.clear();
+    orderHistory.clear();
     (useStripe as jest.Mock).mockReturnValue({
       initPaymentSheet: mockInitPaymentSheet,
       presentPaymentSheet: mockPresentPaymentSheet,
@@ -66,5 +68,22 @@ describe('CheckoutScreen', () => {
     
     // Should show confirmation
     expect(view.getByText('Order placed')).toBeTruthy();
+  });
+
+  it('records the purchased products in on-device order history (for routine suggestions)', async () => {
+    bag.add({ id: 'prod1', name: 'Test Product', price: 10 } as any);
+    const view = await render(<CheckoutScreen />);
+    fireEvent.press(view.getByTestId('place-order'));
+    await waitFor(() => expect(view.getByText('Order placed')).toBeTruthy());
+    expect(orderHistory.purchasedIds()).toEqual(['prod1']);
+  });
+
+  it('does not record anything when the payment sheet is canceled', async () => {
+    mockPresentPaymentSheet.mockResolvedValue({ error: { code: 'Canceled', message: 'x' } });
+    bag.add({ id: 'prod1', name: 'Test Product', price: 10 } as any);
+    const view = await render(<CheckoutScreen />);
+    fireEvent.press(view.getByTestId('place-order'));
+    await waitFor(() => expect(mockPresentPaymentSheet).toHaveBeenCalled());
+    expect(orderHistory.purchasedIds()).toEqual([]);
   });
 });
