@@ -7,7 +7,7 @@ To provision a fresh or repurposed Supabase project (like `tskbebqnlginnjhxpsnp`
 1. **Auth:** Enable Anonymous Sign-ins in the Supabase Dashboard.
 2. **Schema:** Apply the base schema (profiles, consent, etc.) via the SQL editor (using an idempotent consolidation of `0001` through `0006`).
 3. **Secrets & Functions:** Set `STRIPE_SECRET_KEY`, `EXPO_PUBLIC_STRIPE_PUBLISHABLE_KEY`, and `STRIPE_WEBHOOK_SECRET` via `supabase secrets set`. Then deploy the edge functions: `create-payment-intent` and `stripe-webhook` (using `--no-verify-jwt` for the webhook).
-4. **Grants:** Ensure the orders table has the proper `GRANT SELECT, INSERT ON public.orders TO authenticated;` (now included in `0020_orders.sql`).
+4. **Grants:** Clients are read-only on `orders` (`SELECT` own rows). Since `0025_orders_insert_lock.sql`, only `service_role` writes it: `create-payment-intent` inserts the `pending` row and `stripe-webhook` sets `succeeded`/`failed`. The function needs `SUPABASE_SERVICE_ROLE_KEY` set.
 
 *Note:* ONE remaining open item: the Stripe webhook endpoint in the Stripe Dashboard still needs re-pointing to `https://tskbebqnlginnjhxpsnp.supabase.co/functions/v1/stripe-webhook` (with a matching `whsec_` secret updated) or orders will stay 'pending' and never flip to 'paid'.
 
