@@ -69,3 +69,14 @@ test('deleting data wipes every encrypted on-device store and destroys the data 
   expect(await AsyncStorage.getItem('truetone.community-profile.v1.u1')).toBeNull();
   expect(await AsyncStorage.getItem('age-gate:verified:u1')).toBeNull();
 });
+
+test('a failed order-history wipe does not stop the rest of delete-everything', async () => {
+  const { orderHistory } = jest.requireActual('../../checkout/order-history-store');
+  const spy = jest.spyOn(orderHistory, 'clear').mockRejectedValueOnce(new Error('locked'));
+  await encryptedStorage.setItem('age-gate:verified:u1', '{"userId":"u1"}');
+  const { getByTestId } = await render(<DataRights onChanged={jest.fn()} confirm={async () => true} />);
+  await fireEvent.press(getByTestId('delete-data'));
+  await waitFor(() => expect(mockClearDiary).toHaveBeenCalled());
+  await waitFor(async () => expect(await SecureStore.getItemAsync(ENCRYPTION_KEY_NAME)).toBeNull());
+  spy.mockRestore();
+});

@@ -26,18 +26,14 @@ export function DataRights({ onChanged, confirm }: Props) {
     // it: the server delete already succeeded, so still refresh even if the local
     // wipe throws.
     if (fn === 'delete_my_data' || fn === 'delete_account') {
-      try {
-        // On-device data the server never sees: the skin-feel diary and the daily-routine
-        // tracker + its locally published Community routines + the on-device order history. All wiped so deletion is complete.
-        await orderHistory.clear();
-        await clearDiary();
-        await clearAllRoutines();
-        await clearPublishedRoutines();
-        // Then the rest of the encrypted local data (community profile, age-gate record) and the
-        // data key itself, so any copy that escaped deletion can no longer be decrypted.
-        await wipeEncryptedLocalData();
-      } catch {
-        // local wipe failed — server data is already gone; surface nothing.
+      // On-device data the server never sees: the skin-feel diary and the daily-routine
+      // tracker + its locally published Community routines + the on-device order history, then
+      // the rest of the encrypted local data (community profile, age-gate record) and the data
+      // key itself, so any copy that escaped deletion can no longer be decrypted. Each step runs
+      // even if an earlier one fails; the server data is already gone, so surface nothing.
+      const wipes = [() => orderHistory.clear(), clearDiary, clearAllRoutines, clearPublishedRoutines, wipeEncryptedLocalData];
+      for (const wipe of wipes) {
+        await wipe().catch(() => undefined);
       }
     }
     onChanged();

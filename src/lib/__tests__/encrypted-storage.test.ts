@@ -131,3 +131,83 @@ test('wipeEncryptedLocalData removes every managed key and destroys the data key
   await encryptedStorage.setItem('truetone.diary.v1', 'again');
   expect(await encryptedStorage.getItem('truetone.diary.v1')).toBe('again');
 });
+
+describe('races and recovery (review fixes)', () => {
+  test('a write started before a wipe cannot land after it (no resurrected data)', async () => {
+    await encryptedStorage.setItem(KEY, 'old');
+    __resetKeyCacheForTests();
+    const write = encryptedStorage.setItem(KEY, 'late');
+    const wipe = wipeEncryptedLocalData();
+    await Promise.all([write, wipe]);
+    expect(await AsyncStorage.getItem(KEY)).toBeNull();
+    expect(await SecureStore.getItemAsync(ENCRYPTION_KEY_NAME)).toBeNull();
+  });
+
+  test('a key being created during a wipe does not survive the wipe', async () => {
+    const write = encryptedStorage.setItem(KEY, 'first');
+    await wipeEncryptedLocalData();
+    await write;
+    expect(await SecureStore.getItemAsync(ENCRYPTION_KEY_NAME)).toBeNull();
+    expect(await AsyncStorage.getItem(KEY)).toBeNull();
+  });
+
+  test('migration never overwrites a newer encrypted write with stale plaintext', async () => {
+    await AsyncStorage.setItem(KEY, '{"stale":true}');
+    const realMultiGet = AsyncStorage.multiGet;
+    jest.spyOn(AsyncStorage, 'multiGet').mockImplementationOnce(async (keys) => {
+      const snapshot = await realMultiGet(keys);
+      await encryptedStorage.setItem(KEY, '{"fresh":true}'); // a store writes mid-migration
+      return snapshot;
+    });
+    await migrateLegacyPlaintext();
+    expect(await encryptedStorage.getItem(KEY)).toBe('{"fresh":true}');
+  });
+
+  test('one key failing to migrate does not stop the others', async () => {
+    await AsyncStorage.multiSet([
+      ['truetone.diary.v1', '{"a":1}'],
+      ['truetone.orderHistory.v1', '["p1"]'],
+    ]);
+    // The async-storage mock's methods are already jest.fn()s: swap the implementation and put
+    // the original back (mockRestore would erase it for every later test).
+    const setItem = AsyncStorage.setItem as jest.Mock;
+    const original = setItem.getMockImplementation()!;
+    setItem.mockImplementation(async (k: string, v: string) => {
+      if (k === 'truetone.diary.v1') throw new Error('io');
+      return original(k, v);
+    });
+    try {
+      await migrateLegacyPlaintext();
+    } finally {
+      setItem.mockImplementation(original);
+    }
+    expect((await AsyncStorage.getItem('truetone.orderHistory.v1'))!.startsWith('enc1:')).toBe(true);
+  });
+
+  test('ciphertext orphaned by a lost data key is dropped (with a warning) before a new key is made', async () => {
+    await encryptedStorage.setItem('truetone.orderHistory.v1', '["p1"]');
+    await SecureStore.deleteItemAsync(ENCRYPTION_KEY_NAME);
+    __resetKeyCacheForTests();
+    const warn = jest.spyOn(console, 'warn').mockImplementation(() => {});
+    await encryptedStorage.setItem(KEY, 'new');
+    expect(warn).toHaveBeenCalledWith(expect.stringContaining('data key missing'));
+    warn.mockRestore();
+    expect(await AsyncStorage.getItem('truetone.orderHistory.v1')).toBeNull();
+    expect(await encryptedStorage.getItem(KEY)).toBe('new');
+  });
+
+  test('an unusable stored key is treated as lost, not silently reused', async () => {
+    await SecureStore.setItemAsync(ENCRYPTION_KEY_NAME, 'not-hex');
+    jest.spyOn(console, 'warn').mockImplementationOnce(() => {});
+    await encryptedStorage.setItem(KEY, 'v');
+    __resetKeyCacheForTests();
+    expect(await encryptedStorage.getItem(KEY)).toBe('v');
+  });
+
+  test('wipe still destroys the data key when removing values fails', async () => {
+    await encryptedStorage.setItem(KEY, 'v');
+    jest.spyOn(AsyncStorage, 'multiRemove').mockRejectedValueOnce(new Error('io'));
+    await expect(wipeEncryptedLocalData()).rejects.toThrow('io');
+    expect(await SecureStore.getItemAsync(ENCRYPTION_KEY_NAME)).toBeNull();
+  });
+});
