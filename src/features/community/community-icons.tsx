@@ -3,7 +3,7 @@
 // matching the app's existing icon convention (src/components/ui/tab-icons.tsx) --
 // no icon library, no image assets. Kept local to this feature rather than added to
 // the shared tab-icons file, which is Commerce-owned tab-bar territory.
-import { View } from 'react-native';
+import { Text, View } from 'react-native';
 
 export interface CommunityGlyphProps {
   color: string;
@@ -12,35 +12,21 @@ export interface CommunityGlyphProps {
   filled?: boolean;
 }
 
+// The like control is a heart, and only a heart. Unicode hearts with the text
+// variation selector (U+FE0E) so iOS draws a tintable glyph, not a coloured emoji.
+const HEART_OUTLINE = '\u2661\uFE0E';
+const HEART_FILLED = '\u2665\uFE0E';
+
 export function HeartGlyph({ color, size = 20, filled = false }: CommunityGlyphProps) {
-  const half = size / 2;
   return (
-    <View style={{ width: size, height: size, flexDirection: 'row', justifyContent: 'center' }}>
-      <View
-        style={{
-          width: half,
-          height: half,
-          borderRadius: half,
-          backgroundColor: filled ? color : 'transparent',
-          borderWidth: filled ? 0 : 2,
-          borderColor: color,
-          marginRight: -half * 0.35,
-          transform: [{ rotate: '-45deg' }],
-        }}
-      />
-      <View
-        style={{
-          width: half,
-          height: half,
-          borderRadius: half,
-          backgroundColor: filled ? color : 'transparent',
-          borderWidth: filled ? 0 : 2,
-          borderColor: color,
-          marginLeft: -half * 0.35,
-          transform: [{ rotate: '45deg' }],
-        }}
-      />
-    </View>
+    <Text
+      testID="heart-glyph"
+      accessible={false}
+      allowFontScaling={false}
+      style={{ color, fontSize: size, lineHeight: size * 1.15, width: size, textAlign: 'center', includeFontPadding: false, textAlignVertical: 'center' }}
+    >
+      {filled ? HEART_FILLED : HEART_OUTLINE}
+    </Text>
   );
 }
 

@@ -26,6 +26,7 @@ export function EngagementBar({ engagement, onToggleLike, onToggleSave, onShare,
         testID="engagement-like"
         accessibilityRole="button"
         accessibilityLabel={engagement.liked ? 'Unlike' : 'Like'}
+        accessibilityHint={engagement.liked ? 'Removes your heart from this post' : 'Adds a heart to this post'}
         onPress={onToggleLike}
         hitSlop={8}
         className="min-w-[44px] min-h-[44px] justify-center"
