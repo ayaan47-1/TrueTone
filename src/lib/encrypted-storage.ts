@@ -1,8 +1,11 @@
 // src/lib/encrypted-storage.ts
 // Encrypted-at-rest wrapper over AsyncStorage for on-device user data (CLAUDE.md §1 "encrypt at
-// rest"). Values are sealed with AES-256-GCM (@noble/ciphers, audited) under one random 256-bit
-// data key held in the OS keychain/keystore via expo-secure-store (device-only, no backup sync).
+// rest"). Values are sealed with AES-256-GCM (@noble/ciphers, audited) under separate random
+// 256-bit data keys held in the OS keychain/keystore via expo-secure-store (device-only, no backup
+// sync).
 // The ciphertext stays in AsyncStorage because SecureStore values are size-limited (~2 KB on iOS).
+// Personal data and Supabase auth use separate keys so deleting personal data can preserve the
+// account session, while account deletion can crypto-erase both.
 //
 // Reads never throw on bad data: a corrupt, tampered or undecryptable value reads as null (safe
 // empty). A keychain READ failure (e.g. device locked) does reject, so callers can treat it as
@@ -15,13 +18,13 @@ import { gcm } from '@noble/ciphers/aes';
 import { bytesToHex, hexToBytes, utf8ToBytes, bytesToUtf8 } from '@noble/ciphers/utils';
 
 export const ENCRYPTION_KEY_NAME = 'truetone.localDataKey.v1';
+export const AUTH_SESSION_ENCRYPTION_KEY_NAME = 'truetone.authSessionKey.v1';
 const ENVELOPE = 'enc1:';
 const NONCE_BYTES = 12;
 const KEY_BYTES = 32;
 const SECURE_OPTS = { keychainAccessible: SecureStore.WHEN_UNLOCKED_THIS_DEVICE_ONLY };
 
-/** Key prefixes of the on-device stores this module protects (migration + wipe scope). */
-export const MANAGED_KEY_PREFIXES: readonly string[] = [
+const USER_DATA_KEY_PREFIXES: readonly string[] = [
   'truetone.diary.',
   'truetone.routine.',
   'truetone.community.published.',
@@ -29,10 +32,20 @@ export const MANAGED_KEY_PREFIXES: readonly string[] = [
   'truetone.orderHistory.',
   'age-gate:verified:',
 ];
+const AUTH_SESSION_KEY_PREFIX = 'sb-';
+
+/** Key prefixes of the on-device stores this module protects (migration + wipe scope). */
+export const MANAGED_KEY_PREFIXES: readonly string[] = [
+  ...USER_DATA_KEY_PREFIXES,
+  AUTH_SESSION_KEY_PREFIX,
+];
 
 const isManagedKey = (key: string): boolean => MANAGED_KEY_PREFIXES.some((p) => key.startsWith(p));
+const isUserDataKey = (key: string): boolean => USER_DATA_KEY_PREFIXES.some((p) => key.startsWith(p));
+const isAuthSessionKey = (key: string): boolean => key.startsWith(AUTH_SESSION_KEY_PREFIX);
 
-let cachedKey: Uint8Array | null = null;
+let cachedUserDataKey: Uint8Array | null = null;
+let cachedAuthSessionKey: Uint8Array | null = null;
 
 // Every mutation (write, remove, migration, wipe) runs one at a time, in call order. That makes a
 // wipe atomic: a write queued before it lands first and is then wiped, and none can land after it
@@ -46,7 +59,21 @@ function exclusive<T>(fn: () => Promise<T>): Promise<T> {
 
 /** Test hook: forget the cached data key so the next call re-reads SecureStore. */
 export function __resetKeyCacheForTests(): void {
-  cachedKey = null;
+  cachedUserDataKey = null;
+  cachedAuthSessionKey = null;
+}
+
+function secureKeyName(storageKey: string): string {
+  return isAuthSessionKey(storageKey) ? AUTH_SESSION_ENCRYPTION_KEY_NAME : ENCRYPTION_KEY_NAME;
+}
+
+function cachedKey(storageKey: string): Uint8Array | null {
+  return isAuthSessionKey(storageKey) ? cachedAuthSessionKey : cachedUserDataKey;
+}
+
+function cacheKey(storageKey: string, key: Uint8Array | null): void {
+  if (isAuthSessionKey(storageKey)) cachedAuthSessionKey = key;
+  else cachedUserDataKey = key;
 }
 
 function parseKey(stored: string): Uint8Array | null {
@@ -59,11 +86,12 @@ function parseKey(stored: string): Uint8Array | null {
 }
 
 /** The existing data key, or null if none/unusable. Rejects if the keychain can't be read. */
-async function readKey(): Promise<Uint8Array | null> {
-  if (cachedKey) return cachedKey;
-  const stored = await SecureStore.getItemAsync(ENCRYPTION_KEY_NAME, SECURE_OPTS);
+async function readKey(storageKey: string): Promise<Uint8Array | null> {
+  const cached = cachedKey(storageKey);
+  if (cached) return cached;
+  const stored = await SecureStore.getItemAsync(secureKeyName(storageKey), SECURE_OPTS);
   const key = stored ? parseKey(stored) : null;
-  if (key) cachedKey = key;
+  if (key) cacheKey(storageKey, key);
   return key;
 }
 
@@ -71,8 +99,11 @@ async function readKey(): Promise<Uint8Array | null> {
  * Values sealed under a data key that no longer exists (keychain reset, restore onto another
  * device) can never be opened again. Drop them loudly rather than leave them to read as empty.
  */
-async function dropOrphanedCiphertext(): Promise<void> {
-  const keys = (await AsyncStorage.getAllKeys()).filter(isManagedKey);
+async function dropOrphanedCiphertext(storageKey: string): Promise<void> {
+  const authSession = isAuthSessionKey(storageKey);
+  const keys = (await AsyncStorage.getAllKeys()).filter(
+    (key) => isManagedKey(key) && isAuthSessionKey(key) === authSession,
+  );
   const pairs = keys.length > 0 ? await AsyncStorage.multiGet(keys) : [];
   const orphaned = pairs.filter(([, v]) => v?.startsWith(ENVELOPE)).map(([k]) => k);
   if (orphaned.length === 0) return;
@@ -81,15 +112,16 @@ async function dropOrphanedCiphertext(): Promise<void> {
 }
 
 /** The data key, created on first write. Call only inside `exclusive`. */
-async function ensureKey(): Promise<Uint8Array> {
-  const existing = await readKey();
+async function ensureKey(storageKey: string): Promise<Uint8Array> {
+  const existing = await readKey(storageKey);
   if (existing) return existing;
-  const stored = await SecureStore.getItemAsync(ENCRYPTION_KEY_NAME, SECURE_OPTS);
+  const keyName = secureKeyName(storageKey);
+  const stored = await SecureStore.getItemAsync(keyName, SECURE_OPTS);
   if (stored) console.warn('[encryptedStorage] stored data key is unusable; replacing it');
-  await dropOrphanedCiphertext();
+  await dropOrphanedCiphertext(storageKey);
   const fresh = getRandomBytes(KEY_BYTES);
-  await SecureStore.setItemAsync(ENCRYPTION_KEY_NAME, bytesToHex(fresh), SECURE_OPTS);
-  cachedKey = fresh;
+  await SecureStore.setItemAsync(keyName, bytesToHex(fresh), SECURE_OPTS);
+  cacheKey(storageKey, fresh);
   return fresh;
 }
 
@@ -113,7 +145,7 @@ function open(key: Uint8Array, storageKey: string, envelope: string): string | n
 
 /** Seal and store. Call only inside `exclusive`. */
 async function writeSealed(storageKey: string, value: string): Promise<void> {
-  const key = await ensureKey();
+  const key = await ensureKey(storageKey);
   await AsyncStorage.setItem(storageKey, seal(key, storageKey, value));
 }
 
@@ -134,7 +166,7 @@ async function getItem(storageKey: string): Promise<string | null> {
     );
     return raw;
   }
-  const key = await readKey();
+  const key = await readKey(storageKey);
   return key ? open(key, storageKey, raw) : null;
 }
 
@@ -166,19 +198,33 @@ export async function migrateLegacyPlaintext(): Promise<void> {
   }
 }
 
+type WipeEncryptedLocalDataOptions = {
+  /** Account deletion only. Data deletion keeps the auth session because the account remains. */
+  includeAuthSession?: boolean;
+};
+
 /**
- * Delete-everything: remove every managed on-device value and destroy the data key, so any copy
- * that escaped deletion (e.g. an old backup of AsyncStorage) can no longer be decrypted. The key
- * is destroyed even if removing the values fails; that failure is still reported.
+ * Delete encrypted user data and destroy its data key. Auth entries use a separate key so the
+ * default delete-my-data wipe preserves the signed-in account. Account deletion opts in to
+ * removing auth entries and destroying that key too. Keys are destroyed even if value removal
+ * fails; that failure is still reported.
  */
-export function wipeEncryptedLocalData(): Promise<void> {
+export function wipeEncryptedLocalData(
+  { includeAuthSession = false }: WipeEncryptedLocalDataOptions = {},
+): Promise<void> {
   return exclusive(async () => {
     try {
-      const keys = (await AsyncStorage.getAllKeys()).filter(isManagedKey);
+      const keys = (await AsyncStorage.getAllKeys()).filter(
+        (key) => isUserDataKey(key) || (includeAuthSession && isAuthSessionKey(key)),
+      );
       if (keys.length > 0) await AsyncStorage.multiRemove(keys);
     } finally {
-      cachedKey = null;
-      await SecureStore.deleteItemAsync(ENCRYPTION_KEY_NAME, SECURE_OPTS);
+      cachedUserDataKey = null;
+      if (includeAuthSession) cachedAuthSessionKey = null;
+      const keyNames = includeAuthSession
+        ? [ENCRYPTION_KEY_NAME, AUTH_SESSION_ENCRYPTION_KEY_NAME]
+        : [ENCRYPTION_KEY_NAME];
+      await Promise.all(keyNames.map((keyName) => SecureStore.deleteItemAsync(keyName, SECURE_OPTS)));
     }
   });
 }

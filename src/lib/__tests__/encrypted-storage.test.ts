@@ -5,6 +5,7 @@ import {
   migrateLegacyPlaintext,
   wipeEncryptedLocalData,
   ENCRYPTION_KEY_NAME,
+  AUTH_SESSION_ENCRYPTION_KEY_NAME,
   __resetKeyCacheForTests,
 } from '../encrypted-storage';
 
@@ -55,7 +56,7 @@ test('legacy plaintext is returned and re-written encrypted on first read', asyn
   expect(await encryptedStorage.getItem(KEY)).toBe('{"2026-10-01":"calm"}');
 });
 
-test('migrateLegacyPlaintext encrypts every managed plaintext key and skips others', async () => {
+test('migrateLegacyPlaintext encrypts every managed plaintext key, including auth, and skips others', async () => {
   await AsyncStorage.multiSet([
     ['truetone.diary.v1', '{"a":1}'],
     ['truetone.routine.u1.v1', '{"b":2}'],
@@ -64,14 +65,16 @@ test('migrateLegacyPlaintext encrypts every managed plaintext key and skips othe
     ['truetone.orderHistory.v1', '["p1"]'],
     ['age-gate:verified:u1', '{"userId":"u1"}'],
     ['sb-auth-token', 'leave-me'],
+    ['unmanaged-key', 'leave-me-plain'],
   ]);
   await migrateLegacyPlaintext();
   const all = Object.fromEntries(await AsyncStorage.multiGet(await AsyncStorage.getAllKeys()));
   for (const k of Object.keys(all)) {
-    if (k === 'sb-auth-token') expect(all[k]).toBe('leave-me');
+    if (k === 'unmanaged-key') expect(all[k]).toBe('leave-me-plain');
     else expect(all[k]!.startsWith('enc1:')).toBe(true);
   }
   expect(await encryptedStorage.getItem('truetone.orderHistory.v1')).toBe('["p1"]');
+  expect(await encryptedStorage.getItem('sb-auth-token')).toBe('leave-me');
 });
 
 test('migrateLegacyPlaintext never throws when storage fails', async () => {
@@ -119,7 +122,7 @@ test('getAllKeys / removeItem / multiRemove pass through', async () => {
   expect(await encryptedStorage.getAllKeys()).toEqual([]);
 });
 
-test('wipeEncryptedLocalData removes every managed key and destroys the data key', async () => {
+test('default wipe removes every managed personal-data key but preserves auth', async () => {
   await encryptedStorage.setItem('truetone.diary.v1', '{}');
   await encryptedStorage.setItem('truetone.community-profile.v1.u1', '{}');
   await encryptedStorage.setItem('age-gate:verified:u1', '{}');
@@ -130,6 +133,32 @@ test('wipeEncryptedLocalData removes every managed key and destroys the data key
   // A fresh write after the wipe works with a new key.
   await encryptedStorage.setItem('truetone.diary.v1', 'again');
   expect(await encryptedStorage.getItem('truetone.diary.v1')).toBe('again');
+});
+
+test('default wipe preserves the independently encrypted Supabase auth session', async () => {
+  const authKey = 'sb-project-auth-token';
+  await encryptedStorage.setItem(KEY, 'personal');
+  await encryptedStorage.setItem(authKey, 'session');
+
+  await wipeEncryptedLocalData();
+
+  expect(await encryptedStorage.getItem(KEY)).toBeNull();
+  expect(await encryptedStorage.getItem(authKey)).toBe('session');
+  expect(await SecureStore.getItemAsync(ENCRYPTION_KEY_NAME)).toBeNull();
+  expect(await SecureStore.getItemAsync(AUTH_SESSION_ENCRYPTION_KEY_NAME)).not.toBeNull();
+});
+
+test('account wipe removes the Supabase auth session and both encryption keys', async () => {
+  const authKey = 'sb-project-auth-token';
+  await encryptedStorage.setItem(KEY, 'personal');
+  await encryptedStorage.setItem(authKey, 'session');
+
+  await wipeEncryptedLocalData({ includeAuthSession: true });
+
+  expect(await encryptedStorage.getItem(KEY)).toBeNull();
+  expect(await encryptedStorage.getItem(authKey)).toBeNull();
+  expect(await SecureStore.getItemAsync(ENCRYPTION_KEY_NAME)).toBeNull();
+  expect(await SecureStore.getItemAsync(AUTH_SESSION_ENCRYPTION_KEY_NAME)).toBeNull();
 });
 
 describe('races and recovery (review fixes)', () => {

@@ -3,6 +3,10 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 import * as SecureStore from 'expo-secure-store';
 import { DataRights } from '../DataRights';
 import { encryptedStorage, ENCRYPTION_KEY_NAME } from '../../../lib/encrypted-storage';
+import { supabaseAuthStorage } from '../../../lib/supabase-auth-storage';
+
+const AUTH_KEY = 'sb-project-auth-token';
+const SESSION = JSON.stringify({ access_token: 'access', refresh_token: 'refresh' });
 const mockRpc = jest.fn().mockResolvedValue({ error: null });
 const mockSignOut = jest.fn().mockResolvedValue({ error: null });
 jest.mock('../../../lib/supabase', () => ({
@@ -96,12 +100,25 @@ test('deleting the account signs out locally before refreshing (the deleted user
 });
 
 test('withdrawing consent or deleting data keeps the session', async () => {
+  await supabaseAuthStorage.setItem(AUTH_KEY, SESSION);
   const onChanged = jest.fn();
   const { getByTestId } = await render(<DataRights onChanged={onChanged} confirm={async () => true} />);
   await fireEvent.press(getByTestId('withdraw'));
   await fireEvent.press(getByTestId('delete-data'));
   await waitFor(() => expect(onChanged).toHaveBeenCalledTimes(2));
   expect(mockSignOut).not.toHaveBeenCalled();
+  expect(await supabaseAuthStorage.getItem(AUTH_KEY)).toBe(SESSION);
+});
+
+test('deleting the account wipes the encrypted auth session even if sign-out does not', async () => {
+  await supabaseAuthStorage.setItem(AUTH_KEY, SESSION);
+  const onChanged = jest.fn();
+  const { getByTestId } = await render(<DataRights onChanged={onChanged} confirm={async () => true} />);
+
+  await fireEvent.press(getByTestId('delete-account'));
+
+  await waitFor(() => expect(onChanged).toHaveBeenCalled());
+  expect(await supabaseAuthStorage.getItem(AUTH_KEY)).toBeNull();
 });
 
 test('a failed sign-out after account deletion still wipes on-device data and refreshes', async () => {

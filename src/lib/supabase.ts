@@ -1,6 +1,6 @@
 import 'react-native-url-polyfill/auto';
-import AsyncStorage from '@react-native-async-storage/async-storage';
 import { createClient } from '@supabase/supabase-js';
+import { supabaseAuthStorage } from './supabase-auth-storage';
 
 // EXPO_PUBLIC_* vars are inlined by the Expo bundler at build time. Fall back to the
 // local Supabase defaults so the singleton always constructs (e.g. under Jest, where
@@ -43,7 +43,7 @@ export const CAMERA_DEMO = /^(1|true|yes|on)$/i.test(
 
 export const supabase = createClient(url, anonKey, {
   auth: {
-    storage: AsyncStorage,
+    storage: supabaseAuthStorage,
     autoRefreshToken: true,
     persistSession: true,
     detectSessionInUrl: false,
