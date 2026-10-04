@@ -7,6 +7,10 @@ import { SEED_POSTS } from '../community-seed';
 import { findDiseaseTerms } from '../../../lib/cosmetic-filter';
 import * as sample from '../../shop/sample-content';
 
+jest.mock('expo-router', () => ({
+  useRouter: () => ({ push: jest.fn() }),
+}));
+
 const firstPost = SEED_POSTS[0];
 
 test('the community label uses the exact ruled wording', () => {

@@ -4,6 +4,7 @@
 // `app/(tabs)/community.tsx` (Commerce-owned) renders this directly.
 import { useState } from 'react';
 import { View } from 'react-native';
+import { useRouter } from 'expo-router';
 import { Display, PressableScale, Caption, Screen, tabBarClearance, Rise } from '../../components/ui';
 import { SEED_POSTS, SEED_ROUTINES } from './community-seed';
 import { useCommunityFeed } from './use-community-feed';
@@ -20,6 +21,7 @@ const TABS: readonly { key: CommunityTab; label: string }[] = [
 ];
 
 export function CommunityScreen() {
+  const router = useRouter();
   const [activeTab, setActiveTab] = useState<CommunityTab>('feed');
   const [drawerProductIds, setDrawerProductIds] = useState<readonly string[] | null>(null);
   const { engagementFor, toggleLike, toggleSave, registerShare } = useCommunityFeed(SEED_POSTS);
@@ -83,7 +85,14 @@ export function CommunityScreen() {
       </View>
 
       {drawerProductIds ? (
-        <ProductTagDrawer productIds={drawerProductIds} onClose={() => setDrawerProductIds(null)} />
+        <ProductTagDrawer
+          productIds={drawerProductIds}
+          onClose={() => setDrawerProductIds(null)}
+          onOpenProduct={(productId) => {
+            setDrawerProductIds(null);
+            router.push(`/product/${productId}`);
+          }}
+        />
       ) : null}
     </Screen>
   );

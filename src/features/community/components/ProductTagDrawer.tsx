@@ -1,17 +1,19 @@
 // src/features/community/components/ProductTagDrawer.tsx
 // "Shop the look" bottom drawer -- resolves a post/routine's taggedProductIds against the
 // EXISTING shop catalog (src/features/match/product-catalog) rather than a second,
-// Community-only product list. Purely a lookup + display; no cart/checkout wiring here.
+// Community-only product list. Each row opens the product page (app/product/[id]), which
+// owns the add-to-bag action; no cart wiring here.
 import { View } from 'react-native';
-import { GlassSheet, Body, Caption, Subheading } from '../../../components/ui';
+import { GlassSheet, Body, Caption, PressableScale, Subheading } from '../../../components/ui';
 import { catalog } from '../../match/product-catalog';
 
 interface ProductTagDrawerProps {
   productIds: readonly string[];
   onClose: () => void;
+  onOpenProduct: (productId: string) => void;
 }
 
-export function ProductTagDrawer({ productIds, onClose }: ProductTagDrawerProps) {
+export function ProductTagDrawer({ productIds, onClose, onOpenProduct }: ProductTagDrawerProps) {
   const products = catalog.filter((product) => productIds.includes(product.id));
 
   return (
@@ -22,7 +24,14 @@ export function ProductTagDrawer({ productIds, onClose }: ProductTagDrawerProps)
       ) : (
         <View className="gap-3">
           {products.map((product) => (
-            <View key={product.id} testID={`tagged-product-${product.id}`} className="flex-row items-center gap-3">
+            <PressableScale
+              key={product.id}
+              testID={`tagged-product-${product.id}`}
+              accessibilityRole="button"
+              accessibilityLabel={`View ${product.name}`}
+              onPress={() => onOpenProduct(product.id)}
+              className="flex-row items-center gap-3 min-h-[44px]"
+            >
               <View
                 style={{ width: 36, height: 36, borderRadius: 10, backgroundColor: product.color ?? '#EBE2D3' }}
               />
@@ -31,7 +40,7 @@ export function ProductTagDrawer({ productIds, onClose }: ProductTagDrawerProps)
                 {product.shadeName ? <Caption className="text-ink-soft">{product.shadeName}</Caption> : null}
               </View>
               <Caption className="text-ink font-body-semibold">{`$${product.price}`}</Caption>
-            </View>
+            </PressableScale>
           ))}
         </View>
       )}
