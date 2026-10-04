@@ -6,9 +6,9 @@ import { palette } from '../../theme/tokens';
 import { TodayGlyph, ShopGlyph, CommunityGlyph, YouGlyph, type GlyphProps } from './tab-icons';
 
 /**
- * Route keys for the four tab screens. `shop` is the primary/home destination and sits
+ * Route keys for the four tab screens. `index` is Home, the landing destination, and sits
  * first. The shade-match ("Shade match") scan entry is NOT a tab — it lives as a small
- * icon in the For You header, which pushes the pre-camera privacy gate (`/scan-gate`).
+ * icon in the Home header, which pushes the pre-camera privacy gate (`/scan-gate`).
  */
 export type TabKey = 'shop' | 'index' | 'community' | 'you';
 
@@ -18,11 +18,11 @@ interface TabDef {
   Glyph: (props: GlyphProps) => React.ReactElement;
 }
 
-// Order matches the bar, left→right. Shop leads as the primary/home destination; the
-// former center "Shade match" action has been removed (it now lives in the For You header).
+// Order matches the bar, left→right. Home leads as the landing destination; the
+// former center "Shade match" action has been removed (it now lives in the Home header).
 const TABS: readonly TabDef[] = [
+  { key: 'index', label: 'Home', Glyph: TodayGlyph },
   { key: 'shop', label: 'Shop', Glyph: ShopGlyph },
-  { key: 'index', label: 'For You', Glyph: TodayGlyph },
   { key: 'community', label: 'Community', Glyph: CommunityGlyph },
   { key: 'you', label: 'Account', Glyph: YouGlyph },
 ];
@@ -40,7 +40,7 @@ interface GlassTabBarProps {
 /**
  * Quiet Glass fallback tab bar (iOS < 26, Android, web) — iOS 26+ uses the native Liquid
  * Glass UITabBar instead (see app/(tabs)/_layout.tsx). Floating frosted tab bar for the main app: four evenly-spaced destinations
- * (Shop · For You · Community · Account). Purely presentational — the route adapter in
+ * (Home · Shop · Community · Account). Purely presentational — the route adapter in
  * `app/(tabs)/_layout.tsx` maps React Navigation state onto this API.
  */
 export function GlassTabBar({ activeKey, onSelect }: GlassTabBarProps) {

@@ -4,8 +4,9 @@ import { fitzpatrick, palette } from '../../theme/tokens';
 import { ChevronGlyph } from '../shop/shop-icons';
 
 export interface ShadeTwinsProps {
-  /** Number of other users matched to a similar shade. */
-  count: number;
+  /** Number of other users matched to a similar shade. Omit when there is no real count
+   *  (e.g. the Community tab on seed data) — never show a made-up number. */
+  count?: number;
   /** When present the card is a button (e.g. opens Community) — kit ShadeTwins3. */
   onPress?: () => void;
 }
@@ -28,7 +29,9 @@ export function ShadeTwins({ count, onPress }: ShadeTwinsProps) {
       <View className="flex-1">
         <Body className="text-ink font-semibold">Shade twins</Body>
         <Caption className="text-ink-faint mt-1">
-          {count} {count === 1 ? 'person shares' : 'people share'} your shade match
+          {count === undefined
+            ? 'Connect with people who share your shade — coming soon'
+            : `${count} ${count === 1 ? 'person shares' : 'people share'} your shade match`}
         </Caption>
       </View>
       {onPress ? <ChevronGlyph color={palette.inkMuted} size={8} /> : null}

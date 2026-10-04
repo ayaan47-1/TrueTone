@@ -22,10 +22,13 @@ import {
 import { ProductRail } from '../../src/features/foryou/ProductRail';
 
 /**
- * For You — the app home, matched to the designer's v3 walkthrough (t-01..t-03, t-06):
- * lockup + "Hi, <name>" header with bell and bag, search + sort/filter, the photo hero
- * carousel, four quick actions, photo categories, the shade picks rail, then today's
- * routine and running low (both on sample data, see home-sample-data.ts).
+ * Home — the one home surface (always the first tab and the landing route; every "Back
+ * to Home" replace('/') lands here), matched to the designer's v3 walkthrough
+ * (t-01..t-03, t-06): lockup + "Hi, <name>" header with bell and bag, search +
+ * sort/filter, the photo hero carousel, three quick actions, the photo "Shop" category
+ * row, the "For You" shade picks rail (links to Shop, which ranks by the same shade),
+ * then today's routine and Buy Again (both on sample data, see home-sample-data.ts).
+ * Shade twins lives in the Community tab.
  */
 export default function TodayScreen() {
   const router = useRouter();
@@ -68,7 +71,7 @@ export default function TodayScreen() {
             <QuickActions onGo={go} onSeasonal={() => setSeasonalOpen(true)} />
           </View>
           <View className="mt-[30px]">
-            <SectionHead title="Categories" onAction={() => go('/shop')} />
+            <SectionHead title="Shop" onAction={() => go('/shop')} />
             <Categories onGo={go} />
           </View>
         </Rise>
@@ -76,7 +79,7 @@ export default function TodayScreen() {
         <Rise index={1}>
           <View className="mt-[30px]">
             <ProductRail
-              title={forYouProfile ? 'Picked for your shade' : 'Featured'}
+              title={forYouProfile ? 'For You' : 'Featured'}
               subtitle={
                 forYouProfile
                   ? `Ranked for ${currentShade?.shadeName ?? 'your shade'}`
@@ -85,6 +88,7 @@ export default function TodayScreen() {
               products={picks}
               profile={forYouProfile ?? undefined}
               onSeeAll={() => go('/shop')}
+              seeAllLabel={forYouProfile ? 'Shop' : undefined}
             />
           </View>
         </Rise>

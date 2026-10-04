@@ -71,3 +71,10 @@ test('screen title matches the Account/Shop title: default Display size, left-al
   expect(String(title.props.className ?? '').match(/text-\[\d+px\]/g)).toEqual(['text-[30px]']);
   expect(String(header.props.className ?? '')).not.toMatch(/items-center/);
 });
+
+test('Shade twins lives here (moved from Home), with no made-up member count', async () => {
+  const view = await render(<CommunityScreen />);
+  expect(view.getByText('Shade twins')).toBeTruthy();
+  expect(view.getByText(/coming soon/)).toBeTruthy();
+  expect(view.queryByText(/\d+ (people share|person shares)/)).toBeNull();
+});

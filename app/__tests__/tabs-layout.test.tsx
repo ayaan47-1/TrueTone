@@ -1,7 +1,7 @@
 import { render, fireEvent } from '@testing-library/react-native';
 
-// The bottom bar is now four plain tabs (Shop · For You · Community · Account). The
-// shade-match scan entry no longer lives here — it moved to the For You header (see
+// The bottom bar is now four plain tabs (Home · Shop · Community · Account). The
+// shade-match scan entry no longer lives here — it moved to the Home header (see
 // app/__tests__/for-you.test.tsx for the /scan-gate compliance assertion). This test
 // verifies the layout adapts React Navigation state onto the GlassTabBar and routes a
 // tab press to navigation.navigate.
