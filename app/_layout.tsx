@@ -1,5 +1,5 @@
 import '../global.css';
-import { useEffect } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { Stack, useRouter, usePathname } from 'expo-router';
 import { View } from 'react-native';
 import { useFonts } from 'expo-font';
@@ -20,7 +20,7 @@ import { ProfileProvider, useProfile } from '../src/lib/profile-context';
 import type { Route } from '../src/lib/routing-guard';
 import { DEMO_MODE } from '../src/lib/supabase';
 import { migrateLegacyPlaintext } from '../src/lib/encrypted-storage';
-import { MistBackground, GlassCard, Heading, Body } from '../src/components/ui';
+import { MistBackground, GlassCard, Heading, Body, PrimaryButton } from '../src/components/ui';
 import { palette } from '../src/theme/tokens';
 
 // The demo build stubs an already-onboarded identity (profile-context.tsx) and skips the
@@ -50,9 +50,21 @@ function Centered({ children }: { children: React.ReactNode }) {
 }
 
 function Guard() {
-  const { loading, error, route } = useProfile();
+  const { loading, error, route, refresh } = useProfile();
   const router = useRouter();
   const pathname = usePathname();
+  // Single-flight: repeat taps on Try again while a reload runs must not start another one.
+  const retrying = useRef(false);
+  const [isRetrying, setIsRetrying] = useState(false);
+  const retry = () => {
+    if (retrying.current) return;
+    retrying.current = true;
+    setIsRetrying(true);
+    void Promise.resolve(refresh()).finally(() => {
+      retrying.current = false;
+      setIsRetrying(false);
+    });
+  };
 
   // Enforce gates by NAVIGATING, never by rendering <Redirect> instead of <Stack>. Rendering a
   // redirect to a screen that lives inside the (un-rendered) Stack tears the navigator down and
@@ -86,7 +98,8 @@ function Guard() {
     return (
       <Centered>
         <Heading className="mb-2 text-center">Can’t connect</Heading>
-        <Body className="text-center">There’s a connection problem. Pull to retry.</Body>
+        <Body className="mb-4 text-center">There’s a connection problem. Check your connection and try again.</Body>
+        <PrimaryButton label={isRetrying ? 'Retrying…' : 'Try again'} onPress={retry} disabled={isRetrying} />
       </Centered>
     );
   return (

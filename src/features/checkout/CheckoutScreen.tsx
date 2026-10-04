@@ -2,7 +2,7 @@
 // The Stripe checkout for the physical makeup bag.
 // Uses native PaymentSheet via @stripe/stripe-react-native to keep raw card data out of the app.
 // Fallback demo banner is removed; this is a real checkout flow (for physical goods only).
-import { useState } from 'react';
+import { useRef, useState } from 'react';
 import { View, Alert } from 'react-native';
 import { useRouter } from 'expo-router';
 import { useStripe } from '@stripe/stripe-react-native';
@@ -19,7 +19,7 @@ import {
   Eyebrow,
   PrimaryButton,
 } from '../../components/ui';
-import { bag, useBag, bagCount, bagSubtotal, type BagState } from './bag-store';
+import { bag, useBag, bagCount, bagSubtotal, lineKey, type BagState } from './bag-store';
 import { Field } from './Field';
 import { orderHistory } from './order-history-store';
 
@@ -36,12 +36,17 @@ export function CheckoutScreen() {
     null,
   );
   const [loading, setLoading] = useState(false);
+  // State updates land a render late, so a fast second tap would still see loading=false;
+  // the ref blocks it synchronously (each tap creates a PaymentIntent + a pending order).
+  const inFlight = useRef(false);
 
   if (placed) return <Confirmation orderNo={placed.orderNo} onDone={() => router.replace('/')} />;
 
   if (bagCount(state) === 0) return <EmptyBag onBrowse={() => router.replace('/')} />;
 
   const placeOrder = async (): Promise<void> => {
+    if (inFlight.current) return;
+    inFlight.current = true;
     setLoading(true);
     try {
       // 1. Create PaymentIntent via edge function
@@ -79,6 +84,7 @@ export function CheckoutScreen() {
     } catch (e) {
       Alert.alert('Payment Error', e instanceof Error ? e.message : 'Something went wrong');
     } finally {
+      inFlight.current = false;
       setLoading(false);
     }
   };
@@ -114,13 +120,12 @@ export function CheckoutScreen() {
         </GlassCard>
       </View>
 
-      {/* PrimaryButton might not have a 'loading' prop in this custom UI lib, but we'll try. 
-          If not, we can just conditionally render the label or disable it. Let's check PrimaryButton. */}
-      <PrimaryButton 
-        label={loading ? 'Processing...' : 'Pay securely with Stripe'} 
-        fullWidth 
-        onPress={placeOrder} 
-        testID="place-order" 
+      <PrimaryButton
+        label={loading ? 'Processing...' : 'Pay securely with Stripe'}
+        fullWidth
+        disabled={loading}
+        onPress={placeOrder}
+        testID="place-order"
       />
 
       <Caption className="text-center text-ink-faint">
@@ -138,14 +143,14 @@ function OrderSummary({ state }: { state: BagState }) {
       <GlassCard className="gap-3 p-4" flat>
         {state.lines.map((line) => (
           <View
-            key={line.product.id}
+            key={lineKey(line)}
             className="flex-row items-start justify-between gap-3"
-            testID={`summary-${line.product.id}`}
+            testID={`summary-${lineKey(line)}`}
           >
             <View className="flex-1">
               <Body className="text-ink">{line.product.name}</Body>
               <Caption className="text-ink-soft">
-                {line.product.shadeName ? `${line.product.shadeName} · ` : ''}Qty {line.qty}
+                {shadeLabel(line) ? `${shadeLabel(line)} · ` : ''}Qty {line.qty}
               </Caption>
             </View>
             <Body className="text-ink-soft">${line.product.price * line.qty}</Body>
@@ -196,4 +201,9 @@ function EmptyBag({ onBrowse }: { onBrowse: () => void }) {
       <PrimaryButton label="Browse the shop" fullWidth onPress={onBrowse} testID="browse-shop" />
     </Screen>
   );
+}
+
+/** The shade the user picked on the product page, else the product's default shade. */
+function shadeLabel(line: BagState['lines'][number]): string | undefined {
+  return line.shade ?? line.product.shadeName;
 }

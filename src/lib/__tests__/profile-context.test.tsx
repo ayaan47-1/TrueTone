@@ -1,4 +1,4 @@
-import { render, screen, waitFor } from '@testing-library/react-native';
+import { act, render, screen, waitFor } from '@testing-library/react-native';
 import { Text } from 'react-native';
 import { ProfileProvider, useProfile } from '../profile-context';
 import { bootstrapSession } from '../auth';
@@ -157,4 +157,31 @@ describe('CAMERA_DEMO', () => {
     );
     await waitFor(() => expect(screen.getByText(/\|home\|/)).toBeTruthy());
   });
+});
+
+test('a retry after a connection error keeps the error up until the reload settles (no flash of a stale gate)', async () => {
+  mockRegion.mockReturnValue(true);
+  mockBootstrap.mockRejectedValueOnce(new Error('offline'));
+  let refresh: () => Promise<void> = async () => {};
+  function RetryProbe() {
+    const ctx = useProfile();
+    refresh = ctx.refresh;
+    return <Text>{`${ctx.loading}|${ctx.error}|${ctx.route}`}</Text>;
+  }
+  await render(
+    <ProfileProvider>
+      <RetryProbe />
+    </ProfileProvider>
+  );
+  await waitFor(() => expect(screen.getByText('false|true|region-blocked')).toBeTruthy());
+
+  let finish: (uid: string) => void = () => {};
+  mockBootstrap.mockImplementationOnce(() => new Promise<string>((resolve) => { finish = resolve; }));
+  mockProfileRow({ is_18_plus: true, consent_active: true });
+  let pending: Promise<void> = Promise.resolve();
+  await act(async () => { pending = refresh(); });
+  // In flight: still the error screen, never error=false with the stale initial route.
+  expect(screen.getByText('false|true|region-blocked')).toBeTruthy();
+  await act(async () => { finish('u1'); await pending; });
+  await waitFor(() => expect(screen.getByText('false|false|home')).toBeTruthy());
 });

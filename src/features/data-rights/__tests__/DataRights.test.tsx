@@ -4,7 +4,10 @@ import * as SecureStore from 'expo-secure-store';
 import { DataRights } from '../DataRights';
 import { encryptedStorage, ENCRYPTION_KEY_NAME } from '../../../lib/encrypted-storage';
 const mockRpc = jest.fn().mockResolvedValue({ error: null });
-jest.mock('../../../lib/supabase', () => ({ supabase: { rpc: (...a: unknown[]) => mockRpc(...a) } }));
+const mockSignOut = jest.fn().mockResolvedValue({ error: null });
+jest.mock('../../../lib/supabase', () => ({
+  supabase: { rpc: (...a: unknown[]) => mockRpc(...a), auth: { signOut: (...a: unknown[]) => mockSignOut(...a) } },
+}));
 const mockClearDiary = jest.fn(() => Promise.resolve());
 jest.mock('../../diary/diary-storage', () => ({ clearDiary: () => mockClearDiary() }));
 
@@ -79,4 +82,87 @@ test('a failed order-history wipe does not stop the rest of delete-everything', 
   await waitFor(() => expect(mockClearDiary).toHaveBeenCalled());
   await waitFor(async () => expect(await SecureStore.getItemAsync(ENCRYPTION_KEY_NAME)).toBeNull());
   spy.mockRestore();
+});
+
+test('deleting the account signs out locally before refreshing (the deleted user’s token must not be reused)', async () => {
+  const order: string[] = [];
+  mockSignOut.mockImplementationOnce(async () => { order.push('signOut'); return { error: null }; });
+  const onChanged = jest.fn(() => { order.push('onChanged'); });
+  const { getByTestId } = await render(<DataRights onChanged={onChanged} confirm={async () => true} />);
+  await fireEvent.press(getByTestId('delete-account'));
+  await waitFor(() => expect(onChanged).toHaveBeenCalled());
+  expect(mockSignOut).toHaveBeenCalledWith({ scope: 'local' });
+  expect(order).toEqual(['signOut', 'onChanged']);
+});
+
+test('withdrawing consent or deleting data keeps the session', async () => {
+  const onChanged = jest.fn();
+  const { getByTestId } = await render(<DataRights onChanged={onChanged} confirm={async () => true} />);
+  await fireEvent.press(getByTestId('withdraw'));
+  await fireEvent.press(getByTestId('delete-data'));
+  await waitFor(() => expect(onChanged).toHaveBeenCalledTimes(2));
+  expect(mockSignOut).not.toHaveBeenCalled();
+});
+
+test('a failed sign-out after account deletion still wipes on-device data and refreshes', async () => {
+  mockSignOut.mockRejectedValueOnce(new Error('storage unavailable'));
+  const onChanged = jest.fn();
+  const { getByTestId } = await render(<DataRights onChanged={onChanged} confirm={async () => true} />);
+  await fireEvent.press(getByTestId('delete-account'));
+  await waitFor(() => expect(onChanged).toHaveBeenCalled());
+  expect(mockClearDiary).toHaveBeenCalledTimes(1);
+});
+
+test('a failed local wipe still runs the other wipes, reports deletion incomplete and does not report success', async () => {
+  const { orderHistory, ORDER_HISTORY_KEY } = jest.requireActual('../../checkout/order-history-store');
+  await orderHistory.record(['p1']);
+  mockClearDiary.mockRejectedValueOnce(new Error('disk full'));
+  const onChanged = jest.fn();
+  const { getByTestId, findByText } = await render(<DataRights onChanged={onChanged} confirm={async () => true} />);
+  await fireEvent.press(getByTestId('delete-data'));
+  await findByText(/deletion incomplete/i);
+  expect(await AsyncStorage.getItem(ORDER_HISTORY_KEY)).toBeNull();
+  expect(onChanged).not.toHaveBeenCalled();
+});
+
+test('retrying an incomplete deletion re-runs the on-device wipes and reports success once they all clear', async () => {
+  mockClearDiary.mockRejectedValueOnce(new Error('disk full'));
+  const onChanged = jest.fn();
+  const { getByTestId, findByText, queryByText } = await render(<DataRights onChanged={onChanged} confirm={async () => true} />);
+  await fireEvent.press(getByTestId('delete-data'));
+  await findByText(/deletion incomplete/i);
+  expect(mockRpc).toHaveBeenCalledTimes(1);
+  await fireEvent.press(getByTestId('retry-wipe'));
+  await waitFor(() => expect(onChanged).toHaveBeenCalledTimes(1));
+  expect(mockClearDiary).toHaveBeenCalledTimes(2);
+  expect(mockRpc).toHaveBeenCalledTimes(1);
+  expect(queryByText(/deletion incomplete/i)).toBeNull();
+});
+
+test('a rejecting order-history clear is not swallowed as success', async () => {
+  const { orderHistory } = jest.requireActual('../../checkout/order-history-store');
+  const spy = jest.spyOn(orderHistory, 'clear').mockRejectedValueOnce(new Error('io'));
+  const onChanged = jest.fn();
+  const { getByTestId, findByText } = await render(<DataRights onChanged={onChanged} confirm={async () => true} />);
+  await fireEvent.press(getByTestId('delete-account'));
+  await findByText(/deletion incomplete/i);
+  expect(mockClearDiary).toHaveBeenCalledTimes(1);
+  expect(onChanged).not.toHaveBeenCalled();
+  spy.mockRestore();
+});
+
+test('retrying an incomplete deletion is single-flight: a double tap runs the wipes once', async () => {
+  mockClearDiary.mockRejectedValueOnce(new Error('disk full'));
+  const onChanged = jest.fn();
+  const { getByTestId, findByText } = await render(<DataRights onChanged={onChanged} confirm={async () => true} />);
+  await fireEvent.press(getByTestId('delete-data'));
+  await findByText(/deletion incomplete/i);
+  let finish: () => void = () => {};
+  mockClearDiary.mockImplementationOnce(() => new Promise<void>((r) => { finish = r; }));
+  const retry = getByTestId('retry-wipe');
+  fireEvent.press(retry);
+  fireEvent.press(retry);
+  finish();
+  await waitFor(() => expect(onChanged).toHaveBeenCalledTimes(1));
+  expect(mockClearDiary).toHaveBeenCalledTimes(2);
 });

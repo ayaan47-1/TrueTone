@@ -2,6 +2,7 @@ import { serve } from 'https://deno.land/std@0.224.0/http/server.ts';
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2';
 import Stripe from 'https://esm.sh/stripe@14.19.0';
 import { computeOrderTotalCents } from '../_shared/checkout/pricing.ts';
+import { insertPendingOrder } from '../_shared/checkout/pending-order.ts';
 
 serve(async (req) => {
   if (req.method !== 'POST') return new Response('method not allowed', { status: 405 });
@@ -33,6 +34,17 @@ serve(async (req) => {
     return new Response(e instanceof Error ? e.message : 'bad request: invalid items', { status: 400 });
   }
 
+  // Orders are written only server-side: clients have no write access to orders (migration 0025).
+  // Check the service-role key before touching Stripe so a misconfig leaves no orphaned PaymentIntent.
+  const serviceRoleKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY');
+  if (!serviceRoleKey) {
+    console.error('create-payment-intent: SUPABASE_SERVICE_ROLE_KEY is not set');
+    return new Response('internal error', { status: 500 });
+  }
+  const admin = createClient(Deno.env.get('SUPABASE_URL')!, serviceRoleKey, {
+    auth: { persistSession: false, autoRefreshToken: false },
+  });
+
   const stripe = new Stripe(Deno.env.get('STRIPE_SECRET_KEY')!, {
     apiVersion: '2023-10-16',
     httpClient: Stripe.createFetchHttpClient(),
@@ -63,14 +75,14 @@ serve(async (req) => {
       },
     });
 
-    // Create the order in Supabase
-    const { error } = await supabase.from('orders').insert({
-      user_id: user.id,
-      stripe_payment_intent_id: paymentIntent.id,
-      amount: serverTotalCents,
+    // Create the order server-side with the service-role client (see above); status is forced
+    // to 'pending' and the amount is the server-computed total. Only stripe-webhook sets paid status.
+    const { error } = await insertPendingOrder(admin, {
+      userId: user.id,
+      paymentIntentId: paymentIntent.id,
+      amountCents: serverTotalCents,
       items: body.items,
-      shipping_address: body.shippingAddress ?? null,
-      status: 'pending'
+      shippingAddress: body.shippingAddress,
     });
 
     if (error) {
