@@ -313,9 +313,13 @@ preference.
 
 ---
 
-## 12. STANDING POLICY — the two company principals may dogfood the on-device camera build
+## 12. STANDING POLICY — the three company principals may dogfood the OFFLINE on-device camera build
 
-**Ruling: CONDITIONAL YES.** The owner **and** the single cofounder — both **company
+> **Amended 2026-10-05:** two principals → **three** (owner + two cofounders); a founder TestFlight
+> override for OFFLINE builds is recorded in condition 2; both cofounder attestations are signed and
+> held off-repo (status line below).
+
+**Ruling: CONDITIONAL YES.** The owner **and the two cofounders** — the **three company
 principals, not members of the public** — may be **standing users** of the
 `EXPO_PUBLIC_CAMERA_DEMO` on-device build on their own devices, as an ongoing internal
 **dogfooding** arrangement (not "distribution to testers"). This is distinct from the one-time
@@ -330,8 +334,12 @@ only the durable written-release *receipt* is local, and its evidentiary value i
 non-adverse co-principal consenting to their own capture on their own device.
 
 **Standing conditions (all MUST hold — any breach drops to Tier-2 §0–§8):**
-1. **Two named principals ONLY.** The camera build is used solely by the owner + the one
-   cofounder. **Never a third person** — no other friend, tester, or member of the public, ever.
+1. **Three named principals ONLY.** The camera build is used solely by the three company
+   principals — the founder/owner and the two cofounders: **Ayaan Ahmed Khan**,
+   **Robert Furlan**, **Nicholas Sclafani**. **Never a
+   fourth person** — no other friend, family member, tester, or member of the public, ever.
+   *(Amended 2026-10-05 two → three. The founder's dad, a non-principal, was **removed** from the
+   internal TestFlight group as a precondition — see the override note in condition 2.)*
 2. **Direct-install only (per §10) — NOT internal TestFlight.** Each principal receives the
    camera build by **direct install to their own device**. The camera build **MUST NOT** sit on
    an internal TestFlight group (even one frozen at two people), any external group, or a public
@@ -343,16 +351,38 @@ non-adverse co-principal consenting to their own capture on their own device.
    (ad-hoc / direct-install, no `submit` block) as of makeup-preview `@d8b625c` — so the profile
    is structurally incapable of reaching App Store Connect / TestFlight. Residual discipline: the
    ad-hoc install is scoped to device UDIDs registered via `eas device:create`, so **do not
-   register a third device or share the install QR/link beyond the two principals.**
+   register a fourth device or share the install QR/link beyond the three principals.**
+
+   **⚠️ Founder override (2026-10-05) — OFFLINE build via internal TestFlight accepted.** The
+   direct-install-not-TestFlight rule above is compliance's **recommendation**; it is **not**
+   withdrawn. The founder, as a company officer, elected to ship **build 18 (EAS profile
+   `testflight-camera`, `EXPO_PUBLIC_CAMERA_DEMO=1`, OFFLINE)** to the three principals via
+   **internal TestFlight** instead of direct-install. This is **recorded, not endorsed as the safer
+   path**, and is permitted **only** under all of:
+   - **OFFLINE camera-demo builds ONLY.** The override covers only `EXPO_PUBLIC_CAMERA_DEMO=1`
+     builds that write **nothing** to the backend / `consent_log`. A **prod-connected** camera build
+     via TestFlight (or anywhere) remains a **HARD NO** — see the 3-principal ruling,
+     `hive/research/truetone-sysdebug/dwight-3principal-camera-ruling.md`, matter B.
+   - **Internal TestFlight group = EXACTLY the three named principals, and no one else.** The
+     founder's non-principal dad was **removed** as a precondition. Because internal TestFlight
+     **auto-distributes every uploaded build to every member**, the group roster MUST be
+     re-verified to be exactly the three principals **before every build upload**. Safety now rests
+     on **roster discipline, not architecture** — the exact risk direct-install was chosen to remove.
+   - **Residual risk, stated plainly:** if a fourth (non-principal) member is ever on the group at
+     upload time, they receive the offline camera build and can capture **their own** face
+     on-device. The exposure is bounded (offline, nothing to backend, image deleted on-device, real
+     in-app consent runs) but it is still a biometric **collection** of a non-principal outside the
+     blessed scope — so the exact-roster check is a **hard operating condition**, not a nicety. Any
+     prod-connected or non-demo build reaching this group drops immediately to full Tier-2 §0–§8.
 3. **Real in-app consent each principal.** The age-gate + consent screens run for real (no
    stub-through); image deleted on-device; nothing written server-side.
-4. **Anyone beyond these two = full Tier-2 §0–§8 contract.** This clause does **not** touch the
+4. **Anyone beyond these three = full Tier-2 §0–§8 contract.** This clause does **not** touch the
    friends / external / public path, which stays fully gated (server `consent_log`,
    lawyer-signed copy, backend + ATS, revocation, ASC Age Assurance = YES/18+).
 
 **Documentation on record (condition):** a short **written attestation from each _non-owner_
-principal** who uses the camera build — i.e. **the cofounder's signature is REQUIRED** (the
-second-person exposure that drove §12). The **developer / account-owner's own attestation is
+principal** who uses the camera build — i.e. **both cofounders' signatures are REQUIRED** (the
+non-owner exposure that drove §12). The **developer / account-owner's own attestation is
 OPTIONAL** (recommended for a tidy symmetric record, but not required — the account owner who
 built the app and authored the consent flow is the entity itself dogfooding its own build on its
 own device, so a receipt adds nothing legally there). Each attests that they are a company
@@ -362,5 +392,6 @@ and consent — to be filed with this contract. This converts the arrangement
 from "de minimis near-miss" into a documented knowing-principal dogfooding record. Route to the
 human to sign + file; the build need not be blocked in the interim (retention is nil), but put it
 on file promptly. **Attestation template:** `docs/ops/cofounder-camera-attestation.md`
-(compliance-approved wording). **Status: pending the cofounder's signature** — file the signed
-copy in the Company's records; this line closes when signed.
+(compliance-approved wording). **Status (2026-10-05): both cofounder attestations SIGNED** per the
+founder; the signed copies are **held off-repo in the Company's records** (not committed — they
+carry personal signatures). The owner's own attestation remains optional. **This line is closed.**
