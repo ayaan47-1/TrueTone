@@ -27,11 +27,13 @@ const LOCAL_WIPES: (() => Promise<void>)[] = [
 ];
 
 /** Runs every wipe even if one fails; true only when all of them succeeded. */
-async function wipeLocalData(): Promise<boolean> {
+async function wipeLocalData(includeAuthSession: boolean): Promise<boolean> {
   const localResults = await Promise.allSettled(LOCAL_WIPES.map((wipe) => wipe()));
   // Finish by removing every managed ciphertext and destroying the key. This runs even if an
   // earlier store failed, and its own failure is reported without hiding the earlier results.
-  const [encryptedResult] = await Promise.allSettled([wipeEncryptedLocalData()]);
+  const [encryptedResult] = await Promise.allSettled([
+    wipeEncryptedLocalData({ includeAuthSession }),
+  ]);
   return localResults.every((r) => r.status === 'fulfilled') && encryptedResult.status === 'fulfilled';
 }
 
@@ -39,12 +41,14 @@ export function DataRights({ onChanged, confirm }: Props) {
   const [wipeIncomplete, setWipeIncomplete] = useState(false);
 
   const wiping = useRef(false);
+  const wipeAuthSession = useRef(false);
 
-  async function finishLocalWipe() {
+  async function finishLocalWipe(includeAuthSession = wipeAuthSession.current) {
     // Single-flight: a double tap on Try again must not run two overlapping wipes.
     if (wiping.current) return;
+    wipeAuthSession.current = includeAuthSession;
     wiping.current = true;
-    const ok = await wipeLocalData().finally(() => {
+    const ok = await wipeLocalData(includeAuthSession).finally(() => {
       wiping.current = false;
     });
     setWipeIncomplete(!ok);
@@ -60,7 +64,11 @@ export function DataRights({ onChanged, confirm }: Props) {
     // refresh below starts a fresh anonymous session instead of failing on the deleted user.
     // A failed sign-out must not skip the on-device wipe.
     if (fn === 'delete_account') await supabase.auth.signOut({ scope: 'local' }).catch(() => undefined);
-    if (fn === 'delete_my_data' || fn === 'delete_account') return finishLocalWipe();
+    if (fn === 'delete_my_data' || fn === 'delete_account') {
+      // The account remains after delete_my_data, so its independently encrypted auth session
+      // remains too. Account deletion erases both the session value and its encryption key.
+      return finishLocalWipe(fn === 'delete_account');
+    }
     onChanged();
   }
   return (
