@@ -8,7 +8,6 @@ import {
   HEADER_CLEARANCE,
   GlassCard,
   Display,
-  Heading,
   Body,
   Caption,
   PrimaryButton,
@@ -36,16 +35,15 @@ export function Consent({
   }
   return (
     <Screen className="px-6" topGap={HEADER_CLEARANCE} bottomGap={24}>
-      <View className="gap-1 mb-7">
-        <Display accessibilityRole="header" className="text-[30px]">Your photo stays yours</Display>
-        <Body className="text-ink-muted">Review and choose before any scan can begin.</Body>
+      <View className="mb-7">
+        <Display accessibilityRole="header" className="text-[30px]">{C.title}</Display>
       </View>
 
       <GlassCard flat radius={22} className="px-5 py-5 gap-4">
-        <Heading accessibilityRole="header" className="text-[20px]">{C.title}</Heading>
-        <Body>{C.what}</Body>
-        <Body>{C.purpose}</Body>
-        <Body className="text-ink-muted">{C.retention}</Body>
+        <Body>{C.introduction}</Body>
+        <Body>{C.authorization}</Body>
+        <Body>{C.retention}</Body>
+        <Body>{C.withdrawal}</Body>
 
         <Pressable
           testID="consent-check"
@@ -57,7 +55,9 @@ export function Consent({
           <View style={[styles.box, checked && styles.boxOn]}>
             {checked ? <Text style={styles.tick}>✓</Text> : null}
           </View>
-          <Caption className="flex-1 text-[13px] leading-[19px] text-ink-soft">{C.checkbox}</Caption>
+          <Caption className="flex-1 text-[13px] leading-[19px] text-ink-soft">
+            {C.representation}
+          </Caption>
         </Pressable>
 
       </GlassCard>
@@ -69,7 +69,7 @@ export function Consent({
           <View className="flex-1">
             <PrimaryButton
               testID="consent-submit"
-              label="I Consent"
+              label="I Agree"
               fullWidth
               disabled={!checked}
               accessibilityState={{ disabled: !checked }}

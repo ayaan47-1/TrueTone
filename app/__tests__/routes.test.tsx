@@ -63,7 +63,7 @@ test('age-gate route fails closed (Preparing) without a userId', async () => {
 
 test('consent route renders the consent screen', async () => {
   await render(<ConsentRoute />);
-  expect(screen.getByText(/before we scan your skin/i)).toBeTruthy();
+  expect(screen.getByText('Consent to Collection of Skin-Scan Data')).toBeTruthy();
 });
 
 test('data route renders the data-rights actions', async () => {
