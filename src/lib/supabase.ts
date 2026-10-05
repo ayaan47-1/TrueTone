@@ -33,9 +33,10 @@ export const DEMO_MODE = /^(1|true|yes|on)$/i.test(
  * persists the resulting flags to local state (camera-demo-profile.ts) instead of Supabase,
  * so the flow still works with no live backend (avoids the plain-HTTP/ATS blocker). This is
  * what makes /scan reachable under this mode -- ONLY after real taps, never pre-resolved.
- * MUST default OFF, and MUST be OFF in any build that could reach another person's device:
- * this is an own-device-prototype path, not a distribution path. Never both this and
- * DEMO_MODE true in the same build.
+ * MUST default OFF. It may reach ONLY the three named principals (docs/ops/
+ * camera-on-testflight-compliance.md §12): direct-install, or the founder's internal-TestFlight
+ * override (eas profile testflight-camera) while that group is exactly those three. Never a
+ * prod-connected build. Never both this and DEMO_MODE true in the same build.
  */
 export const CAMERA_DEMO = /^(1|true|yes|on)$/i.test(
   (process.env.EXPO_PUBLIC_CAMERA_DEMO ?? '').trim(),
