@@ -12,8 +12,8 @@ select plan(12);
 
 -- ── user setup (UUID not used by any other suite) ─────────────────────────────
 insert into auth.users(id) values ('cccccccc-cccc-cccc-cccc-cccccccccccc');
-insert into public.profiles(id, consent_active)
-  values ('cccccccc-cccc-cccc-cccc-cccccccccccc', true);
+insert into public.profiles(id, is_18_plus, consent_active)
+  values ('cccccccc-cccc-cccc-cccc-cccccccccccc', true, true);
 
 -- ── 1. column exists and is nullable ───────────────────────────────────────────
 select has_column('public', 'scans', 'capture_quality', 'scans.capture_quality exists');
@@ -102,8 +102,8 @@ select is(
 
 -- ── 8. consent-withdrawn trigger purges rows with a capture_quality value ─────
 insert into auth.users(id) values ('dddddddd-1111-1111-1111-111111111111');
-insert into public.profiles(id, consent_active)
-  values ('dddddddd-1111-1111-1111-111111111111', true);
+insert into public.profiles(id, is_18_plus, consent_active)
+  values ('dddddddd-1111-1111-1111-111111111111', true, true);
 
 set local role authenticated;
 set local request.jwt.claims = '{"sub":"dddddddd-1111-1111-1111-111111111111","role":"authenticated"}';

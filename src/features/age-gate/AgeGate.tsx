@@ -81,9 +81,8 @@ export function AgeGate({ userId, onPass }: { userId: string; onPass: () => void
     if (CAMERA_DEMO) {
       cameraDemoSetIs18();
     } else {
-      const { error } = await supabase.from('profiles')
-        .update({ is_18_plus: true, age_verified_at: new Date().toISOString() })
-        .eq('id', userId);
+      // The server derives the target from auth.uid(); the client cannot name or patch a profile.
+      const { error } = await supabase.rpc('verify_age_18_plus');
       if (error) return; // backend failure must not write local verification
     }
     const record: StoredVerification = { userId, verifiedAt: new Date().toISOString() };
