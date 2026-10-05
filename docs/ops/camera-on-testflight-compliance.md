@@ -335,8 +335,8 @@ non-adverse co-principal consenting to their own capture on their own device.
 
 **Standing conditions (all MUST hold — any breach drops to Tier-2 §0–§8):**
 1. **Three named principals ONLY.** The camera build is used solely by the three company
-   principals — the founder/owner and the two cofounders: **[Founder/owner name]**,
-   **[Cofounder 1 name]**, **[Cofounder 2 name]** (fill in from the Company record). **Never a
+   principals — the founder/owner and the two cofounders: **Ayaan Ahmed Khan**,
+   **Robert Furlan**, **Nicholas Sclafani**. **Never a
    fourth person** — no other friend, family member, tester, or member of the public, ever.
    *(Amended 2026-10-05 two → three. The founder's dad, a non-principal, was **removed** from the
    internal TestFlight group as a precondition — see the override note in condition 2.)*
