@@ -1,20 +1,52 @@
 # TrueTone
 
-An honest, skin-tone-fair read of your skin **tone and undertone** from one selfie, on-device, that
-**matches you to makeup** — foundation shade, undertone, and finish built for every tone — as a
-brand-neutral shade-match and shoppable shelf. TrueTone is a **cosmetic / general-wellness product —
-not a medical device, and it never diagnoses anything.**
+**TrueTone is a makeup discovery and preference-based skincare app.** Explore makeup shades and
+build cosmetic routines around your preferences. TrueTone does not provide medical advice.
 
-> **Engineering + compliance guardrails live in [`CLAUDE.md`](./CLAUDE.md). Read it before
-> touching anything that captures, stores, or describes skin or face data.** The rules there
+Makeup shade and undertone reads are estimates whose claims require validation; coverage and
+finish are user preferences. Skincare suggestions must follow explicit preferences such as budget,
+fragrance preference, texture and routine choices—not presumed needs inferred from a selfie.
+TrueTone is not a medical device and does not assess skin health, diagnose or prescribe treatment.
+
+> **Engineering + compliance guardrails live in [`AGENTS.md`](./AGENTS.md) and [`CLAUDE.md`](./CLAUDE.md).
+> Read them before touching anything that captures, stores, or describes skin or face data.** The rules there
 > (BIPA / WA MHMDA / PIPA / FTC) are load-bearing, not style preferences.
+
+### Scope migration and legal review — open, 2026-10-04
+
+The description above is the governing product scope, **not a statement that the current build is
+fully compliant**. Older implementation summaries below describe existing/previous work and do
+not override this scope. This documentation change does not modify runtime recommendations.
+
+Known gaps found during the scope review:
+
+- [`skincare/rules.ts`](src/features/recommend/skincare/rules.ts) still selects skincare categories
+  from scan scores and inferred skin type. Replace that selection with explicit preferences or
+  gate the legacy path before presenting skincare as preference-based. Its upstream measurement
+  caveats are not resolved by changing the app description.
+- [`chat/prompt.ts`](src/features/recommend/chat/prompt.ts) and its
+  [backend copy](supabase/functions/_shared/recommend/prompt.ts) still supply scan bands/type to
+  skincare chat. Migrate both, including stored legacy routine provenance, so recommendations and
+  explanations cannot disguise a scan inference as a user preference.
+- Existing shade/fit descriptions include inferred finish and numeric match percentages. Audit
+  their live render paths and validation gates; finish must be a preference and unsupported
+  confidence/equity claims must not ship.
+- [`terms.md`](src/content/terms.md) remains marked pending counsel review. Review all actual
+  policies, data flows, consent, deletion/retention execution, catalogue claims and commercial
+  relationships against the [Illinois launch-evidence checklist](AGENTS.md#illinois-launch-evidence--not-a-legal-certification).
+  Do not silently revise consented policy text without its versioning/re-consent workflow.
+
+Keep sponsored placements separate from independent rankings and disclose commissions beside
+purchase links. Do not transfer scan information to brands or use it for advertising targeting.
+These are release requirements; documentation and automated checks are not legal certification.
 
 - **Platform:** Expo (SDK 56) + React Native + TypeScript · iOS-primary · **US-only for v0** · **18+ only**
 - **Status (R1 unified release, `release/tt-r1-unified`):** the makeup shade-match pivot has
-  **landed and is wired** — the app you open today is the **Shop-first** experience: a four-tab
-  shell (**Shop · For You · Community · Account**), the on-device shade read feeding a brand-neutral
-  shoppable shelf, a scan-share flow, a Community feed with a user routine-logger that publishes
-  into it, and a username/avatar identity seam. See
+  **landed and is wired** — the app you open today is the **Home-first** experience: a four-tab
+  shell (**Home · Shop · Community · Account**), landing on **Home** (`index`, with native Liquid Glass UI).
+  The on-device shade read feeds a brand-neutral catalog emitting qualitative match tiers, a scan-share flow,
+  a Community feed with a user routine-logger that publishes into it, and a username/avatar identity seam.
+  Local user data is encrypted at rest (AES-256-GCM via `@noble/ciphers` + `expo-secure-store`). See
   [What's built → Makeup shade-match, shop & community](#makeup-shade-match-shop--community-shipped)
   for the full built-and-navigable breakdown, and
   [`docs/COFOUNDER_HANDOFF.md`](docs/COFOUNDER_HANDOFF.md) for a practical file-by-feature map if
@@ -54,6 +86,14 @@ regulator looks for is wired up first:
 - **No-analytics-SDK CI guard** — the build **fails** if any ad/analytics SDK (Firebase Analytics,
   Meta SDK, Segment, Amplitude, Mixpanel, AppsFlyer, Branch, Google Mobile Ads) reaches the
   dependency tree or Expo config.
+- **Encrypted local storage at rest** — user data at rest (diary, routine log, community profile,
+  order history, age-gate verification) is encrypted on-device with AES-256-GCM (`@noble/ciphers`) using
+  a random 256-bit data key in `expo-secure-store` (`src/lib/encrypted-storage.ts`). Auth sessions are
+  similarly encrypted via SecureStore.
+- **RPC-locked profile & consent flags** — `is_18_plus` and `consent_active` cannot be forged by clients
+  via direct table updates; they are locked behind server-side `SECURITY DEFINER` RPCs
+  (`record_consent`, `withdraw_consent`, `verify_age_18_plus()`, `ensure_profile()`, migration `0026_profile_flags_lock.sql`).
+  Orders are server-write locked (migration `0025_orders_insert_lock.sql`).
 
 ### P2 — guided capture + on-device read
 
@@ -154,14 +194,18 @@ unfolded aspect ratios (edge-to-edge is mandatory on Expo SDK 56). Portrait stay
 ### Makeup shade-match, shop & community (shipped)
 
 The pivot has landed: the same on-device read feeds a **makeup shade-match** layer, and the app's
-navigation now runs **Shop-first**. All of the shade/match logic is pure and Jest-tested; it
+navigation runs **Home-first**. All of the shade/match logic is pure and Jest-tested; it
 consumes **only the derived read descriptors, never the image** (the compliance boundary is
 unchanged, see [`CLAUDE.md` §3](./CLAUDE.md)).
 
-- **Navigation** — four tabs: **Shop · For You · Community · Account** (`app/(tabs)/_layout.tsx`,
-  landing on Shop). There is no Trend tab and no bottom-tab Scan; the shade scan is a camera icon in
-  the For You header (`app/(tabs)/index.tsx`) that pushes `/scan-gate` (on-device privacy reassurance)
+- **Navigation** — four tabs: **Home · Shop · Community · Account** (`app/(tabs)/_layout.tsx`,
+  landing on Home `index`). On iOS 26+, tabs render as native Liquid Glass (`expo-router/unstable-native-tabs`);
+  on earlier systems, as a floating Quiet Glass blur bar. The shade scan is a camera glyph in
+  the Home header (`app/(tabs)/index.tsx`) that pushes `/scan-gate` (on-device privacy reassurance)
   → the full-screen camera route, which lives **outside** the tab navigator.
+- **Home screen** (`app/(tabs)/index.tsx`, `src/features/foryou/`) — "Hi, <name>" header with bell and bag,
+  search + sort/filter, photo hero carousel, quick actions, "Shop" category row, "For You" shade picks rail
+  (links to Shop, ranked by the same shade), today's routine card, and Buy Again.
 - **Shade derivation** (`src/features/shade/`) — `deriveShade()` maps the read (tone lightness /
   warmth / olive cast / oiliness / skin-type) to a **foundation shade**: a depth (1–10, shown as a
   word — Fair/Light/Medium/Tan/Deep, **never a raw number**), an undertone (warm / cool / neutral /
@@ -169,7 +213,7 @@ unchanged, see [`CLAUDE.md` §3](./CLAUDE.md)).
   `use-scan-share.ts`) captures the derived-shade card only — never the photo — to the native share
   sheet.
 - **Match boundary** (`src/features/match/`) — a brand-neutral `product-catalog`, `scoring` that
-  emits **only a compatibility fit % (40–99)** from shade proximity + undertone + the user's
+  emits **qualitative match tiers** ("Exact match", "Great match", "Good match") from shade proximity + undertone + the user's
   coverage/skip preferences, `fit-reason` (cosmetic-only "why it fits" lines), and `sort`/ranking.
 - **Shop tab** (`app/(tabs)/shop.tsx`, `src/features/shop/ShopList.tsx`) — ranks the catalog
   best-first per person + filter tab (top card badged "Best match"); pre-scan it shows a neutral
@@ -186,14 +230,10 @@ unchanged, see [`CLAUDE.md` §3](./CLAUDE.md)).
   placeholder, never a real image/video URL), plus a username/avatar identity seam on the Account
   screen (`community_profile` columns on `profiles`, migration `0021`; the database is the sole
   username-uniqueness authority).
-- **My Daily Routine** (`src/features/routine/`) — a separate concept from the older skincare-routine
-  recommender in `recommend/`: an on-device AM/PM product logger that can **publish into the
-  Community Routines feed** with one tap. See
+- **My Daily Routine** (`src/features/routine/`) — an on-device AM/PM product logger that can
+  **publish into the Community Routines feed** with one tap. See
   [`docs/COFOUNDER_HANDOFF.md`](docs/COFOUNDER_HANDOFF.md#routines-my-daily-routine--task-13-new-this-release)
-  for the exact file map — these two "routine" concepts are easy to conflate.
-- **For You** (`app/(tabs)/index.tsx`) — greeting + affirmation + two ranked product rails
-  (`src/features/foryou/`); the week strip and skin-feel diary that used to live here were removed
-  this release.
+  for the exact file map.
 
 For the exact file-by-feature map (which file to edit for a given change) and build-profile safety
 notes, see [`docs/COFOUNDER_HANDOFF.md`](docs/COFOUNDER_HANDOFF.md). The architecture and full
@@ -288,8 +328,8 @@ src/
                          Community (distinct from recommend/'s skincare routine)
   content/               policy manifest (version source of truth) + markdown/bodies; makeup-vocab.ts (shade-match descriptors)
 supabase/
-  migrations/            0001 schema → 0021 profile identity (scans, RPCs, backup purge, routine, skin-age,
-                         username/avatar)
+  migrations/            0001 schema → 0026 profile flags lock (scans, RPCs, backup purge, routine, skin-age,
+                         username/avatar, orders lock, profile flags lock)
   functions/             routine-chat Edge Function (+ _shared compliance copies)
   tests/                 pgTAP suites (RLS, consent immutability, RPCs, retention, scans)
 scripts/                 check-no-analytics-sdk.mjs + check-no-image-egress.mjs (CI guards)
@@ -394,13 +434,24 @@ npx supabase test db     # pgTAP suites (RLS isolation, consent immutability, RP
 
 CI ([`.github/workflows/compliance.yml`](.github/workflows/compliance.yml)) runs
 `check:compliance` + `check:no-egress` + `npm test` + `test:scripts` on every push and PR.
+**Test suite count:** 214 test suites, 1228 tests passing (`npm test`), plus 109 script/compliance tests (`npm run test:scripts`).
 Integration and pgTAP tests need a live Supabase and run separately.
 
 ---
 
 ## Waitlist site (`web/`) — **live at https://truetone-1rw.pages.dev**
 
-A static pre-launch landing page on the app's own Mist palette, deployed to Cloudflare Pages. It
+A static pre-launch landing page on the app's own Mist palette, deployed to Cloudflare Pages. The
+partner-facing homepage introduces the app, skincare and makeup categories, brand discussions,
+privacy principles, FAQs, and consumer early access. `web/landing.css` scopes the marketing
+layout so unsubscribe and error pages retain their shared styles; `web/landing.js` controls the
+accessible category selector. All fonts and editorial images are served locally.
+
+The partnership section currently directs existing contacts to reply to their conversation with
+the team. Add the approved partner email or booking destination before using it for cold outreach.
+Preview locally with `python3 -m http.server 4173 --bind 127.0.0.1 --directory web`.
+
+The waitlist
 collects an email and an 18+/US attestation — **no biometric or skin data**, so it sits entirely
 outside the compliance boundary — and stores them in Supabase via the `join_waitlist` RPC
 (migrations `0014_waitlist.sql`, `0015_waitlist_service_read.sql`).
@@ -411,7 +462,11 @@ npx wrangler pages deploy web --project-name=truetone --branch=main
 ```
 
 `waitlist:build` needs `EXPO_PUBLIC_SUPABASE_URL` / `EXPO_PUBLIC_SUPABASE_ANON_KEY` in the
-environment. `pyftsubset` (`pip install fonttools brotli`) is only needed when changing a
+environment. The signup client rejects non-HTTPS backend URLs before making any request. Use
+the production HTTPS Supabase endpoint for publication. The existing local configuration is
+not a production deployment configuration.
+
+`pyftsubset` (`pip install fonttools brotli`) is only needed when changing a
 typeface — the subsets in `web/fonts/` are committed, so a deploy box needs neither Python nor
 `node_modules`.
 
