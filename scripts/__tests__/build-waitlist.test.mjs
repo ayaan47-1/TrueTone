@@ -92,6 +92,7 @@ test('CSP denies everything by default and opens only what the page uses', () =>
   assert.ok(headers.includes("script-src 'self'"));
   assert.ok(headers.includes("style-src 'self'"));
   assert.ok(headers.includes("font-src 'self'"));
+  assert.equal(headers.match(/media-src ([^;]+)/)[1].trim(), "'self'");
 });
 
 test('CSP allows the browser to reach Supabase and nowhere else', () => {

@@ -1,7 +1,7 @@
 {
-  "status": "Five founder-supplied Unsplash photos: three cosmetic objects and two editorial portraits under explicit founder override. Supplier product slots remain placeholders. No AI imagery.",
+  "status": "Founder-supplied AI-animated Fleur Kaan hero footage/poster under explicit override; two object photos and one centered Daniela editorial portrait remain. Supplier slots remain placeholders.",
   "created": "2026-10-08",
-  "source": "Founder-supplied object photography and locally authored supplier placeholders",
+  "source": "Founder-supplied photography and AI-animated hero footage; locally authored supplier placeholders",
   "model": null,
   "prompt": null,
   "assets": [
@@ -20,42 +20,6 @@
       "license": "Original project placeholder",
       "role": "optional 4:5 supplier product image slot",
       "sha256": "099913989f469e0b04f582edb72013f257fe223191f971f1fd365f55a4fc879c"
-    },
-    {
-      "file": "makeup-flatlay-720.webp",
-      "width": 720,
-      "height": 720,
-      "bytes": 28842,
-      "photographer": "Shamblen Studios",
-      "unsplash_id": "xwM61TPMlYk",
-      "source_url": "https://unsplash.com/photos/xwM61TPMlYk",
-      "source_file": "shamblen-studios-xwM61TPMlYk-unsplash.jpg",
-      "source_sha256": "af0cdfdf318b8472037dc4a1969ce2314d30635686e1c46816e38c0e8e498ac8",
-      "license": "Unsplash License",
-      "license_url": "https://unsplash.com/license",
-      "date_added": "2026-10-08",
-      "role": "hero",
-      "sha256": "7ea5dab5bed6a881ec897cbedf9d01df79eaf8ef6279d3d4c052218ef1442c1b",
-      "processing": "EXIF orientation, proportional resize and WebP conversion. No generative edits; source colours retained. Metadata omitted.",
-      "verification": "Founder supplied and cleared object photo; source identity derived from filename. Individual source page not independently retrieved."
-    },
-    {
-      "file": "makeup-flatlay-1440.webp",
-      "width": 1440,
-      "height": 1440,
-      "bytes": 105244,
-      "photographer": "Shamblen Studios",
-      "unsplash_id": "xwM61TPMlYk",
-      "source_url": "https://unsplash.com/photos/xwM61TPMlYk",
-      "source_file": "shamblen-studios-xwM61TPMlYk-unsplash.jpg",
-      "source_sha256": "af0cdfdf318b8472037dc4a1969ce2314d30635686e1c46816e38c0e8e498ac8",
-      "license": "Unsplash License",
-      "license_url": "https://unsplash.com/license",
-      "date_added": "2026-10-08",
-      "role": "hero",
-      "sha256": "c829dffb4ca5ab46d854f013447e589ef6407c96942133230272fd049ccc344d",
-      "processing": "EXIF orientation, proportional resize and WebP conversion. No generative edits; source colours retained. Metadata omitted.",
-      "verification": "Founder supplied and cleared object photo; source identity derived from filename. Individual source page not independently retrieved."
     },
     {
       "file": "amber-dropper-720.webp",
@@ -170,6 +134,139 @@
       "verification": "Source identity and license supplied by founder, derived from filename. No release provided; no independent per-photo source verification."
     },
     {
+      "file": "../../assets/hero-editorial.mp4",
+      "width": 1620,
+      "height": 1080,
+      "bytes": 2639301,
+      "sha256": "02161d98421c9d9317e02beafd9cb5d369c6b183fe4782c70c0f046739a24a50",
+      "source": "founder-supplied, AI-animated from Unsplash fleur-kaan",
+      "source_file": "ElevenLabs_video_google-veo-3-1-fast_Seamless loopin_2026-10-08T06_43_59.mp4",
+      "source_sha256": "94c020006f07aa7ff2334d93877ea5638ab65535f888e8b87fa9c8e8d9569d98",
+      "source_photo": {
+        "photographer": "Fleur Kaan",
+        "unsplash_id": "w4Dj3MshHQ0",
+        "source_url": "https://unsplash.com/photos/w4Dj3MshHQ0",
+        "original_license": "Unsplash License",
+        "license_url": "https://unsplash.com/license"
+      },
+      "generation": "Founder-supplied AI animation. Filename identifies ElevenLabs/Google Veo 3.1 Fast; generation settings and output rights not independently verified. No model/API call made by Pam.",
+      "license": "Founder-authorized editorial use; no model release supplied. No independent rights certification for animated derivative.",
+      "date_added": "2026-10-08",
+      "model_release": "no model release; founder override 2026-10-08",
+      "approval": "Founder explicitly requests this AI-animated portrait in hero, relayed by god message 2026-10-08T19-12-10-467Z-3e9c47; checkpoint 0e2334.",
+      "role": "hero background footage or still fallback, with exact visible editorial AI-animation/nonendorsement caption",
+      "processing": "Full-clip cropdetect: crop=1620:1080:150:0, removes black side bars. No recolouring or retouching. Metadata stripped.",
+      "codec": "H.264",
+      "duration_seconds": 8,
+      "frame_rate": 24,
+      "audio_tracks": 0,
+      "encoding": "libx264 slow, CRF25, maxrate2600k, bufsize5200k, yuv420p, faststart"
+    },
+    {
+      "file": "../../assets/hero-editorial.webm",
+      "width": 1620,
+      "height": 1080,
+      "bytes": 2402130,
+      "sha256": "86de9eed4ebd25f540f41a7347daebf1ca13eeb1e709721c92e486bd06a90e52",
+      "source": "founder-supplied, AI-animated from Unsplash fleur-kaan",
+      "source_file": "ElevenLabs_video_google-veo-3-1-fast_Seamless loopin_2026-10-08T06_43_59.mp4",
+      "source_sha256": "94c020006f07aa7ff2334d93877ea5638ab65535f888e8b87fa9c8e8d9569d98",
+      "source_photo": {
+        "photographer": "Fleur Kaan",
+        "unsplash_id": "w4Dj3MshHQ0",
+        "source_url": "https://unsplash.com/photos/w4Dj3MshHQ0",
+        "original_license": "Unsplash License",
+        "license_url": "https://unsplash.com/license"
+      },
+      "generation": "Founder-supplied AI animation. Filename identifies ElevenLabs/Google Veo 3.1 Fast; generation settings and output rights not independently verified. No model/API call made by Pam.",
+      "license": "Founder-authorized editorial use; no model release supplied. No independent rights certification for animated derivative.",
+      "date_added": "2026-10-08",
+      "model_release": "no model release; founder override 2026-10-08",
+      "approval": "Founder explicitly requests this AI-animated portrait in hero, relayed by god message 2026-10-08T19-12-10-467Z-3e9c47; checkpoint 0e2334.",
+      "role": "hero background footage or still fallback, with exact visible editorial AI-animation/nonendorsement caption",
+      "processing": "Full-clip cropdetect: crop=1620:1080:150:0, removes black side bars. No recolouring or retouching. Metadata stripped.",
+      "codec": "VP9",
+      "duration_seconds": 8,
+      "frame_rate": 24,
+      "audio_tracks": 0,
+      "encoding": "libvpx-vp9 two-pass,2400kbps,row-mt,yuv420p"
+    },
+    {
+      "file": "../../assets/hero-editorial-poster.webp",
+      "width": 1620,
+      "height": 1080,
+      "bytes": 191030,
+      "sha256": "019d469286d3733d274cb7abda8b2ebbc77e4f1690862af1cc6746dc6b4593a9",
+      "source": "founder-supplied, AI-animated from Unsplash fleur-kaan",
+      "source_file": "ElevenLabs_video_google-veo-3-1-fast_Seamless loopin_2026-10-08T06_43_59.mp4",
+      "source_sha256": "94c020006f07aa7ff2334d93877ea5638ab65535f888e8b87fa9c8e8d9569d98",
+      "source_photo": {
+        "photographer": "Fleur Kaan",
+        "unsplash_id": "w4Dj3MshHQ0",
+        "source_url": "https://unsplash.com/photos/w4Dj3MshHQ0",
+        "original_license": "Unsplash License",
+        "license_url": "https://unsplash.com/license"
+      },
+      "generation": "Founder-supplied AI animation. Filename identifies ElevenLabs/Google Veo 3.1 Fast; generation settings and output rights not independently verified. No model/API call made by Pam.",
+      "license": "Founder-authorized editorial use; no model release supplied. No independent rights certification for animated derivative.",
+      "date_added": "2026-10-08",
+      "model_release": "no model release; founder override 2026-10-08",
+      "approval": "Founder explicitly requests this AI-animated portrait in hero, relayed by god message 2026-10-08T19-12-10-467Z-3e9c47; checkpoint 0e2334.",
+      "role": "hero background footage or still fallback, with exact visible editorial AI-animation/nonendorsement caption",
+      "processing": "Full-clip cropdetect: crop=1620:1080:150:0, removes black side bars. No recolouring or retouching. Metadata stripped.",
+      "encoding": "First cropped source frame at t=0; WebP quality85/method6."
+    }
+  ],
+  "replacement_requirements": [
+    "Supplier-provided product photograph with documented commercial display rights.",
+    "Display only beside the exact supplier name and exact pictured product. Never associate with a fictional or generic TrueTone product.",
+    "Record supplier, product id/name, source, permission/license, hash and review date before use.",
+    "Self-host locally. No image hotlinks, customer photos, tracking embeds or Shopify integration are introduced by this page.",
+    "Use object-fit: contain in square or 4:5 neutral frames. Preserve source packaging and marks; do not relabel or crop a different brand into a generic asset."
+  ],
+  "cancelled_generation": "Earlier Gemini attempt by orchestrator failed and produced no images; that generation job remains cancelled. This update uses a later founder-supplied AI-animated MP4, not a new generation request.",
+  "editorial_use": "Specific founder override permits the supplied AI-animated Fleur Kaan video and derived poster in the hero with an adjacent editorial AI-animation/nonendorsement caption. This supersedes the prior hero exclusion only for these new assets. The remaining Daniela gallery portrait stays unretouched, uncropped, centered and separate from signup, with its original caption. The duplicate Fleur still was removed by founder74160b. No assets depict app results, verified users or supplier products; no efficacy or endorsement claims.",
+  "portrait_ruling": "Original no-release ruling: research/truetone-compliance/unsplash-portraits-ruling.md. Founder release override8af895 approved original gallery photos. Additional founder request3e9c47 specifically permits the supplied AI-animated footage/poster as hero on2026-10-08. No model release is on file; other portrait placement limits remain.",
+  "retired_assets": [
+    {
+      "file": "makeup-flatlay-720.webp",
+      "width": 720,
+      "height": 720,
+      "bytes": 28842,
+      "photographer": "Shamblen Studios",
+      "unsplash_id": "xwM61TPMlYk",
+      "source_url": "https://unsplash.com/photos/xwM61TPMlYk",
+      "source_file": "shamblen-studios-xwM61TPMlYk-unsplash.jpg",
+      "source_sha256": "af0cdfdf318b8472037dc4a1969ce2314d30635686e1c46816e38c0e8e498ac8",
+      "license": "Unsplash License",
+      "license_url": "https://unsplash.com/license",
+      "date_added": "2026-10-08",
+      "role": "hero",
+      "sha256": "7ea5dab5bed6a881ec897cbedf9d01df79eaf8ef6279d3d4c052218ef1442c1b",
+      "processing": "EXIF orientation, proportional resize and WebP conversion. No generative edits; source colours retained. Metadata omitted.",
+      "verification": "Founder supplied and cleared object photo; source identity derived from filename. Individual source page not independently retrieved.",
+      "retired": "2026-10-08: hero replaced by founder-supplied AI-animated footage; no remaining repo references."
+    },
+    {
+      "file": "makeup-flatlay-1440.webp",
+      "width": 1440,
+      "height": 1440,
+      "bytes": 105244,
+      "photographer": "Shamblen Studios",
+      "unsplash_id": "xwM61TPMlYk",
+      "source_url": "https://unsplash.com/photos/xwM61TPMlYk",
+      "source_file": "shamblen-studios-xwM61TPMlYk-unsplash.jpg",
+      "source_sha256": "af0cdfdf318b8472037dc4a1969ce2314d30635686e1c46816e38c0e8e498ac8",
+      "license": "Unsplash License",
+      "license_url": "https://unsplash.com/license",
+      "date_added": "2026-10-08",
+      "role": "hero",
+      "sha256": "c829dffb4ca5ab46d854f013447e589ef6407c96942133230272fd049ccc344d",
+      "processing": "EXIF orientation, proportional resize and WebP conversion. No generative edits; source colours retained. Metadata omitted.",
+      "verification": "Founder supplied and cleared object photo; source identity derived from filename. Individual source page not independently retrieved.",
+      "retired": "2026-10-08: hero replaced by founder-supplied AI-animated footage; no remaining repo references."
+    },
+    {
       "file": "editorial-fleur-720.webp",
       "width": 720,
       "height": 480,
@@ -187,7 +284,8 @@
       "role": "editorial lifestyle gallery only, separated from conversion by journal",
       "sha256": "025152417dbb80108ab2f5245c7c12b09565cfa11ef537654bce9cc93b7f58e7",
       "processing": "EXIF orientation, proportional resize and WebP conversion only. No crop, retouching, colour alteration or generative edit.",
-      "verification": "Source identity and license supplied by founder, derived from filename. No release provided; no independent per-photo source verification."
+      "verification": "Source identity and license supplied by founder, derived from filename. No release provided; no independent per-photo source verification.",
+      "retired": "2026-10-08: founder74160b removes duplicate Fleur Kaan still from gallery; AI-animated hero retained."
     },
     {
       "file": "editorial-fleur-1200.webp",
@@ -207,17 +305,9 @@
       "role": "editorial lifestyle gallery only, separated from conversion by journal",
       "sha256": "a7dbd9d82f2363c950d7f00eb7f809965a4a5bff2788eb585f2195cd8709ca6d",
       "processing": "EXIF orientation, proportional resize and WebP conversion only. No crop, retouching, colour alteration or generative edit.",
-      "verification": "Source identity and license supplied by founder, derived from filename. No release provided; no independent per-photo source verification."
+      "verification": "Source identity and license supplied by founder, derived from filename. No release provided; no independent per-photo source verification.",
+      "retired": "2026-10-08: founder74160b removes duplicate Fleur Kaan still from gallery; AI-animated hero retained."
     }
   ],
-  "replacement_requirements": [
-    "Supplier-provided product photograph with documented commercial display rights.",
-    "Display only beside the exact supplier name and exact pictured product. Never associate with a fictional or generic TrueTone product.",
-    "Record supplier, product id/name, source, permission/license, hash and review date before use.",
-    "Self-host locally. No image hotlinks, customer photos, tracking embeds or Shopify integration are introduced by this page.",
-    "Use object-fit: contain in square or 4:5 neutral frames. Preserve source packaging and marks; do not relabel or crop a different brand into a generic asset."
-  ],
-  "cancelled_generation": "Gemini attempt by orchestrator failed with quota errors and produced no images. Founder cancelled AI generation; no active prompts remain.",
-  "editorial_use": "Object photos illustrate cosmetic objects/preferences only. Portraits illustrate lifestyle atmosphere only, with adjacent visible disclaimers and no implication of use, endorsement or results. Never place portraits in hero, scan/shade-read/results/benefit or waitlist-conversion blocks. Not supplier products or app results.",
-  "portrait_ruling": "Original no-release ruling in research/truetone-compliance/unsplash-portraits-ruling.md. Founder explicitly overrides release requirement only on 2026-10-08 via message8af895. Editorial-only placement and adjacent disclaimers retained. No model release is on file."
+  "playback_override": "Founder74160b explicitly removes the Play/Pause control while keeping the loop; reduced-motion and Save-Data poster-only modes remain. Documented WCAG2.2.2 exception, not a compliance pass."
 }

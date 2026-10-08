@@ -136,6 +136,7 @@ export function renderHeaders(supabaseOrigin) {
     "style-src 'self'",
     "font-src 'self'",
     "img-src 'self' data:",
+    "media-src 'self'",
     `connect-src 'self' ${supabaseOrigin}`,
     "base-uri 'none'",
     // The form is submitted with fetch() after preventDefault, never natively, so a

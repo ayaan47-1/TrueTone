@@ -427,7 +427,7 @@ section[id],article[id] { scroll-margin-top: 104px; }
 .hero-composition { display: block; position: relative; margin: 0; }
 .hero-image { width: 100%; height: clamp(640px,88svh,1100px); aspect-ratio: auto; }
 .hero-copy { position: absolute; z-index: 1; left: var(--gutter); bottom: 40px; width: min(680px,53%); padding: clamp(24px,3vw,44px); background: var(--paper); }
-.hero h1 { font-size: clamp(64px,6.1vw,96px); max-width: none; line-height: 1.08; }
+.hero h1 { font-size: clamp(64px,6.1vw,96px); max-width: none; line-height: 1.08; letter-spacing: 0; }
 .hero-title-wrap { pointer-events: auto; }
 .hero-side { padding: 0; margin-top: 28px; gap: 24px; }
 .hero-side p { max-width: 35ch; }
@@ -437,8 +437,8 @@ section[id],article[id] { scroll-margin-top: 104px; }
 .routine-morning .routine-content { grid-column: 9 / -1; }
 .routine-evening .routine-image { grid-column: 6 / -1; }
 .routine-evening .routine-content { grid-column: 1 / 5; }
-.portrait-gallery { grid-template-columns: repeat(12,minmax(0,1fr)); gap: 72px 24px; }
-.portrait-figure:first-child { grid-column: 2 / 8; }
+.portrait-gallery { grid-template-columns: minmax(0,1fr); gap: 0; }
+.portrait-figure:first-child { grid-column: 1; width: min(760px,72%); margin-inline: auto; }
 .portrait-figure:nth-child(2) { grid-column: 1 / -1; margin-top: 0; }
 .portrait-figure figcaption { max-width: 66ch; }
 @media (prefers-reduced-motion: no-preference) {
@@ -479,7 +479,7 @@ section[id],article[id] { scroll-margin-top: 104px; }
   .routine-evening .routine-image { grid-column: 7 / -1; }
   .routine-evening .routine-content { grid-column: 1 / 6; }
   .portrait-gallery { gap: 48px 18px; }
-  .portrait-figure:first-child { grid-column: 1 / 10; }
+  .portrait-figure:first-child { grid-column: 1; }
 }
 @media (max-width: 560px) {
   .hero-image { height: 66svh; min-height: 400px; }
@@ -505,4 +505,24 @@ section[id],article[id] { scroll-margin-top: 104px; }
 .texture-photo img { object-position: 50% 56%; }
 @media (max-width: 560px) {
   .feature-image { grid-column: 1; aspect-ratio: 1; margin-top: 10px; }
+}
+
+
+/* Founder-supplied silent footage. The still is always present behind the
+   enhancement and does not depend on autoplay succeeding. */
+.hero-media { position: relative; overflow: hidden; background: var(--sand); }
+.hero-media video,.hero-media .hero-poster {
+  position: absolute; inset: 0; width: 100%; height: 100%;
+  object-fit: cover; object-position: 52% 50%;
+}
+.hero-media .hero-poster { z-index: 1; pointer-events: none; }
+.hero-media.is-playing .hero-poster { visibility: hidden; }
+.hero-media-meta { padding-block: 16px; }
+.hero-media-meta p { max-width: 80ch; color: var(--muted); font-size: 13px; line-height: 1.6; }
+@media (max-width: 560px) {
+  .hero-media video,.hero-media .hero-poster { object-position: 52% 50%; }
+  .hero-media-meta { padding-top: 22px; }
+}
+@media (prefers-reduced-motion: reduce) {
+  .hero-media.is-playing .hero-poster { visibility: visible; }
 }

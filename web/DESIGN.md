@@ -72,7 +72,7 @@ No local font source may precede the two webfonts. Keep existing font licenses i
 
 Journal story headings and long-form page/article titles use roman Georgia at400. Smaller article subheadings stay sans at23px with neutral letter-spacing for clear word separation and hierarchy. Existing selected `em` phrases stay italic Georgia with1.14 line height and a small bottom reserve; check descenders after font or size changes.
 
-The hero retains its approved mixed sans/serif wording and deliberate break: desktop clamp(64px,6.1vw,96px); at1100px clamp(58px,7vw,82px); at800px clamp(48px,7.8vw,66px); at560px clamp(44px,11.8vw,64px). Do not expand serif styling to every utility heading. Body measures stay around48ch; long-form paragraphs allow66ch.
+The hero retains its approved mixed sans/serif wording and deliberate break; its sans heading uses neutral letter-spacing to keep word spaces clear (the selected italic phrase retains its existing tracking): desktop clamp(64px,6.1vw,96px); at1100px clamp(58px,7vw,82px); at800px clamp(48px,7.8vw,66px); at560px clamp(44px,11.8vw,64px). Do not expand serif styling to every utility heading. Body measures stay around48ch; long-form paragraphs allow66ch.
 
 ## Space, grid and photography [T], scale reinforced by [A]
 
@@ -81,9 +81,9 @@ The hero retains its approved mixed sans/serif wording and deliberate break: des
 - Base composition gap24px. Routine and gallery layouts use twelve `minmax(0,1fr)` columns, with deliberate unequal spans. Preserve minimum-width safeguards on images and text.
 - Fullbleed hero:88svh bounded640-1100px on desktop. Its opaque cream copy surface ensures contrast. At800px the image becomes72svh/min460px and copy returns to document flow; at560px it is66svh/min400px. Copy may follow the image below the initial phone viewport: that is the approved photographic composition, not hidden content.
 - Keep morning photography, evening typography, a distinct philosophy panel, full-width texture feature and uneven journal. Do not replace them with repeated centered product tiles or identical feature cards.
-- Object photographs have explicit dimensions, responsive sources and individual crops. The hero is eager/high-priority; later images are lazy. Current objects retain their source colours.
-- Both editorial portraits retain full source proportions, no crop or retouch, and exact visible stock/nonuser/nonendorser/nonresult captions. They remain in the gallery, separated from signup by Journal. Never place them beside scan results, efficacy claims or conversion copy.
-- Each supplied photograph appears once. See `images/editorial/provenance.json`; original source and permission limitations remain binding. Supplier images require exact product identity and permission, never generic reuse.
+- Object photographs have explicit dimensions, responsive sources and individual crops. Later images are lazy. Current objects retain their source colours. The hero now uses the specific founder-supplied AI-animated footage described below; its still poster is eager/high-priority.
+- The remaining Daniela still portrait retains full source proportions, no crop or retouch, and its exact visible stock/nonuser/nonendorser/nonresult caption. Center it in the gallery (maximum760px,72% of desktop content width;88% on phones), separated from signup by Journal. The duplicate Fleur Kaan still and its unused derivatives were removed at the founder’s request. Never place them beside scan results, efficacy claims or conversion copy. The later founder override applies only to the separately supplied AI-animated Fleur Kaan footage and its poster in the hero, not to unrestricted reuse of the gallery photographs.
+- Each remaining still photograph appears once. The former pink flatlay and its unused derivatives were removed when the hero changed. See `images/editorial/provenance.json`; original source and permission limitations remain binding. Supplier images require exact product identity and permission, never generic reuse.
 
 ## Components [T], quiet chrome reinforced by [A]
 
@@ -104,16 +104,26 @@ The hero retains its approved mixed sans/serif wording and deliberate break: des
 - Hero image fade1000ms; headline entrance800ms; supporting copy begins160ms later. Section reveal28px over700ms, once; principles stagger80ms.
 - Header moves10px upward over500ms after its sentinel leaves the viewport. Both scroll padding and target margin retain104px clearance.
 - Hover-capable devices may scale object images to1.03 over700ms. Supporting object-image drift is progressive CSS view-timeline enhancement:1.06 base scale, -2% to2% translation. Unsupported browsers keep the still image and ordinary reveals. Portraits never drift or zoom.
-- Menu enters over400ms. No scroll hijacking, automatic loops, scroll event listener or animation dependency.
+- Menu enters over400ms. No scroll hijacking, scroll event listener or animation dependency. The explicitly approved hero footage is the only continuous loop. The founder explicitly removed its in-page pause control; reduced motion and Save-Data safeguards remain.
 - Reduced motion disables CSS animations, transitions, image transforms/scales, smooth scrolling and header movement. JavaScript disconnects observers on preference changes and pagehide; pageshow or re-enable restores observation without replaying completed reveals. Default content is visible when JavaScript fails.
 
-No new motion is required for this blend; the existing level6 already supports the requested experience.
+### Founder-supplied hero footage [T], explicit update2026-10-08
+
+Use the supplied eight-second AI animation of the Fleur Kaan portrait as a decorative fullbleed background. MP4/H.264 and WebM/VP9 are local, silent,24fps,1620x1080 and each below3MB. Crop150px from each side of the1920x1080 source to remove pillarboxing; do not upscale, recolour or retouch. The first cropped frame is the WebP poster. Keep the existing ivory copy panel and all hero wording unchanged. Center the face with52% horizontal/50% vertical positioning, then verify each target viewport.
+
+The exact visible caption is: “Editorial stock footage, AI-animated. Model is not a TrueTone user, customer, or endorser.” Place it below the hero on paper, not over the face. Do not add an in-page playback control: the founder explicitly removed it after review (message74160b). This is a documented exception to the WCAG2.2.2 pause mechanism requirement, not an accessibility compliance pass. The remaining gallery caption stays unchanged. This is a specific founder override of the former no-portrait-in-hero rule; no model release has been supplied, and no use/result/endorsement claim is permitted.
+
+`hero-video.js` controls progressive playback. Initial markup has a poster/image and inert `data-src` sources. Attach sources only when reduced motion is off and the browser-exposed Save-Data preference is not true. Without JavaScript, only the poster appears. On live reduced-motion/Save-Data changes, pause, remove sources and reset the media element so the poster returns and fetching stops. Hidden tabs pause; pagehide releases sources; pageshow restores permitted playback. Autoplay denial and media errors fall back to the still. No playback button or labels remain.
+
+The video uses muted/autoplay/loop/playsinline and preload=metadata; autoplay may fetch beyond metadata only after preferences permit sources. Save-Data detection relies on `navigator.connection.saveData`, which is not exposed by every browser. Do not claim universal detection of operating-system data-saving modes. A same-origin-only `media-src 'self'` directive is required in the generated Content Security Policy; retain every other restriction.
+
+API references checked during implementation: [play() rejection handling](https://developer.mozilla.org/en-US/docs/Web/API/HTMLMediaElement/play), [load() reset/abort behavior](https://developer.mozilla.org/en-US/docs/Web/API/HTMLMediaElement/load), and [Save-Data support limits](https://developer.mozilla.org/en-US/docs/Web/API/NetworkInformation/saveData).
 
 ## Responsive and preservation contract [T]
 
 Verify at1440,1024,768,390 and360px, with actual page scrolling and loaded fonts. At800px, principles use two columns and philosophy copy stacks; at560px routine, journal, partner and form compositions stack. The mobile philosophy panel must keep `aspect-ratio:auto` alongside its360px minimum height to avoid intrinsic overflow.
 
-Keep all copy, routes, anchors, navigation labels, form field names/order, disclosures, image alternatives and portrait captions. No new claims, commerce, data collection, analytics or remote assets. Metadata and social cards remain unchanged. Preserve one primary heading per page, focus visibility, image dimensions and ordinary native scrolling.
+Keep all copy, routes, anchors, navigation labels, form field names/order, disclosures and existing portrait captions. The hero replacement changes only its asset/alternative treatment and the explicitly approved footage caption. No new claims, commerce, data collection, analytics or remote assets. Metadata and social cards remain unchanged. Preserve one primary heading per page, focus visibility, image dimensions and ordinary native scrolling.
 
 Before accepting a change: run script tests, compliance/no-egress checks and the local preview build; inspect desktop/mobile screenshots and normal/reduced motion including live preference changes. Source tests are not browser evidence. Locked legal punctuation currently conflicts with the rulebook's literal-zero em-dash check; retain it and report the exception honestly.
 
