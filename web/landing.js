@@ -46,9 +46,49 @@ if (typeof document !== 'undefined') {
   const menu = document.querySelector('.menu');
   if (menu) {
     const close = (event) => {
-      if (menu.open && shouldCloseMenu(event)) menu.open = false;
+      if (menu.open && shouldCloseMenu(event)) {
+        menu.open = false;
+        if (event.type === 'keydown') menu.querySelector('summary')?.focus();
+        if (event.type === 'click') {
+          const link = event.target.closest('a');
+          const destination = new URL(link.href, window.location.href);
+          if (destination.pathname === window.location.pathname && destination.hash) {
+            const target = document.getElementById(destination.hash.slice(1));
+            if (target) {
+              target.setAttribute('tabindex', '-1');
+              target.focus({ preventScroll: true });
+            }
+          }
+        }
+      }
     };
     menu.addEventListener('click', close);
     menu.addEventListener('keydown', close);
+    document.addEventListener('click', (event) => {
+      if (menu.open && !menu.contains(event.target)) menu.open = false;
+    });
+    menu.addEventListener('focusout', (event) => {
+      if (event.relatedTarget && !menu.contains(event.relatedTarget)) menu.open = false;
+    });
+  }
+}
+
+// Content is visible by default. Observation adds a one-time entrance only.
+// No transforms are driven by scroll events and no offscreen content is hidden.
+if (typeof document !== 'undefined' && typeof IntersectionObserver !== 'undefined') {
+  const reduced = window.matchMedia('(prefers-reduced-motion: reduce)');
+  if (!reduced.matches) {
+    const observer = new IntersectionObserver((entries) => {
+      for (const entry of entries) {
+        if (entry.isIntersecting) {
+          entry.target.classList.add('is-revealed');
+          observer.unobserve(entry.target);
+        }
+      }
+    }, { threshold: 0.12 });
+    document.querySelectorAll('[data-reveal]').forEach((node) => observer.observe(node));
+    const cleanup = () => observer.disconnect();
+    window.addEventListener('pagehide', cleanup, { once: true });
+    reduced.addEventListener('change', (event) => { if (event.matches) cleanup(); }, { once: true });
   }
 }
