@@ -360,7 +360,7 @@ section[id],article[id] { scroll-margin-top: 32px; }
   .intro-bottom { margin-block: 28px 44px; }
   .intro-bottom p { text-align: left; }
   .routine-panel > span:first-child { font-size: 76px; }
-  .philosophy-panel { min-height: 360px; }
+  .philosophy-panel { min-height: 360px; aspect-ratio: auto; }
   .philosophy-panel p:first-child { font-size: 44px; }
   .feature-image { width: 100%; min-height: 280px; aspect-ratio: 1; }
   .preference-panel span { font-size: 42px; }
