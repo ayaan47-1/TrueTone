@@ -14,7 +14,7 @@ select is(
 select is(
   (select policy_version from public.consent_log
      where action='consented' and user_id='44444444-4444-4444-4444-444444444444' limit 1),
-  '2026-06-15.1', 'logged current biometric policy version');
+  '2026-10-06.a1', 'logged current biometric policy version');
 -- idempotent: second call does not create a 2nd active-consent row for this user
 select public.record_consent();
 select is(

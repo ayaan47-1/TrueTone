@@ -8,11 +8,12 @@ import { clearPublishedRoutines } from '../routine/routine-publish';
 import { wipeEncryptedLocalData } from '../../lib/encrypted-storage';
 import { Screen, GlassCard, Display, Eyebrow, Body, Caption } from '../../components/ui';
 
-type RpcName = 'withdraw_consent' | 'delete_my_data' | 'delete_account';
+type RpcName = 'withdraw_consent' | 'withdraw_ai_consent' | 'delete_my_data' | 'delete_account';
 type Props = { onChanged: () => void; confirm: (msg: string) => Promise<boolean> };
 
 const ACTIONS: { id: string; rpc: RpcName; label: string; hint: string; danger?: boolean; confirm: string }[] = [
   { id: 'withdraw', rpc: 'withdraw_consent', label: 'Withdraw Consent', hint: 'Stop future scans until you consent again.', confirm: 'Withdraw consent?' },
+  { id: 'withdraw-ai', rpc: 'withdraw_ai_consent', label: 'Withdraw AI Routine & Chat Consent', hint: 'Turn off Anthropic-backed chat. On-device reads and non-AI routines still work.', confirm: 'Withdraw AI routine and chat consent?' },
   { id: 'delete-data', rpc: 'delete_my_data', label: 'Delete My Data', hint: 'Erase your scans and derived scores.', confirm: 'Delete all your data?' },
   { id: 'delete-account', rpc: 'delete_account', label: 'Delete Account', hint: 'Permanently remove your account.', danger: true, confirm: 'Delete your account permanently?' },
 ];

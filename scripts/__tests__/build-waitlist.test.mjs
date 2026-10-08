@@ -35,6 +35,11 @@ test('keeps the placeholder banner visible rather than stripping it', () => {
   assert.ok(html.indexOf('PLACEHOLDER') < html.indexOf('<h1>'));
 });
 
+test('does not render counsel-review HTML comments', () => {
+  const html = renderMarkdown('<!-- Counsel-pending. -->\n\n# Policy');
+  assert.equal(html, '<h1>Policy</h1>');
+});
+
 test('renders bold and italic spans', () => {
   assert.ok(renderMarkdown('**Purpose:** to describe appearance.').includes('<strong>Purpose:</strong>'));
   assert.ok(renderMarkdown('_(add an address)_').includes('<em>(add an address)</em>'));

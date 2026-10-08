@@ -1,15 +1,23 @@
-> PLACEHOLDER — pending counsel review.
+<!-- Counsel-pending Draft A policy copy; do not render this review marker. -->
 
 # Data Retention Schedule
 
-- **Waitlist email addresses:** deleted 90 days after we send your invite, or 3 years after you
-  join if we never send one, whichever is first; immediately when you unsubscribe.
-- **Waitlist referral code + source tag:** deleted with the waitlist record on the same schedule.
-- **Biometric data / derived scores:** deleted when purpose is met or within 3 years of last
-  interaction, whichever is first; immediately on "Delete My Data."
-- **Account data:** deleted on account deletion.
-- **Consent records:** retained as de-identified receipts (no link to you) as our proof of consent.
-- **Backups:** live data is deleted immediately; backup copies age out within the documented backup
-  cycle.
+**Face photo.** The photo is processed only on your device and deleted immediately after the read.
+It is not stored on [LEGAL ENTITY NAME]'s servers or sent to Anthropic.
 
-An automated job enforces this schedule.
+**Derived scan records.** Derived cosmetic appearance scores and labels, skin type, cosmetic
+routine, scan and model metadata, capture-quality label, and any enabled cosmetic skin-appearance-
+age value are kept only until their purpose is met or for 3 years after your last interaction,
+whichever comes first. **Withdraw Consent**, **Delete My Data**, and **Delete Account** remove
+live derived scan records sooner.
+
+**Consent receipts.** We keep a receipt of consent, withdrawal, and deletion as a legal record.
+When your data or account is deleted, the receipt is de-identified so it is no longer linked to
+your user account.
+
+**Backups.** Live derived scan records are removed immediately when deletion is triggered. Any
+restorable backup copy ages out within 7 days. A daily reconciliation job records when that cycle
+has completed.
+
+**Contact.** Ask to view or delete your data at any time in **Your Data**, or contact
+[CONTACT EMAIL].

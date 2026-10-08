@@ -1,4 +1,5 @@
-export const POLICY_VERSION = '2026-06-15.1';
+export const POLICY_VERSION = '2026-10-06.a1';
+export const AI_CONSENT_VERSION = POLICY_VERSION;
 
 export type DocKey = 'privacy' | 'terms' | 'biometric' | 'retention' | 'wa_health';
 

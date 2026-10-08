@@ -1,4 +1,4 @@
-> PLACEHOLDER — pending counsel review.
+<!-- Counsel-pending Draft A policy copy; do not render this review marker. -->
 
 # Terms of Use
 

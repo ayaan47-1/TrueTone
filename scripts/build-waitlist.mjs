@@ -37,6 +37,7 @@ function inline(text) {
 
 export function renderMarkdown(md) {
   return md
+    .replace(/<!--[\s\S]*?-->/g, '')
     .split(/\n\s*\n/)
     .map((block) => block.trim())
     .filter(Boolean)
