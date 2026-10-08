@@ -1,7 +1,8 @@
 // src/features/foryou/home-photos.ts
 // Bundled LOCAL photos for the For You home (designer v3 kit, AI-generated; founder
-// approved AI photos 2026-09-29). Never a remote URL — the home renders offline and
-// fetches nothing. Product photos live elsewhere (shop/product-photos.ts).
+// approved AI photos 2026-09-29). Only the unbranded scan and look hero photos ship.
+// Never a remote URL — the home renders offline and fetches nothing. Product photos live
+// elsewhere (shop/product-photos.ts).
 import type { ImageSourcePropType } from 'react-native';
 
 export const HOME_LOCKUP: ImageSourcePropType = require('../../../assets/photos/home/logo-lockup.png');

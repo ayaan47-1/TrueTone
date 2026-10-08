@@ -56,14 +56,15 @@ describe('productLine', () => {
 });
 
 describe('productPhoto', () => {
-  test('every catalog product has a bundled local AI photo (founder ruling 2026-09-29)', () => {
-    catalog.forEach((p) => expect(productPhoto(p.id)).toBeDefined());
+  test('tints and concealers have no photo so ProductArt draws their product shape', () => {
+    catalog.filter((p) => /concealer|tint/i.test(p.name)).forEach((p) => {
+      expect(productPhoto(p.id)).toBeUndefined();
+      expect(photoKey(p)).toBeUndefined();
+    });
   });
 
   test.each([
-    ['lum-tint-01', 'p1'], // skin tint → white bottles
     ['lum-satin-02', 'p2'], // foundation → amber dropper
-    ['lum-bright-17', 'p8'], // concealer → tube
     ['ver-primer-27', 'p7'], // prep → jar
     ['lum-lip-29', 'p5'], // lips → balm
     ['sol-eye-30', 'p6'], // eyes → palette
