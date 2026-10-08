@@ -7,6 +7,7 @@ insert into public.profiles(id, is_18_plus, consent_active)
   values ('dddddddd-dddd-dddd-dddd-dddddddddddd', true, true);
 set local role authenticated;
 set local request.jwt.claims = '{"sub":"dddddddd-dddd-dddd-dddd-dddddddddddd","role":"authenticated"}';
+select public.record_consent();
 
 -- routine column exists
 select has_column('public', 'scans', 'routine', 'scans.routine exists');

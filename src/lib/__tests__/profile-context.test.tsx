@@ -10,7 +10,7 @@ jest.mock('../auth', () => ({ bootstrapSession: jest.fn() }));
 jest.mock('../region', () => ({ isUSRegion: jest.fn() }));
 let mockCameraDemo = false;
 jest.mock('../supabase', () => ({
-  supabase: { from: jest.fn() },
+  supabase: { from: jest.fn(), rpc: jest.fn() },
   DEMO_MODE: false,
   get CAMERA_DEMO() {
     return mockCameraDemo;
@@ -20,13 +20,14 @@ jest.mock('../supabase', () => ({
 const mockBootstrap = bootstrapSession as jest.Mock;
 const mockRegion = isUSRegion as jest.Mock;
 const mockFrom = supabase.from as jest.Mock;
+const mockRpc = supabase.rpc as jest.Mock;
 let profileResponse: { data: unknown; error: unknown };
-let consentReceiptResponse: { data: unknown; error: unknown };
+let currentPolicyResponse: { data: unknown; error: unknown };
+let currentReceiptResponse: { data: unknown; error: unknown };
 
-type ReceiptBuilder = {
-  eq: () => ReceiptBuilder;
-  order: () => ReceiptBuilder;
-  limit: () => ReceiptBuilder;
+type FilterBuilder = {
+  eq: () => FilterBuilder;
+  limit: () => FilterBuilder;
   maybeSingle: () => Promise<{ data: unknown; error: unknown }>;
 };
 
@@ -34,8 +35,12 @@ function mockProfileRow(row: unknown, error: unknown = null) {
   profileResponse = { data: row, error };
 }
 
-function mockConsentReceipt(policyVersion: string | null, error: unknown = null) {
-  consentReceiptResponse = {
+function mockServerPolicy(version: string | null, error: unknown = null) {
+  currentPolicyResponse = { data: version ? { version } : null, error };
+}
+
+function mockServerCurrentReceipt(policyVersion: string | null, error: unknown = null) {
+  currentReceiptResponse = {
     data: policyVersion ? { policy_version: policyVersion } : null,
     error,
   };
@@ -51,20 +56,25 @@ beforeEach(() => {
   mockCameraDemo = false;
   cameraDemoReset();
   profileResponse = { data: null, error: null };
-  consentReceiptResponse = { data: { policy_version: '2026-10-06.a1' }, error: null };
+  mockServerPolicy('server-current');
+  mockServerCurrentReceipt('server-current');
+  mockRpc.mockResolvedValue({ data: true, error: null });
   mockFrom.mockImplementation((table: string) => {
     if (table === 'profiles') {
       return {
         select: () => ({ eq: () => ({ single: async () => profileResponse }) }),
       };
     }
-    const builder: ReceiptBuilder = {
+    const response = table === 'policy_versions' ? currentPolicyResponse : currentReceiptResponse;
+    const builder: FilterBuilder = {
       eq: () => builder,
-      order: () => builder,
       limit: () => builder,
-      maybeSingle: async () => consentReceiptResponse,
+      maybeSingle: async () => response,
     };
-    return { select: () => builder };
+    if (table === 'policy_versions' || table === 'consent_log') {
+      return { select: () => builder };
+    }
+    throw new Error(`unexpected table read: ${table}`);
   });
 });
 
@@ -80,11 +90,11 @@ test('happy path: US + 18+ + consent -> home, exposes userId', async () => {
   await waitFor(() => expect(screen.getByText('false|false|home|u1')).toBeTruthy());
 });
 
-test('active consent on an older biometric policy re-prompts once', async () => {
+test('an old biometric receipt re-prompts when the server says consent is not current', async () => {
   mockBootstrap.mockResolvedValue('u1');
   mockRegion.mockReturnValue(true);
   mockProfileRow({ is_18_plus: true, consent_active: true });
-  mockConsentReceipt('2026-06-15.1');
+  mockRpc.mockResolvedValue({ data: false, error: null });
   await render(
     <ProfileProvider>
       <Probe />
@@ -93,17 +103,70 @@ test('active consent on an older biometric policy re-prompts once', async () => 
   await waitFor(() => expect(screen.getByText('false|false|consent|u1')).toBeTruthy());
 });
 
-test('active consent on the current biometric policy does not re-prompt', async () => {
+test('a server-current receipt does not loop when its version differs from the bundled policy', async () => {
   mockBootstrap.mockResolvedValue('u1');
   mockRegion.mockReturnValue(true);
   mockProfileRow({ is_18_plus: true, consent_active: true });
-  mockConsentReceipt('2026-10-06.a1');
+  mockRpc.mockResolvedValue({ data: true, error: null });
   await render(
     <ProfileProvider>
       <Probe />
     </ProfileProvider>
   );
   await waitFor(() => expect(screen.getByText('false|false|home|u1')).toBeTruthy());
+  expect(mockRpc).toHaveBeenCalledWith('has_current_scan_consent');
+});
+
+test('a pre-migration server without the current-consent RPC preserves the old active gate', async () => {
+  mockBootstrap.mockResolvedValue('u1');
+  mockRegion.mockReturnValue(true);
+  mockProfileRow({ is_18_plus: true, consent_active: true });
+  mockRpc.mockResolvedValue({
+    data: null,
+    error: { code: 'PGRST202', message: 'function not found in the schema cache' },
+  });
+  mockServerPolicy('2026-06-15.1');
+  mockServerCurrentReceipt('2026-06-15.1');
+  await render(
+    <ProfileProvider>
+      <Probe />
+    </ProfileProvider>
+  );
+  await waitFor(() => expect(screen.getByText('false|false|home|u1')).toBeTruthy());
+});
+
+test('a pre-migration server still re-prompts when no receipt matches its current policy', async () => {
+  mockBootstrap.mockResolvedValue('u1');
+  mockRegion.mockReturnValue(true);
+  mockProfileRow({ is_18_plus: true, consent_active: true });
+  mockRpc.mockResolvedValue({
+    data: null,
+    error: { code: 'PGRST202', message: 'function not found in the schema cache' },
+  });
+  mockServerPolicy('2026-06-15.1');
+  mockServerCurrentReceipt(null);
+  await render(
+    <ProfileProvider>
+      <Probe />
+    </ProfileProvider>
+  );
+  await waitFor(() => expect(screen.getByText('false|false|consent|u1')).toBeTruthy());
+});
+
+test('fails closed when the current-consent RPC fails for any other reason', async () => {
+  mockBootstrap.mockResolvedValue('u1');
+  mockRegion.mockReturnValue(true);
+  mockProfileRow({ is_18_plus: true, consent_active: true });
+  mockRpc.mockResolvedValue({
+    data: null,
+    error: { code: '42501', message: 'permission denied' },
+  });
+  await render(
+    <ProfileProvider>
+      <Probe />
+    </ProfileProvider>
+  );
+  await waitFor(() => expect(screen.getByText(/false\|true\|/)).toBeTruthy());
 });
 
 test('not 18+ -> age-gate', async () => {
@@ -128,6 +191,7 @@ test('18+ but no consent -> consent', async () => {
     </ProfileProvider>
   );
   await waitFor(() => expect(screen.getByText('false|false|consent|u1')).toBeTruthy());
+  expect(mockRpc).not.toHaveBeenCalled();
 });
 
 test('non-US -> region-blocked', async () => {
