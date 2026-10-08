@@ -11,9 +11,14 @@ test('draws the product as its shape when no photo is registered', async () => {
   expect(view.queryByTestId('product-photo')).toBeNull();
 });
 
-test('shows the bundled catalog photo by default', async () => {
-  const view = await render(<ProductArt product={product} height={120} />);
-  expect(view.getByTestId('product-photo')).toBeTruthy();
+test.each([
+  catalog.find((p) => /concealer/i.test(p.name))!,
+  catalog.find((p) => /tint/i.test(p.name))!,
+])('$name renders drawn ProductArt instead of a photo', async (drawnProduct) => {
+  const view = await render(<ProductArt product={drawnProduct} height={120} />);
+  const shape = /concealer/i.test(drawnProduct.name) ? 'tube' : 'pump';
+  expect(view.getByTestId(`product-art-${shape}`)).toBeTruthy();
+  expect(view.queryByTestId('product-photo')).toBeNull();
 });
 
 test('uses a registered local photo instead of the drawing', async () => {
