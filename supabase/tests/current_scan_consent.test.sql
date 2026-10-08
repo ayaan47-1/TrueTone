@@ -1,5 +1,10 @@
 begin;
-select plan(11);
+select plan(12);
+
+select is(
+  (select count(*) from public.policy_versions
+    where doc_key='biometric' and is_current)::int,
+  1, 'exactly one biometric policy version is current');
 
 insert into auth.users(id) values ('28282828-2828-2828-2828-282828282828');
 insert into public.profiles(id, is_18_plus, consent_active) values

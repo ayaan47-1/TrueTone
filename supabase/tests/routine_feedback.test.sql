@@ -1,6 +1,6 @@
 -- supabase/tests/routine_feedback.test.sql
 begin;
-select plan(10);
+select plan(11);
 
 -- ── primary user (user1) ──────────────────────────────────────────────────────
 insert into auth.users(id) values ('dddddddd-dddd-dddd-dddd-dddddddddddd');
@@ -93,6 +93,21 @@ select is(
    where id = (select scan_id from _u2_scan)),
   NULL,
   'user2 scan routine_helpful unchanged after cross-user attempt');
+
+-- A future biometric policy bump makes the old receipt stale. The feedback RPC must not keep
+-- processing the stored routine merely because profiles.consent_active is still true.
+update public.policy_versions set is_current = false where doc_key = 'biometric';
+insert into public.policy_versions(version, doc_key, is_current)
+values ('routine-feedback-next', 'biometric', true);
+
+set local role authenticated;
+set local request.jwt.claims = '{"sub":"dddddddd-dddd-dddd-dddd-dddddddddddd","role":"authenticated"}';
+select throws_ok($$
+  select public.set_routine_feedback(
+    (select id from public.scans where user_id='dddddddd-dddd-dddd-dddd-dddddddddddd' limit 1),
+    'worse')
+$$, 'P0001', 'routine feedback requires current scan consent',
+  'set_routine_feedback rejects a stale biometric receipt');
 
 select * from finish();
 rollback;

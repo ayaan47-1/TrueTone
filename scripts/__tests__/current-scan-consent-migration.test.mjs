@@ -3,6 +3,10 @@ import { readFileSync } from 'node:fs';
 import test from 'node:test';
 
 const migration = readFileSync('supabase/migrations/0028_current_scan_consent.sql', 'utf8');
+const feedbackMigration = readFileSync(
+  'supabase/migrations/0029_current_scan_feedback_consent.sql',
+  'utf8',
+);
 
 function functionDefinition(name) {
   const match = migration.match(
@@ -38,5 +42,12 @@ test('the current-consent RPC is caller-only', () => {
   assert.match(
     migration,
     /grant execute on function public\.has_current_scan_consent\(\) to authenticated;/,
+  );
+});
+
+test('routine feedback enforces current-version scan consent on the server', () => {
+  assert.match(
+    feedbackMigration,
+    /create or replace function public\.set_routine_feedback[\s\S]*public\.has_current_scan_consent\(\)/,
   );
 });
