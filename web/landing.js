@@ -73,22 +73,40 @@ if (typeof document !== 'undefined') {
   }
 }
 
-// Content is visible by default. Observation adds a one-time entrance only.
-// No transforms are driven by scroll events and no offscreen content is hidden.
+// Enhancement only: default content remains visible if JavaScript or observation fails.
+// CSS view timelines provide optional image drift without a scroll-event loop.
 if (typeof document !== 'undefined' && typeof IntersectionObserver !== 'undefined') {
   const reduced = window.matchMedia('(prefers-reduced-motion: reduce)');
-  if (!reduced.matches) {
-    const observer = new IntersectionObserver((entries) => {
+  const header = document.querySelector('.site');
+  const sentinel = document.querySelector('.header-sentinel');
+  let reveals;
+  let headerObserver;
+  const cleanup = () => {
+    reveals?.disconnect();
+    headerObserver?.disconnect();
+    header?.classList.remove('is-condensed');
+  };
+  const start = () => {
+    cleanup();
+    if (reduced.matches) return;
+    reveals = new IntersectionObserver((entries) => {
       for (const entry of entries) {
         if (entry.isIntersecting) {
           entry.target.classList.add('is-revealed');
-          observer.unobserve(entry.target);
+          reveals.unobserve(entry.target);
         }
       }
-    }, { threshold: 0.12 });
-    document.querySelectorAll('[data-reveal]').forEach((node) => observer.observe(node));
-    const cleanup = () => observer.disconnect();
-    window.addEventListener('pagehide', cleanup, { once: true });
-    reduced.addEventListener('change', (event) => { if (event.matches) cleanup(); }, { once: true });
-  }
+    }, { threshold: 0.08 });
+    document.querySelectorAll('[data-reveal]:not(.is-revealed)').forEach((node) => reveals.observe(node));
+    if (header && sentinel) {
+      headerObserver = new IntersectionObserver(([entry]) => {
+        header.classList.toggle('is-condensed', !entry.isIntersecting && entry.boundingClientRect.top < 0);
+      });
+      headerObserver.observe(sentinel);
+    }
+  };
+  start();
+  reduced.addEventListener('change', start);
+  window.addEventListener('pagehide', cleanup);
+  window.addEventListener('pageshow', start);
 }

@@ -34,3 +34,12 @@ Menu links close the disclosure and focus the destination; Escape returns focus 
 ## Verification limits
 
 The source and DOM interaction checks are not browser rendering tests. Before this photo update, the orchestrator rendered 1440px and verified the mobile overflow fix at 390/360px. The three-object-photo patch34c82ea was subsequently rendered by the orchestrator at1440/390/360px: readable hero headline, no phone overflow and all three images loading. The portrait-gallery follow-up needs fresh rendered crop/overflow checks; 1024/768px, reference pixel comparison and Core Web Vitals remain unverified. Chrome could not launch in this agent’s sandbox, and no further browser repair was authorized. Supplier photography is pending. Locked legal text and existing metadata retain em dashes; no literal-zero claim is made.
+
+
+## Photography and motion revision
+
+The homepage now uses an edge-to-edge hero image at88svh on desktop (bounded640-1100px), with dark text on an opaque ivory panel. Mobile keeps a large66svh image and follows it with a readable copy panel. Existing object photographs also fill the evening routine, journal thumbnails and a full-width image band. Portraits remain in the separate gallery before the Journal, with full source proportions and visible disclaimers; the second portrait now spans the content width.
+
+The header is sticky and condenses with a10px upward translation after an IntersectionObserver sentinel passes the viewport. Anchor offsets account for it. Entrances last700ms, with small staggered delays; hover scaling lasts700ms. Optional native CSS view timelines add gentle scale/translation to object images, without a scroll listener or animation library. Browsers without view-timeline support retain reveals and hover feedback. Current API source: https://developer.mozilla.org/en-US/docs/Web/CSS/Reference/Properties/animation-timeline .
+
+Reduced-motion disables entrances, drift, hover scale, header movement and smooth scrolling. A live preference change disconnects the observers; turning motion back on reconnects them without replaying revealed sections. Pagehide disconnects and pageshow restores observation. Content stays visible without JavaScript. Photo assets remain local and unchanged from the prior iteration; repeated uses share the browser cache. Current revision needs fresh rendered QA; project109 tests,23 source/DOM checks and targeted observer lifecycle checks pass.

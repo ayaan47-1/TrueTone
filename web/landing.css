@@ -394,3 +394,95 @@ section[id],article[id] { scroll-margin-top: 32px; }
   .portrait-figure:first-child { width: 82%; }
   .portrait-figure:nth-child(2) { margin-top: 0; }
 }
+
+/* Founder-approved photographic scale and motion, iteration 2. */
+:root { --reveal-duration: 700ms; --motion-ease: cubic-bezier(.2,.65,.25,1); }
+html { scroll-padding-top: 104px; }
+section[id],article[id] { scroll-margin-top: 104px; }
+.header-sentinel { position: absolute; top: 56px; width: 1px; height: 1px; pointer-events: none; }
+.site { position: sticky; top: 0; z-index: 8; max-width: none; background: var(--paper); }
+.site::after { content: ""; position: absolute; bottom: 0; left: 0; right: 0; height: 1px; background: var(--line); opacity: 0; }
+.hero.frame { max-width: none; padding: 0; }
+.hero .ref-banner { margin: 0; padding: 16px var(--gutter); }
+.hero-composition { display: block; position: relative; margin: 0; }
+.hero-image { width: 100%; height: clamp(640px,88svh,1100px); aspect-ratio: auto; }
+.hero-copy { position: absolute; z-index: 1; left: var(--gutter); bottom: 40px; width: min(680px,53%); padding: clamp(24px,3vw,44px); background: var(--paper); }
+.hero h1 { font-size: clamp(64px,6.1vw,96px); max-width: none; line-height: 1.08; }
+.hero-title-wrap { pointer-events: auto; }
+.hero-side { padding: 0; margin-top: 28px; gap: 24px; }
+.hero-side p { max-width: 35ch; }
+.hero-caption { padding-top: 24px; }
+.hero-image.editorial-photo img { object-position: 62% 50%; }
+.routine-morning .routine-image { grid-column: 1 / 8; }
+.routine-morning .routine-content { grid-column: 9 / -1; }
+.routine-evening .routine-image { grid-column: 6 / -1; }
+.routine-evening .routine-content { grid-column: 1 / 5; }
+.portrait-gallery { grid-template-columns: repeat(12,minmax(0,1fr)); gap: 72px 24px; }
+.portrait-figure:first-child { grid-column: 2 / 8; }
+.portrait-figure:nth-child(2) { grid-column: 1 / -1; margin-top: 0; }
+.portrait-figure figcaption { max-width: 66ch; }
+@media (prefers-reduced-motion: no-preference) {
+  .site,.site::after { transition: transform 500ms var(--motion-ease), opacity 500ms var(--motion-ease); }
+  .site.is-condensed { transform: translateY(-10px); }
+  .site.is-condensed::after { opacity: 1; }
+  .hero-image { animation: photo-enter 1000ms var(--motion-ease) both; }
+  .hero-title-wrap { animation-duration: 800ms; }
+  .hero-side { animation-delay: 160ms; }
+  .is-revealed { animation-name: editorial-enter; }
+  .is-revealed .principle-grid article { animation: editorial-enter 700ms var(--motion-ease) both; }
+  .is-revealed .principle-grid article:nth-child(2) { animation-delay: 80ms; }
+  .is-revealed .principle-grid article:nth-child(3) { animation-delay: 160ms; }
+  .is-revealed .principle-grid article:nth-child(4) { animation-delay: 240ms; }
+  .editorial-photo img,.story-image img { transition: scale 700ms var(--motion-ease); }
+  .menu[open] nav { animation-duration: 400ms; }
+  @media (hover: hover) {
+    .editorial-photo:hover img,.story-image:hover img { scale: 1.03; }
+  }
+  @supports (animation-timeline: view()) {
+    .editorial-photo:not(.hero-image) img { animation: photo-drift 1ms linear both; animation-timeline: view(); animation-range: entry 0% exit 100%; }
+  }
+}
+@keyframes editorial-enter { from { opacity: .15; transform: translateY(28px); } to { opacity: 1; transform: translateY(0); } }
+@keyframes photo-enter { from { opacity: .45; } to { opacity: 1; } }
+@keyframes photo-drift { from { transform: scale(1.06) translateY(-2%); } to { transform: scale(1.06) translateY(2%); } }
+@media (max-width: 1100px) {
+  .hero-copy { width: min(640px,66%); }
+  .hero h1 { font-size: clamp(58px,7vw,82px); }
+}
+@media (max-width: 800px) {
+  .hero-image { height: 72svh; min-height: 460px; }
+  .hero-copy { position: relative; left: auto; bottom: auto; width: auto; margin: -100px var(--gutter) 0; padding: 28px; }
+  .hero-side { flex-direction: column; align-items: flex-start; }
+  .hero h1 { font-size: clamp(48px,7.8vw,66px); }
+  .routine-morning .routine-image { grid-column: 1 / 7; }
+  .routine-morning .routine-content { grid-column: 8 / -1; }
+  .routine-evening .routine-image { grid-column: 7 / -1; }
+  .routine-evening .routine-content { grid-column: 1 / 6; }
+  .portrait-gallery { gap: 48px 18px; }
+  .portrait-figure:first-child { grid-column: 1 / 10; }
+}
+@media (max-width: 560px) {
+  .hero-image { height: 66svh; min-height: 400px; }
+  .hero-copy { margin-top: -56px; padding: 24px 0 0; }
+  .hero h1 { font-size: clamp(44px,11.8vw,64px); }
+  .hero-side { margin-top: 24px; }
+  .hero-caption { padding-top: 20px; }
+  .routine .routine-image,.routine .routine-content { grid-column: 1; }
+  .portrait-gallery { grid-template-columns: 1fr; gap: 44px; }
+  .portrait-figure:first-child { grid-column: 1; width: 88%; }
+  .portrait-figure:nth-child(2) { grid-column: 1; }
+}
+@media (prefers-reduced-motion: reduce) {
+  html { scroll-behavior: auto; }
+  .site.is-condensed,.editorial-photo img,.story-image img { transform: none !important; scale: none !important; }
+  .site,.site::after { transition: none; }
+}
+
+/* One placement per supplied photo. This texture band and the wide portrait
+   supply large photographic pauses without repeating the same composition. */
+.feature-copy { grid-column: 1 / -1; max-width: 660px; }
+.feature-image { grid-column: 1 / -1; grid-row: 2; width: 100%; min-height: 0; aspect-ratio: 4 / 3; margin-top: 36px; }
+.texture-photo img { object-position: 50% 56%; }
+@media (max-width: 560px) {
+  .feature-image { grid-column: 1; aspect-ratio: 1; margin-top: 10px; }
+}
