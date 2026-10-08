@@ -382,3 +382,15 @@ section[id],article[id] { scroll-margin-top: 32px; }
   .morning-photo img { object-position: 50% 62%; }
   .texture-photo img { object-position: 50% 60%; }
 }
+
+/* Lifestyle photographs retain their source proportions and visible context. */
+.portrait-gallery { grid-template-columns: 4fr 5.5fr; align-items: start; gap: clamp(32px,8vw,128px); }
+.portrait-figure { overflow: visible; }
+.portrait-figure img { width: 100%; height: auto; }
+.portrait-figure:nth-child(2) { margin-top: 120px; }
+.portrait-figure figcaption { margin-top: 18px; max-width: 58ch; font-size: 13px; line-height: 1.65; color: var(--muted); }
+@media (max-width: 560px) {
+  .portrait-gallery { grid-template-columns: 1fr; gap: 44px; }
+  .portrait-figure:first-child { width: 82%; }
+  .portrait-figure:nth-child(2) { margin-top: 0; }
+}
