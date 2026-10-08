@@ -63,12 +63,21 @@
 <section class="hero frame" aria-labelledby="hero-title">
     <p class="ref-banner" id="ref-banner" hidden>A friend shared TrueTone with you. <a href="#join">Join the early-access list</a>.</p>
     <div class="hero-composition">
-      <figure class="hero-image editorial-photo"><img src="/images/editorial/makeup-flatlay-1440.webp" srcset="/images/editorial/makeup-flatlay-720.webp 720w, /images/editorial/makeup-flatlay-1440.webp 1440w" sizes="100vw" width="1440" height="1440" alt="Makeup brushes, a lipstick, mascara and open compacts arranged on a warm peach surface." fetchpriority="high" /></figure>
+      <div class="hero-image hero-media">
+        <video id="hero-video" autoplay muted loop playsinline preload="metadata" poster="/assets/hero-editorial-poster.webp" width="1620" height="1080" aria-hidden="true" tabindex="-1">
+          <source data-src="/assets/hero-editorial.webm" type="video/webm" />
+          <source data-src="/assets/hero-editorial.mp4" type="video/mp4" />
+        </video>
+        <img class="hero-poster" src="/assets/hero-editorial-poster.webp" width="1620" height="1080" alt="" aria-hidden="true" fetchpriority="high" />
+      </div>
       <div class="hero-copy">
         <div class="hero-title-wrap"><h1 id="hero-title">Your routine,<br /><em>a little simpler.</em></h1></div>
         <div class="hero-side"><p>Explore makeup shades and build cosmetic routines around your preferences.</p><a class="action" href="#join">Join the waitlist <span aria-hidden="true">↗</span></a></div>
         <p class="hero-caption">In development · iPhone first · US · 18+</p>
       </div>
+    </div>
+    <div class="hero-media-meta frame">
+      <p id="hero-footage-caption">Editorial stock footage, AI-animated. Model is not a TrueTone user, customer, or endorser.</p>
     </div>
   </section>
 
@@ -145,8 +154,7 @@
 <section class="gallery frame" aria-labelledby="gallery-title">
   <h2 id="gallery-title" data-reveal>Make a little<br /><em>room for yourself.</em></h2>
   <div class="gallery-images portrait-gallery" data-reveal>
-    <figure class="portrait-figure"><img src="/images/editorial/editorial-daniela-900.webp" srcset="/images/editorial/editorial-daniela-600.webp 600w, /images/editorial/editorial-daniela-900.webp 900w" sizes="(max-width: 560px) 75vw, (min-width: 1600px) 530px, 34vw" width="900" height="1350" alt="Portrait of a woman with closed eyes and a hand beside her face against a brown backdrop." loading="lazy" decoding="async" /><figcaption>Editorial stock photo. Model is not a TrueTone user, customer, or endorser. Not a scan result or expected outcome.</figcaption></figure>
-    <figure class="portrait-figure"><img src="/images/editorial/editorial-fleur-1200.webp" srcset="/images/editorial/editorial-fleur-720.webp 720w, /images/editorial/editorial-fleur-1200.webp 1200w" sizes="100vw" width="1200" height="800" alt="Portrait of a woman with closed eyes in sunlight against a wall." loading="lazy" decoding="async" /><figcaption>Editorial stock photo. Model is not a TrueTone user, customer, or endorser. Not a scan result or expected outcome.</figcaption></figure>
+    <figure class="portrait-figure"><img src="/images/editorial/editorial-daniela-900.webp" srcset="/images/editorial/editorial-daniela-600.webp 600w, /images/editorial/editorial-daniela-900.webp 900w" sizes="(max-width: 560px) 78vw, (max-width: 1160px) 66vw, 760px" width="900" height="1350" alt="Portrait of a woman with closed eyes and a hand beside her face against a brown backdrop." loading="lazy" decoding="async" /><figcaption>Editorial stock photo. Model is not a TrueTone user, customer, or endorser. Not a scan result or expected outcome.</figcaption></figure>
   </div>
 </section>
 <section class="journal frame" id="journal" aria-labelledby="journal-title">
@@ -233,5 +241,6 @@
 <script src="/config.js"></script>
 <script type="module" src="/app.js"></script>
 <script type="module" src="/landing.js"></script>
+<script type="module" src="/hero-video.js"></script>
 </body>
 </html>

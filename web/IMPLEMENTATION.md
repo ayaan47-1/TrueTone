@@ -1,6 +1,6 @@
 # TrueTone editorial web preview
 
-Static HTML, CSS and JavaScript. The Expo app is unchanged. The source base is `fad70be`; this work belongs on `feat/truekind-web`.
+Static HTML, CSS and JavaScript on `feat/truekind-web`. The Expo app is unchanged. The design system is documented in [DESIGN.md](DESIGN.md).
 
 ## Preview
 
@@ -11,35 +11,42 @@ EXPO_PUBLIC_SUPABASE_URL=https://preview.invalid EXPO_PUBLIC_SUPABASE_ANON_KEY=l
 python3 -m http.server 8080 --directory web
 ```
 
-Open `http://localhost:8080/` and `/journal.html`. The generated local configuration cannot submit email or report a successful signup. Valid production configuration continues to use the existing waitlist service. `web/config.js`, `web/_headers` and generated policies remain ignored build outputs. Do not deploy the preview configuration.
+Open `http://localhost:8080/` and `/journal.html`. The generated local configuration cannot submit email or report a successful signup. Valid production configuration continues to use the existing waitlist service. `web/config.js`, `web/_headers` and generated policies remain ignored build outputs. Do not deploy the preview configuration. The Python preview does not enforce `_headers`; deployment must use the generated Content Security Policy, including same-origin-only media permission.
 
-Run `npm run test:scripts`, `npm run check:compliance` and `npm run check:no-egress`. No lint command is configured. These web edits introduce no TypeScript or native changes.
+Run `npm run test:scripts`, `npm run check:compliance` and `npm run check:no-egress`. No lint command is configured. These edits introduce no TypeScript or native changes.
 
-## Assets
+## Hero footage
 
-The founder supplied three Unsplash object photographs, used in the hero, morning routine and texture/finish feature. For these three object photos, six self-hosted WebP files provide two sizes per photo (270 KiB total); responsive `srcset` selects one per slot. The hero loads eagerly at high priority; lower images load lazily. Original source colours are retained. Other editorial compositions use typography and solid colours. Two further founder-supplied portraits appear only in the lifestyle gallery before the journal, each with an adjacent stock-photo disclaimer. They retain full source proportions and receive only resizing/format conversion. No model release is on file; the founder explicitly overrode that requirement on 2026-10-08. The gallery is separated from the waitlist by the full journal section. Four portrait derivatives add 214 KiB; all ten photo files total 484 KiB. No AI images are included. Source IDs and photographer names come from the supplied filenames; per-photo pages could not be independently retrieved. The general Unsplash License was checked; the per-photo source/license assertion comes from the founder. The partner section reserves a square neutral image slot; a 4:5 placeholder and `.supplier-portrait` modifier are also available. Product images use `object-fit: contain` so packaging is not cropped.
+The founder supplied an eight-second, silent AI animation of the Fleur Kaan Unsplash portrait. The source remains untouched outside the repository. Full-clip crop detection found150px black bars on both sides; derivatives crop to1620x1080 at24fps without upscaling:
 
-Future supplier photographs must have documented permission and be shown beside that exact supplier's actual product identity. They must never become generic TrueTone hero, routine, gallery or journal imagery. A photograph of one brand must never illustrate a fictional product or another brand. No Shopify integration, commerce service or remote image fetching is implemented.
+| Local asset | Bytes | Format |
+|---|---:|---|
+| assets/hero-editorial.mp4 | 2639301 | H.264, yuv420p, faststart, no audio |
+| assets/hero-editorial.webm | 2402130 | VP9, yuv420p, no audio |
+| assets/hero-editorial-poster.webp | 191030 | First cropped source frame |
 
-See `images/editorial/provenance.json` for the asset record and replacement requirements. The SVGs are plain local neutral placeholders, not illustrations or product photographs. Image generation prompts have been cancelled and removed.
+The browser selects one supported video format; it does not need both. The poster/image is always available. The existing ivory panel, headline, support copy, action and eligibility wording remain. The added caption explicitly identifies stock footage, AI animation and nonendorsement. The founder subsequently requested removal of Play/Pause while keeping the loop. No in-page playback control remains.
 
-Plus Jakarta Sans and Inter remain self-hosted; their font licenses are included in `fonts/`. The contrasting serif is the OS-provided Georgia, with Times New Roman/serif fallbacks. No commercial font was downloaded or redistributed. This is a visual approximation of the requested type pairing, and serif metrics can vary across platforms.
+`hero-video.js` leaves all video sources inert until preferences permit playback. Reduced motion or browser-exposed Save-Data yields poster-only with no video request; a live change removes sources, pauses and resets the video. Hidden tabs pause, pagehide releases sources, and pageshow restores permitted playback. No JavaScript, autoplay denial and media errors all preserve the poster. Browsers without the Network Information API cannot expose Save-Data; reduced motion remains independently supported.
 
-## Preserved contracts
+The MP4 and WebM are local only. `scripts/build-waitlist.mjs` adds only `media-src 'self'` to the existing Content Security Policy. The generated header retains its restrictions on connections, scripts, frames and other origins. No tracking, media vendor SDK or external video request is added.
 
-All existing homepage ids, navigation labels/destinations, signup input/button order, field names, referral behavior, legal URLs, wordmark markup and disclaimer wording remain. Journal navigation and `/journal.html` are additive. The claims ruling's two unsubstantiated product-verification phrases have been replaced with preference-based wording. Morning/evening examples are generic and do not claim to be personalized results.
+## Founder playback override
 
-Menu links close the disclosure and focus the destination; Escape returns focus to Menu. Details and articles work without JavaScript. Scroll entrances are optional, keep content visible by default and respect reduced motion. Form feedback preserves live regions, eligibility checks and error handling.
+On2026-10-08, founder message74160b explicitly requested “remove play pause option keep the loop.” The markup, button CSS, controller logic and pause-control tests were removed. The looping background therefore has no in-page pause mechanism and is not claimed to satisfy WCAG2.2.2. Reduced-motion and browser-exposed Save-Data settings still prevent media loading and playback; live preference changes still return to the poster. This records the specific founder decision, not a general accessibility exemption.
 
-## Verification limits
+## Other assets and rights
 
-The source and DOM interaction checks are not browser rendering tests. Before this photo update, the orchestrator rendered 1440px and verified the mobile overflow fix at 390/360px. The three-object-photo patch 34c82ea was subsequently rendered by the orchestrator at 1440/390/360px: readable hero headline, no phone overflow and all three images loading. The portrait gallery was then rendered and committed as `2c2ff16`. Final layout `39db6d2` has no horizontal overflow at 1440, 1024, 768, 390 or 360px; all images load and each photograph appears once. Reference pixel comparison, full browser keyboard/assistive-technology testing and Core Web Vitals remain unverified. Chrome could not launch in this agent’s sandbox, and no further browser repair was authorized. Supplier photography is pending. Locked legal text and existing metadata retain em dashes; no literal-zero claim is made.
+The pink makeup flatlay appeared only in the old hero. Both unused derivatives were removed; their source/hash history is retained under `retired_assets` in `images/editorial/provenance.json`. Two object photos remain: amber dropper for the morning routine and lipstick swatches for the full-width feature. Only the original Daniela portrait remains, centered in the separate editorial gallery before Journal with unchanged full proportions and its visible disclaimer. The founder removed the duplicate Fleur Kaan still; its two unused derivatives were deleted and retained in the manifest’s retired history. The evening routine and journal retain type compositions.
 
+The founder explicitly authorized the supplied AI footage/poster in the hero on2026-10-08. This supersedes the prior hero-placement restriction only for that footage/poster. No model release is on file. Original gallery photography remains subject to its existing placement/caption restrictions. Source photographer/IDs and AI generation context were supplied by the founder; individual source pages, generation settings and derivative rights were not independently verified. No image-generation service was called for this update.
 
-## Photography and motion revision
+Supplier slots remain neutral placeholders. Future supplier photos require documented permission and exact matching supplier/product identity; never reuse them as generic TrueTone imagery. No commerce or Shopify integration is added. Fonts remain self-hosted Plus Jakarta Sans/Inter with included licenses and OS Georgia/Times fallbacks.
 
-The homepage now uses an edge-to-edge hero image at 88svh on desktop (bounded 640-1100px), with dark text on an opaque ivory panel. Mobile keeps a large 66svh image and follows it with a readable copy panel. Each supplied photo appears once: fullbleed makeup hero, amber morning routine, wide lipstick texture feature and two editorial portraits. The texture feature now spans the content width; the evening routine and journal retain type compositions to avoid repetition. Portraits remain in the separate gallery before the Journal, with full source proportions and visible disclaimers; the second portrait now spans the content width.
+## Verification and limits
 
-The header is sticky and condenses with a 10px upward translation after an IntersectionObserver sentinel passes the viewport. Anchor offsets account for it. Entrances last 700ms, with small staggered delays; hover scaling lasts700ms. Optional native CSS view timelines add gentle scale/translation to object images, without a scroll listener or animation library. Browsers without view-timeline support retain reveals and hover feedback. Current API source: https://developer.mozilla.org/en-US/docs/Web/CSS/Reference/Properties/animation-timeline .
+Before this video update, both homepage and journal passed1440/1024/768/390/360 overflow/headline/image checks, with normal/reduced/live-toggle motion verified by the orchestrator. Those earlier results do not certify the new video. The video update requires fresh browser checks for autoplay, poster-only request blocking, caption placement, face crop and all five widths.
 
-Reduced-motion disables entrances, drift, hover scale, header movement and smooth scrolling. A live preference change disconnects the observers; turning motion back on reconnects them without replaying revealed sections. Pagehide disconnects and pageshow restores observation. Content stays visible without JavaScript. Photo assets remain local and unchanged from the prior iteration. God rendered the first motion/scale revision at 1440/390/360: hero readable, no overflow, images load, reveal content visible after scroll, gallery captions present. The final change removes duplicate photo placements and enlarges the texture feature. God verified no overflow at all five target widths and measured the mobile swatch at 351 × 351px in the 390px viewport. Actual browser motion and live preference-switch behavior were not separately reported. Project 109 tests, 23 source/DOM checks and targeted observer lifecycle checks pass.
+Source tests cover media preferences, live changes, autoplay rejection, errors, visibility/page lifecycle and late play promises. File probes verify both videos are eight seconds,1620x1080,24fps with no audio stream and below3MB. Source hashes and encoding settings are recorded in the manifest.
+
+No pixel-perfect comparison, full assistive-technology review, live signup or Core Web Vitals certification is claimed. Locked legal copy and existing metadata retain em dashes. No push or deployment is part of this work.
