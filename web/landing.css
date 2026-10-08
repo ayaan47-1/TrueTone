@@ -326,8 +326,8 @@ section[id],article[id] { scroll-margin-top: 32px; }
   .story-image:hover img,.text-link:hover span,.link-arrow:hover span,.action:hover span { transform: none; }
 }
 
-/* Founder image-source revision: supplier photos are product-specific only.
-   Generic brand sections use typography/solid colour, not disguised product photos. */
+/* Supplier photos remain product-specific. Founder-approved unbranded object
+   photos illustrate editorial sections alongside the remaining colour panels. */
 .colour-composition { display: flex; align-items: flex-end; justify-content: flex-end; padding: clamp(28px,4vw,64px); background: #e5dbcd; }
 .colour-composition > span { font: 400 clamp(42px,4.8vw,76px)/1.05 var(--display); letter-spacing: -.055em; }
 .intro-bottom { margin-block: 36px 72px; }
@@ -368,4 +368,17 @@ section[id],article[id] { scroll-margin-top: 32px; }
   .gallery-block:nth-child(1) { margin-top: 30px; }
   .gallery-block:nth-child(2) { margin-bottom: 0; }
   .gallery-block:nth-child(3) { grid-column: 1 / -1; width: 66%; justify-self: center; aspect-ratio: 5/4; }
+}
+
+/* Keep image intrinsic sizes from changing grid tracks. Preserve the fixed slot
+   geometry before decoding, including the mobile philosophy overflow fix. */
+.editorial-photo { position: relative; min-width: 0; background: var(--sand); }
+.editorial-photo img { position: absolute; inset: 0; }
+.hero-image.editorial-photo img { object-position: 50% 42%; }
+.morning-photo img { object-position: 50% 60%; }
+.texture-photo img { object-position: 50% 55%; }
+@media (max-width: 560px) {
+  .hero-image.editorial-photo img { object-position: 50% 50%; }
+  .morning-photo img { object-position: 50% 62%; }
+  .texture-photo img { object-position: 50% 60%; }
 }
