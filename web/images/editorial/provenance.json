@@ -1,0 +1,33 @@
+{
+  "status": "Neutral placeholders only. Supplier product photos not supplied. No AI imagery used.",
+  "created": "2026-10-08",
+  "source": "Locally authored SVG rectangles",
+  "model": null,
+  "prompt": null,
+  "assets": [
+    {
+      "file": "supplier-square.svg",
+      "width": 1000,
+      "height": 1000,
+      "license": "Original project placeholder",
+      "role": "reserved supplier product image, not generic brand imagery",
+      "sha256": "e2424394d558dc9fe61ffb29f6c621ebd6a9f2e55ade4d4e3cb172de655329db"
+    },
+    {
+      "file": "supplier-portrait.svg",
+      "width": 1000,
+      "height": 1250,
+      "license": "Original project placeholder",
+      "role": "optional 4:5 supplier product image slot",
+      "sha256": "099913989f469e0b04f582edb72013f257fe223191f971f1fd365f55a4fc879c"
+    }
+  ],
+  "replacement_requirements": [
+    "Supplier-provided product photograph with documented commercial display rights.",
+    "Display only beside the exact supplier name and exact pictured product. Never associate with a fictional or generic TrueTone product.",
+    "Record supplier, product id/name, source, permission/license, hash and review date before use.",
+    "Self-host locally. No image hotlinks, customer photos, tracking embeds or Shopify integration are introduced by this page.",
+    "Use object-fit: contain in square or 4:5 neutral frames. Preserve source packaging and marks; do not relabel or crop a different brand into a generic asset."
+  ],
+  "cancelled_generation": "Gemini attempt by orchestrator failed with quota errors and produced no images. Founder cancelled AI generation; no active prompts remain."
+}

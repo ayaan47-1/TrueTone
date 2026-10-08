@@ -1,0 +1,76 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>Everyday notes | TrueTone</title>
+<meta name="description" content="Original notes on cosmetic preferences, product labels and everyday routines from TrueTone." />
+
+<!-- Open Graph / Twitter. Every URL on this page is relative on purpose: nothing
+     third-party may touch it (CLAUDE.md §1), and scripts/check-waitlist-copy.mjs fails
+     the build on any foreign origin — so og:image points at a self-hosted asset and there
+     is no absolute og:url. The branded card lives at /og.svg. -->
+
+
+
+
+
+
+
+
+
+<!-- No analytics, no pixel, no tag manager, and no third-party origin of any kind.
+     Enforced two ways, not left to discipline:
+       • scripts/check-waitlist-copy.mjs fails the build on any foreign host in this file
+       • web/_headers ships a CSP that blocks one at runtime even if it slipped through
+         (it also forbids inline styles and scripts, so everything lives in landing.css /
+         landing.js / app.js)
+     UTM/referrer attribution is first-party only: it is stored on our own waitlist row
+     via the join RPC, never sent to a third party. Fonts and photos are self-hosted. -->
+
+<link rel="icon" href="/favicon.svg" type="image/svg+xml" />
+<link rel="stylesheet" href="/landing.css" />
+<link rel="preload" href="/fonts/plus-jakarta-sans.woff2" as="font" type="font/woff2" crossorigin />
+<link rel="preload" href="/fonts/inter.woff2" as="font" type="font/woff2" crossorigin />
+</head>
+<body><a class="skip-link" href="#main">Skip to content</a><header class="site">
+  <nav class="site-nav" aria-label="Main navigation">
+    <a href="/#experience">Experience</a>
+    <a href="/#brands">For brands</a>
+    <a href="/#principles">Approach</a>
+      <a href="/#journal">Journal</a>
+  </nav>
+  <a class="mark" href="/" aria-label="TrueTone home"><span class="swatches" aria-hidden="true"><span class="sw sw1"></span><span class="sw sw2"></span><span class="sw sw3"></span><span class="sw sw4"></span></span><span class="wordmark">truetone</span></a>
+  <a class="link-arrow site-cta" href="/#partnership">Explore a partnership <span aria-hidden="true">→</span></a>
+  <!-- Small screens: a no-JS disclosure menu, so the CSP's script-src stays untouched. -->
+  <details class="menu">
+    <summary>Menu</summary>
+    <nav aria-label="Mobile navigation">
+      <a href="/#experience">Experience</a>
+      <a href="/#brands">For brands</a>
+      <a href="/#principles">Approach</a>
+      <a href="/#journal">Journal</a>
+      <a href="/#partnership">Explore a partnership</a>
+      <a href="/#join">Join the waitlist</a>
+    </nav>
+  </details>
+</header>
+
+<main id="main" class="reading frame"><a class="text-link" href="/#journal">Back to journal <span aria-hidden="true">↖</span></a><h1>Notes on <em>the everyday.</em></h1><nav class="reading-nav" aria-label="Articles"><a href="#preferences">Making room for your preferences.</a><a href="#labels">A closer look at the label.</a><a href="#space">A space for the everyday.</a></nav><article class="reading-article" id="preferences" aria-labelledby="preferences-title"><p class="small-label">Preferences</p><h2 id="preferences-title">Making room for your preferences.</h2><section><h3>Start with what you like.</h3><p>A routine can begin with simple preferences. Perhaps you enjoy a light texture, prefer a fragrance-free product, or want fewer steps on a busy morning. Those choices are useful starting points.</p></section><section><h3>Write a short list.</h3><p>Note the categories you already use, the textures you enjoy and the budget you want to stay within. Keep observations about appearance separate from questions about skin health.</p></section><section><h3>Leave room to change your mind.</h3><p>Preferences can change with your schedule. A shorter routine may suit one day and a longer one another. Follow product labels, and seek a dermatologist’s advice for anything concerning on your skin.</p></section></article><article class="reading-article" id="labels" aria-labelledby="labels-title"><p class="small-label">The details</p><h2 id="labels-title">A closer look at the label.</h2><section><h3>Read beyond the name.</h3><p>Two products in the same category can offer different textures, finishes and directions. Read the product description alongside the label rather than relying on the name alone.</p></section><section><h3>Keep the details together.</h3><p>Application instructions, ingredient information and storage directions belong in the same decision. Follow the label for the product you choose. Do not assume that a catalog entry independently verifies a product’s claims.</p></section><section><h3>Know what a preference can tell you.</h3><p>A preference for a particular texture or finish is not a skin-health assessment. TrueTone’s routine experience is built around stated preferences. A selfie doesn’t determine skincare needs.</p></section></article><article class="reading-article" id="space" aria-labelledby="space-title"><p class="small-label">Daily habits</p><h2 id="space-title">A space for the everyday.</h2><section><h3>Give the familiar things a place.</h3><p>A small tray or shelf can make it easier to find the objects you use regularly. Arrange them in a way that makes sense to you; there is no required collection to own.</p></section><section><h3>Let the label guide storage.</h3><p>Check the storage directions on your products before choosing where they live. Keep labels readable and lids with their containers.</p></section><section><h3>Keep a useful note.</h3><p>A short list of the textures, fragrances and finishes you enjoy can be more helpful than adding another step. Your routine is a set of choices, not a score to improve.</p></section></article></main><footer class="foot frame">
+  <div class="footer-opening"><p class="footer-note">A routine.<br />A little more <em>you.</em></p><a class="text-link" href="#main">Back to top <span aria-hidden="true">↑</span></a></div>
+  <p class="foot-mark" aria-hidden="true">truetone</p>
+  <p class="disclaimer">TrueTone is a makeup discovery and preference-based skincare app in development, not a medical device. It does not diagnose, treat, cure, or prevent any condition. TrueTone does not provide medical advice or assess skin health. For anything concerning on your skin, see a dermatologist. Your face data is yours — we never sell it.</p>
+  <div class="foot-bottom">
+    <span>© 2026 TrueTone · United States only · 18+</span>
+    <nav aria-label="Legal">
+      <a href="/policies/privacy.html">Privacy</a>
+      <a href="/policies/terms.html">Terms</a>
+      <a href="/policies/biometric.html">Biometric data</a>
+      <a href="/policies/retention.html">Retention</a>
+    </nav>
+  </div>
+</footer>
+
+<script type="module" src="/landing.js"></script>
+</body>
+</html>

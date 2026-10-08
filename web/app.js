@@ -48,7 +48,7 @@ function showOutcome(outcome) {
 function readConfig() {
   const cfg = window.TRUETONE_CONFIG;
   if (!cfg?.supabaseUrl || !cfg?.supabaseAnonKey) return null;
-  if (cfg.supabaseUrl.includes('YOUR-PROJECT')) return null;
+  if (/your-project|\.invalid(?:[/:]|$)/i.test(cfg.supabaseUrl)) return null;
   return cfg;
 }
 
@@ -82,7 +82,7 @@ function showShare(result) {
   if (referralsEl) referralsEl.textContent = numberFmt.format(result.referrals ?? 0);
   if (result.total !== null && counterEl) counterEl.textContent = numberFmt.format(result.total);
   sharePanel.hidden = false;
-  sharePanel.scrollIntoView({ behavior: 'smooth', block: 'center' });
+  sharePanel.scrollIntoView({ behavior: window.matchMedia?.('(prefers-reduced-motion: reduce)').matches ? 'auto' : 'smooth', block: 'center' });
 }
 
 if (copyButton && shareLinkEl) {
