@@ -20,11 +20,25 @@ jest.mock('../supabase', () => ({
 const mockBootstrap = bootstrapSession as jest.Mock;
 const mockRegion = isUSRegion as jest.Mock;
 const mockFrom = supabase.from as jest.Mock;
+let profileResponse: { data: unknown; error: unknown };
+let consentReceiptResponse: { data: unknown; error: unknown };
+
+type ReceiptBuilder = {
+  eq: () => ReceiptBuilder;
+  order: () => ReceiptBuilder;
+  limit: () => ReceiptBuilder;
+  maybeSingle: () => Promise<{ data: unknown; error: unknown }>;
+};
 
 function mockProfileRow(row: unknown, error: unknown = null) {
-  mockFrom.mockReturnValue({
-    select: () => ({ eq: () => ({ single: async () => ({ data: row, error }) }) }),
-  });
+  profileResponse = { data: row, error };
+}
+
+function mockConsentReceipt(policyVersion: string | null, error: unknown = null) {
+  consentReceiptResponse = {
+    data: policyVersion ? { policy_version: policyVersion } : null,
+    error,
+  };
 }
 
 function Probe() {
@@ -36,12 +50,54 @@ beforeEach(() => {
   jest.clearAllMocks();
   mockCameraDemo = false;
   cameraDemoReset();
+  profileResponse = { data: null, error: null };
+  consentReceiptResponse = { data: { policy_version: '2026-10-06.a1' }, error: null };
+  mockFrom.mockImplementation((table: string) => {
+    if (table === 'profiles') {
+      return {
+        select: () => ({ eq: () => ({ single: async () => profileResponse }) }),
+      };
+    }
+    const builder: ReceiptBuilder = {
+      eq: () => builder,
+      order: () => builder,
+      limit: () => builder,
+      maybeSingle: async () => consentReceiptResponse,
+    };
+    return { select: () => builder };
+  });
 });
 
 test('happy path: US + 18+ + consent -> home, exposes userId', async () => {
   mockBootstrap.mockResolvedValue('u1');
   mockRegion.mockReturnValue(true);
   mockProfileRow({ is_18_plus: true, consent_active: true });
+  await render(
+    <ProfileProvider>
+      <Probe />
+    </ProfileProvider>
+  );
+  await waitFor(() => expect(screen.getByText('false|false|home|u1')).toBeTruthy());
+});
+
+test('active consent on an older biometric policy re-prompts once', async () => {
+  mockBootstrap.mockResolvedValue('u1');
+  mockRegion.mockReturnValue(true);
+  mockProfileRow({ is_18_plus: true, consent_active: true });
+  mockConsentReceipt('2026-06-15.1');
+  await render(
+    <ProfileProvider>
+      <Probe />
+    </ProfileProvider>
+  );
+  await waitFor(() => expect(screen.getByText('false|false|consent|u1')).toBeTruthy());
+});
+
+test('active consent on the current biometric policy does not re-prompt', async () => {
+  mockBootstrap.mockResolvedValue('u1');
+  mockRegion.mockReturnValue(true);
+  mockProfileRow({ is_18_plus: true, consent_active: true });
+  mockConsentReceipt('2026-10-06.a1');
   await render(
     <ProfileProvider>
       <Probe />

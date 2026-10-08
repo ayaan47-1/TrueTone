@@ -16,7 +16,7 @@ const CONTENT_DIR = 'src/content';
 const OUT_DIR = 'web';
 
 // ── markdown ──────────────────────────────────────────────────────────────────
-// The five policy documents use headings, blockquotes, bold, bullet lists and
+// The policy documents use headings, blockquotes, bold, bullet lists and
 // paragraphs. A full CommonMark dependency would add supply-chain surface to publish
 // legal text; this does exactly what the source needs and nothing it doesn't.
 

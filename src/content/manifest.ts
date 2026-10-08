@@ -1,7 +1,13 @@
 export const POLICY_VERSION = '2026-10-06.a1';
 export const AI_CONSENT_VERSION = POLICY_VERSION;
 
-export type DocKey = 'privacy' | 'terms' | 'biometric' | 'retention' | 'wa_health';
+export type DocKey =
+  | 'privacy'
+  | 'terms'
+  | 'biometric'
+  | 'retention'
+  | 'wa_health'
+  | 'ai_routine_chat';
 
 export const POLICY_DOCS: { key: DocKey; title: string }[] = [
   { key: 'privacy', title: 'Privacy Policy' },
@@ -9,4 +15,5 @@ export const POLICY_DOCS: { key: DocKey; title: string }[] = [
   { key: 'biometric', title: 'Biometric Data Policy' },
   { key: 'retention', title: 'Data Retention Schedule' },
   { key: 'wa_health', title: 'WA Consumer Health Data Policy' },
+  { key: 'ai_routine_chat', title: 'Optional AI Routine and Chat Consent' },
 ];

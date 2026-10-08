@@ -2,6 +2,14 @@
 
 # Data Retention Schedule
 
+**Waitlist email.** We delete your email address 90 days after we send you that invite, or 3 years
+after you join if we never do, whichever comes first. Unsubscribing deletes it sooner.
+
+**Referral code and source tag.** If you arrive from a referral link, we record the referral code
+and a privacy-safe source tag with your waitlist entry. We delete them 90 days after we send you that
+invite, or 3 years after you join if we never do, whichever comes first. Unsubscribing deletes them
+sooner.
+
 **Face photo.** The photo is processed only on your device and deleted immediately after the read.
 It is not stored on [LEGAL ENTITY NAME]'s servers or sent to Anthropic.
 

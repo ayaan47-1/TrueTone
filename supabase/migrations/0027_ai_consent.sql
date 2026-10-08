@@ -30,17 +30,25 @@ language plpgsql security definer set search_path = public, pg_temp as $$
 declare v_uid uuid := auth.uid();
         v_version text;
         v_row public.consent_log;
+        v_consent_active boolean;
 begin
   if v_uid is null then raise exception 'not authenticated' using errcode='P0001'; end if;
   select version into v_version from public.policy_versions where doc_key='biometric' and is_current;
   if v_version is null then raise exception 'no current biometric policy' using errcode='P0001'; end if;
 
-  if exists (select 1 from public.profiles where id=v_uid and consent_active) then
-    update public.profiles set last_interaction_at=now() where id=v_uid;
+  select consent_active into v_consent_active
+    from public.profiles where id=v_uid for update;
+  if not found then raise exception 'profile not found' using errcode='P0001'; end if;
+
+  if v_consent_active then
     select * into v_row from public.consent_log
       where user_id=v_uid and action='consented' and policy_doc_key='biometric'
+        and policy_version=v_version
       order by created_at desc limit 1;
-    return v_row;
+    if found then
+      update public.profiles set last_interaction_at=now() where id=v_uid;
+      return v_row;
+    end if;
   end if;
 
   insert into public.consent_log(user_id, action, policy_version, policy_doc_key)
@@ -103,6 +111,36 @@ begin
   update public.profiles set ai_consent_active=false, last_interaction_at=now() where id=v_uid;
 end; $$;
 
+-- Scan consent is the broader prerequisite. Ending it also ends the optional AI authorization so
+-- a later scan re-consent cannot silently revive an older Anthropic choice.
+create or replace function public.withdraw_consent()
+returns void language plpgsql security definer set search_path = public, pg_temp as $$
+declare v_uid uuid := auth.uid();
+        v_biometric_version text;
+        v_ai_version text;
+        v_ai_consent_active boolean;
+begin
+  if v_uid is null then raise exception 'not authenticated' using errcode='P0001'; end if;
+  select ai_consent_active into v_ai_consent_active
+    from public.profiles where id=v_uid for update;
+  if not found then raise exception 'profile not found' using errcode='P0001'; end if;
+
+  select version into v_biometric_version from public.policy_versions
+    where doc_key='biometric' and is_current;
+  insert into public.consent_log(user_id, action, policy_version, policy_doc_key)
+    values (v_uid,'withdrawn',v_biometric_version,'biometric');
+  if v_ai_consent_active then
+    select version into v_ai_version from public.policy_versions
+      where doc_key='ai_routine_chat' and is_current;
+    insert into public.consent_log(user_id, action, policy_version, policy_doc_key)
+      values (v_uid,'withdrawn',v_ai_version,'ai_routine_chat');
+  end if;
+
+  update public.profiles
+     set consent_active=false, ai_consent_active=false, last_interaction_at=now()
+   where id=v_uid;
+end; $$;
+
 -- Extend delete-everything so the optional AI authorization cannot survive a data deletion.
 create or replace function public.delete_my_data()
 returns void language plpgsql security definer set search_path = public, pg_temp as $$
@@ -114,7 +152,7 @@ begin
   if v_uid is null then raise exception 'not authenticated' using errcode='P0001'; end if;
   select ai_consent_active into v_ai_consent_active
     from public.profiles where id=v_uid for update;
-  if not found then raise exception 'profile not found' using errcode='P0001'; end if;
+  if not found then return; end if;
 
   select version into v_biometric_version from public.policy_versions
     where doc_key='biometric' and is_current;
@@ -139,6 +177,42 @@ begin
    where id=v_uid;
 end; $$;
 
+-- Keep scheduled expiry receipts consistent with user-triggered deletion. Both receipts are
+-- de-identified before the profile and authentication row are removed.
+create or replace function public.truetone_retention_sweep()
+returns void language plpgsql security definer set search_path = public, pg_temp as $$
+declare v_id uuid;
+        v_count int := 0;
+        v_biometric_version text;
+        v_ai_version text;
+        v_ai_consent_active boolean;
+begin
+  select version into v_biometric_version from public.policy_versions
+    where doc_key='biometric' and is_current;
+  select version into v_ai_version from public.policy_versions
+    where doc_key='ai_routine_chat' and is_current;
+
+  for v_id, v_ai_consent_active in
+    select id, ai_consent_active from public.profiles
+      where last_interaction_at < now() - interval '3 years'
+  loop
+    insert into public.consent_log(user_id, action, policy_version, policy_doc_key)
+      values (v_id,'deleted',v_biometric_version,'biometric');
+    if v_ai_consent_active then
+      insert into public.consent_log(user_id, action, policy_version, policy_doc_key)
+        values (v_id,'deleted',v_ai_version,'ai_routine_chat');
+    end if;
+    update public.consent_log set user_id = null where user_id = v_id;
+    if exists (select 1 from public.scans where user_id = v_id) then
+      perform public.audit_deletion('scans', v_id);
+    end if;
+    delete from public.profiles where id = v_id;
+    delete from auth.users where id = v_id;
+    v_count := v_count + 1;
+  end loop;
+  insert into public.retention_runs(purged_count) values (v_count);
+end; $$;
+
 revoke all on function public.record_ai_consent() from public;
 revoke all on function public.withdraw_ai_consent() from public;
 grant execute on function public.record_ai_consent() to authenticated;
@@ -146,6 +220,8 @@ grant execute on function public.withdraw_ai_consent() to authenticated;
 
 -- Re-assert the existing lifecycle RPC grants after replacement.
 revoke all on function public.record_consent() from public;
+revoke all on function public.withdraw_consent() from public;
 revoke all on function public.delete_my_data() from public;
 grant execute on function public.record_consent() to authenticated;
+grant execute on function public.withdraw_consent() to authenticated;
 grant execute on function public.delete_my_data() to authenticated;

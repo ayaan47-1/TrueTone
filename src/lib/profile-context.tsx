@@ -4,8 +4,10 @@ import { bootstrapSession } from './auth';
 import { isUSRegion } from './region';
 import { nextRoute, type Route } from './routing-guard';
 import { cameraDemoState } from './camera-demo-profile';
+import { POLICY_VERSION } from '../content/manifest';
 
 type Profile = { is_18_plus: boolean; consent_active: boolean };
+type ConsentReceipt = { policy_version: string };
 type Ctx = {
   loading: boolean;
   error: boolean;
@@ -57,7 +59,25 @@ export function ProfileProvider({ children }: { children: React.ReactNode }) {
         .single();
       if (e || !data) throw new Error('profile-load-failed');
       const p = data as Profile;
-      setRoute(nextRoute({ isUS: isUSRegion(), is18: p.is_18_plus, consent: p.consent_active }));
+      let hasCurrentConsent = false;
+      if (p.consent_active) {
+        const { data: receipt, error: receiptError } = await supabase
+          .from('consent_log')
+          .select('policy_version')
+          .eq('user_id', uid)
+          .eq('action', 'consented')
+          .eq('policy_doc_key', 'biometric')
+          .eq('policy_version', POLICY_VERSION)
+          .limit(1)
+          .maybeSingle();
+        if (receiptError) throw new Error('consent-receipt-load-failed');
+        hasCurrentConsent = (receipt as ConsentReceipt | null)?.policy_version === POLICY_VERSION;
+      }
+      setRoute(nextRoute({
+        isUS: isUSRegion(),
+        is18: p.is_18_plus,
+        consent: p.consent_active && hasCurrentConsent,
+      }));
       setError(false);
     } catch {
       setError(true); // fail closed: never advance on unknown identity

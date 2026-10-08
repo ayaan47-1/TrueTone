@@ -9,7 +9,7 @@ import {
 } from '../build-waitlist.mjs';
 
 // The policy pages are generated from src/content/*.md so the website and the app can
-// never state different terms. A tiny renderer is deliberate: these five documents use
+// never state different terms. A tiny renderer is deliberate: these documents use
 // headings, blockquotes, bold, bullets and paragraphs, and nothing else. Pulling in a full
 // CommonMark dependency to publish legal text would add supply-chain surface for no gain.
 
