@@ -10,6 +10,7 @@ import {
   readShopifyConfig,
 } from './storefront.js';
 import {
+  createProductAddController,
   neutralProductAlt,
   parseCartQuantity,
   productImageForVariant,
@@ -157,13 +158,15 @@ function populateProduct(product, cart, { canAdd = true } = {}) {
     option.textContent = `${variant.title} | ${formatMoney(variant.price)}${variant.availableForSale ? '' : ' (unavailable)'}`;
     picker.append(option);
   }
-  let cartAvailable = canAdd;
+  const addController = createProductAddController((variantId, quantity) => cart.add(variantId, quantity), {
+    enabled: canAdd,
+  });
   const syncSelection = ({ clearStatus = false } = {}) => {
     const variant = product.variants.find((item) => item.id === picker.value);
     document.querySelector('[data-product-price]').textContent = variant ? formatMoney(variant.price) : '';
     media.replaceChildren(productImage(productImageForVariant(variant, product.image), product.title));
-    add.disabled = !cartAvailable || !variant?.availableForSale;
-    add.textContent = cartAvailable ? 'Add to cart' : 'Unavailable offline';
+    add.disabled = !addController.canAttempt(variant?.availableForSale);
+    add.textContent = canAdd ? 'Add to cart' : 'Unavailable offline';
     if (clearStatus) setStatus('');
   };
   picker.addEventListener('change', () => syncSelection({ clearStatus: true }));
@@ -176,17 +179,16 @@ function populateProduct(product, cart, { canAdd = true } = {}) {
     add.disabled = true;
     add.textContent = 'Adding…';
     try {
-      const updated = await cart.add(picker.value, 1);
+      const updated = await addController.add(picker.value);
       updateCartCount(updated.totalQuantity);
       add.textContent = 'Added to cart';
       setStatus(`${product.title} added to cart.`);
     } catch {
-      cartAvailable = false;
       add.textContent = 'Try again';
       setStatus('This item could not be added. Check your connection and try again.', 'error');
     } finally {
       const variant = product.variants.find((item) => item.id === picker.value);
-      add.disabled = !cartAvailable || !variant?.availableForSale;
+      add.disabled = !addController.canAttempt(variant?.availableForSale);
     }
   });
   detail.hidden = false;

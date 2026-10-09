@@ -15,6 +15,7 @@ import {
   readShopifyConfig,
 } from '../../web/shop/storefront.js';
 import {
+  createProductAddController,
   neutralProductAlt,
   parseCartQuantity,
   productImageForVariant,
@@ -103,6 +104,26 @@ test('selects the variant image with a product-image fallback', () => {
   const variantImage = { url: 'https://cdn.shopify.com/variant.webp' };
   assert.equal(productImageForVariant({ image: variantImage }, productImage), variantImage);
   assert.equal(productImageForVariant({ image: null }, productImage), productImage);
+});
+
+test('a transient add failure leaves the product ready for a successful retry', async () => {
+  let attempts = 0;
+  const controller = createProductAddController(async () => {
+    attempts += 1;
+    if (attempts === 1) throw new Error('offline');
+    return { totalQuantity: 1 };
+  });
+
+  await assert.rejects(controller.add('gid://shopify/ProductVariant/1'), /offline/);
+  assert.equal(controller.canAttempt(true), true);
+  assert.deepEqual(await controller.add('gid://shopify/ProductVariant/1'), { totalQuantity: 1 });
+  assert.equal(attempts, 2);
+});
+
+test('a cached offline product remains locked independently of transient failures', async () => {
+  const controller = createProductAddController(async () => ({ totalQuantity: 1 }), { enabled: false });
+  assert.equal(controller.canAttempt(true), false);
+  await assert.rejects(controller.add('gid://shopify/ProductVariant/1'), /unavailable/i);
 });
 
 test('accepts only whole-number cart quantities within inventory and the 99-item cap', () => {
