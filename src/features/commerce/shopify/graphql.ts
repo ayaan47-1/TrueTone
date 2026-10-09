@@ -2,7 +2,7 @@ const VISITOR_CONSENT =
   '@inContext(visitorConsent: { analytics: false, preferences: false, marketing: false, saleOfData: false })';
 
 export const PRODUCT_FIELDS = `
-  id handle title vendor description
+  id handle title vendor
   featuredImage { url altText width height }
   variants(first: 100) {
     nodes {

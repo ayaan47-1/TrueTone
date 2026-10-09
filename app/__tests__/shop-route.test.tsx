@@ -1,5 +1,4 @@
-// Shop tab + product route wiring: tiles open /product/<id>, the bag button opens the bag,
-// the product page adds to the bag and closes. Route files stay thin wrappers.
+// Shopify Shop routes are isolated from the existing local recommendation/product flow.
 import { render, fireEvent } from '@testing-library/react-native';
 
 const mockPush = jest.fn();
@@ -11,6 +10,22 @@ jest.mock('expo-router', () => ({
   useRouter: () => ({ push: mockPush, replace: mockReplace, back: mockBack, canGoBack: () => mockCanGoBack }),
   useLocalSearchParams: () => mockParams,
 }));
+
+jest.mock('../../src/features/commerce/shopify/ui/ShopifyShopScreen', () => {
+  const { Pressable, Text, View } = require('react-native');
+  return {
+    ShopifyShopScreen: ({ onOpen, onBag }: { onOpen: (handle: string) => void; onBag: () => void }) => (
+      <View>
+        <Pressable accessibilityRole="button" accessibilityLabel="Open Shopify product" onPress={() => onOpen('yensa-bronzing-drops')}>
+          <Text>Open Shopify product</Text>
+        </Pressable>
+        <Pressable accessibilityRole="button" accessibilityLabel="Open Shopify bag" onPress={onBag}>
+          <Text>Open Shopify bag</Text>
+        </Pressable>
+      </View>
+    ),
+  };
+});
 
 import ShopScreen from '../(tabs)/shop';
 import ProductRoute from '../product/[id]';
@@ -26,15 +41,12 @@ beforeEach(() => {
   mockParams = { id: 'ver-velvet-10' };
 });
 
-test('shop tab: ?focus=1 (from the home search) autofocuses the search field', async () => {
-  mockParams = { focus: '1' };
+test('Shopify shop opens its isolated product and bag routes', async () => {
   const view = await render(<ShopScreen />);
-  expect(view.getByPlaceholderText('Search products, shades, brands').props.autoFocus).toBe(true);
-});
-
-test('shop tab: plain /shop does not pop the keyboard', async () => {
-  const view = await render(<ShopScreen />);
-  expect(view.getByPlaceholderText('Search products, shades, brands').props.autoFocus).toBeFalsy();
+  await fireEvent.press(view.getByRole('button', { name: 'Open Shopify product' }));
+  expect(mockPush).toHaveBeenCalledWith('/shop-product/yensa-bronzing-drops');
+  await fireEvent.press(view.getByRole('button', { name: 'Open Shopify bag' }));
+  expect(mockPush).toHaveBeenCalledWith('/shop-bag');
 });
 
 test('product route: the back button closes the sheet', async () => {
@@ -42,16 +54,6 @@ test('product route: the back button closes the sheet', async () => {
   await fireEvent.press(view.getByRole('button', { name: 'Back' }));
   expect(mockBack).toHaveBeenCalled();
   expect(bag.getState().lines).toHaveLength(0);
-});
-
-test('shop tab: tile opens the product page, scan prompt opens the scan gate', async () => {
-  const view = await render(<ShopScreen />);
-  await fireEvent.press(view.getByTestId('product-ver-velvet-10'));
-  expect(mockPush).toHaveBeenCalledWith('/product/ver-velvet-10');
-  await fireEvent.press(view.getByRole('button', { name: 'See your fit on every product' }));
-  expect(mockPush).toHaveBeenCalledWith('/scan-gate');
-  await fireEvent.press(view.getByRole('button', { name: 'Bag' }));
-  expect(mockPush).toHaveBeenCalledWith('/bag');
 });
 
 test('product route: adding closes the sheet', async () => {

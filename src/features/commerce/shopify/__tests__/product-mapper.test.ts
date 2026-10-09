@@ -3,7 +3,7 @@ import { mapProductNode, pickPurchasableVariant } from '../product-mapper';
 
 describe('Shopify product mapper', () => {
   it('maps a Storefront node to the app DTO without inventing approved copy', () => {
-    const product = mapProductNode(PRODUCT_FIXTURE_NODE);
+    const product = mapProductNode({ ...PRODUCT_FIXTURE_NODE, description: 'Unreviewed supplier marketing copy' });
 
     expect(product.title).toBe('YENSA Bronzing Drops');
     expect(product.description).toBeNull();

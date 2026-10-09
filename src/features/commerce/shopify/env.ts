@@ -8,7 +8,13 @@ export interface ShopifyConfig {
 
 type PublicEnv = Readonly<Record<string, string | undefined>>;
 
-export function readShopifyConfig(env: PublicEnv = process.env): ShopifyConfig {
+const EXPO_PUBLIC_ENV: PublicEnv = {
+  // Expo only inlines EXPO_PUBLIC values when they use static dot notation.
+  EXPO_PUBLIC_SHOPIFY_STORE_DOMAIN: process.env.EXPO_PUBLIC_SHOPIFY_STORE_DOMAIN,
+  EXPO_PUBLIC_SHOPIFY_STOREFRONT_TOKEN: process.env.EXPO_PUBLIC_SHOPIFY_STOREFRONT_TOKEN,
+};
+
+export function readShopifyConfig(env: PublicEnv = EXPO_PUBLIC_ENV): ShopifyConfig {
   const storeDomain = env.EXPO_PUBLIC_SHOPIFY_STORE_DOMAIN?.trim();
   const storefrontToken = env.EXPO_PUBLIC_SHOPIFY_STOREFRONT_TOKEN?.trim();
   if (!storeDomain) throw new Error('Missing Shopify store domain');

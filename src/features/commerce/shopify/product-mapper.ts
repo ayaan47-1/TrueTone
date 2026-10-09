@@ -2,6 +2,9 @@ import type { Money, ShopifyImage, ShopifyProduct, ShopifyVariant } from './type
 
 export const SHOPIFY_MEDIA_HOSTS = new Set(['cdn.shopify.com']);
 
+/** Reviewed, local-only display copy. Shopify/supplier descriptions are never rendered directly. */
+const APPROVED_PRODUCT_COPY: Readonly<Record<string, string>> = {};
+
 interface ImageNode {
   readonly url: string;
   readonly altText?: string | null;
@@ -65,7 +68,7 @@ export function mapProductNode(node: ProductNode): ShopifyProduct {
     handle: node.handle,
     title: node.title,
     vendor: node.vendor,
-    description: node.description?.trim() || null,
+    description: APPROVED_PRODUCT_COPY[node.id] ?? null,
     featuredImage: safeShopifyImage(node.featuredImage),
     variants: node.variants.nodes.map(mapVariant),
   };
