@@ -1,8 +1,9 @@
 # AGENTS.md — TrueTone build guardrails
 
-> **Read this on every task.** TrueTone is a mobile app that gives an honest, skin-tone-fair
-> read of skin *appearance* and a brand-neutral skincare routine. It is a **cosmetic /
-> general-wellness product — NOT a medical device, and it NEVER diagnoses anything.**
+> **Read this on every task.** TrueTone is a makeup discovery and preference-based skincare app.
+> It helps adults explore makeup shades and build cosmetic routines around their stated
+> preferences. It does not provide medical advice, assess skin health, or diagnose or treat conditions.
+> **Makeup + preference-based skincare is the governing product scope**, not just a disclaimer.
 >
 > These are hard engineering + compliance rules, derived from the project's legal spec. They are
 > **not legal advice**; a licensed Illinois privacy/biometric attorney reviews before launch. Do
@@ -18,15 +19,81 @@
 
 ## 0. The governing principle (everything flows from this)
 
-US regulators classify software by its *intended use*, established by the **words** in the UI and
-model outputs. TrueTone stays on the cosmetic side of that line. Three commitments, enforced in code:
+Intended use is reflected in the app's functionality, UI, marketing and model outputs, not just
+its disclaimer. TrueTone's cosmetic-only scope requires all three commitments below; their
+presence in this document is NOT evidence that every existing code path implements them:
 
-1. Describe how skin **LOOKS** (appearance). Never state or imply a medical diagnosis.
-2. Recommend **OTC cosmetic care and habits**. Never claim to treat / cure / prevent disease or
-   change skin structure/function.
-3. When something looks medically concerning, **redirect to a dermatologist — never diagnose.**
+1. Help users explore **makeup shades, undertone, coverage and preferred finish**. Describe
+   supported shade reads as estimates. Never state or imply a medical diagnosis or health assessment.
+2. Recommend **cosmetic skincare from explicit user preferences**, such as budget, fragrance
+   preference, texture and routine choices. Never infer skincare needs, ingredient deficiencies,
+   sensitivities or treatment suitability from a selfie, shade, undertone or scan-derived scores.
+   Never claim to treat / cure / prevent disease or change skin structure/function.
+3. For a user's medical question or concern, **redirect to a qualified clinician — never assess it**.
+   Do not imply that the camera screens for medically concerning findings.
 
 If a feature request would break any of these, STOP and escalate to the founders.
+
+### Canonical description and product boundary (2026-10-04)
+
+Use this description consistently in product briefs, onboarding, storefront descriptions and
+marketing, subject to review against the actual released build:
+
+> TrueTone is a makeup discovery and preference-based skincare app. Explore makeup shades and
+> build cosmetic routines around your preferences. TrueTone does not provide medical advice.
+
+- **MUST** distinguish a scan estimate, a user-selected preference, a product attribute and a
+  demonstration value in both data and presentation. Finish is a preference, not a measured
+  skincare requirement. Keep manual overrides separate from the original shade estimate.
+- **MUST** give truthful recommendation reasons tied to preferences the user actually supplied
+  and verified catalogue attributes. Never relabel scan-inferred skin type as user-reported.
+  If preferences are missing, offer generic browsing or ask; do not substitute scan-derived needs.
+- **MUST NOT** publish a personal measurement, successful scan, lighting check or match confidence
+  that the real pipeline has not produced and supported. Illustrative demos must be labelled.
+  Match percentages and blanket skin-tone-equity claims remain gated by §1, even if older build
+  notes describe them as implemented. A progress percentage is not a confidence percentage.
+- **MUST** apply the cosmetic-only rules to model output, product catalogue copy, imported brand
+  descriptions, recommendation reasons, notifications and sponsored content. A disclaimer does
+  not authorize a conflicting claim elsewhere.
+- **MUST** keep independent recommendations brand-neutral. Clearly label paid placement and
+  disclose commissions next to the relevant recommendation/link. Paid placement must not secretly
+  change the independent recommendation ranking.
+- **MUST NOT** send face images, scan scores or scan-derived targeting segments to brands or
+  advertising/affiliate partners. Biometric-linked monetization requires founder/counsel review;
+  disclosure of commission is not permission to profit from biometric data.
+- **MUST** obtain separate catalogue/claims review before adding regulated drug products, including
+  sunscreens, or expanding into private-label/manufactured products. OTC availability does not
+  mean a product is a cosmetic. Never remove required product warnings to fit our vocabulary;
+  hold an incompatible product out of the catalogue pending review.
+
+This section narrows product scope without relaxing any existing privacy, age, consent, deletion,
+security or claims gate. Older architecture/build summaries are historical descriptions, not
+permission to keep shipping conflicting behaviour. Runtime migration remains a launch requirement.
+
+### Illinois launch evidence — not a legal certification
+
+An Illinois privacy/biometric attorney must review the actual capture/landmark processing, data
+flows, commercial model and versioned policies. On-device processing, immediate deletion and
+cosmetic positioning do not automatically establish an exemption from BIPA. Keep evidence for:
+
+- **BIPA:** applicability analysis; written notice of collection, purpose and duration; executed
+  informed release before covered capture; a public retention/destruction schedule; security and
+  disclosure controls. Destruction when the purpose is satisfied or within three years of last
+  interaction, whichever is first, is not permission to retain everything for three years.
+  [740 ILCS 14, especially §§10 and 15](https://www.ilga.gov/Legislation/ILCS/Articles?ActID=3004&ChapterID=5).
+- **Illinois consumer protection:** substantiation for express/implied scan and product claims,
+  accurate recommendation explanations, and no misleading demo or paid ranking presented as
+  independent matching. [815 ILCS 505/2](https://www.ilga.gov/Legislation/ILCS/Articles?ActID=2356&ChapterID=67).
+- **PIPA:** applicable personal-information security, disposal, vendor-contract and incident/
+  breach-notification procedures. [815 ILCS 530](https://www.ilga.gov/Legislation/ILCS/Articles?ActID=2702&ChapterID=67).
+- **Federal overlays:** reviewed cosmetic versus drug claims and clear paid-recommendation
+  disclosures. [FDA intended-use guidance](https://www.fda.gov/cosmetics/cosmetics-laws-regulations/it-cosmetic-drug-or-both-or-it-soap),
+  [FTC endorsement guidance](https://www.ftc.gov/business-guidance/resources/ftcs-endorsement-guides-what-people-are-asking).
+
+The 18+ gate, US-only v0, local-only face processing and no-analytics scan path are project
+requirements, not statements that Illinois law prescribes precisely this architecture. Passing
+automated checks or updating copy does not establish full legal compliance. Do not publish
+"Illinois-compliant", "legally approved" or equivalent assurances without appropriate review.
 
 ---
 
@@ -88,7 +155,9 @@ If a feature request would break any of these, STOP and escalate to the founders
 - **Recommendation + chat:** a cloud LLM called from OUR backend, fed **only derived scores + skin
   type — never the image.** Output post-filtered against the disease blocklist (see §1).
 - **Backend / data:** **Supabase** (Postgres + Auth + Row-Level Security + Storage + Edge Functions
-  + `pg_cron`), **US region.** RLS isolates each user's rows; `pg_cron` runs the retention/deletion
+  + `pg_cron`), **US region.** RLS isolates each user's rows; consent and 18+ profile flags are locked
+  behind `SECURITY DEFINER` RPCs (migration 0026); auth sessions and on-device user data are encrypted
+  at rest (AES-256-GCM via `@noble/ciphers` + `expo-secure-store`); `pg_cron` runs the retention/deletion
   job; an append-only table holds the consent log.
 - **Crash reporting (optional):** only a tool configured to scrub PII and never attach images
   (e.g. Sentry with PII scrubbing). No product-analytics SDK on the scan path.
@@ -148,13 +217,15 @@ point — biometric compliance cannot be retrofitted.
    skin-age number is built but **dark** behind `SKIN_AGE_ABSOLUTE_ENABLED=false` until validation +
    founder/legal sign-off)
 
-> **Status (2026-06-26):** Steps 1–7 are implemented, tested, and merged to `main` (step 7 = PR #16:
-> within-user trend + "did this help?" loop + a dark absolute-age engine). The scan pipeline's pure
-> logic is host-tested; the camera + on-device-read native shells (marked `// DEVICE-ONLY`) still
-> need on-device verification in an Expo dev build on a physical iPhone. The fairness-eval harness
-> (parallel track) is merged. Architecture + module map:
-> [`docs/ARCHITECTURE.md`](docs/ARCHITECTURE.md); setup/run/test: [`README.md`](README.md);
-> phase plans/specs: `docs/superpowers/`.
+> **Status (2026-10-06):** Steps 1–7 + the makeup shade-match and preference-based skincare layers
+> (R1 unified release) are merged to `main`. Four-tab Liquid Glass navigation (**Home · Shop · Community · Account**),
+> landing on **Home** (`index`). On-device data is encrypted at rest (AES-256-GCM + SecureStore).
+> 214 test suites and 1228 tests passing (`npm test`). Architecture + module map:
+> [`docs/ARCHITECTURE.md`](docs/ARCHITECTURE.md); practical change map: [`docs/COFOUNDER_HANDOFF.md`](docs/COFOUNDER_HANDOFF.md);
+> setup/run/test: [`README.md`](README.md).
+>
+> Camera dogfooding (§12) is limited strictly to 3 named principals with signed attestations on file;
+> offline TestFlight permitted only per founder override (`docs/ops/camera-on-testflight-compliance.md`).
 
 Build the **balanced skin-tone test set in parallel with step 5** — equal performance across
 Fitzpatrick I–VI is the product; verify the read holds up on IV–VI before any equity claim ships.
