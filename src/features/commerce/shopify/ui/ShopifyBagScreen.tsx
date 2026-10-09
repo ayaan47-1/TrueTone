@@ -47,7 +47,9 @@ export function ShopifyBagScreen({ onShop }: Props) {
   const checkout = async (): Promise<void> => {
     setCheckoutError(null);
     try {
-      await present(cart.checkoutUrl);
+      const freshCart = await shopifyStore.refreshCart();
+      if (!freshCart) throw new Error('Cart refresh failed');
+      await present(freshCart.checkoutUrl);
     } catch {
       setCheckoutError('Checkout could not open. Please try again.');
     }

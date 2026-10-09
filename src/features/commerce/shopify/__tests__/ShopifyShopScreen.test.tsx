@@ -30,16 +30,42 @@ describe('ShopifyShopScreen', () => {
   });
 
   it('waits for the point-of-context disclosure before any Storefront request', async () => {
-    const view = await render(<ShopifyShopScreen onOpen={jest.fn()} onBag={jest.fn()} />);
-    expect(view.getByText('Shop privacy')).toBeTruthy();
+    const view = await render(
+      <ShopifyShopScreen onOpen={jest.fn()} onBag={jest.fn()} onDecline={jest.fn()} />,
+    );
+    expect(view.getByText('Shop powered by Shopify')).toBeTruthy();
+    expect(
+      view.getByText(
+        'When you enter the Shop, Shopify may receive device and network information, cookie or similar identifiers, pages and products viewed, cart activity, and privacy choices.',
+      ),
+    ).toBeTruthy();
+    expect(
+      view.getByText(
+        'If you check out, Shopify and the named supplier receive the items you order and the contact, payment, shipping, and return information needed to complete it.',
+      ),
+    ).toBeTruthy();
     expect(mockLoadProducts).not.toHaveBeenCalled();
 
     fireEvent.press(view.getByRole('button', { name: 'Continue to shop' }));
     await waitFor(() => expect(mockLoadProducts).toHaveBeenCalledTimes(1));
   });
 
+  it('leaves Shop without accepting or making a Storefront request when the user chooses Not now', async () => {
+    const onDecline = jest.fn();
+    const view = await render(
+      <ShopifyShopScreen onOpen={jest.fn()} onBag={jest.fn()} onDecline={onDecline} />,
+    );
+
+    fireEvent.press(view.getByRole('button', { name: 'Not now' }));
+
+    expect(onDecline).toHaveBeenCalledTimes(1);
+    expect(mockLoadProducts).not.toHaveBeenCalled();
+  });
+
   it('renders approved fields but never unapproved product copy', async () => {
-    const view = await render(<ShopifyShopScreen onOpen={jest.fn()} onBag={jest.fn()} />);
+    const view = await render(
+      <ShopifyShopScreen onOpen={jest.fn()} onBag={jest.fn()} onDecline={jest.fn()} />,
+    );
     fireEvent.press(view.getByRole('button', { name: 'Continue to shop' }));
     await waitFor(() => expect(view.getByText('YENSA Bronzing Drops')).toBeTruthy());
     expect(view.queryByText(/radiant|glow|skin-loving/i)).toBeNull();

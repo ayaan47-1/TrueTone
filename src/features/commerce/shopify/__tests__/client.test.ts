@@ -11,6 +11,7 @@ describe('Shopify Storefront client', () => {
         endpoint: 'https://hwqi01-wd.myshopify.com/api/2026-10/graphql.json',
         storeDomain: 'hwqi01-wd.myshopify.com',
         storefrontToken: 'public-token',
+        checkoutHosts: ['hwqi01-wd.myshopify.com'],
       },
       fetchImpl,
     );
@@ -40,6 +41,7 @@ describe('Shopify Storefront client', () => {
         endpoint: 'https://hwqi01-wd.myshopify.com/api/2026-10/graphql.json',
         storeDomain: 'hwqi01-wd.myshopify.com',
         storefrontToken: 'public-token',
+        checkoutHosts: ['hwqi01-wd.myshopify.com'],
       },
       fetchImpl,
     );

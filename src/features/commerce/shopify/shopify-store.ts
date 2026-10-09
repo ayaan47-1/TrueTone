@@ -25,8 +25,7 @@ const setState = (next: Partial<ShopifyStoreState>): void => {
   state = { ...state, ...next };
   emit();
 };
-const errorMessage = (error: unknown): string =>
-  error instanceof Error ? error.message : 'The shop is unavailable right now.';
+const errorMessage = (_error?: unknown): string => 'The shop is unavailable right now. Please try again.';
 
 export const shopifyStore = {
   getState: (): ShopifyStoreState => state,
@@ -64,6 +63,17 @@ export const shopifyStore = {
       setState({ cart: await getShopifyServices().cart.load(), loadingCart: false });
     } catch (error) {
       setState({ error: errorMessage(error), loadingCart: false });
+    }
+  },
+  async refreshCart(): Promise<ShopifyCart | null> {
+    setState({ loadingCart: true, error: null });
+    try {
+      const cart = await getShopifyServices().cart.load();
+      setState({ cart, loadingCart: false });
+      return cart;
+    } catch {
+      setState({ error: errorMessage(), loadingCart: false });
+      return null;
     }
   },
   async addToCart(merchandiseId: string, quantity = 1): Promise<boolean> {

@@ -2,7 +2,10 @@ declare module '@shopify/checkout-sheet-kit' {
   import type { PropsWithChildren, ReactElement } from 'react';
 
   export interface ShopifyCheckoutSheet {
-    present(checkoutUrl: string): Promise<void> | void;
+    present(checkoutUrl: string): void;
+    addEventListener(eventName: 'close', callback: () => void): { remove(): void };
+    addEventListener(eventName: 'completed', callback: (event: unknown) => void): { remove(): void };
+    addEventListener(eventName: 'error', callback: (error: { readonly message: string }) => void): { remove(): void };
   }
   export function useShopifyCheckoutSheet(): ShopifyCheckoutSheet;
   export function ShopifyCheckoutSheetProvider(props: PropsWithChildren): ReactElement;

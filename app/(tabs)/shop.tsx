@@ -12,6 +12,7 @@ export default function ShopScreen() {
       <ShopifyShopScreen
         onOpen={(handle) => router.push(`/shop-product/${handle}`)}
         onBag={() => router.push('/shop-bag')}
+        onDecline={() => router.replace('/')}
       />
     </Screen>
   );

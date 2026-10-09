@@ -1,5 +1,5 @@
 import { encryptedStorage } from '../../../lib/encrypted-storage';
-import type { ShopifyClient } from './client';
+import { ShopifyRequestError, type ShopifyClient } from './client';
 import { CART_CREATE, CART_LINES_ADD, CART_LINES_REMOVE, CART_LINES_UPDATE, CART_QUERY } from './graphql';
 import { safeShopifyImage } from './product-mapper';
 import type { Money, ShopifyCart, ShopifyCartLine } from './types';
@@ -106,7 +106,14 @@ export function createCartAdapter(
     async load() {
       const id = await existingId();
       if (!id) return create();
-      const data = await client.request<{ cart: CartNode | null }>(CART_QUERY, { id });
+      let data: { cart: CartNode | null };
+      try {
+        data = await client.request<{ cart: CartNode | null }>(CART_QUERY, { id });
+      } catch (error) {
+        if (!(error instanceof ShopifyRequestError)) throw error;
+        await storage.removeItem(SHOPIFY_CART_STORAGE_KEY);
+        return create();
+      }
       if (data.cart) return mapCart(data.cart);
       await storage.removeItem(SHOPIFY_CART_STORAGE_KEY);
       return create();

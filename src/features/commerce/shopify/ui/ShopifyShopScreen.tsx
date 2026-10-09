@@ -9,9 +9,10 @@ import type { ShopifyProduct } from '../types';
 interface Props {
   readonly onOpen: (handle: string) => void;
   readonly onBag: () => void;
+  readonly onDecline: () => void;
 }
 
-export function ShopifyShopScreen({ onOpen, onBag }: Props) {
+export function ShopifyShopScreen({ onOpen, onBag, onDecline }: Props) {
   const [accepted, setAccepted] = useState(hasAcceptedShopPrivacy());
   const { products, cart, loadingProducts, error } = useShopifyStore();
 
@@ -23,12 +24,20 @@ export function ShopifyShopScreen({ onOpen, onBag }: Props) {
     return (
       <View className="flex-1 justify-center py-8">
         <GlassCard radius={28} className="px-6 py-7">
-          <Display className="text-[30px]">Shop privacy</Display>
+          <Display className="text-[30px]">Shop powered by Shopify</Display>
+          <Body className="mt-3">The Shop is separate from your skin read.</Body>
           <Body className="mt-3">
-            The Shop connects to Shopify to load products and guest checkout. TrueTone does not send your scan,
-            skin read, match reasons, profile, or routines.
+            When you enter the Shop, Shopify may receive device and network information, cookie or similar
+            identifiers, pages and products viewed, cart activity, and privacy choices.
           </Body>
-          <Body className="mt-3">Analytics, preference, marketing, and data-sale consent stay off.</Body>
+          <Body className="mt-3">
+            If you check out, Shopify and the named supplier receive the items you order and the contact, payment,
+            shipping, and return information needed to complete it.
+          </Body>
+          <Body className="mt-3">
+            We do not send them your photo, scan, cosmetic scores, skin-type label, routine, chat, or why a product
+            was suggested. Non-essential analytics, marketing, and data sharing are off by default.
+          </Body>
           <PrimaryButton
             className="mt-6"
             label="Continue to shop"
@@ -37,6 +46,7 @@ export function ShopifyShopScreen({ onOpen, onBag }: Props) {
               setAccepted(true);
             }}
           />
+          <PrimaryButton className="mt-3" label="Not now" variant="ghost" onPress={onDecline} />
         </GlassCard>
       </View>
     );

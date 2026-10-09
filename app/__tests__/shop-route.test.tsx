@@ -14,13 +14,24 @@ jest.mock('expo-router', () => ({
 jest.mock('../../src/features/commerce/shopify/ui/ShopifyShopScreen', () => {
   const { Pressable, Text, View } = require('react-native');
   return {
-    ShopifyShopScreen: ({ onOpen, onBag }: { onOpen: (handle: string) => void; onBag: () => void }) => (
+    ShopifyShopScreen: ({
+      onOpen,
+      onBag,
+      onDecline,
+    }: {
+      onOpen: (handle: string) => void;
+      onBag: () => void;
+      onDecline: () => void;
+    }) => (
       <View>
         <Pressable accessibilityRole="button" accessibilityLabel="Open Shopify product" onPress={() => onOpen('yensa-bronzing-drops')}>
           <Text>Open Shopify product</Text>
         </Pressable>
         <Pressable accessibilityRole="button" accessibilityLabel="Open Shopify bag" onPress={onBag}>
           <Text>Open Shopify bag</Text>
+        </Pressable>
+        <Pressable accessibilityRole="button" accessibilityLabel="Decline Shopify Shop" onPress={onDecline}>
+          <Text>Decline Shopify Shop</Text>
         </Pressable>
       </View>
     ),
@@ -47,6 +58,12 @@ test('Shopify shop opens its isolated product and bag routes', async () => {
   expect(mockPush).toHaveBeenCalledWith('/shop-product/yensa-bronzing-drops');
   await fireEvent.press(view.getByRole('button', { name: 'Open Shopify bag' }));
   expect(mockPush).toHaveBeenCalledWith('/shop-bag');
+});
+
+test('Shopify shop decline returns to Home', async () => {
+  const view = await render(<ShopScreen />);
+  await fireEvent.press(view.getByRole('button', { name: 'Decline Shopify Shop' }));
+  expect(mockReplace).toHaveBeenCalledWith('/');
 });
 
 test('product route: the back button closes the sheet', async () => {
