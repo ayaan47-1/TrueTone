@@ -30,6 +30,7 @@ const USER_DATA_KEY_PREFIXES: readonly string[] = [
   'truetone.community.published.',
   'truetone.community-profile.',
   'truetone.orderHistory.',
+  'truetone.shopify.cart.',
   'age-gate:verified:',
 ];
 const AUTH_SESSION_KEY_PREFIX = 'sb-';
