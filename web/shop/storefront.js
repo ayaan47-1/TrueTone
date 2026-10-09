@@ -6,13 +6,13 @@ const VISITOR_CONSENT =
 
 const PRODUCT_FIELDS = `
   id handle title vendor
-  featuredImage { url altText width height }
+  featuredImage { url width height }
   variants(first: 100) {
     nodes {
       id title availableForSale quantityAvailable selectedOptions { name value }
       price { amount currencyCode }
       compareAtPrice { amount currencyCode }
-      image { url altText width height }
+      image { url width height }
     }
   }
 `;
@@ -40,7 +40,7 @@ const CART_FIELDS = `
           id title availableForSale quantityAvailable selectedOptions { name value }
           price { amount currencyCode }
           compareAtPrice { amount currencyCode }
-          image { url altText width height }
+          image { url width height }
           product { id handle title vendor }
         }
       }
@@ -155,7 +155,6 @@ export function safeShopifyImage(value) {
     if (url.protocol !== 'https:' || url.hostname !== 'cdn.shopify.com') return null;
     return {
       url: url.toString(),
-      altText: cleanText(value.altText) || null,
       width: Number.isFinite(value.width) ? value.width : null,
       height: Number.isFinite(value.height) ? value.height : null,
     };

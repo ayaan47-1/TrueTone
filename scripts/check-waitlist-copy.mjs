@@ -123,10 +123,14 @@ export function findUnnegatedMedicalTerms(text) {
 
 /** Every host the page can reach that isn't explicitly allowed. Scans raw HTML, since a
  *  tracker hides in an attribute, not in prose. */
-export function findForeignOrigins(html, allowedHosts = []) {
+export function findForeignOrigins(html, allowedHosts = [], allowedNavigationUrls = []) {
   const allowed = new Set(allowedHosts.map((h) => h.toLowerCase()));
+  const allowedNavigation = new Set(allowedNavigationUrls);
   const hosts = new Set();
-  for (const [, host] of html.matchAll(/https?:\/\/([a-z0-9.-]+)/gi)) {
+  const scannedHtml = html.replace(/<a\b[^>]*\bhref="(https?:\/\/[^"#]+)"[^>]*>/gi, (tag, url) => (
+    allowedNavigation.has(url) ? tag.replace(url, '') : tag
+  ));
+  for (const [, host] of scannedHtml.matchAll(/https?:\/\/([a-z0-9.-]+)/gi)) {
     const h = host.toLowerCase();
     if (!allowed.has(h)) hosts.add(h);
   }
@@ -147,11 +151,11 @@ export function findMissingSmsDisclosures(html) {
   return SMS_DISCLOSURES.filter((d) => !d.pattern.test(copy)).map((d) => d.id);
 }
 
-export function auditHtml(html, { allowedHosts = [], requireDisclosures = true } = {}) {
+export function auditHtml(html, { allowedHosts = [], allowedNavigationUrls = [], requireDisclosures = true } = {}) {
   return [
     ...findBannedTerms(html),
     ...findUnnegatedMedicalTerms(html),
-    ...findForeignOrigins(html, allowedHosts).map((host) => ({ kind: 'foreign-origin', term: host })),
+    ...findForeignOrigins(html, allowedHosts, allowedNavigationUrls).map((host) => ({ kind: 'foreign-origin', term: host })),
     // Only the landing page makes the product's pitch, so only it owes the disclosures.
     // A policy page states the terms in its own words.
     ...(requireDisclosures
@@ -188,6 +192,9 @@ function scan() {
   for (const file of files) {
     const violations = auditHtml(readFileSync(file, 'utf8'), {
       allowedHosts,
+      allowedNavigationUrls: file.endsWith(join('web', 'policies', 'privacy.html'))
+        ? ['https://www.shopify.com/legal/privacy/consumers']
+        : [],
       // The landing page is where the product makes its pitch, so it is the page that
       // owes the disclosures. Policy and unsubscribe pages carry their own text.
       requireDisclosures: file.endsWith(join('web', 'index.html')),

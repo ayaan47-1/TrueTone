@@ -16,8 +16,8 @@ const CONTENT_DIR = 'src/content';
 const OUT_DIR = 'web';
 
 // ── markdown ──────────────────────────────────────────────────────────────────
-// The five policy documents use headings, blockquotes, bold, bullet lists and
-// paragraphs. A full CommonMark dependency would add supply-chain surface to publish
+// The five policy documents use headings, blockquotes, bold, one approved external link,
+// bullet lists and paragraphs. A full CommonMark dependency would add supply-chain surface to publish
 // legal text; this does exactly what the source needs and nothing it doesn't.
 
 export function escapeHtml(s) {
@@ -31,6 +31,10 @@ export function escapeHtml(s) {
 function inline(text) {
   // Escaping runs first so a literal "<b>" in a policy can never emit live markup.
   return escapeHtml(text)
+    .replace(
+      /\[Shopify Consumer Privacy Policy\]\(https:\/\/www\.shopify\.com\/legal\/privacy\/consumers\)/g,
+      '<a href="https://www.shopify.com/legal/privacy/consumers" rel="noreferrer">Shopify Consumer Privacy Policy</a>',
+    )
     .replace(/\*\*(.+?)\*\*/g, '<strong>$1</strong>')
     .replace(/_(.+?)_/g, '<em>$1</em>');
 }
