@@ -2,6 +2,24 @@ function cleanProductTitle(value) {
   return typeof value === 'string' ? value.replace(/[<>]/g, '').trim().replace(/\s+/g, ' ') : '';
 }
 
+export function createProductAddController(add, { enabled = true } = {}) {
+  let pending = false;
+  return {
+    canAttempt(variantAvailable) {
+      return enabled && !pending && Boolean(variantAvailable);
+    },
+    async add(variantId) {
+      if (!enabled || pending) throw new Error('Product add is unavailable');
+      pending = true;
+      try {
+        return await add(variantId, 1);
+      } finally {
+        pending = false;
+      }
+    },
+  };
+}
+
 export function neutralProductAlt(title) {
   const cleanTitle = cleanProductTitle(title);
   return cleanTitle ? `${cleanTitle} product image` : 'Product image';
