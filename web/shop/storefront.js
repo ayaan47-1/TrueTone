@@ -4,6 +4,8 @@ export const CART_ID_KEY = 'truetone.shopify.cart.id.v1';
 const VISITOR_CONSENT =
   '@inContext(visitorConsent: { analytics: false, preferences: false, marketing: false, saleOfData: false })';
 
+const OPTIONAL_ACCESS_DENIED_FIELDS = new Set(['quantityAvailable']);
+
 const PRODUCT_FIELDS = `
   id handle title vendor
   featuredImage { url width height }
@@ -85,6 +87,12 @@ export class ShopifyRequestError extends Error {
   }
 }
 
+function isOptionalFieldAccessDenied(error) {
+  return error?.extensions?.code === 'ACCESS_DENIED'
+    && Array.isArray(error.path)
+    && OPTIONAL_ACCESS_DENIED_FIELDS.has(error.path.at(-1));
+}
+
 function validHostname(host) {
   return /^[a-z0-9](?:[a-z0-9-]*[a-z0-9])?(?:\.[a-z0-9](?:[a-z0-9-]*[a-z0-9])?)+$/i.test(host);
 }
@@ -135,7 +143,9 @@ export function createStorefrontClient(value, fetchImpl = fetch) {
       } catch {
         throw new ShopifyRequestError('Shopify returned an invalid response', 'invalid-response');
       }
-      if (envelope?.errors?.length) {
+      if (envelope?.errors?.length && (
+        !envelope.data || envelope.errors.some((error) => !isOptionalFieldAccessDenied(error))
+      )) {
         throw new ShopifyRequestError(envelope.errors[0]?.message || undefined, 'graphql');
       }
       if (!envelope?.data) throw new ShopifyRequestError(undefined, 'invalid-response');

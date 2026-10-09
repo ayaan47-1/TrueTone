@@ -14,6 +14,7 @@ import {
   neutralProductAlt,
   parseCartQuantity,
   productImageForVariant,
+  productSoldOut,
   removalFocusTarget,
 } from './shop-helpers.js';
 
@@ -115,7 +116,7 @@ function renderCollection(products) {
     const variant = firstAvailable(product);
     const price = document.createElement('p');
     price.className = 'product-price';
-    price.textContent = variant ? formatMoney(variant.price) : 'Unavailable';
+    price.textContent = productSoldOut(product) ? 'Sold out' : variant ? formatMoney(variant.price) : 'Unavailable';
     link.append(title, vendor, price);
     article.append(link);
     grid.append(article);

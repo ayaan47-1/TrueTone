@@ -29,6 +29,10 @@ export function productImageForVariant(variant, productImage) {
   return variant?.image ?? productImage ?? null;
 }
 
+export function productSoldOut(product) {
+  return product.variants.length > 0 && product.variants.every((variant) => !variant.availableForSale);
+}
+
 export function parseCartQuantity(value, quantityAvailable) {
   const text = String(value).trim();
   if (!/^\d+$/.test(text)) return null;
