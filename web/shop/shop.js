@@ -9,6 +9,12 @@ import {
   mapProduct,
   readShopifyConfig,
 } from './storefront.js';
+import {
+  neutralProductAlt,
+  parseCartQuantity,
+  productImageForVariant,
+  removalFocusTarget,
+} from './shop-helpers.js';
 
 const SHOP_ENTRY_KEY = 'truetone.shop.entry.v1';
 const PRODUCT_CACHE_KEY = 'truetone.shop.products.v1';
@@ -21,6 +27,10 @@ function requireShopEntry() {
   if (!dialog || !enter) return Promise.reject(new Error('Shop disclosure is unavailable'));
   dialog.showModal();
   return new Promise((resolve) => {
+    dialog.addEventListener('cancel', (event) => {
+      event.preventDefault();
+      location.assign('/');
+    });
     enter.addEventListener('click', () => {
       sessionStorage.setItem(SHOP_ENTRY_KEY, 'accepted');
       dialog.close();
@@ -54,12 +64,16 @@ function productImage(image, title) {
   }
   const element = document.createElement('img');
   element.src = image.url;
-  element.alt = image.altText || title;
+  element.alt = neutralProductAlt(title);
   element.width = image.width || 1200;
   element.height = image.height || 1200;
   element.loading = 'lazy';
   element.decoding = 'async';
   element.referrerPolicy = 'no-referrer';
+  element.addEventListener('error', () => {
+    frame.className = 'product-placeholder';
+    frame.replaceChildren('Image unavailable');
+  }, { once: true });
   frame.append(element);
   return frame;
 }
@@ -108,6 +122,7 @@ function renderCollection(products) {
 }
 
 async function showCollection(client) {
+  setStatus('Loading products…');
   try {
     const data = await client.request(PRODUCTS_QUERY, { first: 24 });
     const products = (data.products?.nodes ?? []).map(mapProduct);
@@ -125,7 +140,7 @@ async function showCollection(client) {
   }
 }
 
-function populateProduct(product, cart) {
+function populateProduct(product, cart, { canAdd = true } = {}) {
   const detail = document.querySelector('[data-product-detail]');
   const media = document.querySelector('[data-product-media]');
   const picker = document.querySelector('[data-variant-picker]');
@@ -133,25 +148,28 @@ function populateProduct(product, cart) {
   if (!detail || !media || !picker || !add) return;
   document.querySelector('[data-product-vendor]').textContent = product.vendor;
   document.querySelector('[data-product-title]').textContent = product.title;
-  document.title = `${product.title} — TrueTone Shop`;
-  media.replaceChildren(productImage(product.image, product.title));
+  document.title = `${product.title} | TrueTone Shop`;
   picker.replaceChildren();
   for (const variant of product.variants) {
     const option = document.createElement('option');
     option.value = variant.id;
     option.disabled = !variant.availableForSale;
-    option.textContent = `${variant.title} — ${formatMoney(variant.price)}${variant.availableForSale ? '' : ' — unavailable'}`;
+    option.textContent = `${variant.title} | ${formatMoney(variant.price)}${variant.availableForSale ? '' : ' (unavailable)'}`;
     picker.append(option);
   }
-  const updatePrice = () => {
+  let cartAvailable = canAdd;
+  const syncSelection = ({ clearStatus = false } = {}) => {
     const variant = product.variants.find((item) => item.id === picker.value);
     document.querySelector('[data-product-price]').textContent = variant ? formatMoney(variant.price) : '';
-    add.disabled = !variant?.availableForSale;
+    media.replaceChildren(productImage(productImageForVariant(variant, product.image), product.title));
+    add.disabled = !cartAvailable || !variant?.availableForSale;
+    add.textContent = cartAvailable ? 'Add to cart' : 'Unavailable offline';
+    if (clearStatus) setStatus('');
   };
-  picker.addEventListener('change', updatePrice);
+  picker.addEventListener('change', () => syncSelection({ clearStatus: true }));
   const available = firstAvailable(product);
   if (available) picker.value = available.id;
-  updatePrice();
+  syncSelection();
   document.querySelector('[data-fulfillment]').textContent =
     `Sold by TrueTone; fulfilled by ${product.vendor}. ${product.vendor} receives your name, contact details, delivery address, items ordered, and return or support information only as needed to fulfill and support this order. It does not receive your TrueTone photo, scan, scores, skin profile, or recommendation reason.`;
   add.addEventListener('click', async () => {
@@ -161,11 +179,14 @@ function populateProduct(product, cart) {
       const updated = await cart.add(picker.value, 1);
       updateCartCount(updated.totalQuantity);
       add.textContent = 'Added to cart';
+      setStatus(`${product.title} added to cart.`);
     } catch {
+      cartAvailable = false;
       add.textContent = 'Try again';
       setStatus('This item could not be added. Check your connection and try again.', 'error');
     } finally {
-      updatePrice();
+      const variant = product.variants.find((item) => item.id === picker.value);
+      add.disabled = !cartAvailable || !variant?.availableForSale;
     }
   });
   detail.hidden = false;
@@ -178,6 +199,7 @@ async function showProduct(client, cart) {
     setStatus('This product link is invalid.', 'error');
     return;
   }
+  setStatus('Loading product…');
   try {
     const data = await client.request(PRODUCT_BY_HANDLE_QUERY, { handle });
     if (!data.product) {
@@ -191,9 +213,8 @@ async function showProduct(client, cart) {
   } catch {
     const product = readProductCache()?.products.find((item) => item.handle === handle);
     if (product) {
-      populateProduct(product, cart);
+      populateProduct(product, cart, { canAdd: false });
       setStatus('Showing saved details. Adding to cart remains unavailable until you reconnect.');
-      document.querySelector('[data-add-to-cart]').disabled = true;
       return;
     }
     setStatus('This product is unavailable right now. Check your connection and try again.', 'error');
@@ -204,7 +225,16 @@ function updateCartCount(value) {
   for (const count of document.querySelectorAll('[data-cart-count]')) count.textContent = String(value ?? 0);
 }
 
-function renderCart(cart, cartApi) {
+function restoreCartFocus(focus) {
+  if (!focus) return;
+  queueMicrotask(() => {
+    const selector = focus.kind === 'quantity' ? '[data-line-quantity]' : '[data-line-remove]';
+    const target = [...document.querySelectorAll(selector)].find((element) => element.dataset[focus.kind === 'quantity' ? 'lineQuantity' : 'lineRemove'] === focus.lineId);
+    (target ?? document.querySelector('[data-cart-heading]'))?.focus();
+  });
+}
+
+function renderCart(cart, cartApi, focus = null) {
   const lines = document.querySelector('[data-cart-lines]');
   const summary = document.querySelector('[data-cart-summary]');
   if (!lines || !summary) return;
@@ -213,6 +243,7 @@ function renderCart(cart, cartApi) {
   if (!cart.lines.length) {
     setStatus('Your cart is empty.');
     summary.hidden = true;
+    restoreCartFocus(focus);
     return;
   }
   setStatus('');
@@ -233,13 +264,22 @@ function renderCart(cart, cartApi) {
     const input = document.createElement('input');
     input.type = 'number';
     input.min = '1';
-    input.max = String(line.merchandise.quantityAvailable ?? 99);
+    input.max = String(Math.min(99, line.merchandise.quantityAvailable ?? 99));
     input.value = String(line.quantity);
     input.inputMode = 'numeric';
+    input.dataset.lineQuantity = line.id;
+    input.setAttribute('aria-label', `Quantity for ${line.merchandise.product.title}`);
     input.addEventListener('change', async () => {
+      const quantity = parseCartQuantity(input.value, line.merchandise.quantityAvailable);
+      if (quantity === null) {
+        input.value = String(line.quantity);
+        setStatus('Enter a whole-number quantity from 1 through the available stock, up to 99.', 'error');
+        input.focus();
+        return;
+      }
       input.disabled = true;
       try {
-        renderCart(await cartApi.update(line.id, Number(input.value)), cartApi);
+        renderCart(await cartApi.update(line.id, quantity), cartApi, { kind: 'quantity', lineId: line.id });
       } catch {
         input.value = String(line.quantity);
         setStatus('The quantity could not be updated. Try again.', 'error');
@@ -251,10 +291,16 @@ function renderCart(cart, cartApi) {
     const remove = document.createElement('button');
     remove.type = 'button';
     remove.textContent = 'Remove';
+    remove.dataset.lineRemove = line.id;
+    remove.setAttribute('aria-label', `Remove ${line.merchandise.product.title}`);
     remove.addEventListener('click', async () => {
       remove.disabled = true;
       try {
-        renderCart(await cartApi.remove(line.id), cartApi);
+        const index = cart.lines.findIndex((item) => item.id === line.id);
+        const nextLineId = removalFocusTarget(cart.lines, index);
+        renderCart(await cartApi.remove(line.id), cartApi, nextLineId
+          ? { kind: 'remove', lineId: nextLineId }
+          : { kind: 'heading' });
       } catch {
         setStatus('The item could not be removed. Try again.', 'error');
         remove.disabled = false;
@@ -266,9 +312,11 @@ function renderCart(cart, cartApi) {
   }
   document.querySelector('[data-cart-subtotal]').textContent = formatMoney(cart.subtotal);
   summary.hidden = false;
+  restoreCartFocus(focus);
 }
 
 async function showCart(cartApi, config) {
+  setStatus('Loading cart…');
   try {
     renderCart(await cartApi.load(), cartApi);
   } catch {

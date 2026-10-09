@@ -40,6 +40,16 @@ test('renders bold and italic spans', () => {
   assert.ok(renderMarkdown('_(add an address)_').includes('<em>(add an address)</em>'));
 });
 
+test('renders the approved Shopify consumer privacy link safely', () => {
+  const html = renderMarkdown(
+    '[Shopify Consumer Privacy Policy](https://www.shopify.com/legal/privacy/consumers)',
+  );
+  assert.equal(
+    html,
+    '<p><a href="https://www.shopify.com/legal/privacy/consumers" rel="noreferrer">Shopify Consumer Privacy Policy</a></p>',
+  );
+});
+
 test('renders a bullet list, keeping wrapped continuation lines in their own item', () => {
   // retention.md hard-wraps its bullets; an indented continuation is not a new bullet.
   const html = renderMarkdown('- **Waitlist:** deleted 90 days after invite,\n  or 3 years after signup.\n- **Account data:** deleted on request.');
