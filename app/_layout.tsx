@@ -16,6 +16,7 @@ import {
 } from '@expo-google-fonts/inter';
 import { SafeAreaProvider, initialWindowMetrics } from 'react-native-safe-area-context';
 import { StripeProvider } from '@stripe/stripe-react-native';
+import { ShopifyCheckoutSheetProvider } from '@shopify/checkout-sheet-kit';
 import { ProfileProvider, useProfile } from '../src/lib/profile-context';
 import type { Route } from '../src/lib/routing-guard';
 import { DEMO_MODE } from '../src/lib/supabase';
@@ -118,6 +119,8 @@ function Guard() {
         <Stack.Screen name="(tabs)" options={{ headerShown: false }} />
         <Stack.Screen name="bag" options={{ headerShown: false }} />
         <Stack.Screen name="product/[id]" options={{ presentation: 'modal', headerShown: false }} />
+        <Stack.Screen name="shop-bag" options={{ headerShown: false }} />
+        <Stack.Screen name="shop-product/[handle]" options={{ presentation: 'modal', headerShown: false }} />
         <Stack.Screen
           name="policies/[doc]"
           options={{ presentation: 'transparentModal', headerShown: false, animation: 'fade' }}
@@ -154,13 +157,15 @@ export default function RootLayout() {
   return (
     <SafeAreaProvider initialMetrics={metrics}>
       {fontsLoaded ? (
-        <StripeProvider
-          publishableKey={process.env.EXPO_PUBLIC_STRIPE_PUBLISHABLE_KEY || ''}
-        >
-          <ProfileProvider>
-            <Guard />
-          </ProfileProvider>
-        </StripeProvider>
+        <ShopifyCheckoutSheetProvider>
+          <StripeProvider
+            publishableKey={process.env.EXPO_PUBLIC_STRIPE_PUBLISHABLE_KEY || ''}
+          >
+            <ProfileProvider>
+              <Guard />
+            </ProfileProvider>
+          </StripeProvider>
+        </ShopifyCheckoutSheetProvider>
       ) : (
         <MistBackground />
       )}
