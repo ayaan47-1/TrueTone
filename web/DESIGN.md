@@ -1,6 +1,6 @@
 # TrueTone web design system
 
-A warm photographic editorial website for US adults exploring cosmetic preferences. The existing TrueTone design is the foundation. This document governs the static marketing and journal pages in `web/`; it does not govern the Expo app or change any native flow.
+A warm photographic editorial website for US adults exploring cosmetic preferences. The existing TrueTone design is the foundation. This document governs the static marketing, journal, and isolated Shop pages in `web/`; it does not govern the Expo app or change any native flow.
 
 Mode: **Redesign - Preserve**. DESIGN_VARIANCE **7**, MOTION_INTENSITY **6**, VISUAL_DENSITY **3**. The founder selected a mix of Apple and Claude, leaning on the current site. Preserve the large images and asymmetric layouts already built; improve consistency and reading character through small changes.
 
@@ -123,7 +123,7 @@ API references checked during implementation: [play() rejection handling](https:
 
 Verify at1440,1024,768,390 and360px, with actual page scrolling and loaded fonts. At800px, principles use two columns and philosophy copy stacks; at560px routine, journal, partner and form compositions stack. The mobile philosophy panel must keep `aspect-ratio:auto` alongside its360px minimum height to avoid intrinsic overflow.
 
-Keep all copy, routes, anchors, navigation labels, form field names/order, disclosures and existing portrait captions. The hero replacement changes only its asset/alternative treatment and the explicitly approved footage caption. No new claims, commerce, data collection, analytics or remote assets. Metadata and social cards remain unchanged. Preserve one primary heading per page, focus visibility, image dimensions and ordinary native scrolling.
+Keep all landing copy, routes, anchors, form field names/order, disclosures and existing portrait captions. The approved `/shop` route is the only commerce exception: it reuses the paper, ink, type, spacing, controls, quiet chrome, and responsive breakpoints above while keeping remote Shopify media and Storefront requests out of landing/editorial pages. No new health or efficacy claims, analytics, or remote fonts are allowed. Metadata and social cards remain unchanged. Preserve one primary heading per page, focus visibility, image dimensions and ordinary native scrolling.
 
 Before accepting a change: run script tests, compliance/no-egress checks and the local preview build; inspect desktop/mobile screenshots and normal/reduced motion including live preference changes. Source tests are not browser evidence. Locked legal punctuation currently conflicts with the rulebook's literal-zero em-dash check; retain it and report the exception honestly.
 

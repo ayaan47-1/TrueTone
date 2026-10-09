@@ -398,20 +398,25 @@ Integration and pgTAP tests need a live Supabase and run separately.
 
 ---
 
-## Waitlist site (`web/`) — **live at https://truetone-1rw.pages.dev**
+## Website (`web/`) — **live at https://truetone-1rw.pages.dev**
 
-A static pre-launch landing page on the app's own Mist palette, deployed to Cloudflare Pages. It
+A static pre-launch landing page and isolated `/shop` on the app's own Mist palette, deployed to Cloudflare Pages. The landing page
 collects an email and an 18+/US attestation — **no biometric or skin data**, so it sits entirely
 outside the compliance boundary — and stores them in Supabase via the `join_waitlist` RPC
-(migrations `0014_waitlist.sql`, `0015_waitlist_service_read.sql`).
+(migrations `0014_waitlist.sql`, `0015_waitlist_service_read.sql`). The Shop uses Shopify's public
+Storefront API for approved products, a guest cart, and checkout handoff. It receives no scan,
+score, shade, profile, routine, chat, or recommendation data.
 
 ```bash
 npm run waitlist:build      # renders policies, subsets fonts, writes config.js and _headers
 npx wrangler pages deploy web --project-name=truetone --branch=main
 ```
 
-`waitlist:build` needs `EXPO_PUBLIC_SUPABASE_URL` / `EXPO_PUBLIC_SUPABASE_ANON_KEY` in the
-environment. `pyftsubset` (`pip install fonttools brotli`) is only needed when changing a
+`waitlist:build` needs the two `EXPO_PUBLIC_SUPABASE_*` values plus
+`EXPO_PUBLIC_SHOPIFY_STORE_DOMAIN`, `EXPO_PUBLIC_SHOPIFY_STOREFRONT_TOKEN`, and
+`EXPO_PUBLIC_SHOPIFY_CHECKOUT_HOSTS` in the environment. The Storefront token is public by design
+but remains build-injected for rotation; never put an Admin or private token here. `pyftsubset`
+(`pip install fonttools brotli`) is only needed when changing a
 typeface — the subsets in `web/fonts/` are committed, so a deploy box needs neither Python nor
 `node_modules`.
 
