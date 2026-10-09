@@ -21,6 +21,7 @@ select col_is_null('public', 'scans', 'capture_quality', 'capture_quality is nul
 
 set local role authenticated;
 set local request.jwt.claims = '{"sub":"cccccccc-cccc-cccc-cccc-cccccccccccc","role":"authenticated"}';
+select public.record_consent();
 
 -- ── 2. 9-arg record_scan with an omitted band runs and defaults to NULL ───────
 select lives_ok($$
@@ -107,6 +108,7 @@ insert into public.profiles(id, is_18_plus, consent_active)
 
 set local role authenticated;
 set local request.jwt.claims = '{"sub":"dddddddd-1111-1111-1111-111111111111","role":"authenticated"}';
+select public.record_consent();
 
 select public.record_scan(
   '{"hydration":0.4,"oiliness":0.6,"texture":0.5,"pores":0.3,

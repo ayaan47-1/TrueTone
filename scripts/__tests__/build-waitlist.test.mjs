@@ -9,7 +9,7 @@ import {
 } from '../build-waitlist.mjs';
 
 // The policy pages are generated from src/content/*.md so the website and the app can
-// never state different terms. A tiny renderer is deliberate: these five documents use
+// never state different terms. A tiny renderer is deliberate: these documents use
 // headings, blockquotes, bold, bullets and paragraphs, and nothing else. Pulling in a full
 // CommonMark dependency to publish legal text would add supply-chain surface for no gain.
 
@@ -33,6 +33,11 @@ test('keeps the placeholder banner visible rather than stripping it', () => {
   // Publishing a draft policy silently would be worse than publishing it labelled.
   const html = renderMarkdown('> PLACEHOLDER — pending counsel review.\n\n# Terms\n\nBody.');
   assert.ok(html.indexOf('PLACEHOLDER') < html.indexOf('<h1>'));
+});
+
+test('does not render counsel-review HTML comments', () => {
+  const html = renderMarkdown('<!-- Counsel-pending. -->\n\n# Policy');
+  assert.equal(html, '<h1>Policy</h1>');
 });
 
 test('renders bold and italic spans', () => {

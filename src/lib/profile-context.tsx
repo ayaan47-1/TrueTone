@@ -6,6 +6,8 @@ import { nextRoute, type Route } from './routing-guard';
 import { cameraDemoState } from './camera-demo-profile';
 
 type Profile = { is_18_plus: boolean; consent_active: boolean };
+type PolicyVersion = { version: string };
+type ConsentReceipt = { policy_version: string };
 type Ctx = {
   loading: boolean;
   error: boolean;
@@ -14,6 +16,32 @@ type Ctx = {
   refresh: () => Promise<void>;
 };
 const ProfileContext = createContext<Ctx | null>(null);
+const MISSING_CURRENT_CONSENT_RPC = 'PGRST202';
+
+async function hasServerCurrentConsent(uid: string): Promise<boolean> {
+  const { data: policy, error: policyError } = await supabase
+    .from('policy_versions')
+    .select('version')
+    .eq('doc_key', 'biometric')
+    .eq('is_current', true)
+    .limit(1)
+    .maybeSingle();
+  if (policyError) throw new Error('current-policy-load-failed');
+  const version = (policy as PolicyVersion | null)?.version;
+  if (!version) return false;
+
+  const { data: receipt, error: receiptError } = await supabase
+    .from('consent_log')
+    .select('policy_version')
+    .eq('user_id', uid)
+    .eq('action', 'consented')
+    .eq('policy_doc_key', 'biometric')
+    .eq('policy_version', version)
+    .limit(1)
+    .maybeSingle();
+  if (receiptError) throw new Error('current-consent-receipt-load-failed');
+  return (receipt as ConsentReceipt | null)?.policy_version === version;
+}
 
 export function ProfileProvider({ children }: { children: React.ReactNode }) {
   const [loading, setLoading] = useState(true);
@@ -57,7 +85,25 @@ export function ProfileProvider({ children }: { children: React.ReactNode }) {
         .single();
       if (e || !data) throw new Error('profile-load-failed');
       const p = data as Profile;
-      setRoute(nextRoute({ isUS: isUSRegion(), is18: p.is_18_plus, consent: p.consent_active }));
+      let hasCurrentConsent = false;
+      if (p.consent_active) {
+        const { data: currentConsent, error: currentConsentError } = await supabase.rpc(
+          'has_current_scan_consent',
+        );
+        if (currentConsentError?.code === MISSING_CURRENT_CONSENT_RPC) {
+          // App-before-migration compatibility: use the old readable tables, but still compare
+          // against the server's current version. Other RPC errors fail closed.
+          hasCurrentConsent = await hasServerCurrentConsent(uid);
+        } else {
+          if (currentConsentError) throw new Error('current-consent-load-failed');
+          hasCurrentConsent = currentConsent === true;
+        }
+      }
+      setRoute(nextRoute({
+        isUS: isUSRegion(),
+        is18: p.is_18_plus,
+        consent: p.consent_active && hasCurrentConsent,
+      }));
       setError(false);
     } catch {
       setError(true); // fail closed: never advance on unknown identity

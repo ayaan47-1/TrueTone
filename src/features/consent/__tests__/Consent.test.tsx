@@ -19,9 +19,21 @@ beforeEach(() => {
 
 test('renders BIPA 15(b) disclosures (what/purpose/retention)', async () => {
   const { getAllByText } = await render(<Consent onConsent={jest.fn()} onDecline={jest.fn()} />);
-  expect(getAllByText(/biometric/i).length).toBeGreaterThan(0); // WHAT
-  expect(getAllByText(/purpose/i).length).toBeGreaterThan(0); // PURPOSE
+  expect(getAllByText(/face photo never leaves your device/i).length).toBeGreaterThan(0); // WHAT
+  expect(getAllByText(/match you to cosmetic shades/i).length).toBeGreaterThan(0); // PURPOSE
   expect(getAllByText(/3 years/i).length).toBeGreaterThan(0); // RETENTION
+});
+
+test('renders Draft A policy links as real controls', async () => {
+  const onOpenPolicy = jest.fn();
+  const { getByTestId } = await render(
+    <Consent onConsent={jest.fn()} onDecline={jest.fn()} onOpenPolicy={onOpenPolicy} />,
+  );
+
+  await fireEvent.press(getByTestId('policy-link-biometric'));
+  expect(onOpenPolicy).toHaveBeenCalledWith('biometric');
+  await fireEvent.press(getByTestId('policy-link-retention'));
+  expect(onOpenPolicy).toHaveBeenCalledWith('retention');
 });
 test('consent button disabled until box checked, then calls record_consent', async () => {
   const onConsent = jest.fn();

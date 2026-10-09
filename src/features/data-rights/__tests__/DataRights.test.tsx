@@ -27,6 +27,14 @@ test('withdraw/delete/account call correct RPCs after confirm', async () => {
   await waitFor(() => expect(mockRpc).toHaveBeenCalledWith('delete_account'));
 });
 
+test('withdraws AI consent independently without withdrawing scan consent', async () => {
+  const { getByTestId } = await render(<DataRights onChanged={jest.fn()} confirm={async () => true} />);
+  await fireEvent.press(getByTestId('withdraw-ai'));
+  await waitFor(() => expect(mockRpc).toHaveBeenCalledWith('withdraw_ai_consent'));
+  expect(mockRpc).not.toHaveBeenCalledWith('withdraw_consent');
+  expect(mockClearDiary).not.toHaveBeenCalled();
+});
+
 test('deleting data or the account also clears the on-device diary', async () => {
   const { getByTestId } = await render(<DataRights onChanged={jest.fn()} confirm={async () => true} />);
   await fireEvent.press(getByTestId('delete-data'));

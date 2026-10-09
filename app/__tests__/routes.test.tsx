@@ -63,7 +63,7 @@ test('age-gate route fails closed (Preparing) without a userId', async () => {
 
 test('consent route renders the consent screen', async () => {
   await render(<ConsentRoute />);
-  expect(screen.getByText(/before we scan your skin/i)).toBeTruthy();
+  expect(screen.getByText(/before your cosmetic skin read/i)).toBeTruthy();
 });
 
 test('data route renders the data-rights actions', async () => {
@@ -78,7 +78,7 @@ test('policies route lists the policies', async () => {
 
 test('policy reader renders the selected doc body', async () => {
   await render(<PolicyReaderScreen />);
-  expect(screen.getByText(/Privacy Policy pending counsel review/i)).toBeTruthy();
+  expect(screen.getByText(/If you join the early-access list/i)).toBeTruthy();
 });
 
 test('region-blocked route renders the not-available message', async () => {
@@ -104,6 +104,13 @@ test('root layout redirects to a gate route (imperatively, keeping the Stack mou
   // Stack always renders (so the target screen can mount); the gate is enforced by navigation.
   expect(screen.getByText('stack')).toBeTruthy();
   expect(mockReplace).toHaveBeenCalledWith('/consent');
+});
+
+test('root layout allows policy links while biometric consent is still pending', async () => {
+  mockUseProfile.mockReturnValue({ loading: false, error: false, route: 'consent' });
+  mockPathname.mockReturnValue('/policies/biometric');
+  await render(<RootLayout />);
+  expect(mockReplace).not.toHaveBeenCalled();
 });
 
 test('root layout advances into the app once the last gate clears', async () => {
