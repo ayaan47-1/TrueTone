@@ -1,19 +1,38 @@
-# TrueTone editorial web preview
+# TrueTone editorial site and Shop
 
-Static HTML, CSS and JavaScript on `feat/truekind-web`. The Expo app is unchanged. The design system is documented in [DESIGN.md](DESIGN.md).
+Static HTML, CSS and JavaScript. The Expo app is unchanged. The design system is documented in [DESIGN.md](DESIGN.md).
 
 ## Preview
 
 From the repository root, create a deliberately disconnected local configuration:
 
 ```sh
-EXPO_PUBLIC_SUPABASE_URL=https://preview.invalid EXPO_PUBLIC_SUPABASE_ANON_KEY=local-preview-disabled npm run waitlist:build
+EXPO_PUBLIC_SUPABASE_URL=https://preview.invalid \
+EXPO_PUBLIC_SUPABASE_ANON_KEY=local-preview-disabled \
+EXPO_PUBLIC_SHOPIFY_STORE_DOMAIN=hwqi01-wd.myshopify.com \
+EXPO_PUBLIC_SHOPIFY_STOREFRONT_TOKEN=local-preview-disabled \
+EXPO_PUBLIC_SHOPIFY_CHECKOUT_HOSTS=hwqi01-wd.myshopify.com \
+npm run waitlist:build
 python3 -m http.server 8080 --directory web
 ```
 
-Open `http://localhost:8080/` and `/journal.html`. The generated local configuration cannot submit email or report a successful signup. Valid production configuration continues to use the existing waitlist service. `web/config.js`, `web/_headers` and generated policies remain ignored build outputs. Do not deploy the preview configuration. The Python preview does not enforce `_headers`; deployment must use the generated Content Security Policy, including same-origin-only media permission.
+Open `http://localhost:8080/`, `/journal.html`, and `/shop/`. The deliberately disabled preview values cannot submit email or reach a real Shopify storefront. Valid production configuration uses the waitlist service and Shopify public Storefront token. `web/config.js`, `web/_headers` and generated policies remain ignored build outputs. Do not deploy the preview configuration. The Python preview does not enforce `_headers`; deployment must use the generated Content Security Policy.
 
 Run `npm run test:scripts`, `npm run check:compliance` and `npm run check:no-egress`. No lint command is configured. These edits introduce no TypeScript or native changes.
+
+## Shop boundary
+
+`/shop/`, `/shop/product.html`, and `/shop/cart.html` share `shop/storefront.js` and `shop/shop.js`.
+No Storefront request starts until the visitor accepts the point-of-context disclosure; “Not now”
+returns home. All requests pin API version `2026-10` and set Shopify visitor consent categories to
+false. Product descriptions are not queried or rendered, remote media is restricted to the exact
+Shopify CDN host, and only the opaque cart ID enters `localStorage`. Product snapshots use
+`sessionStorage` for a dated offline browse state. Checkout re-queries the cart, validates the exact
+host and checkout path, and passes Shopify's URL through unchanged.
+
+The generated Content Security Policy keeps `script-src 'self'`, adds only the configured
+`.myshopify.com` origin to `connect-src`, and adds only `https://cdn.shopify.com` to `img-src`. No
+Shopify script, pixel, customer account, or tracking integration is present.
 
 ## Hero footage
 
@@ -41,7 +60,7 @@ The pink makeup flatlay appeared only in the old hero. Both unused derivatives w
 
 The founder explicitly authorized the supplied AI footage/poster in the hero on2026-10-08. This supersedes the prior hero-placement restriction only for that footage/poster. No model release is on file. Original gallery photography remains subject to its existing placement/caption restrictions. Source photographer/IDs and AI generation context were supplied by the founder; individual source pages, generation settings and derivative rights were not independently verified. No image-generation service was called for this update.
 
-Supplier slots remain neutral placeholders. Future supplier photos require documented permission and exact matching supplier/product identity; never reuse them as generic TrueTone imagery. No commerce or Shopify integration is added. Fonts remain self-hosted Plus Jakarta Sans/Inter with included licenses and OS Georgia/Times fallbacks.
+Supplier slots on the editorial landing page remain neutral placeholders. Shopify-returned media is confined to the isolated Shop and product-detail pages, exact-host filtered, and shown only beside that product and supplier identity. Fonts remain self-hosted Plus Jakarta Sans/Inter with included licenses and OS Georgia/Times fallbacks.
 
 ## Verification and limits
 
