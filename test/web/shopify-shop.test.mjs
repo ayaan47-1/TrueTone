@@ -19,6 +19,7 @@ import {
   neutralProductAlt,
   parseCartQuantity,
   productImageForVariant,
+  productSoldOut,
   removalFocusTarget,
 } from '../../web/shop/shop-helpers.js';
 import { STOREFRONT_FIXTURE } from '../../web/shop/fixtures.js';
@@ -83,6 +84,43 @@ test('Storefront client distinguishes GraphQL, network, and HTTP failures', asyn
   });
 });
 
+test('Storefront client keeps partial data when only optional inventory fields are denied', async () => {
+  const data = structuredClone(STOREFRONT_FIXTURE.products);
+  data.products.nodes[0].variants.nodes[0].quantityAvailable = null;
+  const client = createStorefrontClient(config, async () => ({
+    ok: true,
+    json: async () => ({
+      data,
+      errors: [{
+        message: 'Access denied for quantityAvailable field.',
+        path: ['products', 'nodes', 0, 'variants', 'nodes', 0, 'quantityAvailable'],
+        extensions: { code: 'ACCESS_DENIED' },
+      }],
+    }),
+  }));
+
+  assert.deepEqual(await client.request(PRODUCTS_QUERY, { first: 24 }), data);
+});
+
+test('Storefront client still rejects access errors on required fields', async () => {
+  const client = createStorefrontClient(config, async () => ({
+    ok: true,
+    json: async () => ({
+      data: STOREFRONT_FIXTURE.products,
+      errors: [{
+        message: 'Access denied for title field.',
+        path: ['products', 'nodes', 0, 'title'],
+        extensions: { code: 'ACCESS_DENIED' },
+      }],
+    }),
+  }));
+
+  await assert.rejects(client.request(PRODUCTS_QUERY, { first: 24 }), (error) => {
+    assert.equal(error.kind, 'graphql');
+    return true;
+  });
+});
+
 test('maps reviewed product identity fields and allows only exact Shopify CDN media', () => {
   const product = mapProduct(STOREFRONT_FIXTURE.products.products.nodes[0]);
   assert.equal(product.description, null);
@@ -104,6 +142,12 @@ test('selects the variant image with a product-image fallback', () => {
   const variantImage = { url: 'https://cdn.shopify.com/variant.webp' };
   assert.equal(productImageForVariant({ image: variantImage }, productImage), variantImage);
   assert.equal(productImageForVariant({ image: null }, productImage), productImage);
+});
+
+test('marks a product sold out only when it has variants and none are available', () => {
+  assert.equal(productSoldOut({ variants: [{ availableForSale: false }, { availableForSale: false }] }), true);
+  assert.equal(productSoldOut({ variants: [{ availableForSale: false }, { availableForSale: true }] }), false);
+  assert.equal(productSoldOut({ variants: [] }), false);
 });
 
 test('a transient add failure leaves the product ready for a successful retry', async () => {
