@@ -110,7 +110,7 @@ export function createCartAdapter(
       try {
         data = await client.request<{ cart: CartNode | null }>(CART_QUERY, { id });
       } catch (error) {
-        if (!(error instanceof ShopifyRequestError)) throw error;
+        if (!(error instanceof ShopifyRequestError) || error.kind !== 'graphql') throw error;
         await storage.removeItem(SHOPIFY_CART_STORAGE_KEY);
         return create();
       }

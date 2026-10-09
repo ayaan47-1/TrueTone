@@ -66,7 +66,7 @@ describe('Shopify cart adapter', () => {
     storage.getItem.mockResolvedValue('gid://shopify/Cart/foreign');
     const request = jest
       .fn()
-      .mockRejectedValueOnce(new ShopifyRequestError('Invalid global id'))
+      .mockRejectedValueOnce(new ShopifyRequestError('Invalid global id', 'graphql'))
       .mockResolvedValueOnce({
         cartCreate: {
           cart: {
@@ -84,5 +84,19 @@ describe('Shopify cart adapter', () => {
     await expect(adapter.load()).resolves.toEqual(expect.objectContaining({ id: 'gid://shopify/Cart/recovered' }));
     expect(storage.removeItem).toHaveBeenCalledWith(SHOPIFY_CART_STORAGE_KEY);
     expect(request).toHaveBeenCalledTimes(2);
+  });
+
+  it.each([
+    ['network', new ShopifyRequestError('Could not reach Shopify', 'network')],
+    ['HTTP 503', new ShopifyRequestError('Shopify returned HTTP 503', 'http', 503)],
+  ])('keeps the stored cart ID when a %s error may be transient', async (_label, requestError) => {
+    storage.getItem.mockResolvedValue('gid://shopify/Cart/current');
+    const request = jest.fn().mockRejectedValue(requestError);
+    const adapter = createCartAdapter({ request } as ShopifyClient, storage);
+
+    await expect(adapter.load()).rejects.toBe(requestError);
+    expect(storage.removeItem).not.toHaveBeenCalled();
+    expect(storage.setItem).not.toHaveBeenCalled();
+    expect(request).toHaveBeenCalledTimes(1);
   });
 });

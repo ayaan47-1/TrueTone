@@ -16,8 +16,14 @@ interface GraphqlEnvelope<T> {
   readonly errors?: readonly { readonly message?: string }[];
 }
 
+export type ShopifyRequestErrorKind = 'network' | 'http' | 'graphql' | 'invalid-response';
+
 export class ShopifyRequestError extends Error {
-  constructor(message = 'Shopify Storefront request failed') {
+  constructor(
+    message = 'Shopify Storefront request failed',
+    readonly kind: ShopifyRequestErrorKind = 'invalid-response',
+    readonly status?: number,
+  ) {
     super(message);
     this.name = 'ShopifyRequestError';
   }
@@ -44,12 +50,17 @@ export function createShopifyClient(
           body: JSON.stringify({ query, variables }),
         });
       } catch {
-        throw new ShopifyRequestError('Could not reach Shopify');
+        throw new ShopifyRequestError('Could not reach Shopify', 'network');
       }
-      if (!response.ok) throw new ShopifyRequestError(`Shopify returned HTTP ${response.status ?? 'error'}`);
+      if (!response.ok) {
+        throw new ShopifyRequestError(`Shopify returned HTTP ${response.status ?? 'error'}`, 'http', response.status);
+      }
       const envelope = (await response.json()) as GraphqlEnvelope<T>;
-      if (!envelope.data || envelope.errors?.length) {
-        throw new ShopifyRequestError(envelope.errors?.[0]?.message || undefined);
+      if (envelope.errors?.length) {
+        throw new ShopifyRequestError(envelope.errors[0]?.message || undefined, 'graphql');
+      }
+      if (!envelope.data) {
+        throw new ShopifyRequestError(undefined, 'invalid-response');
       }
       return envelope.data;
     },
