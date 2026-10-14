@@ -1,4 +1,4 @@
-> PLACEHOLDER — pending counsel review.
+<!-- Counsel-pending Draft A policy copy; do not render this review marker. -->
 
 # Privacy Policy
 
@@ -25,8 +25,10 @@ no advertising pixel, and no third-party script of any kind.
 ## The app
 
 What we collect: face image (processed on-device, never uploaded), derived skin-appearance
-metrics, and account information. Specific purpose: estimate your skin's appearance and suggest a
-cosmetic routine.
+metrics, and account information. We use the on-device read and saved derived data to show your
+cosmetic skin-appearance results, match you to cosmetic shades, suggest a brand-neutral cosmetic
+routine, and show your own prior reads over time. TrueTone describes appearance only. It does not
+provide a diagnosis or medical advice.
 
 We never sell, lease, or trade biometric or health data. We do not share it with advertisers or
 analytics providers. You can view and delete your data in-app at any time.

@@ -23,6 +23,7 @@ select has_column('public', 'scans', 'skin_age_confidence',
 -- ── 2. columns are nullable (no scan requires skin-age) ───────────────────────
 set local role authenticated;
 set local request.jwt.claims = '{"sub":"eeeeeeee-eeee-eeee-eeee-eeeeeeeeeeee","role":"authenticated"}';
+select public.record_consent();
 
 select lives_ok($$
   select public.record_scan(
@@ -137,6 +138,7 @@ insert into public.profiles(id, is_18_plus, consent_active)
 
 set local role authenticated;
 set local request.jwt.claims = '{"sub":"ffffffff-ffff-ffff-ffff-ffffffffffff","role":"authenticated"}';
+select public.record_consent();
 
 select public.record_scan(
   '{"hydration":0.4,"oiliness":0.6,"texture":0.5,"pores":0.3,

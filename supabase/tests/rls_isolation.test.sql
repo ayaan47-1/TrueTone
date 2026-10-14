@@ -22,7 +22,8 @@ select is(
   (select count(*) from public.profiles where id = '11111111-1111-1111-1111-111111111111')::int,
   1, 'user1 can read own profile');
 select is(
-  (select count(*) from public.policy_versions)::int, 5, 'policy_versions world-readable (5 seeded)');
+  (select count(*) from public.policy_versions where is_current)::int,
+  6, 'all six current policy versions are world-readable');
 
 select * from finish();
 rollback;

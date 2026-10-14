@@ -79,9 +79,12 @@ function Guard() {
       return;
     }
     const target = GATE_PATH[route];
+    // The biometric gate remains locked, but its disclosure links must be readable before the
+    // user chooses. Policies are read-only and cannot reach the camera or app content.
+    const isPreConsentPolicy = route === 'consent' && pathname.startsWith('/policies');
     if (target) {
       // A gate is active → make sure we're on its screen.
-      if (pathname !== target) router.replace(target);
+      if (pathname !== target && !isPreConsentPolicy) router.replace(target);
     } else if ((Object.values(GATE_PATH) as string[]).includes(pathname)) {
       // route === 'home': all gates cleared but we're still sitting on a gate screen → enter the app.
       router.replace('/');

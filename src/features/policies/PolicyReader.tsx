@@ -1,8 +1,9 @@
 import { ScrollView, View, useWindowDimensions } from 'react-native';
 import { POLICY_BODIES } from '../../content/bodies';
 import { POLICY_DOCS, type DocKey } from '../../content/manifest';
-import { MistBackground, GlassSheet, Heading, Body, Eyebrow } from '../../components/ui';
+import { MistBackground, GlassSheet, Heading, Eyebrow } from '../../components/ui';
 import { SHORT_VIEWPORT_THRESHOLD } from '../../components/ui/use-responsive';
+import { PolicyMarkdown } from './PolicyMarkdown';
 
 const TITLES = Object.fromEntries(POLICY_DOCS.map((d) => [d.key, d.title])) as Record<DocKey, string>;
 
@@ -20,7 +21,7 @@ export function PolicyReader({ docKey, onClose }: { docKey: DocKey; onClose?: ()
           <Heading>{TITLES[docKey] ?? 'Policy'}</Heading>
         </View>
         <ScrollView style={{ maxHeight }} showsVerticalScrollIndicator={false}>
-          <Body className="text-ink-soft">{POLICY_BODIES[docKey]}</Body>
+          <PolicyMarkdown markdown={POLICY_BODIES[docKey]} />
         </ScrollView>
       </GlassSheet>
     </MistBackground>

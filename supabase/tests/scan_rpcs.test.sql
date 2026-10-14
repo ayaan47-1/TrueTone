@@ -8,6 +8,7 @@ insert into public.profiles(id, is_18_plus, consent_active)
 
 set local role authenticated;
 set local request.jwt.claims = '{"sub":"cccccccc-cccc-cccc-cccc-cccccccccccc","role":"authenticated"}';
+select public.record_consent();
 
 -- record_scan inserts one row with valid scores
 select lives_ok($$
@@ -60,6 +61,7 @@ insert into public.profiles(id, is_18_plus, consent_active)
   values ('dddddddd-dddd-dddd-dddd-dddddddddddd', true, true);
 set local role authenticated;
 set local request.jwt.claims = '{"sub":"dddddddd-dddd-dddd-dddd-dddddddddddd","role":"authenticated"}';
+select public.record_consent();
 select public.record_scan(
   '{"hydration":0.5,"oiliness":0.5,"texture":0.5,"pores":0.5,"darkSpots":0.5,"redness":0.5,"fineLines":0.5,"darkCircles":0.5}'::jsonb,
   'combination', 'stub-1', true, '{"version":"skincare-1","am":[],"pm":[]}'::jsonb, 'skincare-1');
