@@ -9,5 +9,5 @@ your raw numeric scan scores. TrueTone does not save the chat transcript in its 
 screen keeps it only for the current session. Do not enter information in chat that you do not want
 processed for this purpose.
 
-> [ ] I separately consent to [LEGAL ENTITY NAME] disclosing the information described above to
+> [ ] I separately consent to TrueTone LLC disclosing the information described above to
 > Anthropic for the limited purpose of generating optional cosmetic routine and chat responses.

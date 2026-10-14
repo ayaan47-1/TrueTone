@@ -1,5 +1,5 @@
 import assert from 'node:assert/strict';
-import { readFileSync } from 'node:fs';
+import { readdirSync, readFileSync } from 'node:fs';
 import test from 'node:test';
 import { policyKeysFromManifest } from '../../scripts/sync-policy-bodies.mjs';
 
@@ -14,7 +14,25 @@ test('the versioned AI consent receipt resolves to the published Draft A text', 
   const aiConsent = asRenderedCopy(readFileSync('src/content/ai_routine_chat.md', 'utf8'));
   assert.match(aiConsent, /Optional AI routine and chat/);
   assert.match(aiConsent, /Anthropic does not receive your face photo or your raw numeric scan scores\./);
-  assert.match(aiConsent, /I separately consent to \[LEGAL ENTITY NAME\]/);
+  assert.match(aiConsent, /I separately consent to TrueTone LLC/);
+});
+
+test('published consent copy contains no unresolved entity or contact placeholders', () => {
+  const contentFiles = readdirSync('src/content', { withFileTypes: true })
+    .filter((entry) => entry.isFile() && entry.name.endsWith('.md'))
+    .map((entry) => `src/content/${entry.name}`);
+  const consentFiles = readdirSync('src/features/consent', { withFileTypes: true })
+    .filter((entry) => entry.isFile())
+    .map((entry) => `src/features/consent/${entry.name}`);
+  const checkedFiles = [...contentFiles, 'src/content/bodies.ts', ...consentFiles];
+  const forbidden = ['LEGAL ENTITY NAME', 'CONTACT EMAIL'].map((name) => `[${name}]`);
+
+  for (const path of checkedFiles) {
+    const source = readFileSync(path, 'utf8');
+    for (const placeholder of forbidden) {
+      assert.equal(source.includes(placeholder), false, `${path} contains ${placeholder}`);
+    }
+  }
 });
 
 test('the public retention schedule remains complete for waitlist data', () => {

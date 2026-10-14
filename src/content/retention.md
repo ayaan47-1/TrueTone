@@ -11,7 +11,7 @@ invite, or 3 years after you join if we never do, whichever comes first. Unsubsc
 sooner.
 
 **Face photo.** The photo is processed only on your device and deleted immediately after the read.
-It is not stored on [LEGAL ENTITY NAME]'s servers or sent to Anthropic.
+It is not stored on TrueTone LLC's servers or sent to Anthropic.
 
 **Derived scan records.** Derived cosmetic appearance scores and labels, skin type, cosmetic
 routine, scan and model metadata, capture-quality label, and any enabled cosmetic skin-appearance-
@@ -28,4 +28,4 @@ restorable backup copy ages out within 7 days. A daily reconciliation job record
 has completed.
 
 **Contact.** Ask to view or delete your data at any time in **Your Data**, or contact
-[CONTACT EMAIL].
+robert@truetone.skin.
