@@ -4,16 +4,19 @@ select plan(1);
 select results_eq(
   $$
     select
-      grantee::text,
-      table_name::text,
-      privilege_type::text
+      grantee::text collate "C",
+      table_name::text collate "C",
+      privilege_type::text collate "C"
     from information_schema.role_table_grants
     where table_schema = 'public'
       and grantee in ('anon', 'authenticated')
     order by grantee, table_name, privilege_type
   $$,
   $$
-    select *
+    select
+      grantee collate "C",
+      table_name collate "C",
+      privilege_type collate "C"
     from (
       values
         ('anon'::text, 'consent_log'::text, 'SELECT'::text),
