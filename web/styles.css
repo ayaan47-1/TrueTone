@@ -25,7 +25,7 @@
   --terra-deep: #a9532f;
   --ink: #221f1a;
   --muted: #5c554b;
-  --faint: #8a8378;
+  --faint: #6b6358;
   --cream: #fbf7f2;
   --sand: #f2ebe0;
   --line: #e7ddce;
@@ -137,7 +137,7 @@ button {
 #submit {
   width: 100%; padding: 15px 20px;
   border: none; border-radius: 14px;
-  background: var(--terra); color: #fff;
+  background: var(--terra-deep); color: #fff;
   font-size: 1.05rem; letter-spacing: 0.01em;
   transition: background 0.15s ease, transform 0.05s ease;
 }
@@ -224,7 +224,7 @@ section p { color: var(--muted); }
 .cta-secondary {
   display: inline-block; margin-top: 20px;
   padding: 13px 26px; border-radius: 14px;
-  background: var(--terra); color: #fff; text-decoration: none;
+  background: var(--terra-deep); color: #fff; text-decoration: none;
   font-family: var(--display); font-weight: 700;
 }
 .cta-secondary:hover { background: var(--terra-deep); }
@@ -272,3 +272,6 @@ section p { color: var(--muted); }
 @media (prefers-reduced-motion: no-preference) {
   #submit, .cta-secondary, #copy-link { transition: background 0.15s ease, transform 0.05s ease; }
 }
+
+/* The shared utility pages also respect the visitor's motion preference. */
+@media (prefers-reduced-motion: reduce) { #submit, .cta-secondary, #copy-link { transition: none; transform: none; } }

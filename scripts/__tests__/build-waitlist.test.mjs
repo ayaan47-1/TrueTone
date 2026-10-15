@@ -40,6 +40,16 @@ test('renders bold and italic spans', () => {
   assert.ok(renderMarkdown('_(add an address)_').includes('<em>(add an address)</em>'));
 });
 
+test('renders the approved Shopify consumer privacy link safely', () => {
+  const html = renderMarkdown(
+    '[Shopify Consumer Privacy Policy](https://www.shopify.com/legal/privacy/consumers)',
+  );
+  assert.equal(
+    html,
+    '<p><a href="https://www.shopify.com/legal/privacy/consumers" rel="noreferrer">Shopify Consumer Privacy Policy</a></p>',
+  );
+});
+
 test('renders a bullet list, keeping wrapped continuation lines in their own item', () => {
   // retention.md hard-wraps its bullets; an indented continuation is not a new bullet.
   const html = renderMarkdown('- **Waitlist:** deleted 90 days after invite,\n  or 3 years after signup.\n- **Account data:** deleted on request.');
@@ -92,12 +102,14 @@ test('CSP denies everything by default and opens only what the page uses', () =>
   assert.ok(headers.includes("script-src 'self'"));
   assert.ok(headers.includes("style-src 'self'"));
   assert.ok(headers.includes("font-src 'self'"));
+  assert.equal(headers.match(/media-src ([^;]+)/)[1].trim(), "'self'");
 });
 
-test('CSP allows the browser to reach Supabase and nowhere else', () => {
-  const headers = renderHeaders('https://abc.supabase.co');
+test('CSP allows only the approved Supabase and Shopify origins', () => {
+  const headers = renderHeaders('https://abc.supabase.co', 'https://hwqi01-wd.myshopify.com');
   const connect = headers.match(/connect-src ([^;]+)/)[1];
-  assert.equal(connect.trim(), "'self' https://abc.supabase.co");
+  assert.equal(connect.trim(), "'self' https://abc.supabase.co https://hwqi01-wd.myshopify.com");
+  assert.equal(headers.match(/img-src ([^;]+)/)[1].trim(), "'self' data: https://cdn.shopify.com");
 });
 
 test('CSP permits no inline or eval escape hatch', () => {
@@ -123,9 +135,16 @@ test('camera and microphone are denied outright to the website', () => {
 
 // ── generated config ──────────────────────────────────────────────────────────
 test('renderConfig emits the two values app.js reads', () => {
-  const js = renderConfig('https://abc.supabase.co', 'anon-key');
+  const js = renderConfig('https://abc.supabase.co', 'anon-key', {
+    storeDomain: 'hwqi01-wd.myshopify.com',
+    storefrontToken: 'public-storefront-token',
+    checkoutHosts: ['hwqi01-wd.myshopify.com', 'checkout.truetone.example'],
+  });
   assert.ok(js.includes("supabaseUrl: 'https://abc.supabase.co'"));
   assert.ok(js.includes("supabaseAnonKey: 'anon-key'"));
+  assert.ok(js.includes("storeDomain: 'hwqi01-wd.myshopify.com'"));
+  assert.ok(js.includes("storefrontToken: 'public-storefront-token'"));
+  assert.ok(js.includes("checkoutHosts: ['hwqi01-wd.myshopify.com', 'checkout.truetone.example']"));
 });
 
 test('renderConfig refuses values that would break out of the string literal', () => {
@@ -133,4 +152,19 @@ test('renderConfig refuses values that would break out of the string literal', (
   // syntactically valid JavaScript that does something else.
   assert.throws(() => renderConfig("https://x'+alert(1)+'", 'k'), /unsafe/i);
   assert.throws(() => renderConfig('https://x', "k'; alert(1); '"), /unsafe/i);
+});
+
+test('renderConfig validates Shopify domains and requires the store checkout host', () => {
+  assert.throws(
+    () => renderConfig('https://abc.supabase.co', 'anon-key', {
+      storeDomain: 'shop.example.com', storefrontToken: 'public', checkoutHosts: ['shop.example.com'],
+    }),
+    /myshopify/i,
+  );
+  assert.throws(
+    () => renderConfig('https://abc.supabase.co', 'anon-key', {
+      storeDomain: 'hwqi01-wd.myshopify.com', storefrontToken: 'public', checkoutHosts: ['checkout.example.com'],
+    }),
+    /include the store domain/i,
+  );
 });
