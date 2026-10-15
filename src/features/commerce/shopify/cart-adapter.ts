@@ -1,7 +1,7 @@
 import { encryptedStorage } from '../../../lib/encrypted-storage';
 import { ShopifyRequestError, type ShopifyClient } from './client';
 import { CART_CREATE, CART_LINES_ADD, CART_LINES_REMOVE, CART_LINES_UPDATE, CART_QUERY } from './graphql';
-import { safeShopifyImage } from './product-mapper';
+import { normalizeShopifyVariantTitle, safeShopifyImage } from './product-mapper';
 import type { Money, ShopifyCart, ShopifyCartLine } from './types';
 
 export const SHOPIFY_CART_STORAGE_KEY = 'truetone.shopify.cart.id.v1';
@@ -47,7 +47,7 @@ function mapLine(node: CartLineNode): ShopifyCartLine {
     quantity: node.quantity,
     merchandise: {
       id: node.merchandise.id,
-      title: node.merchandise.title,
+      title: normalizeShopifyVariantTitle(node.merchandise.title),
       availableForSale: node.merchandise.availableForSale,
       quantityAvailable: node.merchandise.quantityAvailable ?? null,
       selectedOptions: node.merchandise.selectedOptions ?? [],

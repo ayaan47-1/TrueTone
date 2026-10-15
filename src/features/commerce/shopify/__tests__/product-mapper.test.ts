@@ -23,6 +23,17 @@ describe('Shopify product mapper', () => {
     expect(product.featuredImage).toBeNull();
   });
 
+  it("hides Shopify's synthetic single-variant title", () => {
+    const product = mapProductNode({
+      ...PRODUCT_FIXTURE_NODE,
+      variants: {
+        nodes: [{ ...PRODUCT_FIXTURE_NODE.variants.nodes[0], title: 'Default Title' }],
+      },
+    });
+
+    expect(product.variants[0].title).toBe('');
+  });
+
   it('selects the first available variant and returns null when none are purchasable', () => {
     const product = mapProductNode(PRODUCT_FIXTURE_NODE);
     expect(pickPurchasableVariant(product)?.id).toBe('gid://shopify/ProductVariant/2');

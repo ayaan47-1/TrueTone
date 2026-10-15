@@ -1,3 +1,4 @@
+import { readFileSync } from 'node:fs';
 import { readShopifyConfig } from '../env';
 
 describe('readShopifyConfig', () => {
@@ -6,14 +7,20 @@ describe('readShopifyConfig', () => {
       readShopifyConfig({
         EXPO_PUBLIC_SHOPIFY_STORE_DOMAIN: 'hwqi01-wd.myshopify.com',
         EXPO_PUBLIC_SHOPIFY_STOREFRONT_TOKEN: 'public-token',
-        EXPO_PUBLIC_SHOPIFY_CHECKOUT_HOSTS: 'hwqi01-wd.myshopify.com,truetone.skin,www.truetone.skin',
+        EXPO_PUBLIC_SHOPIFY_CHECKOUT_HOSTS: 'hwqi01-wd.myshopify.com,shop.truetone.skin',
       }),
     ).toEqual({
       endpoint: 'https://hwqi01-wd.myshopify.com/api/2026-10/graphql.json',
       storeDomain: 'hwqi01-wd.myshopify.com',
       storefrontToken: 'public-token',
-      checkoutHosts: ['hwqi01-wd.myshopify.com', 'truetone.skin', 'www.truetone.skin'],
+      checkoutHosts: ['hwqi01-wd.myshopify.com', 'shop.truetone.skin'],
     });
+  });
+
+  it('documents the production checkout hosts for app builds', () => {
+    expect(readFileSync('.env.example', 'utf8')).toContain(
+      'EXPO_PUBLIC_SHOPIFY_CHECKOUT_HOSTS=hwqi01-wd.myshopify.com,shop.truetone.skin',
+    );
   });
 
   it.each([

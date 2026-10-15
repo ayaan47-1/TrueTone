@@ -62,6 +62,45 @@ describe('Shopify cart adapter', () => {
     expect(storage.removeItem).toHaveBeenCalledWith(SHOPIFY_CART_STORAGE_KEY);
   });
 
+  it("hides Shopify's synthetic single-variant title in cart lines", async () => {
+    storage.getItem.mockResolvedValue('gid://shopify/Cart/current');
+    const request = jest.fn().mockResolvedValue({
+      cart: {
+        id: 'gid://shopify/Cart/current',
+        checkoutUrl: 'https://hwqi01-wd.myshopify.com/cart/c/current?key=opaque',
+        totalQuantity: 1,
+        lines: {
+          nodes: [{
+            id: 'gid://shopify/CartLine/1',
+            quantity: 1,
+            merchandise: {
+              id: 'gid://shopify/ProductVariant/1',
+              title: 'Default Title',
+              availableForSale: true,
+              quantityAvailable: 8,
+              selectedOptions: [{ name: 'Title', value: 'Default Title' }],
+              price: { amount: '24.00', currencyCode: 'USD' },
+              compareAtPrice: null,
+              image: null,
+              product: {
+                id: 'gid://shopify/Product/1',
+                handle: 'single-variant-product',
+                title: 'Single variant product',
+                vendor: 'Supplier',
+              },
+            },
+          }],
+        },
+        cost: { subtotalAmount: { amount: '24.00', currencyCode: 'USD' } },
+      },
+    });
+    const adapter = createCartAdapter({ request } as ShopifyClient, storage);
+
+    await expect(adapter.load()).resolves.toMatchObject({
+      lines: [{ merchandise: { title: '' } }],
+    });
+  });
+
   it('drops a stored cart ID and recreates once when Shopify rejects the cart query', async () => {
     storage.getItem.mockResolvedValue('gid://shopify/Cart/foreign');
     const request = jest

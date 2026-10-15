@@ -2,6 +2,10 @@ import type { Money, ShopifyImage, ShopifyProduct, ShopifyVariant } from './type
 
 export const SHOPIFY_MEDIA_HOSTS = new Set(['cdn.shopify.com']);
 
+export function normalizeShopifyVariantTitle(title: string): string {
+  return title === 'Default Title' ? '' : title;
+}
+
 /** Reviewed, local-only display copy. Shopify/supplier descriptions are never rendered directly. */
 const APPROVED_PRODUCT_COPY: Readonly<Record<string, string>> = {};
 
@@ -52,7 +56,7 @@ export function safeShopifyImage(node?: ImageNode | null): ShopifyImage | null {
 function mapVariant(node: VariantNode): ShopifyVariant {
   return {
     id: node.id,
-    title: node.title,
+    title: normalizeShopifyVariantTitle(node.title),
     availableForSale: node.availableForSale,
     quantityAvailable: node.quantityAvailable ?? null,
     selectedOptions: node.selectedOptions ?? [],
