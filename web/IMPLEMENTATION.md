@@ -11,7 +11,7 @@ EXPO_PUBLIC_SUPABASE_URL=https://preview.invalid \
 EXPO_PUBLIC_SUPABASE_ANON_KEY=local-preview-disabled \
 EXPO_PUBLIC_SHOPIFY_STORE_DOMAIN=hwqi01-wd.myshopify.com \
 EXPO_PUBLIC_SHOPIFY_STOREFRONT_TOKEN=local-preview-disabled \
-EXPO_PUBLIC_SHOPIFY_CHECKOUT_HOSTS=hwqi01-wd.myshopify.com \
+EXPO_PUBLIC_SHOPIFY_CHECKOUT_HOSTS=hwqi01-wd.myshopify.com,shop.truetone.skin \
 npm run waitlist:build
 python3 -m http.server 8080 --directory web
 ```

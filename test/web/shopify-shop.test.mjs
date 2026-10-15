@@ -132,6 +132,50 @@ test('maps reviewed product identity fields and allows only exact Shopify CDN me
   }).image, null);
 });
 
+test("hides Shopify's synthetic single-variant title in product and cart mappings", async () => {
+  const node = structuredClone(STOREFRONT_FIXTURE.products.products.nodes[0]);
+  node.variants.nodes[0].title = 'Default Title';
+  assert.equal(mapProduct(node).variants[0].title, '');
+
+  const storage = new Map([[CART_ID_KEY, 'gid://shopify/Cart/current']]);
+  const cartNode = {
+    id: 'gid://shopify/Cart/current',
+    checkoutUrl: 'https://hwqi01-wd.myshopify.com/cart/c/opaque',
+    totalQuantity: 1,
+    cost: { subtotalAmount: { amount: '24.00', currencyCode: 'USD' } },
+    lines: {
+      nodes: [{
+        id: 'gid://shopify/CartLine/1',
+        quantity: 1,
+        merchandise: {
+          ...node.variants.nodes[0],
+          product: {
+            id: node.id,
+            handle: node.handle,
+            title: node.title,
+            vendor: node.vendor,
+          },
+        },
+      }],
+    },
+  };
+  const cart = createCartApi(
+    { request: async () => ({ cart: cartNode }) },
+    {
+      getItem: (key) => storage.get(key) ?? null,
+      setItem: (key, value) => storage.set(key, value),
+      removeItem: (key) => storage.delete(key),
+    },
+  );
+  assert.equal((await cart.load()).lines[0].merchandise.title, '');
+});
+
+test('documents the production checkout hosts for web builds', () => {
+  const expected = 'EXPO_PUBLIC_SHOPIFY_CHECKOUT_HOSTS=hwqi01-wd.myshopify.com,shop.truetone.skin';
+  assert.match(readFileSync(new URL('../../.env.example', import.meta.url), 'utf8'), new RegExp(expected));
+  assert.match(readFileSync(new URL('../../web/IMPLEMENTATION.md', import.meta.url), 'utf8'), new RegExp(expected));
+});
+
 test('derives neutral local image text and never reuses supplier alt text', () => {
   assert.equal(neutralProductAlt('  Lip <Color>  '), 'Lip Color product image');
   assert.equal(neutralProductAlt(''), 'Product image');

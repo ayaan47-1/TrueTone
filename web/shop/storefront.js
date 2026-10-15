@@ -158,6 +158,11 @@ function cleanText(value) {
   return typeof value === 'string' ? value.replace(/[<>]/g, '').trim() : '';
 }
 
+function cleanVariantTitle(value) {
+  const title = cleanText(value);
+  return title === 'Default Title' ? '' : title;
+}
+
 export function safeShopifyImage(value) {
   if (!value?.url) return null;
   try {
@@ -176,7 +181,7 @@ export function safeShopifyImage(value) {
 function mapVariant(node) {
   return {
     id: node.id,
-    title: cleanText(node.title),
+    title: cleanVariantTitle(node.title),
     availableForSale: Boolean(node.availableForSale),
     quantityAvailable: node.quantityAvailable ?? null,
     selectedOptions: Array.isArray(node.selectedOptions) ? node.selectedOptions.map((option) => ({
