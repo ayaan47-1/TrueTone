@@ -10,6 +10,7 @@ export interface ShopifyStoreState {
   readonly error: string | null;
   readonly catalogStatus: 'empty' | 'live' | 'cached';
   readonly catalogUpdatedAt: number | null;
+  readonly liveProductHandles: readonly string[];
   readonly cartOnline: boolean;
 }
 
@@ -21,6 +22,7 @@ const EMPTY: ShopifyStoreState = {
   error: null,
   catalogStatus: 'empty',
   catalogUpdatedAt: null,
+  liveProductHandles: [],
   cartOnline: false,
 };
 
@@ -53,6 +55,7 @@ export const shopifyStore = {
             products: snapshot.products,
             catalogStatus: 'cached',
             catalogUpdatedAt: snapshot.updatedAt,
+            liveProductHandles: [],
           });
         }
       } catch {
@@ -66,6 +69,7 @@ export const shopifyStore = {
         products,
         catalogStatus: 'live',
         catalogUpdatedAt: updatedAt,
+        liveProductHandles: products.map((product) => product.handle),
         loadingProducts: false,
         error: null,
       });
@@ -87,8 +91,9 @@ export const shopifyStore = {
       if (product) {
         setState({
           products: [...state.products, product],
-          catalogStatus: 'live',
-          catalogUpdatedAt: Date.now(),
+          liveProductHandles: state.liveProductHandles.includes(product.handle)
+            ? state.liveProductHandles
+            : [...state.liveProductHandles, product.handle],
           loadingProducts: false,
         });
       }

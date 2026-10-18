@@ -14,7 +14,15 @@ interface Props {
 
 export function ShopifyProductScreen({ handle, onBack, onAdded }: Props) {
   const privacyAccepted = hasAcceptedShopPrivacy();
-  const { products, loadingProducts, loadingCart, error, catalogStatus, catalogUpdatedAt } = useShopifyStore();
+  const {
+    products,
+    loadingProducts,
+    loadingCart,
+    error,
+    catalogStatus,
+    catalogUpdatedAt,
+    liveProductHandles,
+  } = useShopifyStore();
   const product = useMemo(() => products.find((item) => item.handle === handle), [handle, products]);
   const [selectedVariantId, setSelectedVariantId] = useState<string | null>(null);
   const variant = product
@@ -22,7 +30,7 @@ export function ShopifyProductScreen({ handle, onBack, onAdded }: Props) {
       ?? pickPurchasableVariant(product)
     : null;
   const [quantity] = useState(1);
-  const catalogLive = catalogStatus === 'live';
+  const productLive = liveProductHandles.includes(handle);
 
   useEffect(() => {
     if (privacyAccepted && !product) void shopifyStore.loadProduct(handle);
@@ -99,7 +107,7 @@ export function ShopifyProductScreen({ handle, onBack, onAdded }: Props) {
         <PrimaryButton
           className="mt-6"
           label={variant ? `Add to Shopify bag · ${formatMoney(variant.price)}` : 'Unavailable'}
-          disabled={!variant || loadingCart || !catalogLive}
+          disabled={!variant || loadingCart || !productLive}
           onPress={() => void add()}
         />
         <PrimaryButton className="mt-3" label="Back to shop" variant="glass" onPress={onBack} />

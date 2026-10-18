@@ -1,10 +1,11 @@
 const mockList = jest.fn().mockRejectedValue(new Error('GraphQL schema detail must stay private'));
+const mockGetByHandle = jest.fn();
 const mockCacheRead = jest.fn();
 const mockCacheWrite = jest.fn();
 
 jest.mock('../runtime', () => ({
   getShopifyServices: () => ({
-    catalog: { list: mockList },
+    catalog: { list: mockList, getByHandle: mockGetByHandle },
     catalogCache: { read: mockCacheRead, write: mockCacheWrite },
     cart: {},
   }),
@@ -20,6 +21,7 @@ beforeEach(() => {
   mockCacheRead.mockResolvedValue(null);
   mockCacheWrite.mockResolvedValue(undefined);
   mockList.mockRejectedValue(new Error('GraphQL schema detail must stay private'));
+  mockGetByHandle.mockResolvedValue(null);
 });
 
 it('shows a fixed user-safe message instead of a raw Shopify error', async () => {
@@ -53,4 +55,25 @@ it('replaces a cached catalog with live products and refreshes the snapshot', as
 
   expect(shopifyStore.getState()).toMatchObject({ products: live, catalogStatus: 'live' });
   expect(mockCacheWrite).toHaveBeenCalledWith({ products: live, updatedAt: expect.any(Number) });
+});
+
+it('marks only a directly fetched product fresh when the rest of the catalog is cached', async () => {
+  const cached = [mapProductNode(PRODUCT_FIXTURE_NODE)];
+  const liveProduct = {
+    ...cached[0],
+    id: 'gid://shopify/Product/direct-link',
+    handle: 'direct-link',
+    title: 'Direct product',
+  };
+  mockCacheRead.mockResolvedValue({ products: cached, updatedAt: 1_760_811_600_000 });
+  mockGetByHandle.mockResolvedValue(liveProduct);
+
+  await shopifyStore.loadProducts();
+  await shopifyStore.loadProduct('direct-link');
+
+  expect(shopifyStore.getState()).toMatchObject({
+    catalogStatus: 'cached',
+    catalogUpdatedAt: 1_760_811_600_000,
+    liveProductHandles: ['direct-link'],
+  });
 });

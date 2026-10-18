@@ -10,6 +10,7 @@ const mockState = {
   error: 'The shop is unavailable right now. Please try again.',
   catalogStatus: 'cached' as const,
   catalogUpdatedAt: Date.UTC(2026, 9, 18, 18, 0, 0),
+  liveProductHandles: [] as string[],
   cartOnline: false,
 };
 

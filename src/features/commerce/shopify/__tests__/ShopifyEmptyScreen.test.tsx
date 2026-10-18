@@ -10,6 +10,7 @@ jest.mock('../shopify-store', () => ({
     error: null,
     catalogStatus: 'live',
     catalogUpdatedAt: Date.now(),
+    liveProductHandles: [],
     cartOnline: false,
   }),
   shopifyStore: { loadProducts: jest.fn() },

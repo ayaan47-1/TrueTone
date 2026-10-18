@@ -1,5 +1,6 @@
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { z } from 'zod';
+import { safeShopifyImage } from './product-mapper';
 import type { ShopifyProduct } from './types';
 
 export const SHOPIFY_CATALOG_STORAGE_KEY = 'truetone.shopify.catalog.v1';
@@ -51,6 +52,17 @@ export interface CatalogCache {
   write(snapshot: CatalogSnapshot): Promise<void>;
 }
 
+function sanitizeCachedProduct(product: ShopifyProduct): ShopifyProduct {
+  return {
+    ...product,
+    featuredImage: safeShopifyImage(product.featuredImage),
+    variants: product.variants.map((variant) => ({
+      ...variant,
+      image: safeShopifyImage(variant.image),
+    })),
+  };
+}
+
 export function createCatalogCache(storage: CatalogStorage = AsyncStorage): CatalogCache {
   return {
     async read() {
@@ -58,7 +70,12 @@ export function createCatalogCache(storage: CatalogStorage = AsyncStorage): Cata
       if (!raw) return null;
       try {
         const parsed = snapshotSchema.safeParse(JSON.parse(raw));
-        if (parsed.success) return parsed.data;
+        if (parsed.success) {
+          return {
+            ...parsed.data,
+            products: parsed.data.products.map(sanitizeCachedProduct),
+          };
+        }
       } catch {
         // Remove malformed cache data below.
       }

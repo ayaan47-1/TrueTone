@@ -12,6 +12,7 @@ const mockState = {
   error: null,
   catalogStatus: 'live' as 'live' | 'cached',
   catalogUpdatedAt: null as number | null,
+  liveProductHandles: ['yensa-bronzing-drops'] as string[],
   cartOnline: true,
 };
 
@@ -34,6 +35,7 @@ describe('ShopifyShopScreen', () => {
     __resetShopDisclosureForTests();
     mockState.catalogStatus = 'live';
     mockState.catalogUpdatedAt = null;
+    mockState.liveProductHandles = ['yensa-bronzing-drops'];
   });
 
   it('waits for the point-of-context disclosure before any Storefront request', async () => {

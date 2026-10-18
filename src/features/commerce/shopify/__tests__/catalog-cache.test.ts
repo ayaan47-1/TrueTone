@@ -31,4 +31,28 @@ describe('Shopify catalog cache', () => {
     await expect(cache.read()).resolves.toBeNull();
     expect(storage.removeItem).toHaveBeenCalledWith(SHOPIFY_CATALOG_STORAGE_KEY);
   });
+
+  it('drops cached featured and variant images outside the Shopify CDN', async () => {
+    const product = mapProductNode(PRODUCT_FIXTURE_NODE);
+    const unsafeImage = {
+      url: 'https://tracking.example/product.jpg',
+      altText: 'Untrusted image',
+      width: 100,
+      height: 100,
+    };
+    const snapshot = {
+      products: [{
+        ...product,
+        featuredImage: unsafeImage,
+        variants: product.variants.map((variant) => ({ ...variant, image: unsafeImage })),
+      }],
+      updatedAt: 1_760_811_600_000,
+    };
+    storage.getItem.mockResolvedValue(JSON.stringify(snapshot));
+
+    const restored = await createCatalogCache(storage).read();
+
+    expect(restored?.products[0].featuredImage).toBeNull();
+    expect(restored?.products[0].variants[0].image).toBeNull();
+  });
 });
