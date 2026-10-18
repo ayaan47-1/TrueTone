@@ -145,6 +145,14 @@ test('relative and anchor links are not foreign origins', () => {
   );
 });
 
+test('allows only the exact approved Shopify privacy-policy navigation', () => {
+  const approved = 'https://www.shopify.com/legal/privacy/consumers';
+  const html = `<a href="${approved}">Shopify privacy</a>`;
+  assert.deepEqual(findForeignOrigins(html, [], [approved]), []);
+  assert.deepEqual(findForeignOrigins(`<img src="${approved}">`, [], [approved]), ['www.shopify.com']);
+  assert.deepEqual(findForeignOrigins('<a href="https://www.shopify.com/other">Other</a>', [], [approved]), ['www.shopify.com']);
+});
+
 // ── required disclosures ──────────────────────────────────────────────────────
 test('reports each disclosure the page fails to make', () => {
   const missing = findMissingDisclosures('<p>Join the waitlist.</p>');

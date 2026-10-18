@@ -31,6 +31,20 @@ cosmetic routine.
 We never sell, lease, or trade biometric or health data. We do not share it with advertisers or
 analytics providers. You can view and delete your data in-app at any time.
 
+## Shop and checkout
+
+We use Shopify to provide our product catalog, cart, checkout, payment, fraud prevention, order support, and fulfillment. When you enter the Shop, Shopify may receive device and network information, cookie or similar identifiers, pages and products viewed, cart activity, and privacy choices. When you purchase, Shopify also processes the information you enter at checkout, including contact, billing, shipping, payment, and transaction information. Shopify describes its own processing and choices in the [Shopify Consumer Privacy Policy](https://www.shopify.com/legal/privacy/consumers).
+
+We keep the Shop separate from the skin-read system. We do not disclose to Shopify, a supplier, or a commerce partner your face photo, scan, cosmetic scores, skin-type label, routine, chat content, biometric-consent record, or the reason a product was suggested. We do not use Shopify pixels or third-party advertising, attribution, or behavior-analytics tools.
+
+Some products are fulfilled and shipped by the supplier named on the product page and at checkout. We disclose to that supplier only the order and contact information needed to fulfill, support, return, or refund the purchase. We contractually restrict use for unrelated advertising or profiling.
+
+Shopify Network Intelligence is required for Shopify Collective. Where enabled, Shopify may process customer interactions together with interactions across other Shopify merchants to provide its services. We turn non-essential analytics, marketing, and data-sharing choices off by default, honor Global Privacy Control on the web, and provide [Privacy choices] and [Do not sell or share] controls. See Shopify's privacy notice for its processing and rights portal.
+
+## Commerce retention and deletion
+
+We keep commerce records only for fulfillment, customer support, returns, fraud prevention, chargebacks, accounting, tax, and other legal obligations. Our schedule is: [insert each record category and exact period before launch]. Deleting your TrueTone account deletes or de-identifies TrueTone-held commerce mappings and sends applicable deletion requests to Shopify and fulfillment suppliers. Some transaction records may be retained for the stated legal period. This does not change our shorter purpose-based deletion of face images and scan-derived data: a face image is deleted on-device immediately after the read and is never sent to Shopify or a supplier.
+
 ## Contacting us
 
 To ask what we hold about you, or to have it deleted, email **ayaankhan102004@gmail.com**.
