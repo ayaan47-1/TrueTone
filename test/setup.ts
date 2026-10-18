@@ -83,3 +83,19 @@ jest.mock('@stripe/stripe-react-native', () => {
     }),
   };
 });
+
+// Checkout Sheet and its browser fallback are native modules. Their pure adapter is tested
+// separately; route/component tests only need deterministic hooks.
+jest.mock(
+  '@shopify/checkout-sheet-kit',
+  () => ({
+    ShopifyCheckoutSheetProvider: ({ children }: { children: unknown }) => children,
+    useShopifyCheckoutSheet: () => ({ present: jest.fn().mockResolvedValue(undefined) }),
+  }),
+  { virtual: true },
+);
+jest.mock(
+  'expo-web-browser',
+  () => ({ openBrowserAsync: jest.fn().mockResolvedValue({ type: 'dismiss' }) }),
+  { virtual: true },
+);
