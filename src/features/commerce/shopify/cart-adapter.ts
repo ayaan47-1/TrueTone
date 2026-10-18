@@ -25,7 +25,7 @@ interface CartLineNode {
     readonly selectedOptions?: readonly { readonly name: string; readonly value: string }[];
     readonly price: Money;
     readonly compareAtPrice?: Money | null;
-    readonly image?: { readonly url: string; readonly altText?: string | null; readonly width?: number | null; readonly height?: number | null } | null;
+    readonly image?: { readonly url: string; readonly width?: number | null; readonly height?: number | null } | null;
     readonly product: { readonly id: string; readonly handle: string; readonly title: string; readonly vendor: string };
   };
 }

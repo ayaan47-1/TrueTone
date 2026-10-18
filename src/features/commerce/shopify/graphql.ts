@@ -2,14 +2,14 @@ const VISITOR_CONSENT =
   '@inContext(visitorConsent: { analytics: false, preferences: false, marketing: false, saleOfData: false })';
 
 export const PRODUCT_FIELDS = `
-  id handle title vendor description
-  featuredImage { url altText width height }
+  id handle title vendor
+  featuredImage { url width height }
   variants(first: 100) {
     nodes {
       id title availableForSale quantityAvailable selectedOptions { name value }
       price { amount currencyCode }
       compareAtPrice { amount currencyCode }
-      image { url altText width height }
+      image { url width height }
     }
   }
 `;
@@ -37,7 +37,7 @@ const CART_FIELDS = `
           id title availableForSale quantityAvailable selectedOptions { name value }
           price { amount currencyCode }
           compareAtPrice { amount currencyCode }
-          image { url altText width height }
+          image { url width height }
           product { id handle title vendor }
         }
       }

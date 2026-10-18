@@ -5,7 +5,6 @@ export interface Money {
 
 export interface ShopifyImage {
   readonly url: string;
-  readonly altText: string | null;
   readonly width: number | null;
   readonly height: number | null;
 }
@@ -31,8 +30,6 @@ export interface ShopifyProduct {
   readonly handle: string;
   readonly title: string;
   readonly vendor: string;
-  /** Supplier-provided Storefront copy, shown without TrueTone-added claims. */
-  readonly description: string | null;
   readonly featuredImage: ShopifyImage | null;
   readonly variants: readonly ShopifyVariant[];
 }

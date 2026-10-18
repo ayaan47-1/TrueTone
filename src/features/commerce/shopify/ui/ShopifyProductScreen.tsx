@@ -65,7 +65,7 @@ export function ShopifyProductScreen({ handle, onBack, onAdded }: Props) {
       {product.featuredImage ? (
         <Image
           source={{ uri: product.featuredImage.url }}
-          accessibilityLabel={product.featuredImage.altText ?? product.title}
+          accessibilityLabel={`Product photo, ${product.title}`}
           resizeMode="cover"
           style={{ width: '100%', height: 360 }}
         />
@@ -99,9 +99,6 @@ export function ShopifyProductScreen({ handle, onBack, onAdded }: Props) {
               </Pressable>
             ))}
           </View>
-        ) : null}
-        {product.description ? (
-          <GlassCard radius={22} className="mt-5 px-5 py-4"><Body>{product.description}</Body></GlassCard>
         ) : null}
         {error ? <Body className="mt-4">{error}</Body> : null}
         <PrimaryButton

@@ -18,6 +18,8 @@ describe('Shopify catalog cache', () => {
 
     await cache.write({ products, updatedAt: 1_760_811_600_000 });
     const serialized = storage.setItem.mock.calls[0][1];
+    expect(serialized).not.toContain('description');
+    expect(serialized).not.toContain('altText');
     storage.getItem.mockResolvedValue(serialized);
 
     await expect(cache.read()).resolves.toEqual({ products, updatedAt: 1_760_811_600_000 });
@@ -32,6 +34,18 @@ describe('Shopify catalog cache', () => {
     expect(storage.removeItem).toHaveBeenCalledWith(SHOPIFY_CATALOG_STORAGE_KEY);
   });
 
+  it('rejects an unversioned cache that may contain old supplier copy', async () => {
+    const oldSnapshot = {
+      products: [mapProductNode(PRODUCT_FIXTURE_NODE)],
+      updatedAt: 1_760_811_600_000,
+    };
+    storage.getItem.mockResolvedValue(JSON.stringify(oldSnapshot));
+
+    await expect(createCatalogCache(storage).read()).resolves.toBeNull();
+    expect(SHOPIFY_CATALOG_STORAGE_KEY).toBe('truetone.shopify.catalog.v2');
+    expect(storage.removeItem).toHaveBeenCalledWith(SHOPIFY_CATALOG_STORAGE_KEY);
+  });
+
   it('drops cached featured and variant images outside the Shopify CDN', async () => {
     const product = mapProductNode(PRODUCT_FIXTURE_NODE);
     const unsafeImage = {
@@ -41,6 +55,7 @@ describe('Shopify catalog cache', () => {
       height: 100,
     };
     const snapshot = {
+      schemaVersion: 2,
       products: [{
         ...product,
         featuredImage: unsafeImage,

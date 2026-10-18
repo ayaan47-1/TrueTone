@@ -41,7 +41,6 @@ export function safeShopifyImage(node?: ImageNode | null): ShopifyImage | null {
     if (url.protocol !== 'https:' || !SHOPIFY_MEDIA_HOSTS.has(url.hostname)) return null;
     return {
       url: url.toString(),
-      altText: node.altText?.trim() || null,
       width: node.width ?? null,
       height: node.height ?? null,
     };
@@ -69,7 +68,6 @@ export function mapProductNode(node: ProductNode): ShopifyProduct {
     handle: node.handle,
     title: node.title,
     vendor: node.vendor,
-    description: node.description ?? null,
     featuredImage: safeShopifyImage(node.featuredImage),
     variants: node.variants.nodes.map(mapVariant),
   };

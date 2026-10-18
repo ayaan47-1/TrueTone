@@ -3,12 +3,13 @@ import { z } from 'zod';
 import { safeShopifyImage } from './product-mapper';
 import type { ShopifyProduct } from './types';
 
-export const SHOPIFY_CATALOG_STORAGE_KEY = 'truetone.shopify.catalog.v1';
+export const SHOPIFY_CATALOG_STORAGE_KEY = 'truetone.shopify.catalog.v2';
+const LEGACY_SHOPIFY_CATALOG_STORAGE_KEY = 'truetone.shopify.catalog.v1';
+const SHOPIFY_CATALOG_SCHEMA_VERSION = 2;
 
 const moneySchema = z.object({ amount: z.string(), currencyCode: z.string() });
 const imageSchema = z.object({
   url: z.string(),
-  altText: z.string().nullable(),
   width: z.number().nullable(),
   height: z.number().nullable(),
 });
@@ -27,11 +28,11 @@ const productSchema = z.object({
   handle: z.string(),
   title: z.string(),
   vendor: z.string(),
-  description: z.string().nullable(),
   featuredImage: imageSchema.nullable(),
   variants: z.array(variantSchema),
 });
 const snapshotSchema = z.object({
+  schemaVersion: z.literal(SHOPIFY_CATALOG_SCHEMA_VERSION),
   products: z.array(productSchema),
   updatedAt: z.number().int().nonnegative(),
 });
@@ -66,14 +67,19 @@ function sanitizeCachedProduct(product: ShopifyProduct): ShopifyProduct {
 export function createCatalogCache(storage: CatalogStorage = AsyncStorage): CatalogCache {
   return {
     async read() {
+      try {
+        await storage.removeItem(LEGACY_SHOPIFY_CATALOG_STORAGE_KEY);
+      } catch {
+        // A failed legacy cleanup must not block the current cache or live request.
+      }
       const raw = await storage.getItem(SHOPIFY_CATALOG_STORAGE_KEY);
       if (!raw) return null;
       try {
         const parsed = snapshotSchema.safeParse(JSON.parse(raw));
         if (parsed.success) {
           return {
-            ...parsed.data,
             products: parsed.data.products.map(sanitizeCachedProduct),
+            updatedAt: parsed.data.updatedAt,
           };
         }
       } catch {
@@ -83,7 +89,10 @@ export function createCatalogCache(storage: CatalogStorage = AsyncStorage): Cata
       return null;
     },
     async write(snapshot) {
-      await storage.setItem(SHOPIFY_CATALOG_STORAGE_KEY, JSON.stringify(snapshot));
+      await storage.setItem(SHOPIFY_CATALOG_STORAGE_KEY, JSON.stringify({
+        schemaVersion: SHOPIFY_CATALOG_SCHEMA_VERSION,
+        ...snapshot,
+      }));
     },
   };
 }

@@ -114,7 +114,7 @@ function ProductCard({ product, onOpen }: { readonly product: ShopifyProduct; re
         {product.featuredImage ? (
           <Image
             source={{ uri: product.featuredImage.url }}
-            accessibilityLabel={product.featuredImage.altText ?? product.title}
+            accessibilityLabel={`Product photo, ${product.title}`}
             resizeMode="cover"
             style={{ width: '100%', height: 220 }}
           />

@@ -4,8 +4,15 @@ import { mapProductNode } from '../product-mapper';
 
 const mockLoadProducts = jest.fn();
 const mockLoadProduct = jest.fn();
+const supplierDescription = 'Clinically proven to boost collagen by 90%.';
+const supplierAltText = 'Clinical collagen treatment before and after';
+const mappedProduct = mapProductNode({
+  ...PRODUCT_FIXTURE_NODE,
+  description: supplierDescription,
+  featuredImage: { ...PRODUCT_FIXTURE_NODE.featuredImage, altText: supplierAltText },
+});
 const mockState = {
-  products: [mapProductNode(PRODUCT_FIXTURE_NODE)],
+  products: [mappedProduct],
   cart: null,
   loadingProducts: false,
   loadingCart: false,
