@@ -23,12 +23,14 @@ const staleCart: ShopifyCart = {
   }],
 };
 const freshCart = { ...staleCart, checkoutUrl: 'https://truetone.skin/cart/c/fresh?key=opaque' };
+let mockCart = staleCart;
+let mockCartOnline = true;
 const mockRefreshCart = jest.fn().mockResolvedValue(freshCart);
 const mockPresent = jest.fn().mockResolvedValue('sheet');
 
 jest.mock('../shop-privacy', () => ({ hasAcceptedShopPrivacy: () => true }));
 jest.mock('../shopify-store', () => ({
-  useShopifyStore: () => ({ cart: staleCart, loadingCart: false, error: null }),
+  useShopifyStore: () => ({ cart: mockCart, loadingCart: false, error: null, cartOnline: mockCartOnline }),
   shopifyStore: {
     loadCart: jest.fn(),
     refreshCart: () => mockRefreshCart(),
@@ -39,6 +41,22 @@ jest.mock('../use-present-checkout', () => ({ usePresentCheckout: () => mockPres
 
 import { ShopifyBagScreen } from '../ui/ShopifyBagScreen';
 
+beforeEach(() => {
+  mockCart = staleCart;
+  mockCartOnline = true;
+  jest.clearAllMocks();
+  mockRefreshCart.mockResolvedValue(freshCart);
+});
+
+it('shows the bag read-only and disables mutations and checkout offline', async () => {
+  mockCartOnline = false;
+  const view = await render(<ShopifyBagScreen onShop={jest.fn()} />);
+
+  expect(view.getByText('Bag unavailable offline')).toBeTruthy();
+  expect(view.getByText('Increase')).toBeDisabled();
+  expect(view.getByText('Guest checkout · $24.00')).toBeDisabled();
+});
+
 it('re-queries checkoutUrl immediately before presenting checkout', async () => {
   const view = await render(<ShopifyBagScreen onShop={jest.fn()} />);
 
@@ -47,4 +65,19 @@ it('re-queries checkoutUrl immediately before presenting checkout', async () => 
   await waitFor(() => expect(mockRefreshCart).toHaveBeenCalledTimes(1));
   expect(mockPresent).toHaveBeenCalledWith(freshCart.checkoutUrl);
   expect(mockPresent).not.toHaveBeenCalledWith(staleCart.checkoutUrl);
+});
+
+it('shows real variant titles in the bag without showing Shopify Default Title', async () => {
+  const view = await render(<ShopifyBagScreen onShop={jest.fn()} />);
+  expect(view.getByText('Warm 1')).toBeTruthy();
+
+  mockCart = {
+    ...staleCart,
+    lines: [{
+      ...staleCart.lines[0],
+      merchandise: { ...staleCart.lines[0].merchandise, title: '' },
+    }],
+  };
+  const singleVariant = await render(<ShopifyBagScreen onShop={jest.fn()} />);
+  expect(singleVariant.queryByText('Default Title')).toBeNull();
 });

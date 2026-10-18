@@ -1,4 +1,4 @@
-import { fireEvent, render, waitFor } from '@testing-library/react-native';
+import { cleanup, fireEvent, render, waitFor } from '@testing-library/react-native';
 import { PRODUCT_FIXTURE_NODE } from '../fixtures/products';
 import { mapProductNode } from '../product-mapper';
 
@@ -10,6 +10,9 @@ const mockState = {
   loadingProducts: false,
   loadingCart: false,
   error: null,
+  catalogStatus: 'live' as 'live' | 'cached',
+  catalogUpdatedAt: null as number | null,
+  cartOnline: true,
 };
 
 jest.mock('../shopify-store', () => ({
@@ -24,9 +27,13 @@ import { __resetShopDisclosureForTests, ShopifyShopScreen } from '../ui/ShopifyS
 import { ShopifyProductScreen } from '../ui/ShopifyProductScreen';
 
 describe('ShopifyShopScreen', () => {
+  afterEach(cleanup);
+
   beforeEach(() => {
     jest.clearAllMocks();
     __resetShopDisclosureForTests();
+    mockState.catalogStatus = 'live';
+    mockState.catalogUpdatedAt = null;
   });
 
   it('waits for the point-of-context disclosure before any Storefront request', async () => {
@@ -79,4 +86,20 @@ describe('ShopifyShopScreen', () => {
     expect(view.getByText('Open Shop first')).toBeTruthy();
     expect(mockLoadProduct).not.toHaveBeenCalled();
   });
+
+  it('shows a real variant title on the product detail page', async () => {
+    const shop = await render(
+      <ShopifyShopScreen onOpen={jest.fn()} onBag={jest.fn()} onDecline={jest.fn()} />,
+    );
+    fireEvent.press(shop.getByRole('button', { name: 'Continue to shop' }));
+    shop.unmount();
+
+    const product = await render(
+      <ShopifyProductScreen handle="yensa-bronzing-drops" onBack={jest.fn()} onAdded={jest.fn()} />,
+    );
+
+    expect(product.getAllByText('Universal')).toHaveLength(2);
+    expect(product.queryByText('Default Title')).toBeNull();
+  });
+
 });

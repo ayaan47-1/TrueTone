@@ -14,7 +14,7 @@ interface Props {
 
 export function ShopifyShopScreen({ onOpen, onBag, onDecline }: Props) {
   const [accepted, setAccepted] = useState(hasAcceptedShopPrivacy());
-  const { products, cart, loadingProducts, error } = useShopifyStore();
+  const { products, cart, loadingProducts, error, catalogStatus, catalogUpdatedAt } = useShopifyStore();
 
   useEffect(() => {
     if (accepted) void shopifyStore.loadProducts();
@@ -62,11 +62,25 @@ export function ShopifyShopScreen({ onOpen, onBag, onDecline }: Props) {
       </View>
       <Caption className="mb-4">Products and checkout are provided by Shopify.</Caption>
       {loadingProducts ? <Body>Loading products…</Body> : null}
-      {error ? (
+      {catalogStatus === 'cached' && catalogUpdatedAt ? (
+        <GlassCard radius={22} className="mb-4 px-5 py-4">
+          <Subheading>Offline products · Last updated {formatCachedTime(catalogUpdatedAt)}</Subheading>
+          <Body className="mt-2">Prices and availability may have changed. Adding to bag and checkout are unavailable.</Body>
+          <PrimaryButton className="mt-4" label="Try again" onPress={() => void shopifyStore.loadProducts()} />
+        </GlassCard>
+      ) : null}
+      {error && catalogStatus !== 'cached' ? (
         <GlassCard radius={22} className="px-5 py-5">
           <Subheading>Shop unavailable</Subheading>
           <Body className="mt-2">{error}</Body>
           <PrimaryButton className="mt-4" label="Try again" onPress={() => void shopifyStore.loadProducts()} />
+        </GlassCard>
+      ) : null}
+      {!loadingProducts && !error && catalogStatus === 'live' && products.length === 0 ? (
+        <GlassCard radius={22} className="px-5 py-5">
+          <Subheading>No products available</Subheading>
+          <Body className="mt-2">The Shopify collection is empty right now.</Body>
+          <PrimaryButton className="mt-4" label="Refresh" onPress={() => void shopifyStore.loadProducts()} />
         </GlassCard>
       ) : null}
       <View className="gap-4">
@@ -76,6 +90,15 @@ export function ShopifyShopScreen({ onOpen, onBag, onDecline }: Props) {
       </View>
     </ScrollView>
   );
+}
+
+function formatCachedTime(updatedAt: number): string {
+  return new Date(updatedAt).toLocaleString(undefined, {
+    month: 'short',
+    day: 'numeric',
+    hour: 'numeric',
+    minute: '2-digit',
+  });
 }
 
 function ProductCard({ product, onOpen }: { readonly product: ShopifyProduct; readonly onOpen: (handle: string) => void }) {

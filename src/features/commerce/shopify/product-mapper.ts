@@ -6,9 +6,6 @@ export function normalizeShopifyVariantTitle(title: string): string {
   return title === 'Default Title' ? '' : title;
 }
 
-/** Reviewed, local-only display copy. Shopify/supplier descriptions are never rendered directly. */
-const APPROVED_PRODUCT_COPY: Readonly<Record<string, string>> = {};
-
 interface ImageNode {
   readonly url: string;
   readonly altText?: string | null;
@@ -72,7 +69,7 @@ export function mapProductNode(node: ProductNode): ShopifyProduct {
     handle: node.handle,
     title: node.title,
     vendor: node.vendor,
-    description: APPROVED_PRODUCT_COPY[node.id] ?? null,
+    description: node.description ?? null,
     featuredImage: safeShopifyImage(node.featuredImage),
     variants: node.variants.nodes.map(mapVariant),
   };

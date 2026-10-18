@@ -1,14 +1,16 @@
 import { PRODUCT_FIXTURE_NODE } from '../fixtures/products';
+import { PRODUCT_FIELDS } from '../graphql';
 import { mapProductNode, pickPurchasableVariant } from '../product-mapper';
 
 describe('Shopify product mapper', () => {
-  it('maps a Storefront node to the app DTO without inventing approved copy', () => {
-    const product = mapProductNode({ ...PRODUCT_FIXTURE_NODE, description: 'Unreviewed supplier marketing copy' });
+  it('maps Storefront supplier copy as-is without adding claims', () => {
+    const product = mapProductNode({ ...PRODUCT_FIXTURE_NODE, description: 'Supplier-provided product details.' });
 
     expect(product.title).toBe('YENSA Bronzing Drops');
-    expect(product.description).toBeNull();
+    expect(product.description).toBe('Supplier-provided product details.');
     expect(product.featuredImage?.url).toBe('https://cdn.shopify.com/s/files/test/yensa.png');
     expect(product.variants).toHaveLength(2);
+    expect(PRODUCT_FIELDS).toContain('description');
   });
 
   it('drops media outside the exact HTTPS host allowlist', () => {

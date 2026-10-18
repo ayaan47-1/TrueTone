@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import { ScrollView, Text, View } from 'react-native';
+import { AppState, Pressable, ScrollView, Text, View } from 'react-native';
 import { Body, Caption, Display, GlassCard, PrimaryButton, Subheading } from '../../../../components/ui';
 import { catalog } from '../../../match/product-catalog';
 import { ProductArt } from '../../../shop/ProductArt';
@@ -15,12 +15,18 @@ interface Props {
 
 export function ShopifyBagScreen({ onShop }: Props) {
   const privacyAccepted = hasAcceptedShopPrivacy();
-  const { cart, loadingCart, error } = useShopifyStore();
+  const { cart, loadingCart, error, cartOnline } = useShopifyStore();
   const present = usePresentCheckout();
   const [checkoutError, setCheckoutError] = useState<string | null>(null);
+  const isCartOnline = cartOnline !== false;
 
   useEffect(() => {
-    if (privacyAccepted) void shopifyStore.loadCart();
+    if (!privacyAccepted) return undefined;
+    void shopifyStore.loadCart();
+    const subscription = AppState.addEventListener('change', (status) => {
+      if (status === 'active') void shopifyStore.loadCart();
+    });
+    return () => subscription.remove();
   }, [privacyAccepted]);
 
   if (!privacyAccepted) {
@@ -59,6 +65,13 @@ export function ShopifyBagScreen({ onShop }: Props) {
     <ScrollView contentContainerStyle={{ padding: 24, paddingBottom: 42 }}>
       <Display>Shopify bag</Display>
       <Caption className="mb-5 mt-1">Guest checkout only</Caption>
+      {!isCartOnline ? (
+        <GlassCard radius={22} className="mb-5 px-5 py-4">
+          <Subheading>Bag unavailable offline</Subheading>
+          <Body className="mt-2">Reconnect to update quantities or check out.</Body>
+          <PrimaryButton className="mt-4" label="Try again" onPress={() => void shopifyStore.loadCart()} />
+        </GlassCard>
+      ) : null}
       <View className="gap-3">
         {cart.lines.map((line) => (
           <GlassCard key={line.id} radius={22} className="flex-row items-center gap-4 px-4 py-4">
@@ -66,20 +79,27 @@ export function ShopifyBagScreen({ onShop }: Props) {
             <View className="flex-1">
               <Caption>{line.merchandise.product.vendor}</Caption>
               <Subheading className="mt-1">{line.merchandise.product.title}</Subheading>
+              {line.merchandise.title ? <Body className="mt-1">{line.merchandise.title}</Body> : null}
               <Body className="mt-1">{formatMoney(line.merchandise.price)} · Qty {line.quantity}</Body>
               <View className="mt-3 flex-row gap-3">
-                <Text
+                <Pressable
                   accessibilityRole="button"
                   accessibilityLabel={`Decrease ${line.merchandise.product.title}`}
+                  accessibilityState={{ disabled: !isCartOnline || loadingCart }}
+                  disabled={!isCartOnline || loadingCart}
                   onPress={() => void shopifyStore.updateLine(line.id, line.quantity - 1)}
-                  className="font-body-semibold text-brand-greenDark"
-                >Decrease</Text>
-                <Text
+                >
+                  <Text className="font-body-semibold text-brand-greenDark">Decrease</Text>
+                </Pressable>
+                <Pressable
                   accessibilityRole="button"
                   accessibilityLabel={`Increase ${line.merchandise.product.title}`}
+                  accessibilityState={{ disabled: !isCartOnline || loadingCart }}
+                  disabled={!isCartOnline || loadingCart}
                   onPress={() => void shopifyStore.updateLine(line.id, line.quantity + 1)}
-                  className="font-body-semibold text-brand-greenDark"
-                >Increase</Text>
+                >
+                  <Text className="font-body-semibold text-brand-greenDark">Increase</Text>
+                </Pressable>
               </View>
             </View>
           </GlassCard>
@@ -89,7 +109,12 @@ export function ShopifyBagScreen({ onShop }: Props) {
         <View className="flex-row justify-between"><Subheading>Subtotal</Subheading><Subheading>{formatMoney(cart.subtotal)}</Subheading></View>
       </GlassCard>
       {checkoutError ? <Body className="mt-4">{checkoutError}</Body> : null}
-      <PrimaryButton className="mt-5" label={`Guest checkout · ${formatMoney(cart.subtotal)}`} onPress={() => void checkout()} />
+      <PrimaryButton
+        className="mt-5"
+        label={`Guest checkout · ${formatMoney(cart.subtotal)}`}
+        disabled={!isCartOnline || loadingCart}
+        onPress={() => void checkout()}
+      />
       <PrimaryButton className="mt-3" label="Keep shopping" variant="glass" onPress={onShop} />
     </ScrollView>
   );

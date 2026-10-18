@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from 'react';
-import { Image, ScrollView, View } from 'react-native';
+import { Image, Pressable, ScrollView, Text, View } from 'react-native';
 import { Body, Caption, Display, GlassCard, PrimaryButton, Subheading } from '../../../../components/ui';
 import { formatMoney } from '../money';
 import { pickPurchasableVariant } from '../product-mapper';
@@ -14,10 +14,15 @@ interface Props {
 
 export function ShopifyProductScreen({ handle, onBack, onAdded }: Props) {
   const privacyAccepted = hasAcceptedShopPrivacy();
-  const { products, loadingProducts, loadingCart, error } = useShopifyStore();
+  const { products, loadingProducts, loadingCart, error, catalogStatus, catalogUpdatedAt } = useShopifyStore();
   const product = useMemo(() => products.find((item) => item.handle === handle), [handle, products]);
-  const variant = product ? pickPurchasableVariant(product) : null;
+  const [selectedVariantId, setSelectedVariantId] = useState<string | null>(null);
+  const variant = product
+    ? product.variants.find((item) => item.id === selectedVariantId && item.availableForSale)
+      ?? pickPurchasableVariant(product)
+    : null;
   const [quantity] = useState(1);
+  const catalogLive = catalogStatus === 'live';
 
   useEffect(() => {
     if (privacyAccepted && !product) void shopifyStore.loadProduct(handle);
@@ -58,9 +63,35 @@ export function ShopifyProductScreen({ handle, onBack, onAdded }: Props) {
         />
       ) : null}
       <View className="px-6 py-6">
+        {catalogStatus === 'cached' && catalogUpdatedAt ? (
+          <GlassCard radius={22} className="mb-5 px-5 py-4">
+            <Subheading>Offline product</Subheading>
+            <Body className="mt-2">Last updated {new Date(catalogUpdatedAt).toLocaleString()}. Price and availability may have changed.</Body>
+          </GlassCard>
+        ) : null}
         <Caption>{product.vendor}</Caption>
         <Display className="mt-1 text-[34px]">{product.title}</Display>
+        {variant?.title ? <Body className="mt-2">{variant.title}</Body> : null}
         {variant ? <Subheading className="mt-3">{formatMoney(variant.price)}</Subheading> : null}
+        {product.variants.length > 1 ? (
+          <View className="mt-5 gap-2">
+            <Caption>Choose an option</Caption>
+            {product.variants.map((item) => (
+              <Pressable
+                key={item.id}
+                accessibilityRole="button"
+                accessibilityState={{ disabled: !item.availableForSale, selected: item.id === variant?.id }}
+                disabled={!item.availableForSale}
+                onPress={() => setSelectedVariantId(item.id)}
+                className="rounded-2xl border border-mist-300 px-4 py-3"
+              >
+                <Text className="font-body-semibold text-ink">
+                  {item.title || product.title}{item.availableForSale ? '' : ' · Sold out'}
+                </Text>
+              </Pressable>
+            ))}
+          </View>
+        ) : null}
         {product.description ? (
           <GlassCard radius={22} className="mt-5 px-5 py-4"><Body>{product.description}</Body></GlassCard>
         ) : null}
@@ -68,7 +99,7 @@ export function ShopifyProductScreen({ handle, onBack, onAdded }: Props) {
         <PrimaryButton
           className="mt-6"
           label={variant ? `Add to Shopify bag · ${formatMoney(variant.price)}` : 'Unavailable'}
-          disabled={!variant || loadingCart}
+          disabled={!variant || loadingCart || !catalogLive}
           onPress={() => void add()}
         />
         <PrimaryButton className="mt-3" label="Back to shop" variant="glass" onPress={onBack} />

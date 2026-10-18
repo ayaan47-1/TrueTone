@@ -31,7 +31,7 @@ export interface ShopifyProduct {
   readonly handle: string;
   readonly title: string;
   readonly vendor: string;
-  /** Null means the merchant copy has not been approved for TrueTone. */
+  /** Supplier-provided Storefront copy, shown without TrueTone-added claims. */
   readonly description: string | null;
   readonly featuredImage: ShopifyImage | null;
   readonly variants: readonly ShopifyVariant[];
