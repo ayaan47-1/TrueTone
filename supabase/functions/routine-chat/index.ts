@@ -12,6 +12,7 @@ import { createClient } from 'https://esm.sh/@supabase/supabase-js@2';
 import Anthropic from 'https://esm.sh/@anthropic-ai/sdk@0.32.1';
 import { handleChat, type ChatDeps } from '../_shared/recommend/handle.ts';
 import type { ChatTurn } from '../_shared/recommend/prompt.ts';
+import { routineChatConsentFailure } from '../_shared/consent/ai-consent.ts';
 
 const MODEL = 'claude-sonnet-4-6';
 
@@ -27,8 +28,6 @@ serve(async (req) => {
     Deno.env.get('SUPABASE_ANON_KEY')!,
     { global: { headers: { Authorization: authHeader } } },
   );
-  const anthropic = new Anthropic({ apiKey: Deno.env.get('ANTHROPIC_API_KEY')! });
-
   let body: { scanId?: string; message?: string; history?: unknown };
   try { body = await req.json(); } catch { return new Response('bad request', { status: 400 }); }
 
@@ -43,6 +42,19 @@ serve(async (req) => {
       return new Response('bad request', { status: 400 });
     }
   }
+
+  // Fail closed before constructing the vendor client or loading scan data. The caller JWT scopes
+  // the profile read, and the database RPC checks the caller's server-current biometric receipt.
+  const consentFailure = await routineChatConsentFailure({
+    loadAiConsent: async () => supabase
+      .from('profiles')
+      .select('ai_consent_active')
+      .maybeSingle(),
+    hasCurrentScanConsent: async () => supabase.rpc('has_current_scan_consent'),
+  });
+  if (consentFailure) return consentFailure;
+
+  const anthropic = new Anthropic({ apiKey: Deno.env.get('ANTHROPIC_API_KEY')! });
 
   const deps: ChatDeps = {
     async loadScan(scanId) {
