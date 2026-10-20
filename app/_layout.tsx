@@ -157,7 +157,7 @@ export default function RootLayout() {
   return (
     <SafeAreaProvider initialMetrics={metrics}>
       {fontsLoaded ? (
-        <ShopifyCheckoutSheetProvider>
+        <CheckoutSheetBoundary>
           <StripeProvider
             publishableKey={SUPABASE_OFFLINE ? '' : process.env.EXPO_PUBLIC_STRIPE_PUBLISHABLE_KEY || ''}
           >
@@ -165,10 +165,17 @@ export default function RootLayout() {
               <Guard />
             </ProfileProvider>
           </StripeProvider>
-        </ShopifyCheckoutSheetProvider>
+        </CheckoutSheetBoundary>
       ) : (
         <MistBackground />
       )}
     </SafeAreaProvider>
   );
+}
+
+// Camera build (Dwight FAIL on PR #60): the Shopify checkout sheet is never set up; every Shopify
+// screen renders its local-only notice instead, so nothing below needs the provider.
+function CheckoutSheetBoundary({ children }: { children: React.ReactNode }) {
+  if (SUPABASE_OFFLINE) return <>{children}</>;
+  return <ShopifyCheckoutSheetProvider>{children}</ShopifyCheckoutSheetProvider>;
 }
