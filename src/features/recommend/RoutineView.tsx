@@ -74,7 +74,7 @@ export function RoutineView({ routine, onAsk }: { routine: Routine; onAsk?: () =
         <Body key={`note-${i}`} className="mt-4 px-1 font-display-italic text-ink-soft">{n}</Body>
       ))}
 
-      {onAsk ? <PressableScale accessibilityRole="button" onPress={onAsk} className="mt-5 self-center px-4 py-3"><Body className="font-semibold text-sage">Why these? →</Body></PressableScale> : null}
+      {onAsk ? <PressableScale accessibilityRole="button" onPress={onAsk} className="mt-5 self-center px-4 py-3"><Body className="font-semibold text-brand-terracottaDark">Why these? →</Body></PressableScale> : null}
 
       <Caption className="mt-6 px-1 text-[11px]">
         This describes how your skin looks and suggests cosmetic habits — it is not medical advice.

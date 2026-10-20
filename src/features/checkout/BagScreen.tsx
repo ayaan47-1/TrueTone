@@ -147,9 +147,9 @@ function FinishYourLook({ products }: { products: readonly Product[] }) {
               accessibilityRole="button"
               accessibilityLabel={`Add ${p.name} to bag`}
               onPress={() => bag.add(p)}
-              className="rounded-full bg-brand-tint px-3.5 py-2"
+              className="rounded-full bg-rose-100 px-3.5 py-2"
             >
-              <Text className="font-body-semibold text-[12px] text-brand-greenDark">Add</Text>
+              <Text className="font-body-semibold text-[12px] text-brand-terracottaDark">Add</Text>
             </PressableScale>
           </View>
         ))}

@@ -33,9 +33,9 @@ export function RunningLowCard() {
             accessibilityRole="button"
             accessibilityLabel={`Reorder ${product.name}`}
             onPress={() => bag.add(product)}
-            className="rounded-full bg-brand-tint px-3.5 py-2"
+            className="rounded-full bg-rose-100 px-3.5 py-2"
           >
-            <Text className="font-body-semibold text-[12px]" style={{ color: palette.sageInk }}>
+            <Text className="font-body-semibold text-[12px]" style={{ color: palette.terracottaDark }}>
               Reorder
             </Text>
           </PressableScale>

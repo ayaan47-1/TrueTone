@@ -95,7 +95,7 @@ export function ProductTile({ product, tier, isBestMatch = false, artHeight = 13
               testID={`add-to-bag-${product.id}`}
             >
               <View
-                style={{ width: 32, height: 32, borderRadius: 16, alignItems: 'center', justifyContent: 'center', backgroundColor: added ? palette.sage : palette.ink }}
+                style={{ width: 32, height: 32, borderRadius: 16, alignItems: 'center', justifyContent: 'center', backgroundColor: added ? palette.terracottaDark : palette.ink }}
               >
                 {added ? <CheckGlyph color={palette.white} size={11} /> : <PlusGlyph color={palette.white} size={11} />}
               </View>

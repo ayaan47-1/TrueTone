@@ -64,7 +64,7 @@ export function RoutineLogger({ userId, profile }: RoutineLoggerProps) {
                 setPickerSlot(key);
               }}
             >
-              <Caption className="text-sage font-body-semibold">Add</Caption>
+              <Caption className="text-brand-terracottaDark font-body-semibold">Add</Caption>
             </PressableScale>
           </View>
 

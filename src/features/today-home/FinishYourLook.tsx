@@ -43,7 +43,7 @@ export function FinishYourLook({ items, total, onAdd }: FinishYourLookProps) {
                 accessibilityLabel={`Add ${item.name}`}
                 onPress={() => onAdd(item.id)}
               >
-                <Caption className="text-brand-green font-semibold">Add</Caption>
+                <Caption className="text-brand-terracottaDark font-semibold">Add</Caption>
               </PressableScale>
             ) : null}
           </View>

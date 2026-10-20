@@ -25,7 +25,7 @@ export function AffirmationCard({ today = new Date() }: { today?: Date }) {
       <Caption className="text-ink-muted mb-3 font-semibold uppercase tracking-[1.4px]">Today&apos;s note</Caption>
       <Display className="text-[22px] leading-[30px] text-ink">{text}</Display>
       <Pressable accessibilityRole="button" accessibilityLabel="Share" onPress={onShare} style={styles.share}>
-        <Caption className="font-semibold text-sage">Share note</Caption>
+        <Caption className="font-semibold text-brand-terracottaDark">Share note</Caption>
       </Pressable>
     </View>
   );

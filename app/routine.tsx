@@ -127,7 +127,7 @@ function ScanSection({
         <View className="flex-row items-center justify-between">
           <Caption className="flex-1">Couldn&rsquo;t load suggestions from your last scan.</Caption>
           <PressableScale accessibilityRole="button" onPress={onRetry} hitSlop={8} className="py-1 pl-3">
-            <Body className="font-semibold text-sage">Try again</Body>
+            <Body className="font-semibold text-brand-terracottaDark">Try again</Body>
           </PressableScale>
         </View>
       ) : null}

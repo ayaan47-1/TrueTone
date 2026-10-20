@@ -97,7 +97,7 @@ function ShopifyBagScreenOnline({ onShop }: Props) {
                   disabled={!isCartOnline || loadingCart}
                   onPress={() => void shopifyStore.updateLine(line.id, line.quantity - 1)}
                 >
-                  <Text className="font-body-semibold text-brand-greenDark">Decrease</Text>
+                  <Text className="font-body-semibold text-brand-terracottaDark">Decrease</Text>
                 </Pressable>
                 <Pressable
                   accessibilityRole="button"
@@ -106,7 +106,7 @@ function ShopifyBagScreenOnline({ onShop }: Props) {
                   disabled={!isCartOnline || loadingCart}
                   onPress={() => void shopifyStore.updateLine(line.id, line.quantity + 1)}
                 >
-                  <Text className="font-body-semibold text-brand-greenDark">Increase</Text>
+                  <Text className="font-body-semibold text-brand-terracottaDark">Increase</Text>
                 </Pressable>
               </View>
             </View>

@@ -17,7 +17,7 @@ interface EngagementBarProps {
 }
 
 export function EngagementBar({ engagement, onToggleLike, onToggleSave, onShare, showCounts = true }: EngagementBarProps) {
-  const activeColor = palette.sageInk;
+  const activeColor = palette.terracottaDark;
   const idleColor = palette.mauve500;
 
   return (

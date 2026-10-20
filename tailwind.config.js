@@ -41,12 +41,12 @@ module.exports = {
           muted: '#8A8378',
           faint: '#a89f8f',
         },
-        // Brand — green anchor (confirmation / fit-positive / active tab),
-        // terracotta accent (primary CTA / highlight, used sparingly).
+        // Green remains for positive states and active tabs; dark terracotta is the accessible action color.
         brand: {
           green: '#2f7d52',
           greenDark: '#245f3f',
           terracotta: '#c26a4a',
+          terracottaDark: '#9a4e34',
           tint: '#e7f1ea',
           charcoal: '#1f2a26',
           offwhite: '#faf7f2',

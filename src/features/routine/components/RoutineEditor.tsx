@@ -58,7 +58,7 @@ export function RoutineEditor({ userId, purchasedIds, savedIds }: Props) {
               hitSlop={8}
               onPress={() => setTarget({ slot: key })}
             >
-              <Caption className="font-body-semibold text-sage">+ Add step</Caption>
+              <Caption className="font-body-semibold text-brand-terracottaDark">+ Add step</Caption>
             </PressableScale>
           </View>
           {today[key].length === 0 ? (
@@ -75,7 +75,7 @@ export function RoutineEditor({ userId, purchasedIds, savedIds }: Props) {
                   hitSlop={8}
                   onPress={() => setTarget({ slot: key, editing: id })}
                 >
-                  <Caption className="text-sage">Edit</Caption>
+                  <Caption className="text-brand-terracottaDark">Edit</Caption>
                 </PressableScale>
                 <PressableScale
                   testID={`routine-remove-${key}-${id}`}
