@@ -19,7 +19,7 @@ import { StripeProvider } from '@stripe/stripe-react-native';
 import { ShopifyCheckoutSheetProvider } from '@shopify/checkout-sheet-kit';
 import { ProfileProvider, useProfile } from '../src/lib/profile-context';
 import type { Route } from '../src/lib/routing-guard';
-import { DEMO_MODE } from '../src/lib/supabase';
+import { DEMO_MODE, SUPABASE_OFFLINE } from '../src/lib/supabase';
 import { migrateLegacyPlaintext } from '../src/lib/encrypted-storage';
 import { MistBackground, GlassCard, Heading, Body, PrimaryButton } from '../src/components/ui';
 import { palette } from '../src/theme/tokens';
@@ -157,18 +157,25 @@ export default function RootLayout() {
   return (
     <SafeAreaProvider initialMetrics={metrics}>
       {fontsLoaded ? (
-        <ShopifyCheckoutSheetProvider>
+        <CheckoutSheetBoundary>
           <StripeProvider
-            publishableKey={process.env.EXPO_PUBLIC_STRIPE_PUBLISHABLE_KEY || ''}
+            publishableKey={SUPABASE_OFFLINE ? '' : process.env.EXPO_PUBLIC_STRIPE_PUBLISHABLE_KEY || ''}
           >
             <ProfileProvider>
               <Guard />
             </ProfileProvider>
           </StripeProvider>
-        </ShopifyCheckoutSheetProvider>
+        </CheckoutSheetBoundary>
       ) : (
         <MistBackground />
       )}
     </SafeAreaProvider>
   );
+}
+
+// Camera build (Dwight FAIL on PR #60): the Shopify checkout sheet is never set up; every Shopify
+// screen renders its local-only notice instead, so nothing below needs the provider.
+function CheckoutSheetBoundary({ children }: { children: React.ReactNode }) {
+  if (SUPABASE_OFFLINE) return <>{children}</>;
+  return <ShopifyCheckoutSheetProvider>{children}</ShopifyCheckoutSheetProvider>;
 }

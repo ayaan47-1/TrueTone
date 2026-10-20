@@ -1,4 +1,6 @@
 import { useEffect, useState } from 'react';
+import { SUPABASE_OFFLINE } from '../../../../lib/supabase';
+import { ShopOfflineNotice } from './ShopOfflineNotice';
 import { Image, Pressable, ScrollView, Text, View } from 'react-native';
 import { Body, Caption, Display, GlassCard, PrimaryButton, Subheading } from '../../../../components/ui';
 import { formatMoney } from '../money';
@@ -12,7 +14,13 @@ interface Props {
   readonly onDecline: () => void;
 }
 
-export function ShopifyShopScreen({ onOpen, onBag, onDecline }: Props) {
+// Camera build (Dwight FAIL on PR #60): no store reads, no Shopify requests, no checkout sheet.
+export function ShopifyShopScreen(props: Props) {
+  if (SUPABASE_OFFLINE) return <ShopOfflineNotice />;
+  return <ShopifyShopScreenOnline {...props} />;
+}
+
+function ShopifyShopScreenOnline({ onOpen, onBag, onDecline }: Props) {
   const [accepted, setAccepted] = useState(hasAcceptedShopPrivacy());
   const { products, cart, loadingProducts, error, catalogStatus, catalogUpdatedAt } = useShopifyStore();
 

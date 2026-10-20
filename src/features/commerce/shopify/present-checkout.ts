@@ -1,3 +1,5 @@
+import { SUPABASE_OFFLINE } from '../../../lib/supabase';
+
 export interface CheckoutPresentation {
   present(url: string): Promise<unknown> | unknown;
   openBrowser(url: string): Promise<unknown>;
@@ -22,6 +24,8 @@ export async function presentCheckout(
   presentation: CheckoutPresentation,
   allowedHosts: readonly string[],
 ): Promise<'sheet' | 'browser'> {
+  // Camera build: no checkout sheet, no browser, no URL (or its _cs consent) passed anywhere.
+  if (SUPABASE_OFFLINE) throw new Error('Checkout is off in this test build');
   assertCheckoutUrl(checkoutUrl, allowedHosts);
   try {
     await presentation.present(checkoutUrl);

@@ -1,6 +1,8 @@
 import { useRef, useState } from 'react';
 import { View, Text, Pressable } from 'react-native';
-import { supabase } from '../../lib/supabase';
+import { supabase, SUPABASE_OFFLINE } from '../../lib/supabase';
+import { clearCameraDemoScans } from '../../lib/scans';
+import { cameraDemoReset, cameraDemoWithdrawConsent } from '../../lib/camera-demo-profile';
 import { clearDiary } from '../diary/diary-storage';
 import { clearAllRoutines } from '../routine/routine-storage';
 import { orderHistory } from '../checkout/order-history-store';
@@ -56,8 +58,22 @@ export function DataRights({ onChanged, confirm }: Props) {
     if (ok) onChanged();
   }
 
+  // Camera build (Dwight FAIL on PR #60): there is no server account, so every action applies to
+  // this device only -- the in-memory scans and the local age/consent gates -- and never calls an RPC.
+  async function runLocalOnly(fn: RpcName) {
+    if (fn === 'withdraw_consent') {
+      cameraDemoWithdrawConsent();
+      onChanged();
+      return;
+    }
+    clearCameraDemoScans();
+    if (fn === 'delete_account') cameraDemoReset();
+    return finishLocalWipe(fn === 'delete_account');
+  }
+
   async function run(fn: RpcName, msg: string) {
     if (!(await confirm(msg))) return;
+    if (SUPABASE_OFFLINE) return runLocalOnly(fn);
     const { error } = await supabase.rpc(fn);
     if (error) return;
     // The account row is gone but the cached session still holds its token; drop it so the

@@ -6,7 +6,7 @@ import { useRef, useState } from 'react';
 import { View, Alert } from 'react-native';
 import { useRouter } from 'expo-router';
 import { useStripe } from '@stripe/stripe-react-native';
-import { supabase } from '../../lib/supabase';
+import { supabase, SUPABASE_OFFLINE } from '../../lib/supabase';
 import {
   Screen,
   HEADER_CLEARANCE,
@@ -53,6 +53,9 @@ export function CheckoutScreen() {
   const inFlight = useRef(false);
   const parsedAddress = shippingAddressSchema.safeParse(shippingAddress);
   const addressErrors = getShippingAddressErrors(shippingAddress);
+
+  // Camera build (Dwight FAIL on PR #60): no PaymentIntent, no Stripe, no pending order.
+  if (SUPABASE_OFFLINE) return <CheckoutOffline onBrowse={() => router.replace('/')} />;
 
   if (placed) return <Confirmation orderNo={placed.orderNo} onDone={() => router.replace('/')} />;
 
@@ -290,6 +293,20 @@ function Confirmation({ orderNo, onDone }: { orderNo: string; onDone: () => void
 }
 
 /** Shown when checkout is reached with an empty bag. */
+function CheckoutOffline({ onBrowse }: { onBrowse: () => void }) {
+  return (
+    <Screen className="gap-6 px-6" topGap={HEADER_CLEARANCE} bottomGap={32}>
+      <View className="flex-1 items-center justify-center gap-4 py-16">
+        <Heading className="text-center">Checkout is off in this test build</Heading>
+        <Body className="text-center text-ink-soft">
+          This build runs on your device only. Nothing can be ordered or paid for.
+        </Body>
+      </View>
+      <PrimaryButton label="Back to the app" fullWidth onPress={onBrowse} testID="checkout-offline-back" />
+    </Screen>
+  );
+}
+
 function EmptyBag({ onBrowse }: { onBrowse: () => void }) {
   return (
     <Screen className="gap-6 px-6" topGap={HEADER_CLEARANCE} bottomGap={32}>

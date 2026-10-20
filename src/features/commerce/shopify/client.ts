@@ -1,3 +1,4 @@
+import { SUPABASE_OFFLINE } from '../../../lib/supabase';
 import type { ShopifyConfig } from './env';
 
 interface FetchResponse {
@@ -15,6 +16,8 @@ interface GraphqlEnvelope<T> {
   readonly data?: T;
   readonly errors?: readonly { readonly message?: string }[];
 }
+
+export const SHOP_OFFLINE_MESSAGE = 'The shop is off in this test build';
 
 export type ShopifyRequestErrorKind = 'network' | 'http' | 'graphql' | 'invalid-response';
 
@@ -39,6 +42,8 @@ export function createShopifyClient(
 ): ShopifyClient {
   return {
     async request<T>(query: string, variables: Readonly<Record<string, unknown>> = {}): Promise<T> {
+      // Camera build (Dwight FAIL on PR #60): fail before any request leaves the device.
+      if (SUPABASE_OFFLINE) throw new ShopifyRequestError(SHOP_OFFLINE_MESSAGE, 'network');
       let response: FetchResponse;
       try {
         response = await fetchImpl(config.endpoint, {
