@@ -10,8 +10,6 @@ const LOCAL_URL = 'http://127.0.0.1:54321';
 // construction fallback so the singleton builds when the bundler hasn't inlined env.
 const LOCAL_ANON_KEY =
   'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZS1kZW1vIiwicm9sZSI6ImFub24iLCJleHAiOjE5ODM4MTI5OTZ9.CRXP1A7WOeoJeXxjNni43kdQwgnWNReilDMblYTn_I0';
-const url = process.env.EXPO_PUBLIC_SUPABASE_URL || LOCAL_URL;
-const anonKey = process.env.EXPO_PUBLIC_SUPABASE_ANON_KEY || LOCAL_ANON_KEY;
 
 /**
  * Demo / offline mode. When EXPO_PUBLIC_DEMO is truthy the app runs against a stubbed
@@ -42,11 +40,35 @@ export const CAMERA_DEMO = /^(1|true|yes|on)$/i.test(
   (process.env.EXPO_PUBLIC_CAMERA_DEMO ?? '').trim(),
 );
 
-export const supabase = createClient(url, anonKey, {
-  auth: {
-    storage: supabaseAuthStorage,
-    autoRefreshToken: true,
-    persistSession: true,
-    detectSessionInUrl: false,
-  },
+/**
+ * The camera build must never reach a live backend (Dwight FAIL on PR #60), even if a production
+ * URL or key leaks into its environment. Under CAMERA_DEMO the client ignores
+ * EXPO_PUBLIC_SUPABASE_*, keeps no session on disk, never refreshes one, and its fetch rejects
+ * before any request leaves the device, so every rpc / table / function / auth call fails closed.
+ */
+export const SUPABASE_OFFLINE = CAMERA_DEMO;
+
+export const SUPABASE_TARGET_URL = SUPABASE_OFFLINE
+  ? LOCAL_URL
+  : process.env.EXPO_PUBLIC_SUPABASE_URL || LOCAL_URL;
+const anonKey = SUPABASE_OFFLINE
+  ? LOCAL_ANON_KEY
+  : process.env.EXPO_PUBLIC_SUPABASE_ANON_KEY || LOCAL_ANON_KEY;
+
+export const SUPABASE_AUTH_OPTIONS = SUPABASE_OFFLINE
+  ? { autoRefreshToken: false, persistSession: false, detectSessionInUrl: false }
+  : {
+      storage: supabaseAuthStorage,
+      autoRefreshToken: true,
+      persistSession: true,
+      detectSessionInUrl: false,
+    };
+
+export const OFFLINE_ERROR_MESSAGE = 'camera-demo-offline';
+
+const offlineFetch: typeof fetch = () => Promise.reject(new Error(OFFLINE_ERROR_MESSAGE));
+
+export const supabase = createClient(SUPABASE_TARGET_URL, anonKey, {
+  auth: SUPABASE_AUTH_OPTIONS,
+  ...(SUPABASE_OFFLINE ? { global: { fetch: offlineFetch } } : {}),
 });

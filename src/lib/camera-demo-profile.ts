@@ -24,6 +24,11 @@ export function cameraDemoSetConsent(): void {
   consentActive = true;
 }
 
+/** Called by DataRights.tsx's withdraw action under CAMERA_DEMO (local-only, no RPC). */
+export function cameraDemoWithdrawConsent(): void {
+  consentActive = false;
+}
+
 export function cameraDemoReset(): void {
   is18 = false;
   consentActive = false;

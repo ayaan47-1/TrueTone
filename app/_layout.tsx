@@ -19,7 +19,7 @@ import { StripeProvider } from '@stripe/stripe-react-native';
 import { ShopifyCheckoutSheetProvider } from '@shopify/checkout-sheet-kit';
 import { ProfileProvider, useProfile } from '../src/lib/profile-context';
 import type { Route } from '../src/lib/routing-guard';
-import { DEMO_MODE } from '../src/lib/supabase';
+import { DEMO_MODE, SUPABASE_OFFLINE } from '../src/lib/supabase';
 import { migrateLegacyPlaintext } from '../src/lib/encrypted-storage';
 import { MistBackground, GlassCard, Heading, Body, PrimaryButton } from '../src/components/ui';
 import { palette } from '../src/theme/tokens';
@@ -159,7 +159,7 @@ export default function RootLayout() {
       {fontsLoaded ? (
         <ShopifyCheckoutSheetProvider>
           <StripeProvider
-            publishableKey={process.env.EXPO_PUBLIC_STRIPE_PUBLISHABLE_KEY || ''}
+            publishableKey={SUPABASE_OFFLINE ? '' : process.env.EXPO_PUBLIC_STRIPE_PUBLISHABLE_KEY || ''}
           >
             <ProfileProvider>
               <Guard />

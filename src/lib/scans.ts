@@ -1,4 +1,4 @@
-import { supabase } from './supabase';
+import { supabase, SUPABASE_OFFLINE } from './supabase';
 import { DIMENSIONS, SCORE_COLUMNS } from '../content/cosmetic-vocab';
 import type { ReadResult, ScoreVector } from '../features/read/read-types';
 import { buildRoutine } from '../features/recommend/routine-engine';
@@ -27,6 +27,10 @@ export async function recordScan(
   captureQuality: 'good' | 'fair' | 'poor' | null = null,
 ): Promise<void> {
   const routine = buildRoutine(skincareDomain, { scores: r.scores, skinType: r.skinType });
+  if (SUPABASE_OFFLINE) {
+    recordLocalScan(r, routine, age, captureQuality ?? r.captureQuality ?? null);
+    return;
+  }
   const { error } = await supabase.rpc('record_scan', {
     p_scores: r.scores,
     p_skin_type: r.skinType,
@@ -39,6 +43,40 @@ export async function recordScan(
     p_capture_quality: captureQuality ?? r.captureQuality ?? null,
   });
   if (error) throw new Error('record-scan-failed');
+}
+
+// Camera-build scan store (Dwight FAIL on PR #60): under SUPABASE_OFFLINE the derived scores stay
+// in memory on this device for this app session, newest first. The image itself is never here; the
+// on-device engine has already deleted it (CLAUDE.md §3). Nothing is written to disk or sent anywhere.
+let localScans: readonly Scan[] = [];
+let localScanSeq = 0;
+
+function recordLocalScan(
+  r: ReadResult,
+  routine: Routine,
+  age: SkinAgeEstimate | null,
+  captureQuality: 'good' | 'fair' | 'poor' | null,
+): void {
+  localScanSeq += 1;
+  const scan: Scan = {
+    id: `local-scan-${localScanSeq}`,
+    capturedAt: new Date().toISOString(),
+    skinType: r.skinType,
+    scores: r.scores,
+    modelVersion: r.modelVersion,
+    isStub: r.isStub,
+    routine,
+    skinAge: age?.ageEstimate ?? null,
+    skinAgeConfidence: age?.confidence ?? null,
+    routineHelpful: null,
+    captureQuality,
+  };
+  localScans = [scan, ...localScans];
+}
+
+/** Camera build only: drops every on-device scan (Your Data -> delete). */
+export function clearCameraDemoScans(): void {
+  localScans = [];
 }
 
 function rowToScan(row: Record<string, unknown>): Scan {
@@ -62,11 +100,16 @@ function rowToScan(row: Record<string, unknown>): Scan {
 }
 
 export async function setRoutineFeedback(scanId: string, helpful: RoutineHelpful): Promise<void> {
+  if (SUPABASE_OFFLINE) {
+    localScans = localScans.map((scan) => (scan.id === scanId ? { ...scan, routineHelpful: helpful } : scan));
+    return;
+  }
   const { error } = await supabase.rpc('set_routine_feedback', { p_scan_id: scanId, p_helpful: helpful });
   if (error) throw new Error('set-routine-feedback-failed');
 }
 
 export async function fetchLatestScan(): Promise<Scan | null> {
+  if (SUPABASE_OFFLINE) return localScans[0] ?? null;
   const { data, error } = await supabase
     .from('scans')
     .select('*')
@@ -78,6 +121,7 @@ export async function fetchLatestScan(): Promise<Scan | null> {
 }
 
 export async function fetchScanHistory(limit = 30): Promise<Scan[]> {
+  if (SUPABASE_OFFLINE) return localScans.slice(0, limit);
   const { data, error } = await supabase
     .from('scans')
     .select('*')
