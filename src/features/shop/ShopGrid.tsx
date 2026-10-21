@@ -75,7 +75,7 @@ export function ShopGrid({
           accessibilityRole="button"
           accessibilityLabel="Sort and filter"
           onPress={() => setSheetOpen(true)}
-          className="h-[50px] w-[50px] items-center justify-center rounded-full bg-sage"
+          className="h-[50px] w-[50px] items-center justify-center rounded-full bg-brand-terracottaDark"
         >
           <FilterGlyph color={palette.white} size={18} />
         </PressableScale>
@@ -256,16 +256,16 @@ function ScanPrompt({ onPress }: { onPress: () => void }) {
       accessibilityRole="button"
       accessibilityLabel="See your fit on every product"
       onPress={onPress}
-      className="mt-3.5 flex-row items-center gap-3 rounded-[18px] bg-brand-tint px-3.5 py-3"
+      className="mt-3.5 flex-row items-center gap-3 rounded-[18px] bg-rose-100 px-3.5 py-3"
     >
-      <View className="h-[34px] w-[34px] items-center justify-center rounded-full bg-sage">
+      <View className="h-[34px] w-[34px] items-center justify-center rounded-full bg-brand-terracottaDark">
         <CameraGlyph color={palette.white} size={18} />
       </View>
       <View className="flex-1">
-        <Text className="font-body-semibold text-[13.5px] text-brand-greenDark">See your fit on every product</Text>
-        <Text className="font-body text-[12px] text-brand-greenDark">Take a quick shade scan</Text>
+        <Text className="font-body-semibold text-[13.5px] text-brand-terracottaDark">See your fit on every product</Text>
+        <Text className="font-body text-[12px] text-brand-terracottaDark">Take a quick shade scan</Text>
       </View>
-      <ChevronGlyph color={palette.sageInk} />
+      <ChevronGlyph color={palette.terracottaDark} />
     </PressableScale>
   );
 }

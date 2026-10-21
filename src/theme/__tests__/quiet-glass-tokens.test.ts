@@ -8,6 +8,20 @@ describe('Quiet Glass design contract', () => {
     expect(palette.inkMuted).toBe('#8A8378');
     expect(palette.sage).toBe('#2f7d52');
     expect(palette.clay).toBe('#c26a4a');
+    expect(palette.terracotta).toBe('#c26a4a');
+    expect(palette.terracottaDark).toBe('#9a4e34');
+  });
+
+  it('keeps white button labels readable on the dark terracotta action color', () => {
+    const luminance = (hex: string) => {
+      const channels = [1, 3, 5].map((offset) => parseInt(hex.slice(offset, offset + 2), 16) / 255);
+      const linear = channels.map((channel) => channel <= 0.04045
+        ? channel / 12.92
+        : ((channel + 0.055) / 1.055) ** 2.4);
+      return linear[0] * 0.2126 + linear[1] * 0.7152 + linear[2] * 0.0722;
+    };
+    const contrastWithWhite = 1.05 / (luminance(palette.terracottaDark) + 0.05);
+    expect(contrastWithWhite).toBeGreaterThanOrEqual(4.5);
   });
 
   it('keeps cards translucent with a bright glass edge', () => {

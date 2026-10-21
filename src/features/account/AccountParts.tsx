@@ -105,7 +105,7 @@ export function ProfileCard({ summary, scanned, avatarUri, avatarDisabled, onAva
           </View>
         </View>
         <PressableScale accessibilityRole="button" accessibilityLabel="Edit profile" accessibilityState={{ expanded: editing }} onPress={onEdit} className="min-h-[44px] justify-center px-1">
-          <Text className="font-body text-[13px] font-semibold" style={{ color: palette.sage }}>Edit</Text>
+          <Text className="font-body text-[13px] font-semibold" style={{ color: palette.terracottaDark }}>Edit</Text>
         </PressableScale>
       </View>
       <View className="mt-4 flex-row border-t pt-3.5" style={{ borderTopColor: 'rgba(168,159,143,0.2)' }}>

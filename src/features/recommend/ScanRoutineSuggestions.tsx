@@ -28,7 +28,7 @@ export function ScanRoutineSuggestions({ routine, onAsk }: { routine: Routine; o
       ))}
       {onAsk ? (
         <PressableScale accessibilityRole="button" onPress={onAsk} className="mt-3 self-start py-2">
-          <Body className="font-semibold text-sage">Why these? →</Body>
+          <Body className="font-semibold text-brand-terracottaDark">Why these? →</Body>
         </PressableScale>
       ) : null}
     </GlassCard>

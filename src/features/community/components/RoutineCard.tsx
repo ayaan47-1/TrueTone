@@ -36,7 +36,7 @@ export function RoutineCard({ routine, onShopTheLook }: RoutineCardProps) {
           onPress={onShopTheLook}
           className="mt-1"
         >
-          <Caption className="text-sage font-body-semibold">Shop the look</Caption>
+          <Caption className="text-brand-terracottaDark font-body-semibold">Shop the look</Caption>
         </PressableScale>
       ) : null}
     </GlassCard>

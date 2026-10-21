@@ -27,7 +27,7 @@ export function BagBar() {
             {count} item{count === 1 ? '' : 's'} · ${bagSubtotal(state)}
           </Caption>
         </View>
-        <View className="rounded-full bg-brand-green px-4 py-2">
+        <View className="rounded-full bg-brand-terracottaDark px-4 py-2">
           <Caption className="text-white">Checkout</Caption>
         </View>
       </GlassCard>

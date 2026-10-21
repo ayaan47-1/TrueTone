@@ -27,7 +27,7 @@ export const palette = {
   inkSoft: '#6B655B',
   inkMuted: '#8A8378',
   inkFaint: '#a89f8f',
-  // Brand palette (brief): green anchor + terracotta accent (used sparingly).
+  // Green remains for positive states; dark terracotta keeps action text and white-on-fill labels readable.
   sage: '#2f7d52',
   sageInk: '#245f3f',
   clay: '#c26a4a',
@@ -35,6 +35,7 @@ export const palette = {
   green: '#2f7d52',
   greenDark: '#245f3f',
   terracotta: '#c26a4a',
+  terracottaDark: '#9a4e34',
   tint: '#e7f1ea',
   charcoal: '#1f2a26',
   offwhite: '#faf7f2',

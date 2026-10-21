@@ -41,7 +41,7 @@ export function HomeSearch({ onOpen, onFilter }: HomeSearchProps) {
         accessibilityRole="button"
         accessibilityLabel="Sort and filter"
         onPress={onFilter}
-        className="h-[52px] w-[52px] items-center justify-center rounded-full bg-sage"
+        className="h-[52px] w-[52px] items-center justify-center rounded-full bg-brand-terracottaDark"
         style={softShadow}
       >
         <FilterGlyph color={palette.white} size={20} />
@@ -86,8 +86,8 @@ export function QuickActions({ onGo, onSeasonal }: QuickActionsProps) {
               <Text className="font-body-bold text-[8.5px] tracking-[0.6px]" style={{ color: palette.clayInk }}>NEW</Text>
             </View>
           ) : null}
-          <View className="h-10 w-10 items-center justify-center rounded-full bg-brand-tint">
-            <Icon color={palette.sageInk} size={20} />
+          <View className="h-10 w-10 items-center justify-center rounded-full bg-rose-100">
+            <Icon color={palette.terracottaDark} size={20} />
           </View>
           <View className="min-h-[28px] justify-center">
             <Text className="text-center font-body-semibold text-[11.5px] leading-[14px] text-ink">{label}</Text>
@@ -179,8 +179,8 @@ export function SectionHead({ title, sub, onAction, actionLabel = 'See all' }: S
           onPress={onAction}
           className="flex-row items-center gap-1.5 pb-0.5"
         >
-          <Text className="font-body-semibold text-[14px] text-sage">{actionLabel}</Text>
-          <ChevronGlyph color={palette.sage} size={8} />
+          <Text className="font-body-semibold text-[14px] text-brand-terracottaDark">{actionLabel}</Text>
+          <ChevronGlyph color={palette.terracottaDark} size={8} />
         </PressableScale>
       ) : null}
     </View>

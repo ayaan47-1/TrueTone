@@ -37,7 +37,7 @@ export default function PaywallScreen() {
             <GlassCard
               className={
                 'gap-1.5 px-5 py-4 border ' +
-                (plan === 'yearly' ? 'border-brand-green' : 'border-ink-faint')
+                (plan === 'yearly' ? 'border-brand-terracottaDark' : 'border-ink-faint')
               }
             >
               <View className="flex-row items-center gap-2.5">
@@ -59,7 +59,7 @@ export default function PaywallScreen() {
             <GlassCard
               className={
                 'gap-1.5 px-5 py-4 border ' +
-                (plan === 'monthly' ? 'border-brand-green' : 'border-ink-faint')
+                (plan === 'monthly' ? 'border-brand-terracottaDark' : 'border-ink-faint')
               }
             >
               <Heading>Monthly</Heading>

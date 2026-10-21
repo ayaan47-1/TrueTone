@@ -42,7 +42,7 @@ export function PostCard({ post, engagement, onToggleLike, onToggleSave, onShare
             onPress={onShopTheLook}
             className="min-h-[44px] justify-center"
           >
-            <Caption className="text-sage font-body-semibold">Shop the look</Caption>
+            <Caption className="text-brand-terracottaDark font-body-semibold">Shop the look</Caption>
           </PressableScale>
         ) : null}
       </View>
