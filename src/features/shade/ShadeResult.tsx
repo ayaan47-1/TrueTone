@@ -98,7 +98,7 @@ export function ShadeResult({ shade, tip, picks, onSeeLook, onShare }: ShadeResu
 
         {/* Cosmetic tip line */}
         <GlassCard flat className="gap-1 px-5 py-4" radius={22}>
-          <Caption className="uppercase tracking-[1.2px] text-brand-green">Today's tip</Caption>
+          <Caption className="uppercase tracking-[1.2px] text-brand-terracottaDark">Today's tip</Caption>
           <Body className="text-ink-soft">{tipLine}</Body>
         </GlassCard>
 

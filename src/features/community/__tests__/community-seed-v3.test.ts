@@ -11,7 +11,7 @@ test('the first post is the v3 "Dewy base" look with its counts', () => {
   expect(first.media[0].label).toBe('Dewy base');
   expect(first.likeCount).toBe(128);
   expect(first.saveCount).toBe(42);
-  expect(first.creatorColor).toBe('#2f7d52');
+  expect(first.creatorColor).toBe('#9a4e34');
 });
 
 test('the Feed carries exactly the two v3 posts, each with a bundled photo', () => {

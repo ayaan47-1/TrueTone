@@ -1,6 +1,6 @@
 /* TrueTone landing — partner-first editorial layout (design option 2a, with the
    two-kinds section, waitlist band and footer), pared back to a minimal, light page.
-   Palette: ink #221f1a, cream #faf7f2, sand #f2ebe0, forest #2f7d52, clay #a9532f.
+   Palette: ink #221f1a, cream #faf7f2, sand #f2ebe0, terracotta #9a4e34, clay #a9532f.
    Type: Plus Jakarta Sans (display), Inter (body), both self-hosted from /fonts so the
    page loads nothing third-party (CLAUDE.md §1). The CSP forbids inline styles, so every
    rule lives here. styles.css still serves 404.html and unsubscribe.html. */
@@ -22,13 +22,13 @@
   --ink: #221f1a;
   --cream: #faf7f2;
   --sand: #f2ebe0;
-  --sage: #e3ebe4;
+  --rose-wash: #F8EEE7;
   --muted: #5c554b;
   --faint: #8a8378;
   --line: #e7ddce;
   --field: #cfc3b1;
-  --green: #2f7d52;
-  --green-deep: #205839;
+  --terra-ink: #9a4e34;
+  --terra-ink-hover: #7a3b27;
   --clay: #a9532f;
   --clay-soft: #e6a98f;
   --on-ink: #d9d1c4;
@@ -61,7 +61,7 @@ p { margin: 0; text-wrap: pretty; }
 img { display: block; max-width: 100%; height: auto; }
 a { color: inherit; }
 a:focus-visible, button:focus-visible, summary:focus-visible, input:focus-visible {
-  outline: 2px solid var(--green);
+  outline: 2px solid var(--terra-ink);
   outline-offset: 3px;
 }
 
@@ -82,7 +82,7 @@ a:focus-visible, button:focus-visible, summary:focus-visible, input:focus-visibl
   padding-bottom: 3px;
   align-self: flex-start;
 }
-.link-arrow:hover { color: var(--green-deep); }
+.link-arrow:hover { color: var(--terra-ink-hover); }
 
 /* ── header ── */
 .site {
@@ -107,7 +107,7 @@ a:focus-visible, button:focus-visible, summary:focus-visible, input:focus-visibl
 
 /* ── hero ── */
 .hero { padding-top: 40px; }
-.ref-banner { margin-bottom: 20px; padding: 12px 16px; background: var(--sage); font: 500 15px var(--body); }
+.ref-banner { margin-bottom: 20px; padding: 12px 16px; background: var(--rose-wash); font: 500 15px var(--body); }
 .ledger-strip {
   display: flex; justify-content: space-between; gap: 16px;
   padding: 14px 0;
@@ -134,7 +134,7 @@ a:focus-visible, button:focus-visible, summary:focus-visible, input:focus-visibl
 .kind h3 { font-size: clamp(22px, 2vw, 26px); line-height: 1.2; letter-spacing: -.02em; }
 .kind p:last-child { font-size: 17px; color: var(--muted); }
 .kind-makeup .eyebrow { color: var(--clay); }
-.kind-skin .eyebrow { color: var(--green-deep); }
+.kind-skin .eyebrow { color: var(--terra-ink-hover); }
 .kinds-note { max-width: 44em; margin-top: 48px; font-size: 17px; color: var(--muted); }
 
 /* ── brands: ink band ── */
@@ -201,14 +201,14 @@ a:focus-visible, button:focus-visible, summary:focus-visible, input:focus-visibl
   min-height: 48px; padding: 12px 22px; border: 0; border-radius: 999px;
   background: var(--ink); color: var(--cream); font: 600 15px var(--body); cursor: pointer;
 }
-.signup button:hover, .share-row button:hover { background: var(--green-deep); }
+.signup button:hover, .share-row button:hover { background: var(--terra-ink-hover); }
 .signup button:disabled { opacity: .6; cursor: progress; }
 .check { display: flex; gap: 10px; align-items: flex-start; min-height: 44px; padding-block: 10px; font-size: 14px; cursor: pointer; }
-.check input { flex: none; width: 18px; height: 18px; margin: 2px 0 0; accent-color: var(--green); }
+.check input { flex: none; width: 18px; height: 18px; margin: 2px 0 0; accent-color: var(--terra-ink); }
 .signup-privacy { font-size: 14px; color: var(--muted); }
 .status { min-height: 1.5em; font-size: 15px; }
-.status[data-tone="ok"] { color: var(--green-deep); font-weight: 600; }
-.status[data-tone="err"] { color: var(--clay); font-weight: 600; }
+.status[data-tone="ok"] { color: var(--terra-ink-hover); font-weight: 600; }
+.status[data-tone="err"] { color: #B23B3B; font-weight: 600; }
 .share { margin-top: 20px; padding-top: 20px; border-top: 1px solid var(--field); display: flex; flex-direction: column; gap: 10px; }
 .share .position { font: 700 18px var(--display); }
 .share-field { font: 600 13px var(--body); letter-spacing: .08em; text-transform: uppercase; color: var(--muted); }

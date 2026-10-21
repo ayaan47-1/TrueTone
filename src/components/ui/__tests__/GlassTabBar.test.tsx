@@ -1,5 +1,6 @@
 import { render, fireEvent } from '@testing-library/react-native';
 import { GlassTabBar } from '../GlassTabBar';
+import { palette } from '../../../theme/tokens';
 
 type View = Awaited<ReturnType<typeof render>>;
 
@@ -45,6 +46,11 @@ test('marks the active tab as selected for accessibility', async () => {
   const { view } = await setup({ activeKey: 'community' });
   expect(tab(view, 'Community').props.accessibilityState).toMatchObject({ selected: true });
   expect(tab(view, 'Home').props.accessibilityState).toMatchObject({ selected: false });
+});
+
+test('uses accessible terracotta for the selected tab label', async () => {
+  const { view } = await setup();
+  expect(view.getByText('Home').props.style).toEqual(expect.arrayContaining([{ color: palette.terracottaDark }]));
 });
 
 test('pressing a tab calls onSelect with its route key', async () => {

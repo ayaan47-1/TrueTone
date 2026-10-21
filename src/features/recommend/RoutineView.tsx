@@ -89,6 +89,6 @@ const styles = StyleSheet.create({
   segmentButtonActive: { backgroundColor: 'rgba(255,255,255,0.92)' },
   stepNumber: { width: 48, height: 48, borderRadius: 16, alignItems: 'center', justifyContent: 'center' },
   check: { width: 28, height: 28, borderRadius: 14, borderWidth: 1.5, borderColor: '#D8CFC0', alignItems: 'center', justifyContent: 'center' },
-  checkDone: { backgroundColor: palette.sage, borderColor: palette.sage },
+  checkDone: { backgroundColor: palette.terracottaDark, borderColor: palette.terracottaDark },
   tick: { width: 10, height: 6, borderLeftWidth: 2, borderBottomWidth: 2, borderColor: palette.white, transform: [{ rotate: '-45deg' }], marginTop: -2 },
 });

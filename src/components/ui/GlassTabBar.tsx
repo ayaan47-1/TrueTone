@@ -27,7 +27,7 @@ const TABS: readonly TabDef[] = [
   { key: 'you', label: 'Account', Glyph: YouGlyph },
 ];
 
-const ACTIVE = palette.sage;
+const ACTIVE = palette.terracottaDark;
 const INACTIVE = palette.inkMuted;
 
 interface GlassTabBarProps {

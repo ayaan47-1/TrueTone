@@ -22,7 +22,7 @@ export function SeasonalReport({ scansDone, total }: SeasonalReportProps) {
         {scansDone} of {total} scans logged
       </Body>
       <View style={styles.track} className="bg-ink-faint/20 mt-3">
-        <View style={[styles.fill, { width: `${ratio * 100}%` }]} className="bg-brand-green" />
+        <View style={[styles.fill, { width: `${ratio * 100}%` }]} className="bg-brand-terracottaDark" />
       </View>
       <Caption className="text-ink-faint mt-3">
         Keep scanning to unlock your seasonal skin-appearance report.

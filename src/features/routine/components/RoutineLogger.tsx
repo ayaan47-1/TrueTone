@@ -105,7 +105,7 @@ export function RoutineLogger({ userId, profile }: RoutineLoggerProps) {
           }}
         />
         {published ? (
-          <Caption testID="routine-published" className="text-sage mt-2 text-center">
+          <Caption testID="routine-published" className="text-brand-terracottaDark mt-2 text-center">
             Shared to Community
           </Caption>
         ) : null}

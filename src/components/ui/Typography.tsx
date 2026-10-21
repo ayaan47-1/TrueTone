@@ -49,7 +49,7 @@ export function Subheading({ className, ...rest }: Props) {
 export function Eyebrow({ className, ...rest }: Props) {
   return (
     <Text
-      className={cx('font-body text-[11px] font-semibold uppercase tracking-[1.6px] text-brand-green', className)}
+      className={cx('font-body text-[11px] font-semibold uppercase tracking-[1.6px] text-brand-terracottaDark', className)}
       {...rest}
     />
   );

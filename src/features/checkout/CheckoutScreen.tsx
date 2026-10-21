@@ -275,7 +275,7 @@ function Confirmation({ orderNo, onDone }: { orderNo: string; onDone: () => void
   return (
     <Screen className="gap-6 px-6" topGap={HEADER_CLEARANCE} bottomGap={32}>
       <View className="flex-1 items-center justify-center gap-4 py-16">
-        <View className="h-16 w-16 items-center justify-center rounded-full bg-brand-green">
+        <View className="h-16 w-16 items-center justify-center rounded-full bg-brand-terracottaDark">
           <Display className="text-white">✓</Display>
         </View>
         <Heading className="text-center">Order placed</Heading>

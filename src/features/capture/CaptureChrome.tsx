@@ -9,8 +9,8 @@ import { LinearGradient } from 'expo-linear-gradient';
 import { GlassSurface } from '../../components/ui';
 import { fonts, palette } from '../../theme/tokens';
 
-/** Sage tint for a passed state on native glass (same as the check chips). */
-export const GLASS_OK_TINT = 'rgba(47,125,82,0.35)';
+/** Terracotta tint for a passed state on native glass (same as the check chips). */
+export const GLASS_OK_TINT = 'rgba(194,106,74,0.35)';
 
 // The kit's radial glow (#3a322b at ~42% height fading to #111) as a vertical gradient; the
 // camera preview covers it once frames arrive, so it only shows while the camera spins up.
@@ -70,7 +70,7 @@ const styles = StyleSheet.create({
     borderWidth: StyleSheet.hairlineWidth * 2,
     borderColor: 'rgba(255,255,255,0.22)',
   },
-  hintPillPass: { backgroundColor: 'rgba(47,125,82,0.26)', borderColor: 'rgba(47,125,82,0.5)' },
+  hintPillPass: { backgroundColor: 'rgba(194,106,74,0.26)', borderColor: 'rgba(194,106,74,0.5)' },
   hintText: { color: 'rgba(255,255,255,0.92)', fontFamily: fonts.bodyMedium, fontSize: 15 },
   hintTextPass: { color: palette.white },
   cancelText: { color: palette.white, fontFamily: fonts.bodySemibold, fontSize: 15 },

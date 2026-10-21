@@ -1,10 +1,10 @@
 /** @type {import('tailwindcss').Config} */
-// TrueTone design system — brief green/terracotta on warm off-white.
+// TrueTone design system: terracotta on warm off-white.
 // Palette + type live here so every screen reskins from one source of truth.
 //
 // Section 0 re-theme: token KEYS are unchanged so ~134 screens reskin with zero
 // screen edits — only VALUES move from the old bronze "Mist" palette (Fraunces/
-// Mulish) to the brief palette: green #2f7d52 anchor + terracotta #c26a4a accent
+// Mulish) to the brief palette: dark terracotta #9a4e34 anchor + pale rose #F8EEE7 wash
 // + Plus Jakarta Sans (display) / Inter (body). The fitzpatrick + shade-swatch
 // gradients stay WARM (real skin/foundation tones = data, not brand).
 module.exports = {
@@ -13,11 +13,11 @@ module.exports = {
   theme: {
     extend: {
       colors: {
-        // Dominant surface — warm off-white washing to white, green-tinted rise.
+        // Dominant surface: warm off-white washing to white with a pale rose rise.
         mist: {
           50: '#fffdf9',
           100: '#faf7f2',
-          200: '#e7f1ea',
+          200: '#F8EEE7',
           300: '#EBE2D3',
           400: '#DED4C4',
         },
@@ -41,17 +41,17 @@ module.exports = {
           muted: '#8A8378',
           faint: '#a89f8f',
         },
-        // Green remains for positive states and active tabs; dark terracotta is the accessible action color.
+        // Former green class names remain as compatibility aliases; all render terracotta.
         brand: {
-          green: '#2f7d52',
-          greenDark: '#245f3f',
+          green: '#9a4e34',
+          greenDark: '#9a4e34',
           terracotta: '#c26a4a',
           terracottaDark: '#9a4e34',
-          tint: '#e7f1ea',
+          tint: '#F8EEE7',
           charcoal: '#1f2a26',
           offwhite: '#faf7f2',
         },
-        sage: '#2f7d52',
+        sage: '#9a4e34',
         clay: '#c26a4a',
         // Inclusive Fitzpatrick I–VI scale (onboarding tone strip + fairness UI).
         // Mirrored in src/theme/tokens.ts as `fitzpatrick`.

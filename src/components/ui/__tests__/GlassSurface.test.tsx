@@ -24,13 +24,13 @@ beforeEach(() => {
 
 test('renders native interactive glass with its tint when Liquid Glass is available', async () => {
   const view = await render(
-    <GlassSurface style={{ borderRadius: 24 }} tintColor="#2f7d52" interactive fallbackStyle={FILL}>
+    <GlassSurface style={{ borderRadius: 24 }} tintColor="#9a4e34" interactive fallbackStyle={FILL}>
       <Text>child</Text>
     </GlassSurface>,
   );
   const glass = view.getByTestId('native-glass');
   expect(glass.props.isInteractive).toBe(true);
-  expect(glass.props.tintColor).toBe('#2f7d52');
+  expect(glass.props.tintColor).toBe('#9a4e34');
   expect(glass.props.glassEffectStyle).toBe('regular');
   expect(glass).toHaveStyle({ borderRadius: 24 });
   // The fallback fill must not tint over the real glass.

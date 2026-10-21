@@ -4,7 +4,7 @@
 //
 // Refinement summary (see CHANGES.md):
 //  • +fitzpatrick scale  — inclusive I–VI tone swatches (also added to tailwind)
-//  • +sage/clay (+ ink + tint) — the existing semantic tokens, now usable in StyleSheet land
+//  • legacy sage/clay keys remain as compatibility aliases for StyleSheet callers
 //  • +glass.highlight    — brighter top edge for the frosted surfaces
 //  • mistGradient        — a touch more white "air" in the mid-wash
 //  • softShadow          — softer + wider mauve elevation
@@ -13,7 +13,7 @@ export const palette = {
   background: '#faf7f2',
   mist50: '#fffdf9',
   mist100: '#faf7f2',
-  mist200: '#e7f1ea',
+  mist200: '#F8EEE7',
   mist300: '#EBE2D3',
   mist400: '#DED4C4',
   rose100: '#F8EEE7',
@@ -27,16 +27,16 @@ export const palette = {
   inkSoft: '#6B655B',
   inkMuted: '#8A8378',
   inkFaint: '#a89f8f',
-  // Green remains for positive states; dark terracotta keeps action text and white-on-fill labels readable.
-  sage: '#2f7d52',
-  sageInk: '#245f3f',
+  // Former green keys remain as compatibility aliases; all brand UI colors now use terracotta.
+  sage: '#9a4e34',
+  sageInk: '#9a4e34',
   clay: '#c26a4a',
   clayInk: '#9a4e34',
-  green: '#2f7d52',
-  greenDark: '#245f3f',
+  green: '#9a4e34',
+  greenDark: '#9a4e34',
   terracotta: '#c26a4a',
   terracottaDark: '#9a4e34',
-  tint: '#e7f1ea',
+  tint: '#F8EEE7',
   charcoal: '#1f2a26',
   offwhite: '#faf7f2',
   dark: '#221F1A',
@@ -54,10 +54,9 @@ export const fitzpatrick = ['#F5D9C0', '#EBC19A', '#D9A579', '#B97A50', '#8A5232
 // Also WARM by design: real foundation tones are data, not brand.
 export const shadeGradient = ['#F7E7D2', '#E9C39A', '#D9A878'] as const;
 
-// The brand mesh: a calm vertical wash — a soft green breath up top settling into
-// warm off-white, with a whisper of the green tint returning at the base.
+// The brand mesh: a calm vertical wash from pale rose into warm off-white.
 export const mistGradient = {
-  colors: [palette.tint, palette.offwhite, palette.mist50, palette.tint] as const,
+  colors: [palette.rose100, palette.offwhite, palette.mist50, palette.rose100] as const,
   locations: [0, 0.48, 0.82, 1] as const,
   start: { x: 0.1, y: 0 },
   end: { x: 0.9, y: 1 },
@@ -77,7 +76,7 @@ export const glass = {
 // Soft tints for the cosmetic band labels on the results screen (Result.tsx).
 // fg = readable text colour, bg = the pill behind it.
 export const bandTint = {
-  sage: { fg: palette.sageInk, bg: 'rgba(47,125,82,0.14)' },
+  sage: { fg: palette.terracottaDark, bg: palette.rose100 },
   mauve: { fg: palette.inkSoft, bg: 'rgba(138,131,120,0.12)' },
   clay: { fg: palette.clayInk, bg: 'rgba(194,106,74,0.14)' },
 } as const;

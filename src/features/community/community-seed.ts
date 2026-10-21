@@ -29,7 +29,7 @@ export const SEED_POSTS: readonly CommunityPost[] = [
   {
     id: 'post-1',
     creator: SEED_CREATORS[0],
-    creatorColor: '#2f7d52',
+    creatorColor: '#9a4e34',
     caption: 'Five-minute dewy base for warm days. Two layers of tint, pressed in with fingers.',
     media: [media('post-1-a', 'photo', 'Dewy base', '#E9C39A', require('../../../assets/photos/community/post1.jpg'))],
     taggedProductIds: ['lum-tint-01', 'lum-serum-04'],

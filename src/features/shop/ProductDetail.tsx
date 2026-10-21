@@ -88,8 +88,8 @@ function ProductPage({ productId, profile, shadeName, onScan, onAdded, onClose, 
         <View className="-mt-7 rounded-t-[28px] bg-mist-50 px-6 pt-6">
           <View className="flex-row items-center justify-between">
             <Eyebrow>{line}</Eyebrow>
-            <View className="rounded-full bg-brand-tint px-2.5 py-1">
-              <Text className="font-body-semibold text-[11.5px] text-brand-greenDark">Sample</Text>
+            <View className="rounded-full bg-rose-100 px-2.5 py-1">
+              <Text className="font-body-semibold text-[11.5px] text-brand-terracottaDark">Sample</Text>
             </View>
           </View>
           <Heading className="mt-2">{title}</Heading>
@@ -105,17 +105,17 @@ function ProductPage({ productId, profile, shadeName, onScan, onAdded, onClose, 
           <Caption testID="sample-catalog-label" className="mt-1.5 text-[11px] text-ink-soft">{SAMPLE_CATALOG_LABEL}</Caption>
 
           {tier && reason ? (
-            <View className="mt-5 rounded-card bg-brand-tint px-4 py-3.5">
+            <View className="mt-5 rounded-card bg-rose-100 px-4 py-3.5">
               <View className="flex-row items-baseline justify-between gap-2">
-                <Text testID="fit-tier" className="flex-1 font-body-bold text-[14px] text-brand-greenDark">
+                <Text testID="fit-tier" className="flex-1 font-body-bold text-[14px] text-brand-terracottaDark">
                   {FIT_TIER_LABELS[tier]}
                   {shadeName ? ` for ${shadeName}` : ''}
                 </Text>
                 {tier === 'great' ? (
-                  <Text testID="fit-your-match" className="font-body text-[12px] text-brand-greenDark">Your match</Text>
+                  <Text testID="fit-your-match" className="font-body text-[12px] text-brand-terracottaDark">Your match</Text>
                 ) : null}
               </View>
-              <Text className="mt-1.5 font-body text-[13px] text-brand-greenDark">{reason}</Text>
+              <Text className="mt-1.5 font-body text-[13px] text-brand-terracottaDark">{reason}</Text>
             </View>
           ) : (
             <ScanPrompt onScan={onScan} />
@@ -276,7 +276,7 @@ function ShadePicker({ options, selected, onSelect, scanned }: ShadePickerProps)
     <View className="mt-6">
       <Text className="font-body text-[14px] text-ink-soft">
         Shade · <Text testID="selected-shade" className="font-body-semibold text-ink">{picked?.label}</Text>
-        {picked?.isYourMatch && scanned ? <Text className="font-body-semibold text-sage"> · Your match</Text> : null}
+        {picked?.isYourMatch && scanned ? <Text className="font-body-semibold text-brand-terracottaDark"> · Your match</Text> : null}
       </Text>
       <View className="mt-3 flex-row flex-wrap gap-3">
         {options.map((o, i) => (
@@ -302,7 +302,7 @@ function ShadePicker({ options, selected, onSelect, scanned }: ShadePickerProps)
               <View style={{ width: 36, height: 36, borderRadius: 18, backgroundColor: o.color }} />
             </View>
             {o.isYourMatch && scanned ? (
-              <View className="absolute right-0 top-0 h-4 w-4 items-center justify-center rounded-full border-2 border-mist-50 bg-sage">
+              <View className="absolute right-0 top-0 h-4 w-4 items-center justify-center rounded-full border-2 border-mist-50 bg-brand-terracottaDark">
                 <CheckGlyph color={palette.white} size={6} />
               </View>
             ) : null}

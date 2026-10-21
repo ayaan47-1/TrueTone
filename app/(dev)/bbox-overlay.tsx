@@ -40,7 +40,7 @@ const DISPLAY_EDGE = 320;
 
 // Distinct colours so a single mis-placed region is identifiable, not just "the boxes look wrong".
 const REGION_COLORS: Record<(typeof REGION_NAMES)[number], string> = {
-  cheekL: '#34d399',
+  cheekL: '#c26a4a',
   cheekR: '#22d3ee',
   infraorbitalL: '#a78bfa',
   infraorbitalR: '#f472b6',
@@ -486,7 +486,7 @@ const styles = StyleSheet.create({
   body: { color: '#e2e8f0', fontSize: 13 },
   mono: { fontFamily: 'monospace', fontSize: 12 },
   sideLabel: { fontSize: 10, fontWeight: '700', marginLeft: 1 },
-  good: { color: '#34d399' },
+  good: { color: '#e8b095' },
   warn: { color: '#fbbf24' },
   bad: { color: '#f87171' },
   btn: {

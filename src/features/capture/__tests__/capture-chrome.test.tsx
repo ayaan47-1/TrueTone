@@ -24,9 +24,9 @@ test('the hint pill is native glass and shows the hint', async () => {
   expect(pill.props.glassEffectStyle).toBe('regular');
 });
 
-test('the hint pill takes a sage tint once every check passes', async () => {
+test('the hint pill takes a terracotta tint once every check passes', async () => {
   const view = await render(<GlassHintPill text="Looking good — hold still" pass />);
-  expect(view.getByTestId('capture-hint-pill').props.tintColor).toBe('rgba(47,125,82,0.35)');
+  expect(view.getByTestId('capture-hint-pill').props.tintColor).toBe('rgba(194,106,74,0.35)');
 });
 
 test('the cancel pill is native glass and calls onPress', async () => {

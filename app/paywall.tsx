@@ -42,7 +42,7 @@ export default function PaywallScreen() {
             >
               <View className="flex-row items-center gap-2.5">
                 <Heading>Yearly</Heading>
-                <View className="rounded-full bg-brand-green px-2.5 py-1">
+                <View className="rounded-full bg-brand-terracottaDark px-2.5 py-1">
                   <Body className="text-white">Best value</Body>
                 </View>
               </View>

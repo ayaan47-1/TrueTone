@@ -45,7 +45,7 @@ const NATIVE_TABS: readonly { name: TabKey; label: string; sf: SFSymbol; sfSelec
  */
 function NativeTabsLayout() {
   return (
-    <NativeTabs tintColor={palette.sage}>
+    <NativeTabs tintColor={palette.terracottaDark}>
       {NATIVE_TABS.map((t) => (
         <NativeTabs.Trigger key={t.name} name={t.name} disableAutomaticContentInsets>
           <NativeTabs.Trigger.Icon sf={{ default: t.sf, selected: t.sfSelected }} />

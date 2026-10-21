@@ -96,10 +96,10 @@ export function ProfileCard({ summary, scanned, avatarUri, avatarDisabled, onAva
           {summary.profileLine ? <Caption numberOfLines={1}>{summary.profileLine}</Caption> : null}
           <View
             className="mt-1.5 flex-row items-center self-start gap-1.5 rounded-full py-1 pl-[5px] pr-2.5"
-            style={{ backgroundColor: scanned ? palette.tint : palette.mist300 }}
+            style={{ backgroundColor: scanned ? palette.rose100 : palette.mist300 }}
           >
             <LinearGradient colors={scanned ? shadeGradient : ([palette.inkFaint, palette.inkFaint] as const)} style={{ width: 14, height: 14, borderRadius: 7 }} />
-            <Text className="font-body text-[11.5px] font-semibold" style={{ color: scanned ? palette.sageInk : palette.inkSoft }}>
+            <Text className="font-body text-[11.5px] font-semibold" style={{ color: scanned ? palette.terracottaDark : palette.inkSoft }}>
               {summary.shadeLabel}
             </Text>
           </View>

@@ -61,8 +61,8 @@ test('every tab has an SF Symbol with a filled selected variant', async () => {
   }
 });
 
-test('selected tint is the locked sage accent and Home is the initial tab', async () => {
+test('selected tint is accessible terracotta and Home is the initial tab', async () => {
   await render(<TabsLayout />);
-  expect(mockHost.props?.tintColor).toBe(palette.sage);
+  expect(mockHost.props?.tintColor).toBe(palette.terracottaDark);
   expect(unstable_settings.initialRouteName).toBe('index');
 });

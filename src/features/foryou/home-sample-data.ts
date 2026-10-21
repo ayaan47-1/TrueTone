@@ -16,12 +16,12 @@ export interface SampleRoutineStep {
 
 export const SAMPLE_ROUTINE: Readonly<Record<RoutineSlot, readonly SampleRoutineStep[]>> = {
   AM: [
-    { title: 'Prep', detail: 'Lightweight moisturizer', tone: '#e7f1ea' },
+    { title: 'Prep', detail: 'Lightweight moisturizer', tone: '#F8EEE7' },
     { title: 'Base', detail: 'Skin tint, pressed in', tone: '#EBE2D3' },
     { title: 'Set', detail: 'Cream blush + brow gel', tone: '#F8EEE7' },
   ],
   PM: [
-    { title: 'Remove', detail: 'Cleansing balm', tone: '#e7f1ea' },
+    { title: 'Remove', detail: 'Cleansing balm', tone: '#F8EEE7' },
     { title: 'Refresh', detail: 'Hydrating mist', tone: '#EBE2D3' },
     { title: 'Rest', detail: 'Overnight lip balm', tone: '#F8EEE7' },
   ],

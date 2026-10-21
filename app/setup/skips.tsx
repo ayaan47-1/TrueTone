@@ -45,7 +45,7 @@ export default function SkipsScreen() {
                 <View
                   className={
                     'rounded-full border px-4 py-2.5 ' +
-                    (on ? 'bg-brand-green border-brand-green' : 'bg-transparent border-ink-faint')
+                    (on ? 'bg-brand-terracottaDark border-brand-terracottaDark' : 'bg-transparent border-ink-faint')
                   }
                 >
                   <Body className={on ? 'text-white' : 'text-ink-soft'}>{SKIP_LABELS[skip]}</Body>

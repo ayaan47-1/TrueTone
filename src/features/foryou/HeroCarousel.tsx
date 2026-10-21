@@ -145,7 +145,7 @@ function LookSlide({ width, onShop }: { width: number; onShop: () => void }) {
       photo={HERO_PHOTOS.look}
       wash={['rgba(250,247,242,0.96)', 'rgba(250,247,242,0.8)', 'rgba(250,247,242,0)']}
     >
-      <Text className={`${eyebrow} text-sage`}>Finish your look</Text>
+      <Text className={`${eyebrow} text-brand-terracottaDark`}>Finish your look</Text>
       <Text className={`${title} max-w-[180px] text-ink`}>Your base, complete</Text>
       <Text className="mt-1.5 max-w-[170px] font-body text-[13px] leading-[19px] text-ink-soft">
         Tint, blush and brow, picked to go together.

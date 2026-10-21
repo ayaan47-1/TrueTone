@@ -88,11 +88,11 @@ const styles = StyleSheet.create({
     height: 24,
     borderRadius: 8,
     borderWidth: 2,
-    borderColor: palette.sage,
+    borderColor: palette.terracottaDark,
     backgroundColor: 'rgba(255,255,255,0.6)',
     alignItems: 'center',
     justifyContent: 'center',
   },
-  boxOn: { backgroundColor: palette.sage, borderColor: palette.sage },
+  boxOn: { backgroundColor: palette.terracottaDark, borderColor: palette.terracottaDark },
   tick: { color: '#fff', fontSize: 14, fontWeight: '700', lineHeight: 16 },
 });

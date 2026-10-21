@@ -22,7 +22,7 @@ const { line } = productLine(product);
 function expectEyebrow(node: { props: { className?: string } }) {
   const cls = String(node.props.className ?? '');
   expect(cls).toContain('tracking-[1.6px]');
-  expect(cls).toContain('text-brand-green');
+  expect(cls).toContain('text-brand-terracottaDark');
   expect(cls).not.toMatch(/tracking-\[1(\.[024])?px\]/);
 }
 
