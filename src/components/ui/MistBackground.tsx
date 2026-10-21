@@ -48,7 +48,7 @@ export function MistBackground({ children, style, ...rest }: ViewProps) {
             height: bloom.mauve,
             bottom: -bloom.mauve * 0.3,
             left: -bloom.mauve * 0.4,
-            backgroundColor: palette.sage,
+            backgroundColor: palette.terracottaDark,
             opacity: 0.05,
           },
         ]}

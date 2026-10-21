@@ -53,7 +53,7 @@ const styles = StyleSheet.create({
     backgroundColor: 'transparent',
   },
   cellToday: {
-    backgroundColor: palette.sage,
+    backgroundColor: palette.terracottaDark,
   },
   dot: { width: 8, height: 8, borderRadius: 4 },
   // A small check drawn as a rotated corner.

@@ -134,8 +134,8 @@ function LocalProductArt({ shopifyProductId, title }: { readonly shopifyProductI
   const localProduct = catalog.find((product) => product.id === localId);
   if (localProduct) return <View className="h-[72px] w-[72px]"><ProductArt product={localProduct} height={72} radius={18} /></View>;
   return (
-    <View className="h-[72px] w-[72px] items-center justify-center rounded-[18px] bg-brand-tint px-2">
-      <Text numberOfLines={2} className="text-center font-body-semibold text-[10px] text-brand-greenDark">{title}</Text>
+    <View className="h-[72px] w-[72px] items-center justify-center rounded-[18px] bg-rose-100 px-2">
+      <Text numberOfLines={2} className="text-center font-body-semibold text-[10px] text-brand-terracottaDark">{title}</Text>
     </View>
   );
 }

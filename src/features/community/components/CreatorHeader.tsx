@@ -16,7 +16,7 @@ interface CreatorHeaderProps {
   color?: string;
 }
 
-const SWATCHES = [palette.sage, palette.mauve500, palette.mauve400] as const;
+const SWATCHES = [palette.terracottaDark, palette.ink, palette.mauve700] as const;
 
 function swatchFor(userId: string): string {
   let hash = 0;

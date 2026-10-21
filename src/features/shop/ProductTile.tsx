@@ -64,7 +64,7 @@ export function ProductTile({ product, tier, isBestMatch = false, artHeight = 13
       >
         <ProductArt product={product} height={artHeight} radius={16} photo={photo}>
           {isBestMatch && tier ? (
-            <View testID="best-match-badge" className="absolute left-2.5 top-2.5 rounded-full bg-sage px-2.5 py-0.5">
+            <View testID="best-match-badge" className="absolute left-2.5 top-2.5 rounded-full bg-brand-terracottaDark px-2.5 py-0.5">
               <Text className="font-body-semibold text-[10.5px] text-white">{BEST_MATCH_BADGE}</Text>
             </View>
           ) : null}
@@ -81,7 +81,7 @@ export function ProductTile({ product, tier, isBestMatch = false, artHeight = 13
           </Text>
           <SampleRatingLine productId={product.id} enabled={showRatings} />
           {tier ? (
-            <Caption testID="fit-tier" className="font-body-bold text-[11px] text-brand-greenDark">
+            <Caption testID="fit-tier" className="font-body-bold text-[11px] text-brand-terracottaDark">
               {FIT_TIER_LABELS[tier]}
             </Caption>
           ) : null}

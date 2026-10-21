@@ -86,7 +86,7 @@ function Label({ text }: { text: string }) {
 function Chip({ label, selected, onPress }: { label: string; selected: boolean; onPress: () => void }) {
   return (
     <PressableScale accessibilityRole="button" accessibilityLabel={label} accessibilityState={{ selected }} onPress={onPress}>
-      <View className={'rounded-full border px-4 py-2 ' + (selected ? 'border-brand-green bg-brand-green' : 'border-ink-faint bg-transparent')}>
+      <View className={'rounded-full border px-4 py-2 ' + (selected ? 'border-brand-terracottaDark bg-brand-terracottaDark' : 'border-ink-faint bg-transparent')}>
         <Text className={'font-body-medium text-[14px] ' + (selected ? 'text-white' : 'text-ink-soft')}>{label}</Text>
       </View>
     </PressableScale>

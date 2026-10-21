@@ -49,11 +49,10 @@ import { writeUprightStill, type CaptureMeta } from './capture-upright';
 import { CaptureBackdrop, GlassCancelButton, GlassHintPill, GLASS_OK_TINT } from './CaptureChrome';
 
 const PRIVACY_LINE = 'Analyzed on your device · never leaves your phone · deleted after your read';
-// Shipped "pass / ready" accent = the app's brand green (Quiet Glass), so the capture success
-// state matches every other positive state in the app instead of an off-brand emerald.
-const PASS = palette.sage;
-// PASS_GREEN stays a bright emerald for the __DEV__ metrics overlay ONLY (a diagnostic, never shipped).
-const PASS_GREEN = '#34d399';
+// The pass state uses a brighter terracotta so its dot stays visible over the dark camera preview.
+const PASS = palette.terracotta;
+// The dev-only metrics overlay uses a lighter tint for readable text over its dark surface.
+const PASS_TERRACOTTA_LIGHT = '#e8b095';
 const TICK_MS = 33; // ~30fps drive for the auto-capture state machine
 // The v3 design lifts the oval above the bottom controls instead of centring it on the whole screen.
 const OVAL_LIFT = 130;
@@ -323,7 +322,7 @@ function CheckChip({ label, ok }: { label: string; ok: boolean }) {
 // (THRESHOLDS + luma SHARPNESS_SCALE). Rendered only under __DEV__; not part of the shipped UI.
 function DebugRow({ label, value, range, ok }: { label: string; value: string; range: string; ok: boolean }) {
   return (
-    <Text style={[styles.dbgRow, { color: ok ? PASS_GREEN : '#fca5a5' }]}>
+    <Text style={[styles.dbgRow, { color: ok ? PASS_TERRACOTTA_LIGHT : '#fca5a5' }]}>
       {ok ? '✓' : '✗'} {label} {value} <Text style={styles.dbgRange}>{range}</Text>
     </Text>
   );
@@ -406,7 +405,7 @@ const styles = StyleSheet.create({
     borderWidth: StyleSheet.hairlineWidth,
     borderColor: 'rgba(255,255,255,0.22)',
   },
-  chipOk: { backgroundColor: 'rgba(47,125,82,0.22)', borderColor: 'rgba(47,125,82,0.4)' },
+  chipOk: { backgroundColor: 'rgba(194,106,74,0.22)', borderColor: 'rgba(194,106,74,0.4)' },
   chipDot: { width: 6, height: 6, borderRadius: 3, backgroundColor: 'rgba(255,255,255,0.55)' },
   chipDotOk: { backgroundColor: PASS },
   chipText: { color: 'rgba(255,255,255,0.78)', fontFamily: fonts.bodyMedium, fontSize: 13 },

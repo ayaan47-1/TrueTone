@@ -47,7 +47,7 @@ export function ProductCard({ product, profile, isBestMatch = false }: ProductCa
   return (
     <GlassCard testID={`product-${product.id}`} className="gap-2 p-4" flat>
       {isBestMatch && fit !== null ? (
-        <View className="self-start rounded-full bg-brand-green px-3 py-1" testID="best-match-badge">
+        <View className="self-start rounded-full bg-brand-terracottaDark px-3 py-1" testID="best-match-badge">
           <Caption className="text-white">{BEST_MATCH_BADGE}</Caption>
         </View>
       ) : null}
@@ -61,8 +61,8 @@ export function ProductCard({ product, profile, isBestMatch = false }: ProductCa
 
       {fit !== null ? (
         <View className="gap-1.5">
-          <View className="self-start rounded-full border border-brand-green px-2.5 py-1" testID="fit-pill">
-            <Caption className="text-brand-green">{FIT_TIER_LABELS[fitTier(fit)]}</Caption>
+          <View className="self-start rounded-full border border-brand-terracottaDark px-2.5 py-1" testID="fit-pill">
+            <Caption className="text-brand-terracottaDark">{FIT_TIER_LABELS[fitTier(fit)]}</Caption>
           </View>
           <Caption className="text-ink-soft">{reason}</Caption>
         </View>

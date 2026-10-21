@@ -6,7 +6,12 @@ describe('Quiet Glass design contract', () => {
     expect(palette.ink).toBe('#221F1A');
     expect(palette.inkSoft).toBe('#6B655B');
     expect(palette.inkMuted).toBe('#8A8378');
-    expect(palette.sage).toBe('#2f7d52');
+    expect(palette.sage).toBe('#9a4e34');
+    expect(palette.sageInk).toBe('#9a4e34');
+    expect(palette.green).toBe('#9a4e34');
+    expect(palette.greenDark).toBe('#9a4e34');
+    expect(palette.tint).toBe('#F8EEE7');
+    expect(palette.mist200).toBe('#F8EEE7');
     expect(palette.clay).toBe('#c26a4a');
     expect(palette.terracotta).toBe('#c26a4a');
     expect(palette.terracottaDark).toBe('#9a4e34');

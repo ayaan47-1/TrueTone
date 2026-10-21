@@ -117,7 +117,7 @@ export function AgeGate({ userId, onPass }: { userId: string; onPass: () => void
           <View
             accessibilityElementsHidden
             importantForAccessibility="no-hide-descendants"
-            className="h-6 w-6 rounded-full bg-sage items-center justify-center"
+            className="h-6 w-6 rounded-full bg-brand-terracottaDark items-center justify-center"
           >
             <Text className="text-white text-[13px] font-bold leading-4">✓</Text>
           </View>
