@@ -10,8 +10,7 @@ jest.mock('expo-router', () => ({
   },
 }));
 jest.mock('../../src/lib/scans', () => ({
-  SCAN_HISTORY_PAGE_SIZE: 30,
-  fetchScanHistory: jest.fn(() => Promise.resolve([{ id: '1' }, { id: '2' }, { id: '3' }])),
+  fetchScanHistoryCount: jest.fn(() => Promise.resolve(3)),
 }));
 jest.mock('../../src/lib/profile-context', () => ({
   useProfile: () => ({ userId: 'test-user', loading: false, error: false, route: 'home', refresh: jest.fn() }),
@@ -115,8 +114,8 @@ describe('Account tab (v3 video t-15/t-17)', () => {
   });
 
   it('hides the seasonal caption when scan history fails to load', async () => {
-    const { fetchScanHistory } = require('../../src/lib/scans');
-    fetchScanHistory.mockImplementationOnce(() => Promise.reject(new Error('offline')));
+    const { fetchScanHistoryCount } = require('../../src/lib/scans');
+    fetchScanHistoryCount.mockImplementationOnce(() => Promise.reject(new Error('offline')));
     const view = await render(<YouScreen />);
     await flush();
     expect(view.queryByText(/of 5 scans logged/)).toBeNull();
@@ -162,14 +161,12 @@ describe('Account tab (v3 video t-15/t-17)', () => {
     await flush();
   });
 
-  it('labels the capped history result as 30+ rather than an exact total', async () => {
-    const { fetchScanHistory } = require('../../src/lib/scans');
-    fetchScanHistory.mockImplementationOnce(() => Promise.resolve(
-      Array.from({ length: 30 }, (_, index) => ({ id: String(index) })),
-    ));
+  it('shows the exact scan count rather than the first page size', async () => {
+    const { fetchScanHistoryCount } = require('../../src/lib/scans');
+    fetchScanHistoryCount.mockImplementationOnce(() => Promise.resolve(47));
     const view = await render(<YouScreen />);
     await flush();
-    expect(view.getByText('30+ scans')).toBeTruthy();
-    expect(view.queryByText('30 scans')).toBeNull();
+    expect(view.getByText('47 scans')).toBeTruthy();
+    expect(view.queryByText('30+ scans')).toBeNull();
   });
 });

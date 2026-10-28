@@ -4,9 +4,18 @@ const mockRpc = jest.fn();
 const mockFrom = jest.fn();
 jest.mock('../supabase', () => ({ supabase: { rpc: (...a: unknown[]) => mockRpc(...a), from: (...a: unknown[]) => mockFrom(...a) } }));
 
-import { recordScan, fetchScanHistory, fetchRecentShadeMatches, clearShadeHistory } from '../scans';
+import {
+  clearShadeHistory,
+  fetchRecentShadeMatches,
+  fetchScanById,
+  fetchScanHistory,
+  fetchScanHistoryCount,
+  fetchScanHistoryPage,
+  recordScan,
+} from '../scans';
 import { DIMENSIONS } from '../../content/cosmetic-vocab';
 import type { ReadResult } from '../../features/read/read-types';
+import { getShadeHistoryRevision } from '../../features/shade-history/shade-history-revision';
 
 const result: ReadResult = {
   scores: Object.fromEntries(DIMENSIONS.map((d) => [d, 0.5])) as ReadResult['scores'],
@@ -21,6 +30,7 @@ const baseRow = {
 beforeEach(() => jest.clearAllMocks());
 
 test('recordScan sends the shade as band words + capture mode', async () => {
+  const revisionBefore = getShadeHistoryRevision();
   mockRpc.mockResolvedValue({ error: null });
   await recordScan(result, null, 'good', {
     shade: { shadeName: 'Tan Warm', undertone: 'warm', depth: 7, finish: 'satin' },
@@ -29,6 +39,7 @@ test('recordScan sends the shade as band words + capture mode', async () => {
   const args = mockRpc.mock.calls[0][1];
   expect(args.p_shade).toEqual({ depthBand: 'tan', undertone: 'warm', finish: 'satin', shadeName: 'Tan Warm' });
   expect(args.p_capture_mode).toBe('pair');
+  expect(getShadeHistoryRevision()).toBe(revisionBefore + 1);
 });
 
 test('recordScan without a shade sends nulls (existing callers unchanged)', async () => {
@@ -61,6 +72,29 @@ test('fetchScanHistory maps shade columns onto each scan', async () => {
   expect(without.captureMode).toBeNull();
 });
 
+test('fetchScanHistoryCount uses an exact head count without downloading rows', async () => {
+  const select = jest.fn(async () => ({ count: 47, error: null }));
+  mockFrom.mockReturnValue({ select });
+  await expect(fetchScanHistoryCount()).resolves.toBe(47);
+  expect(select).toHaveBeenCalledWith('id', { count: 'exact', head: true });
+});
+
+test('fetchScanHistoryPage requests the requested range', async () => {
+  const range = jest.fn(async () => ({ data: [baseRow], error: null }));
+  const order = jest.fn(() => ({ range }));
+  mockFrom.mockReturnValue({ select: () => ({ order }) });
+  await expect(fetchScanHistoryPage(30, 30)).resolves.toHaveLength(1);
+  expect(range).toHaveBeenCalledWith(30, 59);
+});
+
+test('fetchScanById queries that scan directly', async () => {
+  const maybeSingle = jest.fn(async () => ({ data: baseRow, error: null }));
+  const eq = jest.fn(() => ({ maybeSingle }));
+  mockFrom.mockReturnValue({ select: () => ({ eq }) });
+  await expect(fetchScanById('s1')).resolves.toEqual(expect.objectContaining({ id: 's1' }));
+  expect(eq).toHaveBeenCalledWith('id', 's1');
+});
+
 test('fetchRecentShadeMatches selects only labelled rows, newest first, limited', async () => {
   const limit = jest.fn(async () => ({
     data: [{ id: 's1', captured_at: '2026-09-20T10:00:00Z', shade_depth_band: 'light', shade_undertone: 'cool',
@@ -87,9 +121,11 @@ test('fetchRecentShadeMatches throws on error', async () => {
 });
 
 test('clearShadeHistory calls the clear_shade_history RPC and throws on error', async () => {
+  const revisionBefore = getShadeHistoryRevision();
   mockRpc.mockResolvedValueOnce({ error: null });
   await clearShadeHistory();
   expect(mockRpc).toHaveBeenCalledWith('clear_shade_history');
+  expect(getShadeHistoryRevision()).toBe(revisionBefore + 1);
   mockRpc.mockResolvedValueOnce({ error: { message: 'x' } });
   await expect(clearShadeHistory()).rejects.toThrow('clear-shade-history-failed');
 });

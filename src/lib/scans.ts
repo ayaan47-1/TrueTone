@@ -8,6 +8,7 @@ import type { SkinAgeEstimate } from '../features/age/age-types';
 import { type RoutineHelpful, isRoutineHelpful } from '../features/feedback/types';
 import type { CurrentShade } from '../features/session/personalization';
 import { type ShadeLabels, toShadeLabels } from '../features/shade/shade-history';
+import { bumpShadeHistoryRevision } from '../features/shade-history/shade-history-revision';
 
 export type CaptureMode = 'pair' | 'single';
 
@@ -51,6 +52,7 @@ export async function recordScan(
   const routine = buildRoutine(skincareDomain, { scores: r.scores, skinType: r.skinType });
   if (SUPABASE_OFFLINE) {
     recordLocalScan(r, routine, age, captureQuality ?? r.captureQuality ?? null, extras);
+    if (extras.shade) bumpShadeHistoryRevision();
     return;
   }
   const { error } = await supabase.rpc('record_scan', {
@@ -67,6 +69,7 @@ export async function recordScan(
     p_capture_mode: extras.captureMode ?? null,
   });
   if (error) throw new Error('record-scan-failed');
+  if (extras.shade) bumpShadeHistoryRevision();
 }
 
 // Camera-build scan store (Dwight FAIL on PR #60): under SUPABASE_OFFLINE the derived scores stay
@@ -104,6 +107,7 @@ function recordLocalScan(
 /** Camera build only: drops every on-device scan (Your Data -> delete). */
 export function clearCameraDemoScans(): void {
   localScans = [];
+  bumpShadeHistoryRevision();
 }
 
 function rowToShade(row: Record<string, unknown>): ShadeLabels | null {
@@ -170,8 +174,48 @@ export async function fetchScanHistory(limit = SCAN_HISTORY_PAGE_SIZE): Promise<
   return (data ?? []).map((r) => rowToScan(r as Record<string, unknown>));
 }
 
+export async function fetchScanHistoryCount(): Promise<number> {
+  if (SUPABASE_OFFLINE) return localScans.length;
+  const { count, error } = await supabase
+    .from('scans')
+    .select('id', { count: 'exact', head: true });
+  if (error || count == null) throw new Error('fetch-scan-history-count-failed');
+  return count;
+}
+
+export async function fetchScanHistoryPage(
+  offset = 0,
+  limit = SCAN_HISTORY_PAGE_SIZE,
+): Promise<Scan[]> {
+  if (SUPABASE_OFFLINE) return localScans.slice(offset, offset + limit);
+  const { data, error } = await supabase
+    .from('scans')
+    .select('*')
+    .order('captured_at', { ascending: false })
+    .range(offset, offset + limit - 1);
+  if (error) throw new Error('fetch-scan-history-failed');
+  return (data ?? []).map((row) => rowToScan(row as Record<string, unknown>));
+}
+
+export async function fetchScanById(scanId: string): Promise<Scan | null> {
+  if (SUPABASE_OFFLINE) return localScans.find((scan) => scan.id === scanId) ?? null;
+  const { data, error } = await supabase
+    .from('scans')
+    .select('*')
+    .eq('id', scanId)
+    .maybeSingle();
+  if (error) throw new Error('fetch-scan-failed');
+  return data ? rowToScan(data as Record<string, unknown>) : null;
+}
+
 /** The user's last few matched shades (labels only; no scores), newest first. */
 export async function fetchRecentShadeMatches(limit = 5): Promise<ShadeMatchEntry[]> {
+  if (SUPABASE_OFFLINE) {
+    return localScans
+      .filter((scan): scan is Scan & { shade: ShadeLabels } => scan.shade !== null)
+      .slice(0, limit)
+      .map((scan) => ({ id: scan.id, capturedAt: scan.capturedAt, shade: scan.shade }));
+  }
   const { data, error } = await supabase
     .from('scans')
     .select('id, captured_at, shade_depth_band, shade_undertone, shade_finish, shade_name')
@@ -190,8 +234,10 @@ export async function fetchRecentShadeMatches(limit = 5): Promise<ShadeMatchEntr
 export async function clearShadeHistory(): Promise<void> {
   if (SUPABASE_OFFLINE) {
     localScans = localScans.map((scan) => ({ ...scan, shade: null, captureMode: null }));
+    bumpShadeHistoryRevision();
     return;
   }
   const { error } = await supabase.rpc('clear_shade_history');
   if (error) throw new Error('clear-shade-history-failed');
+  bumpShadeHistoryRevision();
 }

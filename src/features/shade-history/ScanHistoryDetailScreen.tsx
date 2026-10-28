@@ -22,18 +22,18 @@ type DetailState =
 
 interface ScanHistoryDetailScreenProps {
   scanId: string;
-  loadHistory: () => Promise<Scan[]>;
+  loadScan: (scanId: string) => Promise<Scan | null>;
   onBack: () => void;
 }
 
-export function ScanHistoryDetailScreen({ scanId, loadHistory, onBack }: ScanHistoryDetailScreenProps) {
+export function ScanHistoryDetailScreen({ scanId, loadScan, onBack }: ScanHistoryDetailScreenProps) {
   const [state, setState] = useState<DetailState>({ kind: 'loading' });
   const load = useCallback(() => {
     setState({ kind: 'loading' });
-    void loadHistory()
-      .then((scans) => setState({ kind: 'ready', scan: scans.find((scan) => scan.id === scanId) ?? null }))
+    void loadScan(scanId)
+      .then((scan) => setState({ kind: 'ready', scan }))
       .catch(() => setState({ kind: 'error' }));
-  }, [loadHistory, scanId]);
+  }, [loadScan, scanId]);
 
   useEffect(load, [load]);
 

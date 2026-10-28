@@ -1,7 +1,8 @@
 // src/features/foryou/__tests__/use-recent-shade-matches.test.ts
-import { renderHook, waitFor } from '@testing-library/react-native';
+import { act, renderHook, waitFor } from '@testing-library/react-native';
 import { useRecentShadeMatches } from '../use-recent-shade-matches';
 import type { ShadeMatchEntry } from '../../../lib/scans';
+import { bumpShadeHistoryRevision } from '../../shade-history/shade-history-revision';
 
 const entry: ShadeMatchEntry = {
   id: 'a', capturedAt: '2026-09-27T15:00:00Z',
@@ -36,6 +37,14 @@ test('refetches when the refresh key changes (a new scan)', async () => {
   );
   await waitFor(() => expect(fetcher).toHaveBeenCalledTimes(1));
   await rerender({ k: 'two' });
+  await waitFor(() => expect(fetcher).toHaveBeenCalledTimes(2));
+});
+
+test('refetches after shade history changes even when the shade name stays the same', async () => {
+  const fetcher = jest.fn().mockResolvedValue([entry]);
+  await renderHook(() => useRecentShadeMatches({ fetcher, enabled: true, refreshKey: 'Warm Sand' }));
+  await waitFor(() => expect(fetcher).toHaveBeenCalledTimes(1));
+  await act(async () => { bumpShadeHistoryRevision(); });
   await waitFor(() => expect(fetcher).toHaveBeenCalledTimes(2));
 });
 

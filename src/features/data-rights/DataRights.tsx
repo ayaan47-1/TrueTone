@@ -1,7 +1,7 @@
 import { useRef, useState } from 'react';
 import { View, Text, Pressable } from 'react-native';
 import { supabase, SUPABASE_OFFLINE } from '../../lib/supabase';
-import { clearCameraDemoScans } from '../../lib/scans';
+import { clearCameraDemoScans, clearShadeHistory } from '../../lib/scans';
 import { cameraDemoReset, cameraDemoWithdrawConsent } from '../../lib/camera-demo-profile';
 import { clearDiary } from '../diary/diary-storage';
 import { clearAllRoutines } from '../routine/routine-storage';
@@ -15,7 +15,13 @@ type Props = { onChanged: () => void; confirm: (msg: string) => Promise<boolean>
 
 const ACTIONS: { id: string; rpc: RpcName; label: string; hint: string; danger?: boolean; confirm: string }[] = [
   { id: 'withdraw', rpc: 'withdraw_consent', label: 'Withdraw Consent', hint: 'Stop future scans until you consent again.', confirm: 'Withdraw consent?' },
-  { id: 'clear-shade-history', rpc: 'clear_shade_history', label: 'Clear Shade History', hint: 'Remove your saved shade matches. Your account stays.', confirm: 'Clear your saved shade matches?' },
+  {
+    id: 'clear-shade-history',
+    rpc: 'clear_shade_history',
+    label: 'Remove saved shade labels',
+    hint: 'Remove saved shade words. Dates, scores, routines, and scan records remain. Use Delete My Data below to erase scans and scores.',
+    confirm: 'Remove your saved shade labels?',
+  },
   { id: 'delete-data', rpc: 'delete_my_data', label: 'Delete My Data', hint: 'Erase your scans and derived scores.', confirm: 'Delete all your data?' },
   { id: 'delete-account', rpc: 'delete_account', label: 'Delete Account', hint: 'Permanently remove your account.', danger: true, confirm: 'Delete your account permanently?' },
 ];
@@ -67,6 +73,11 @@ export function DataRights({ onChanged, confirm }: Props) {
       onChanged();
       return;
     }
+    if (fn === 'clear_shade_history') {
+      await clearShadeHistory();
+      onChanged();
+      return;
+    }
     clearCameraDemoScans();
     if (fn === 'delete_account') cameraDemoReset();
     return finishLocalWipe(fn === 'delete_account');
@@ -75,6 +86,15 @@ export function DataRights({ onChanged, confirm }: Props) {
   async function run(fn: RpcName, msg: string) {
     if (!(await confirm(msg))) return;
     if (SUPABASE_OFFLINE) return runLocalOnly(fn);
+    if (fn === 'clear_shade_history') {
+      try {
+        await clearShadeHistory();
+      } catch {
+        return;
+      }
+      onChanged();
+      return;
+    }
     const { error } = await supabase.rpc(fn);
     if (error) return;
     // The account row is gone but the cached session still holds its token; drop it so the

@@ -38,7 +38,7 @@ describe('ScanHistoryDetailScreen', () => {
     const view = await render(
       <ScanHistoryDetailScreen
         scanId="scan-detail"
-        loadHistory={() => Promise.resolve([scan])}
+        loadScan={(scanId) => Promise.resolve(scanId === scan.id ? scan : null)}
         onBack={onBack}
       />,
     );
@@ -58,5 +58,11 @@ describe('ScanHistoryDetailScreen', () => {
 
     await fireEvent.press(view.getByRole('button', { name: 'Back' }));
     expect(onBack).toHaveBeenCalledTimes(1);
+  });
+
+  it('loads the requested scan directly instead of searching the first history page', async () => {
+    const loadScan = jest.fn().mockResolvedValue(scan);
+    await render(<ScanHistoryDetailScreen scanId="scan-detail" loadScan={loadScan} onBack={jest.fn()} />);
+    await waitFor(() => expect(loadScan).toHaveBeenCalledWith('scan-detail'));
   });
 });

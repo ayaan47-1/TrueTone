@@ -15,7 +15,7 @@ import { CameraGlyph, ShopGlyph, TodayGlyph, TrendGlyph } from '../../src/compon
 import { TextField } from '../../src/components/ui/TextField';
 import { useProfile } from '../../src/lib/profile-context';
 import { DEMO_MODE } from '../../src/lib/supabase';
-import { fetchScanHistory, SCAN_HISTORY_PAGE_SIZE } from '../../src/lib/scans';
+import { fetchScanHistoryCount } from '../../src/lib/scans';
 import { palette } from '../../src/theme/tokens';
 import { useCommunityProfile } from '../../src/features/identity/use-community-profile';
 import { RoutineLogger } from '../../src/features/routine/components/RoutineLogger';
@@ -55,8 +55,8 @@ export default function YouScreen() {
     useCallback(() => {
       let cancelled = false;
       setSavedCount(shelfStore.get().length);
-      fetchScanHistory()
-        .then((scans) => { if (!cancelled) setScanCount(scans.length); })
+      fetchScanHistoryCount()
+        .then((count) => { if (!cancelled) setScanCount(count); })
         .catch(() => { if (!cancelled) setScanCount(null); });
       return () => { cancelled = true; };
     }, []),
@@ -179,9 +179,7 @@ export default function YouScreen() {
               label: 'Scan History',
               caption: scanCount === null
                 ? undefined
-                : scanCount >= SCAN_HISTORY_PAGE_SIZE
-                  ? `${SCAN_HISTORY_PAGE_SIZE}+ scans`
-                  : `${scanCount} ${scanCount === 1 ? 'scan' : 'scans'}`,
+                : `${scanCount} ${scanCount === 1 ? 'scan' : 'scans'}`,
               onPress: () => router.push('/scan-history'),
             },
             { label: 'Your Data', onPress: () => router.push('/data') },

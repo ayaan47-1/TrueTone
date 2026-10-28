@@ -174,7 +174,7 @@ test('"Clear shade history" calls clear_shade_history only, separate from accoun
   const { getByTestId } = await render(<DataRights onChanged={onChanged} confirm={confirm} />);
   await fireEvent.press(getByTestId('clear-shade-history'));
   await waitFor(() => expect(mockRpc).toHaveBeenCalledWith('clear_shade_history'));
-  expect(confirm).toHaveBeenCalledWith('Clear your saved shade matches?');
+  expect(confirm).toHaveBeenCalledWith('Remove your saved shade labels?');
   expect(mockRpc).toHaveBeenCalledTimes(1);
   expect(mockClearDiary).not.toHaveBeenCalled();
   expect(onChanged).toHaveBeenCalled();

@@ -13,6 +13,7 @@ import {
   Subheading,
 } from '../../components/ui';
 import type { Scan } from '../../lib/scans';
+import { SCAN_HISTORY_PAGE_SIZE } from '../../lib/scans';
 import { formatShadeMatch } from '../shade/shade-history';
 import { glass, palette } from '../../theme/tokens';
 import { formatHistoryDate } from './history-format';
@@ -21,10 +22,15 @@ import { HistoryChip, ILLUSTRATIVE_CHIP_COPY } from './HistoryChip';
 type HistoryState =
   | { kind: 'loading' }
   | { kind: 'error' }
-  | { kind: 'ready'; scans: readonly Scan[] };
+  | {
+      kind: 'ready';
+      scans: readonly Scan[];
+      hasMore: boolean;
+      nextPage: 'idle' | 'loading' | 'error';
+    };
 
 interface ScanHistoryScreenProps {
-  loadHistory: () => Promise<Scan[]>;
+  loadHistory: (offset: number, limit: number) => Promise<Scan[]>;
   clearHistory: () => Promise<void>;
   onBack: () => void;
   onOpen: (scanId: string) => void;
@@ -40,8 +46,13 @@ export function ScanHistoryScreen({ loadHistory, clearHistory, onBack, onOpen }:
 
   const load = useCallback(() => {
     setState({ kind: 'loading' });
-    void loadHistory()
-      .then((scans) => setState({ kind: 'ready', scans }))
+    void loadHistory(0, SCAN_HISTORY_PAGE_SIZE)
+      .then((scans) => setState({
+        kind: 'ready',
+        scans,
+        hasMore: scans.length === SCAN_HISTORY_PAGE_SIZE,
+        nextPage: 'idle',
+      }))
       .catch(() => setState({ kind: 'error' }));
   }, [loadHistory]);
 
@@ -57,6 +68,8 @@ export function ScanHistoryScreen({ loadHistory, clearHistory, onBack, onOpen }:
         ? {
             kind: 'ready',
             scans: current.scans.map((scan) => ({ ...scan, shade: null, captureMode: null })),
+            hasMore: current.hasMore,
+            nextPage: current.nextPage,
           }
         : current);
       setConfirmOpen(false);
@@ -64,6 +77,27 @@ export function ScanHistoryScreen({ loadHistory, clearHistory, onBack, onOpen }:
       setClearError(true);
     } finally {
       setClearing(false);
+    }
+  };
+
+  const loadMore = async (): Promise<void> => {
+    if (state.kind !== 'ready' || !state.hasMore || state.nextPage === 'loading') return;
+    const offset = state.scans.length;
+    setState({ ...state, nextPage: 'loading' });
+    try {
+      const scans = await loadHistory(offset, SCAN_HISTORY_PAGE_SIZE);
+      setState((current) => current.kind === 'ready'
+        ? {
+            kind: 'ready',
+            scans: [...current.scans, ...scans],
+            hasMore: scans.length === SCAN_HISTORY_PAGE_SIZE,
+            nextPage: 'idle',
+          }
+        : current);
+    } catch {
+      setState((current) => current.kind === 'ready'
+        ? { ...current, nextPage: 'error' }
+        : current);
     }
   };
 
@@ -100,6 +134,21 @@ export function ScanHistoryScreen({ loadHistory, clearHistory, onBack, onOpen }:
           <View style={styles.listGap}>
             {state.scans.map((scan) => <HistoryRow key={scan.id} scan={scan} onOpen={onOpen} />)}
           </View>
+          {state.hasMore ? (
+            <View className="mt-5">
+              <PrimaryButton
+                label={state.nextPage === 'loading'
+                  ? 'Loading…'
+                  : state.nextPage === 'error'
+                    ? 'Try loading more'
+                    : 'Load more'}
+                variant="ghost"
+                disabled={state.nextPage === 'loading'}
+                fullWidth
+                onPress={() => { void loadMore(); }}
+              />
+            </View>
+          ) : null}
           <Caption className="mt-6 text-center">{FOOTER}</Caption>
           {state.scans.some((scan) => scan.shade !== null) ? (
             <View className="mt-6 border-t pt-5" style={{ borderTopColor: palette.mist400 }}>

@@ -164,4 +164,30 @@ describe('ScanHistoryScreen', () => {
     await waitFor(() => expect(view.getByText('Shade removed')).toBeTruthy());
     expect(clearHistory).toHaveBeenCalledTimes(2);
   });
+
+  it('loads older scans a page at a time', async () => {
+    const firstPage = Array.from({ length: 30 }, (_, index) => ({
+      ...warmSandScan,
+      id: `scan-${index}`,
+      shade: { ...warmSandScan.shade!, shadeName: `Shade ${index}` },
+    }));
+    const olderScan = { ...deepNeutralScan, id: 'scan-older', shade: { ...deepNeutralScan.shade!, shadeName: 'Older Shade' } };
+    const loadHistory = jest.fn((offset: number, limit: number) => Promise.resolve(
+      offset === 0 ? firstPage.slice(0, limit) : [olderScan],
+    ));
+    const view = await render(
+      <ScanHistoryScreen
+        loadHistory={loadHistory}
+        clearHistory={() => Promise.resolve()}
+        onBack={jest.fn()}
+        onOpen={jest.fn()}
+      />,
+    );
+
+    await waitFor(() => expect(view.getByText('Shade 0')).toBeTruthy());
+    expect(loadHistory).toHaveBeenCalledWith(0, 30);
+    await fireEvent.press(view.getByRole('button', { name: 'Load more' }));
+    await waitFor(() => expect(view.getByText('Older Shade')).toBeTruthy());
+    expect(loadHistory).toHaveBeenLastCalledWith(30, 30);
+  });
 });

@@ -6,11 +6,15 @@ import { cameraDemoSetConsent, cameraDemoSetIs18, cameraDemoState } from '../../
 const mockRpc = jest.fn();
 const mockSignOut = jest.fn();
 const mockClearScans = jest.fn();
+const mockClearShadeHistory = jest.fn(() => Promise.resolve());
 jest.mock('../../../lib/supabase', () => ({
   SUPABASE_OFFLINE: true,
   supabase: { rpc: (...a: unknown[]) => mockRpc(...a), auth: { signOut: (...a: unknown[]) => mockSignOut(...a) } },
 }));
-jest.mock('../../../lib/scans', () => ({ clearCameraDemoScans: () => mockClearScans() }));
+jest.mock('../../../lib/scans', () => ({
+  clearCameraDemoScans: () => mockClearScans(),
+  clearShadeHistory: () => mockClearShadeHistory(),
+}));
 const mockClearDiary = jest.fn(() => Promise.resolve());
 jest.mock('../../diary/diary-storage', () => ({ clearDiary: () => mockClearDiary() }));
 
@@ -37,6 +41,17 @@ test('delete data wipes on-device scans and stores, no RPC', async () => {
   await waitFor(() => expect(onChanged).toHaveBeenCalled());
   expect(mockClearScans).toHaveBeenCalledTimes(1);
   expect(mockClearDiary).toHaveBeenCalledTimes(1);
+  expect(mockRpc).not.toHaveBeenCalled();
+});
+
+test('remove saved shade labels clears only local shade fields, not scans or other stores', async () => {
+  const onChanged = jest.fn();
+  const { getByTestId } = await render(<DataRights onChanged={onChanged} confirm={async () => true} />);
+  await fireEvent.press(getByTestId('clear-shade-history'));
+  await waitFor(() => expect(onChanged).toHaveBeenCalled());
+  expect(mockClearShadeHistory).toHaveBeenCalledTimes(1);
+  expect(mockClearScans).not.toHaveBeenCalled();
+  expect(mockClearDiary).not.toHaveBeenCalled();
   expect(mockRpc).not.toHaveBeenCalled();
 });
 

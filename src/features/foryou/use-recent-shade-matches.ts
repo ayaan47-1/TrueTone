@@ -1,7 +1,11 @@
 // src/features/foryou/use-recent-shade-matches.ts
 // Loads the user's last few saved shade matches (labels only) for the For You tab.
-import { useEffect, useState } from 'react';
+import { useEffect, useState, useSyncExternalStore } from 'react';
 import { fetchRecentShadeMatches, type ShadeMatchEntry } from '../../lib/scans';
+import {
+  getShadeHistoryRevision,
+  subscribeShadeHistoryRevision,
+} from '../shade-history/shade-history-revision';
 
 export const RECENT_MATCHES_LIMIT = 5;
 
@@ -24,6 +28,11 @@ export function useRecentShadeMatches({
   fetcher = fetchRecentShadeMatches,
 }: Options): RecentMatchesState {
   const [state, setState] = useState<RecentMatchesState>({ status: 'loading' });
+  const historyRevision = useSyncExternalStore(
+    subscribeShadeHistoryRevision,
+    getShadeHistoryRevision,
+    getShadeHistoryRevision,
+  );
   useEffect(() => {
     if (!enabled) {
       setState({ status: 'ready', matches: [] });
@@ -36,6 +45,6 @@ export function useRecentShadeMatches({
       .then((matches) => { if (live) setState({ status: 'ready', matches }); })
       .catch(() => { if (live) setState({ status: 'error' }); });
     return () => { live = false; };
-  }, [enabled, refreshKey, fetcher]);
+  }, [enabled, refreshKey, fetcher, historyRevision]);
   return state;
 }
