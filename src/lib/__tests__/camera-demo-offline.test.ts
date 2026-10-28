@@ -112,6 +112,28 @@ describe('camera demo with production-looking env', () => {
     expect(await scans.fetchScanHistory()).toEqual([]);
   });
 
+  test('removing saved shade labels works locally and preserves the scan record', async () => {
+    const { supa, scans } = load(CAM);
+    const rpcSpy = jest.spyOn(supa.supabase, 'rpc');
+    await scans.recordScan(STUB_RESULT, null, 'good', {
+      shade: { shadeName: 'Warm Sand', undertone: 'warm', depth: 7, finish: 'satin' },
+      captureMode: 'pair',
+    });
+    expect((await scans.fetchScanHistory())[0]).toEqual(expect.objectContaining({
+      shade: expect.objectContaining({ shadeName: 'Warm Sand' }),
+      captureMode: 'pair',
+    }));
+
+    await scans.clearShadeHistory();
+
+    expect((await scans.fetchScanHistory())[0]).toEqual(expect.objectContaining({
+      shade: null,
+      captureMode: null,
+    }));
+    expect(rpcSpy).not.toHaveBeenCalled();
+    expect(fetchSpy).not.toHaveBeenCalled();
+  });
+
   test('chat fails closed without invoking the edge function', async () => {
     const { supa, chat } = load(CAM);
     const invokeSpy = jest.spyOn(supa.supabase.functions, 'invoke');

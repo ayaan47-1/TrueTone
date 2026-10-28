@@ -40,6 +40,8 @@ export interface Scan {
   captureMode: CaptureMode | null;
 }
 
+export const SCAN_HISTORY_PAGE_SIZE = 30;
+
 export async function recordScan(
   r: ReadResult,
   age: SkinAgeEstimate | null = null,
@@ -157,7 +159,7 @@ export async function fetchLatestScan(): Promise<Scan | null> {
   return data ? rowToScan(data as Record<string, unknown>) : null;
 }
 
-export async function fetchScanHistory(limit = 30): Promise<Scan[]> {
+export async function fetchScanHistory(limit = SCAN_HISTORY_PAGE_SIZE): Promise<Scan[]> {
   if (SUPABASE_OFFLINE) return localScans.slice(0, limit);
   const { data, error } = await supabase
     .from('scans')
@@ -184,8 +186,12 @@ export async function fetchRecentShadeMatches(limit = 5): Promise<ShadeMatchEntr
   });
 }
 
-/** Data Rights "Clear shade history": nulls the user's saved shade labels, keeps the scans. */
+/** Removes saved shade/capture labels while preserving the scan record and its other fields. */
 export async function clearShadeHistory(): Promise<void> {
+  if (SUPABASE_OFFLINE) {
+    localScans = localScans.map((scan) => ({ ...scan, shade: null, captureMode: null }));
+    return;
+  }
   const { error } = await supabase.rpc('clear_shade_history');
   if (error) throw new Error('clear-shade-history-failed');
 }

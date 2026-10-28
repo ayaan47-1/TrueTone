@@ -16,7 +16,7 @@ import type { Scan } from '../../lib/scans';
 import { formatShadeMatch } from '../shade/shade-history';
 import { glass, palette } from '../../theme/tokens';
 import { formatHistoryDate } from './history-format';
-import { HistoryChip } from './HistoryChip';
+import { HistoryChip, ILLUSTRATIVE_CHIP_COPY } from './HistoryChip';
 
 type HistoryState =
   | { kind: 'loading' }
@@ -95,6 +95,7 @@ export function ScanHistoryScreen({ loadHistory, clearHistory, onBack, onOpen }:
           <Eyebrow className="mt-4">Your past scans</Eyebrow>
           <Display className="mt-2">Scan History</Display>
           <Body className="mt-2">Your saved shade words, newest first.</Body>
+          <Caption className="mt-2">{ILLUSTRATIVE_CHIP_COPY}</Caption>
           <Eyebrow className="mb-2.5 mt-7 ml-1">Recent scans</Eyebrow>
           <View style={styles.listGap}>
             {state.scans.map((scan) => <HistoryRow key={scan.id} scan={scan} onOpen={onOpen} />)}
@@ -103,14 +104,17 @@ export function ScanHistoryScreen({ loadHistory, clearHistory, onBack, onOpen }:
           {state.scans.some((scan) => scan.shade !== null) ? (
             <View className="mt-6 border-t pt-5" style={{ borderTopColor: palette.mist400 }}>
               <PrimaryButton
-                label="Clear shade history"
+                label="Remove saved shade labels"
                 variant="ghost"
                 fullWidth
                 onPress={() => setConfirmOpen(true)}
               />
             </View>
           ) : (
-            <Body className="mt-5 text-center">Your shade history was cleared. Scan dates remain in your history.</Body>
+            <Body className="mt-5 text-center">
+              Saved shade labels were removed. Scan dates, skin-appearance scores, routines, and other scan records remain.
+              {' '}To erase scans and derived scores, go to Your Data → Delete My Data.
+            </Body>
           )}
         </View>
       ) : null}
@@ -163,13 +167,16 @@ function ClearConfirmation({
 }) {
   return (
     <View style={styles.modalBackdrop} accessibilityViewIsModal>
-      <Pressable style={StyleSheet.absoluteFill} accessibilityRole="button" accessibilityLabel="Cancel clear shade history" onPress={onCancel} />
+      <Pressable style={StyleSheet.absoluteFill} accessibilityRole="button" accessibilityLabel="Cancel removing saved shade labels" onPress={onCancel} />
       <GlassCard radius={28} className="px-6 py-7" style={styles.modalCard}>
-        <Subheading>Clear saved shade labels?</Subheading>
-        <Body className="mt-2">Scan dates stay in your history. Saved shade names and labels will be removed.</Body>
-        {error ? <Caption accessibilityRole="alert" className="mt-3 text-red-600">Couldn&apos;t clear shade history. Try again.</Caption> : null}
+        <Subheading>Remove saved shade labels?</Subheading>
+        <Body className="mt-2">
+          This removes saved shade names, depth, undertone, finish, and capture labels. Scan dates, skin-appearance scores,
+          {' '}routines, and other scan records remain. To erase scans and derived scores, go to Your Data → Delete My Data.
+        </Body>
+        {error ? <Caption accessibilityRole="alert" className="mt-3 text-red-600">Couldn&apos;t remove saved shade labels. Try again.</Caption> : null}
         <View className="mt-5 gap-3">
-          <PrimaryButton label={clearing ? 'Clearing…' : error ? 'Try again' : 'Clear saved shades'} disabled={clearing} fullWidth onPress={onConfirm} />
+          <PrimaryButton label={clearing ? 'Removing…' : error ? 'Try again' : 'Remove labels'} disabled={clearing} fullWidth onPress={onConfirm} />
           <PrimaryButton label="Cancel" variant="ghost" disabled={clearing} fullWidth onPress={onCancel} />
         </View>
       </GlassCard>

@@ -10,6 +10,7 @@ jest.mock('expo-router', () => ({
   },
 }));
 jest.mock('../../src/lib/scans', () => ({
+  SCAN_HISTORY_PAGE_SIZE: 30,
   fetchScanHistory: jest.fn(() => Promise.resolve([{ id: '1' }, { id: '2' }, { id: '3' }])),
 }));
 jest.mock('../../src/lib/profile-context', () => ({
@@ -159,5 +160,16 @@ describe('Account tab (v3 video t-15/t-17)', () => {
     expect(view.getByRole('button', { name: 'Delete everything' })).toBeTruthy();
     expect(view.getByText(/not a medical device/i)).toBeTruthy();
     await flush();
+  });
+
+  it('labels the capped history result as 30+ rather than an exact total', async () => {
+    const { fetchScanHistory } = require('../../src/lib/scans');
+    fetchScanHistory.mockImplementationOnce(() => Promise.resolve(
+      Array.from({ length: 30 }, (_, index) => ({ id: String(index) })),
+    ));
+    const view = await render(<YouScreen />);
+    await flush();
+    expect(view.getByText('30+ scans')).toBeTruthy();
+    expect(view.queryByText('30 scans')).toBeNull();
   });
 });

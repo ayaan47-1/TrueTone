@@ -13,7 +13,7 @@ import {
 } from '../../components/ui';
 import type { Scan } from '../../lib/scans';
 import { formatHistoryDate, depthLabel, finishLabel, undertoneLabel } from './history-format';
-import { HistoryChip } from './HistoryChip';
+import { HistoryChip, ILLUSTRATIVE_CHIP_COPY } from './HistoryChip';
 
 type DetailState =
   | { kind: 'loading' }
@@ -65,7 +65,7 @@ function Detail({ scan }: { scan: Scan }) {
       <View className="items-center pb-8 pt-10">
         <HistoryChip scanId={scan.id} shade={null} size={96} />
         <Display className="mt-5 text-center">Shade removed</Display>
-        <Body className="mt-2 text-center">Saved shade labels were cleared. This scan date remains in your history.</Body>
+        <Body className="mt-2 text-center">Saved shade labels were removed. This scan date and other scan records remain.</Body>
         <GlassCard flat radius={22} className="mt-7 w-full px-5 py-5">
           <Caption>Saved on</Caption>
           <Subheading className="mt-1">{date}</Subheading>
@@ -88,6 +88,7 @@ function Detail({ scan }: { scan: Scan }) {
       <Caption className="mt-2">{date}</Caption>
       <GlassCard flat radius={28} className="mt-5 items-center px-6 py-7">
         <HistoryChip scanId={scan.id} shade={scan.shade} size={96} />
+        <Caption className="mt-3 text-center">{ILLUSTRATIVE_CHIP_COPY}</Caption>
         <Eyebrow className="mt-5">Matched shade</Eyebrow>
         <Display className="mt-2 text-center">{scan.shade.shadeName}</Display>
         <Body className="mt-1 text-center">{depthLabel(scan.shade)}</Body>

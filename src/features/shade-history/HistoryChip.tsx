@@ -9,11 +9,15 @@ interface HistoryChipProps {
   size?: number;
 }
 
+export const ILLUSTRATIVE_CHIP_COPY = 'Colour chips are illustrative, based on saved shade words, not a skin measurement.';
+
 export function HistoryChip({ scanId, shade, size = 48 }: HistoryChipProps) {
   const backgroundColor = shade
     ? shadeHistoryChipColor(shade.depthBand, shade.undertone)
     : palette.mist200;
-  const label = shade ? `${shade.shadeName} design chip` : 'No saved shade';
+  const label = shade
+    ? `${shade.shadeName} illustrative colour chip based on saved shade words, not a skin measurement`
+    : 'Neutral placeholder chip; no saved shade words';
 
   return (
     <View

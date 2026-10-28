@@ -51,6 +51,7 @@ describe('ScanHistoryDetailScreen', () => {
     expect(view.getByText('Finish')).toBeTruthy();
     expect(view.getByText('Satin')).toBeTruthy();
     expect(view.getByText('Saved on')).toBeTruthy();
+    expect(view.getByText('Colour chips are illustrative, based on saved shade words, not a skin measurement.')).toBeTruthy();
     expect(view.getByText('Past matches are a record, not a measure of change.')).toBeTruthy();
     expect(view.queryByText(/score|confidence|accurate|real shade/i)).toBeNull();
     expect(JSON.stringify(view.toJSON())).not.toContain('RCTImageView');

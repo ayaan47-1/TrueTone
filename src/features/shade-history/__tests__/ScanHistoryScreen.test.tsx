@@ -60,8 +60,11 @@ describe('ScanHistoryScreen', () => {
     expect(view.getByText('Tan · Warm · Satin')).toBeTruthy();
     expect(view.getByText('Deep Neutral')).toBeTruthy();
     expect(view.getByText('Deep · Neutral · Natural')).toBeTruthy();
+    expect(view.getByText('Colour chips are illustrative, based on saved shade words, not a skin measurement.')).toBeTruthy();
     expect(view.getByText('Past matches are a record, not a measure of change.')).toBeTruthy();
-    expect(view.getByTestId('shade-chip-scan-warm-sand').props.style).toEqual(
+    const chip = view.getByTestId('shade-chip-scan-warm-sand');
+    expect(chip.props.accessibilityLabel).toBe('Warm Sand illustrative colour chip based on saved shade words, not a skin measurement');
+    expect(chip.props.style).toEqual(
       expect.objectContaining({ backgroundColor: expect.any(String) }),
     );
 
@@ -81,7 +84,7 @@ describe('ScanHistoryScreen', () => {
     );
 
     await waitFor(() => expect(view.getByText('No scans saved yet')).toBeTruthy());
-    expect(view.queryByRole('button', { name: 'Clear shade history' })).toBeNull();
+    expect(view.queryByRole('button', { name: 'Remove saved shade labels' })).toBeNull();
     await fireEvent.press(view.getByRole('button', { name: 'Back to Account' }));
     expect(onBack).toHaveBeenCalledTimes(1);
   });
@@ -101,17 +104,20 @@ describe('ScanHistoryScreen', () => {
     );
 
     await waitFor(() => expect(view.getByText('Warm Sand')).toBeTruthy());
-    await fireEvent.press(view.getByRole('button', { name: 'Clear shade history' }));
-    expect(view.getByText('Clear saved shade labels?')).toBeTruthy();
-    await fireEvent.press(view.getByRole('button', { name: 'Clear saved shades' }));
+    await fireEvent.press(view.getByRole('button', { name: 'Remove saved shade labels' }));
+    expect(view.getByText('Remove saved shade labels?')).toBeTruthy();
+    expect(view.getByText(/Scan dates, skin-appearance scores, routines, and other scan records remain/)).toBeTruthy();
+    expect(view.getByText(/Your Data → Delete My Data/)).toBeTruthy();
+    await fireEvent.press(view.getByRole('button', { name: 'Remove labels' }));
     expect(clearHistory).toHaveBeenCalledTimes(1);
     expect(view.getByText('Warm Sand', { includeHiddenElements: true })).toBeTruthy();
 
     finishClear?.();
     await waitFor(() => expect(view.getByText('Shade removed')).toBeTruthy());
     expect(view.queryByText('Warm Sand')).toBeNull();
-    expect(view.queryByRole('button', { name: 'Clear shade history' })).toBeNull();
-    expect(view.getByTestId('shade-chip-scan-warm-sand').props.accessibilityLabel).toBe('No saved shade');
+    expect(view.queryByRole('button', { name: 'Remove saved shade labels' })).toBeNull();
+    expect(view.getByText(/Saved shade labels were removed/)).toBeTruthy();
+    expect(view.getByTestId('shade-chip-scan-warm-sand').props.accessibilityLabel).toBe('Neutral placeholder chip; no saved shade words');
   });
 
   it('shows a retryable load error without presenting the empty state', async () => {
@@ -150,8 +156,8 @@ describe('ScanHistoryScreen', () => {
     );
 
     await waitFor(() => expect(view.getByText('Warm Sand')).toBeTruthy());
-    await fireEvent.press(view.getByRole('button', { name: 'Clear shade history' }));
-    await fireEvent.press(view.getByRole('button', { name: 'Clear saved shades' }));
+    await fireEvent.press(view.getByRole('button', { name: 'Remove saved shade labels' }));
+    await fireEvent.press(view.getByRole('button', { name: 'Remove labels' }));
     await waitFor(() => expect(view.getByRole('alert')).toBeTruthy());
     expect(view.getByText('Warm Sand', { includeHiddenElements: true })).toBeTruthy();
     await fireEvent.press(view.getByRole('button', { name: 'Try again' }));
