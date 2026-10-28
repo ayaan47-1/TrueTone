@@ -1,5 +1,5 @@
 -- supabase/tests/shade_history.test.sql
--- pgTAP coverage for migration 0032_shade_history (Dwight ruling, shade-history-ruling.md):
+-- pgTAP coverage for migration 0033_shade_history (Dwight ruling, shade-history-ruling.md):
 --   • shade label columns exist on scans, nullable; NO raw lightness/warmth/olive columns
 --   • record_scan round-trips shade words + capture mode; omitted shade stays NULL
 --   • RPC rejects out-of-vocabulary labels and any raw numeric keys (data minimization)
