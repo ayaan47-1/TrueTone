@@ -7,12 +7,12 @@ import { CvReadEngine } from './cv-read-engine';
 import { stubRead } from './stub-read';
 import { recordScan } from '../../lib/scans';
 import { estimateSkinAge } from '../age/skin-age-engine';
-import { personalization } from '../session/personalization';
+import { personalization, type CurrentShade } from '../session/personalization';
 import { deriveShade, deriveToneFromLab } from '../shade/derive-shade';
 
 interface Deps {
   engine?: ReadEngine;
-  persist?: (r: ReadResult) => Promise<void>;
+  persist?: (r: ReadResult, shade: CurrentShade | null) => Promise<void>;
 }
 
 export async function runRead(
@@ -21,8 +21,8 @@ export async function runRead(
   captureQuality: 'good' | 'fair' | 'poor' | null = null,
 ): Promise<void> {
   const engine = deps.engine ?? new CvReadEngine();
-  const persist = deps.persist ?? (async (result: ReadResult) => {
-    await recordScan(result, estimateSkinAge(result), captureQuality);
+  const persist = deps.persist ?? (async (result: ReadResult, shade: CurrentShade | null) => {
+    await recordScan(result, estimateSkinAge(result), captureQuality, { shade });
   });
   try {
     const result = await engine.run(photoUri);
@@ -31,21 +31,21 @@ export async function runRead(
     // renders off currentShade and the For You rail re-ranks off it. tone survives only in-memory
     // here (it does NOT round-trip through persistence), so map it now. Descriptors only; the image
     // is already deleted on-device (CLAUDE.md §3). Stub/no-CV reads have no tone -> no shade set.
-    if (result.tone) {
-      personalization.setScan(
-        deriveShade({
+    // The same shade's LABELS are saved to the user's shade history (words only, no tone numbers).
+    const shade = result.tone
+      ? deriveShade({
           ...deriveToneFromLab(result.tone),
           skinType: result.skinType,
           oiliness: result.scores.oiliness,
-        }),
-      );
-    }
-    await persist(result);
+        })
+      : null;
+    if (shade) personalization.setScan(shade);
+    await persist(result, shade);
   } catch (err) {
     if (__DEV__) {
       // Preview-only fallback: the device decode is unavailable off-device. Never reached on a
       // real Android dev build, where engine.run() returns a real cv-1 result.
-      await persist(stubRead());
+      await persist(stubRead(), null);
       return;
     }
     throw err;
