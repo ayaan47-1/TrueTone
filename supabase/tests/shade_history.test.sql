@@ -8,7 +8,7 @@
 --   • RLS select-own: another user's shade labels are not readable
 --   • delete_my_data() / consent withdrawal still purge rows carrying shade labels
 begin;
-select plan(26);
+select plan(28);
 
 insert into auth.users(id) values
   ('5ade0000-0000-0000-0000-000000000001'), ('5ade0000-0000-0000-0000-000000000002');
@@ -45,6 +45,10 @@ select ok(
     'public.record_scan(jsonb,text,text,boolean,jsonb,text,integer,numeric,text,jsonb,text)',
     'EXECUTE'),
   'only authenticated can execute record_scan');
+select ok(
+  not has_function_privilege('anon', 'public.clear_shade_history()', 'EXECUTE')
+  and has_function_privilege('authenticated', 'public.clear_shade_history()', 'EXECUTE'),
+  'only authenticated can execute clear_shade_history');
 
 -- ── 2. record_scan round-trip ────────────────────────────────────────────────
 set local role authenticated;
@@ -92,6 +96,14 @@ select throws_ok($$
     null, null, null,
     '{"depthBand":"7","undertone":"warm","finish":"satin","shadeName":"Tan Warm"}'::jsonb, null)
 $$, 'P0001', NULL, 'record_scan rejects a numeric depth instead of a band word');
+select throws_ok($$
+  select public.record_scan(
+    '{"hydration":0.5,"oiliness":0.5,"texture":0.5,"pores":0.5,
+      "darkSpots":0.5,"redness":0.5,"fineLines":0.5,"darkCircles":0.5}'::jsonb,
+    'dry', 'cv-1', false, '{"version":"skincare-1","am":[],"pm":[]}'::jsonb, 'skincare-1',
+    null, null, null,
+    '{"depthBand":"tan","undertone":"warm","finish":"satin","shadeName":"Tan１"}'::jsonb, null)
+$$, 'P0001', NULL, 'record_scan rejects non-ASCII digits in a shade name');
 select throws_ok($$
   select public.record_scan(
     '{"hydration":0.5,"oiliness":0.5,"texture":0.5,"pores":0.5,

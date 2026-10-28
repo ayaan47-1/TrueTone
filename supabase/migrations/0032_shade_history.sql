@@ -10,7 +10,7 @@ alter table public.scans
   add column if not exists shade_finish text null
     check (shade_finish is null or shade_finish in ('sheer','natural','satin','dewy','matte','glam')),
   add column if not exists shade_name text null
-    check (shade_name is null or (char_length(shade_name) between 1 and 40 and shade_name !~ '[0-9]')),
+    check (shade_name is null or shade_name ~ '^[A-Za-z][A-Za-z ''-]{0,39}$'),
   add column if not exists capture_mode text null
     check (capture_mode is null or capture_mode in ('pair','single'));
 
@@ -106,8 +106,7 @@ begin
     if p_shade->>'depthBand' not in ('fair','light','medium','tan','deep')
        or p_shade->>'undertone' not in ('warm','cool','neutral','olive')
        or p_shade->>'finish' not in ('sheer','natural','satin','dewy','matte','glam')
-       or char_length(p_shade->>'shadeName') not between 1 and 40
-       or p_shade->>'shadeName' ~ '[0-9]' then
+       or p_shade->>'shadeName' !~ '^[A-Za-z][A-Za-z ''-]{0,39}$' then
       raise exception 'invalid shade label' using errcode='P0001';
     end if;
   end if;
