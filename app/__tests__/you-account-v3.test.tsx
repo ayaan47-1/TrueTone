@@ -145,6 +145,11 @@ describe('Account tab (v3 video t-15/t-17)', () => {
 
   it('keeps data rights, policies and delete reachable below the new sections', async () => {
     const view = await render(<YouScreen />);
+    await flush();
+    expect(view.getByText('3 scans')).toBeTruthy();
+    fireEvent.press(view.getByRole('button', { name: 'Scan History' }));
+    await flush();
+    expect(mockPush).toHaveBeenCalledWith('/scan-history');
     fireEvent.press(view.getByRole('button', { name: 'Your Data' }));
     await flush();
     expect(mockPush).toHaveBeenCalledWith('/data');

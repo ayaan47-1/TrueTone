@@ -121,6 +121,8 @@ function Guard() {
         <Stack.Screen name="product/[id]" options={{ presentation: 'modal', headerShown: false }} />
         <Stack.Screen name="shop-bag" options={{ headerShown: false }} />
         <Stack.Screen name="shop-product/[handle]" options={{ presentation: 'modal', headerShown: false }} />
+        <Stack.Screen name="scan-history/index" options={{ headerShown: false }} />
+        <Stack.Screen name="scan-history/[id]" options={{ headerShown: false }} />
         <Stack.Screen
           name="policies/[doc]"
           options={{ presentation: 'transparentModal', headerShown: false, animation: 'fade' }}

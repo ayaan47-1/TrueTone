@@ -175,6 +175,11 @@ export default function YouScreen() {
         <AccountGroup
           title="Privacy"
           rows={[
+            {
+              label: 'Scan History',
+              caption: scanCount === null ? undefined : `${scanCount} ${scanCount === 1 ? 'scan' : 'scans'}`,
+              onPress: () => router.push('/scan-history'),
+            },
             { label: 'Your Data', onPress: () => router.push('/data') },
             { label: 'Privacy & Policies', onPress: () => router.push('/policies') },
             { label: 'Delete everything', destructive: true, onPress: () => router.push('/data') },
