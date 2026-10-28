@@ -28,7 +28,8 @@ comment on column public.scans.capture_mode is
   'How the selfie was captured: pair or single. Non-biometric metadata.';
 
 -- Drop both signatures before creating the sole canonical function. Without this, calls
--- omitting the two defaulted shade arguments can be ambiguous.
+-- omitting the two defaulted shade arguments can be ambiguous. Draft PR #64 must rebase its
+-- consent-posture changes onto this 11-argument body rather than recreating the 9-argument form.
 drop function if exists public.record_scan(
   jsonb, text, text, boolean, jsonb, text, int, numeric, text);
 drop function if exists public.record_scan(
