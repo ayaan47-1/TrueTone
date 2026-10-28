@@ -27,24 +27,32 @@ export function useRecentShadeMatches({
   refreshKey = null,
   fetcher = fetchRecentShadeMatches,
 }: Options): RecentMatchesState {
-  const [state, setState] = useState<RecentMatchesState>({ status: 'loading' });
   const historyRevision = useSyncExternalStore(
     subscribeShadeHistoryRevision,
     getShadeHistoryRevision,
     getShadeHistoryRevision,
   );
+  const [snapshot, setSnapshot] = useState<{
+    revision: number;
+    state: RecentMatchesState;
+  }>(() => ({ revision: historyRevision, state: { status: 'loading' } }));
   useEffect(() => {
     if (!enabled) {
-      setState({ status: 'ready', matches: [] });
+      setSnapshot({ revision: historyRevision, state: { status: 'ready', matches: [] } });
       return;
     }
     let live = true;
+    setSnapshot({ revision: historyRevision, state: { status: 'loading' } });
     // Promise.resolve().then() turns a synchronous throw into the same error state.
     Promise.resolve()
       .then(() => fetcher(RECENT_MATCHES_LIMIT))
-      .then((matches) => { if (live) setState({ status: 'ready', matches }); })
-      .catch(() => { if (live) setState({ status: 'error' }); });
+      .then((matches) => {
+        if (live) setSnapshot({ revision: historyRevision, state: { status: 'ready', matches } });
+      })
+      .catch(() => {
+        if (live) setSnapshot({ revision: historyRevision, state: { status: 'error' } });
+      });
     return () => { live = false; };
   }, [enabled, refreshKey, fetcher, historyRevision]);
-  return state;
+  return snapshot.revision === historyRevision ? snapshot.state : { status: 'loading' };
 }

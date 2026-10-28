@@ -1,4 +1,4 @@
-import { fireEvent, render, waitFor } from '@testing-library/react-native';
+import { act, fireEvent, render, waitFor } from '@testing-library/react-native';
 import type { Scan } from '../../../lib/scans';
 import { ScanHistoryScreen } from '../ScanHistoryScreen';
 
@@ -189,5 +189,41 @@ describe('ScanHistoryScreen', () => {
     await fireEvent.press(view.getByRole('button', { name: 'Load more' }));
     await waitFor(() => expect(view.getByText('Older Shade')).toBeTruthy());
     expect(loadHistory).toHaveBeenLastCalledWith(30, 30);
+  });
+
+  it('discards an older page that resolves after shade labels are removed', async () => {
+    const firstPage = Array.from({ length: 30 }, (_, index) => ({
+      ...warmSandScan,
+      id: `scan-${index}`,
+      shade: { ...warmSandScan.shade!, shadeName: `Shade ${index}` },
+    }));
+    const staleOlderScan = {
+      ...deepNeutralScan,
+      id: 'scan-stale',
+      shade: { ...deepNeutralScan.shade!, shadeName: 'Stale Older Shade' },
+    };
+    let resolveOlderPage: ((scans: Scan[]) => void) | undefined;
+    const loadHistory = jest.fn((offset: number) => offset === 0
+      ? Promise.resolve(firstPage)
+      : new Promise<Scan[]>((resolve) => { resolveOlderPage = resolve; }));
+    const view = await render(
+      <ScanHistoryScreen
+        loadHistory={loadHistory}
+        clearHistory={() => Promise.resolve()}
+        onBack={jest.fn()}
+        onOpen={jest.fn()}
+      />,
+    );
+
+    await waitFor(() => expect(view.getByText('Shade 0')).toBeTruthy());
+    await fireEvent.press(view.getByRole('button', { name: 'Load more' }));
+    await fireEvent.press(view.getByRole('button', { name: 'Remove saved shade labels' }));
+    await fireEvent.press(view.getByRole('button', { name: 'Remove labels' }));
+    await waitFor(() => expect(view.getAllByText('Shade removed')).toHaveLength(30));
+
+    await act(async () => { resolveOlderPage?.([staleOlderScan]); });
+
+    expect(view.queryByText('Stale Older Shade')).toBeNull();
+    expect(view.getAllByText('Shade removed')).toHaveLength(30);
   });
 });

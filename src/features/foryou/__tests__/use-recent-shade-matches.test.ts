@@ -48,6 +48,26 @@ test('refetches after shade history changes even when the shade name stays the s
   await waitFor(() => expect(fetcher).toHaveBeenCalledTimes(2));
 });
 
+test('hides cached labels synchronously while a revision refetch is pending', async () => {
+  let resolveRefetch: ((matches: ShadeMatchEntry[]) => void) | undefined;
+  const fetcher = jest
+    .fn<Promise<ShadeMatchEntry[]>, [number]>()
+    .mockResolvedValueOnce([entry])
+    .mockImplementationOnce(() => new Promise((resolve) => { resolveRefetch = resolve; }));
+  const { result } = await renderHook(() => useRecentShadeMatches({
+    fetcher,
+    enabled: true,
+    refreshKey: 'Warm Sand',
+  }));
+  await waitFor(() => expect(result.current).toEqual({ status: 'ready', matches: [entry] }));
+
+  await act(async () => { bumpShadeHistoryRevision(); });
+
+  expect(result.current).toEqual({ status: 'loading' });
+  resolveRefetch?.([]);
+  await waitFor(() => expect(result.current).toEqual({ status: 'ready', matches: [] }));
+});
+
 test('a fetcher that throws synchronously still lands in the error state (no crash)', async () => {
   const fetcher = jest.fn(() => { throw new Error('boom'); });
   const { result } = await renderHook(() => useRecentShadeMatches({ fetcher, enabled: true }));

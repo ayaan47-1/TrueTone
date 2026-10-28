@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import { Pressable, StyleSheet, View } from 'react-native';
 import {
   AppHeader,
@@ -43,6 +43,7 @@ export function ScanHistoryScreen({ loadHistory, clearHistory, onBack, onOpen }:
   const [confirmOpen, setConfirmOpen] = useState(false);
   const [clearing, setClearing] = useState(false);
   const [clearError, setClearError] = useState(false);
+  const requestGeneration = useRef(0);
 
   const load = useCallback(() => {
     setState({ kind: 'loading' });
@@ -64,12 +65,13 @@ export function ScanHistoryScreen({ loadHistory, clearHistory, onBack, onOpen }:
     setClearError(false);
     try {
       await clearHistory();
+      requestGeneration.current += 1;
       setState((current) => current.kind === 'ready'
         ? {
             kind: 'ready',
             scans: current.scans.map((scan) => ({ ...scan, shade: null, captureMode: null })),
             hasMore: current.hasMore,
-            nextPage: current.nextPage,
+            nextPage: 'idle',
           }
         : current);
       setConfirmOpen(false);
@@ -83,9 +85,11 @@ export function ScanHistoryScreen({ loadHistory, clearHistory, onBack, onOpen }:
   const loadMore = async (): Promise<void> => {
     if (state.kind !== 'ready' || !state.hasMore || state.nextPage === 'loading') return;
     const offset = state.scans.length;
+    const generation = requestGeneration.current;
     setState({ ...state, nextPage: 'loading' });
     try {
       const scans = await loadHistory(offset, SCAN_HISTORY_PAGE_SIZE);
+      if (generation !== requestGeneration.current) return;
       setState((current) => current.kind === 'ready'
         ? {
             kind: 'ready',
@@ -95,6 +99,7 @@ export function ScanHistoryScreen({ loadHistory, clearHistory, onBack, onOpen }:
           }
         : current);
     } catch {
+      if (generation !== requestGeneration.current) return;
       setState((current) => current.kind === 'ready'
         ? { ...current, nextPage: 'error' }
         : current);
