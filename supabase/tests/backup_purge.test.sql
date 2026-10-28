@@ -1,6 +1,6 @@
 -- supabase/tests/backup_purge.test.sql
 begin;
-select plan(12);
+select plan(24);
 
 select has_table('public', 'deletion_audit', 'deletion_audit table exists');
 select has_function('public', 'audit_deletion', ARRAY['text','uuid'], 'audit_deletion(text,uuid) exists');
@@ -50,6 +50,67 @@ select ok(
     'EXECUTE'
   ),
   'truetone_reconcile_deletions owner can execute it'
+);
+
+select ok(
+  not has_function_privilege('anon', 'public.truetone_retention_sweep()', 'EXECUTE'),
+  'anon cannot execute truetone_retention_sweep'
+);
+select ok(
+  not has_function_privilege('authenticated', 'public.truetone_retention_sweep()', 'EXECUTE'),
+  'authenticated cannot execute truetone_retention_sweep'
+);
+select ok(
+  has_function_privilege('service_role', 'public.truetone_retention_sweep()', 'EXECUTE'),
+  'service_role can execute truetone_retention_sweep'
+);
+select ok(
+  has_function_privilege(
+    (select pg_get_userbyid(p.proowner) from pg_proc p
+      where p.oid = 'public.truetone_retention_sweep()'::regprocedure),
+    'public.truetone_retention_sweep()', 'EXECUTE'
+  ),
+  'truetone_retention_sweep owner can execute it'
+);
+select ok(
+  not has_function_privilege('anon', 'public.waitlist_retention_sweep()', 'EXECUTE'),
+  'anon cannot execute waitlist_retention_sweep'
+);
+select ok(
+  not has_function_privilege('authenticated', 'public.waitlist_retention_sweep()', 'EXECUTE'),
+  'authenticated cannot execute waitlist_retention_sweep'
+);
+select ok(
+  has_function_privilege('service_role', 'public.waitlist_retention_sweep()', 'EXECUTE'),
+  'service_role can execute waitlist_retention_sweep'
+);
+select ok(
+  has_function_privilege(
+    (select pg_get_userbyid(p.proowner) from pg_proc p
+      where p.oid = 'public.waitlist_retention_sweep()'::regprocedure),
+    'public.waitlist_retention_sweep()', 'EXECUTE'
+  ),
+  'waitlist_retention_sweep owner can execute it'
+);
+select ok(
+  not has_function_privilege('anon', 'public.gen_waitlist_code()', 'EXECUTE'),
+  'anon cannot execute gen_waitlist_code'
+);
+select ok(
+  not has_function_privilege('authenticated', 'public.gen_waitlist_code()', 'EXECUTE'),
+  'authenticated cannot execute gen_waitlist_code'
+);
+select ok(
+  has_function_privilege('service_role', 'public.gen_waitlist_code()', 'EXECUTE'),
+  'service_role can execute gen_waitlist_code'
+);
+select ok(
+  has_function_privilege(
+    (select pg_get_userbyid(p.proowner) from pg_proc p
+      where p.oid = 'public.gen_waitlist_code()'::regprocedure),
+    'public.gen_waitlist_code()', 'EXECUTE'
+  ),
+  'gen_waitlist_code owner can execute it'
 );
 
 -- a fresh audit row is unreconciled; one past its PITR window reconciles
