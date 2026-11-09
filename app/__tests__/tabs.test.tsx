@@ -11,7 +11,7 @@ jest.mock('expo-router', () => ({
   },
 }));
 
-jest.mock('../../src/lib/scans', () => ({ fetchScanHistory: jest.fn(() => Promise.resolve([])) }));
+jest.mock('../../src/lib/scans', () => ({ fetchScanHistoryCount: jest.fn(() => Promise.resolve(0)) }));
 jest.mock('../../src/features/diary/diary-storage', () => ({
   getMood: jest.fn(() => Promise.resolve(null)),
   setMood: jest.fn(() => Promise.resolve()),

@@ -86,3 +86,11 @@ test('Seasonal opens the seasonal sheet; Scan again opens the scan flow', async 
   expect(mockPush).toHaveBeenCalledWith('/scan-gate');
   expect(view.queryByText('Seasonal shade check')).toBeNull();
 });
+
+test('shows "Your recent matches" above the product picks (empty state in demo mode)', async () => {
+  const view = await render(<TodayScreen />);
+  await waitFor(() => expect(view.getByText('Your recent matches')).toBeTruthy());
+  expect(view.getByTestId('recent-matches-empty')).toBeTruthy();
+  const tree = JSON.stringify(view.toJSON());
+  expect(tree.indexOf('Your recent matches')).toBeLessThan(tree.indexOf('For You'));
+});

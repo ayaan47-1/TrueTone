@@ -46,3 +46,16 @@ test('default persist computes estimateSkinAge and forwards the estimate to reco
   expect(mockRecordScan).toHaveBeenCalledTimes(1);
   expect(mockRecordScan.mock.calls[0][1]).toEqual(fakeEstimate);
 });
+
+test('default persist forwards the derived shade to recordScan when the read has a tone', async () => {
+  const engine: ReadEngine = { run: async () => ({ ...fakeResult, tone: { L: 60, a: 12, b: 18 } }) };
+  await runRead('file:///tmp/face.jpg', { engine });
+  const extras = mockRecordScan.mock.calls[0][3];
+  expect(extras.shade).toEqual(expect.objectContaining({ shadeName: expect.any(String), finish: expect.any(String) }));
+});
+
+test('default persist sends no shade for a read without a tone', async () => {
+  const engine: ReadEngine = { run: async () => fakeResult };
+  await runRead('file:///tmp/face.jpg', { engine });
+  expect(mockRecordScan.mock.calls[0][3]).toEqual({ shade: null });
+});

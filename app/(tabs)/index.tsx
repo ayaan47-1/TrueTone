@@ -20,6 +20,8 @@ import {
   featuredProducts,
 } from '../../src/features/foryou/for-you-profile';
 import { ProductRail } from '../../src/features/foryou/ProductRail';
+import { RecentMatchesCard } from '../../src/features/foryou/RecentMatchesCard';
+import { useRecentShadeMatches } from '../../src/features/foryou/use-recent-shade-matches';
 
 /**
  * Home — the one home surface (always the first tab and the landing route; every "Back
@@ -44,6 +46,11 @@ export default function TodayScreen() {
   const picks = forYouProfile ? pickedForYourShade(forYouProfile) : featuredProducts();
   const shadeName = hasScanned ? currentShade?.shadeName : undefined;
   const go = (path: string): void => router.push(path);
+  // Saved shade history (labels only). Refetch when a new scan publishes a shade.
+  const recentMatches = useRecentShadeMatches({
+    enabled: !DEMO_MODE,
+    refreshKey: currentShade?.shadeName ?? null,
+  });
 
   return (
     <View style={{ flex: 1 }}>
@@ -78,18 +85,21 @@ export default function TodayScreen() {
 
         <Rise index={1}>
           <View className="mt-[30px]">
-            <ProductRail
-              title={forYouProfile ? 'For You' : 'Featured'}
-              subtitle={
-                forYouProfile
-                  ? `Ranked for ${currentShade?.shadeName ?? 'your shade'}`
-                  : 'A range from fair to deep'
-              }
-              products={picks}
-              profile={forYouProfile ?? undefined}
-              onSeeAll={() => go('/shop')}
-              seeAllLabel={forYouProfile ? 'Shop' : undefined}
-            />
+            <RecentMatchesCard state={recentMatches} />
+            <View className="mt-[30px]">
+              <ProductRail
+                title={forYouProfile ? 'For You' : 'Featured'}
+                subtitle={
+                  forYouProfile
+                    ? `Ranked for ${currentShade?.shadeName ?? 'your shade'}`
+                    : 'A range from fair to deep'
+                }
+                products={picks}
+                profile={forYouProfile ?? undefined}
+                onSeeAll={() => go('/shop')}
+                seeAllLabel={forYouProfile ? 'Shop' : undefined}
+              />
+            </View>
           </View>
         </Rise>
 

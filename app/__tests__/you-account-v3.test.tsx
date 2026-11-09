@@ -10,7 +10,7 @@ jest.mock('expo-router', () => ({
   },
 }));
 jest.mock('../../src/lib/scans', () => ({
-  fetchScanHistory: jest.fn(() => Promise.resolve([{ id: '1' }, { id: '2' }, { id: '3' }])),
+  fetchScanHistoryCount: jest.fn(() => Promise.resolve(3)),
 }));
 jest.mock('../../src/lib/profile-context', () => ({
   useProfile: () => ({ userId: 'test-user', loading: false, error: false, route: 'home', refresh: jest.fn() }),
@@ -114,8 +114,8 @@ describe('Account tab (v3 video t-15/t-17)', () => {
   });
 
   it('hides the seasonal caption when scan history fails to load', async () => {
-    const { fetchScanHistory } = require('../../src/lib/scans');
-    fetchScanHistory.mockImplementationOnce(() => Promise.reject(new Error('offline')));
+    const { fetchScanHistoryCount } = require('../../src/lib/scans');
+    fetchScanHistoryCount.mockImplementationOnce(() => Promise.reject(new Error('offline')));
     const view = await render(<YouScreen />);
     await flush();
     expect(view.queryByText(/of 5 scans logged/)).toBeNull();
@@ -145,6 +145,11 @@ describe('Account tab (v3 video t-15/t-17)', () => {
 
   it('keeps data rights, policies and delete reachable below the new sections', async () => {
     const view = await render(<YouScreen />);
+    await flush();
+    expect(view.getByText('3 scans')).toBeTruthy();
+    fireEvent.press(view.getByRole('button', { name: 'Scan History' }));
+    await flush();
+    expect(mockPush).toHaveBeenCalledWith('/scan-history');
     fireEvent.press(view.getByRole('button', { name: 'Your Data' }));
     await flush();
     expect(mockPush).toHaveBeenCalledWith('/data');
@@ -154,5 +159,14 @@ describe('Account tab (v3 video t-15/t-17)', () => {
     expect(view.getByRole('button', { name: 'Delete everything' })).toBeTruthy();
     expect(view.getByText(/not a medical device/i)).toBeTruthy();
     await flush();
+  });
+
+  it('shows the exact scan count rather than the first page size', async () => {
+    const { fetchScanHistoryCount } = require('../../src/lib/scans');
+    fetchScanHistoryCount.mockImplementationOnce(() => Promise.resolve(47));
+    const view = await render(<YouScreen />);
+    await flush();
+    expect(view.getByText('47 scans')).toBeTruthy();
+    expect(view.queryByText('30+ scans')).toBeNull();
   });
 });

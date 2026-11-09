@@ -168,6 +168,18 @@ test('a rejecting order-history clear is not swallowed as success', async () => 
   spy.mockRestore();
 });
 
+test('"Clear shade history" calls clear_shade_history only, separate from account delete', async () => {
+  const onChanged = jest.fn();
+  const confirm = jest.fn(async () => true);
+  const { getByTestId } = await render(<DataRights onChanged={onChanged} confirm={confirm} />);
+  await fireEvent.press(getByTestId('clear-shade-history'));
+  await waitFor(() => expect(mockRpc).toHaveBeenCalledWith('clear_shade_history'));
+  expect(confirm).toHaveBeenCalledWith('Remove your saved shade labels?');
+  expect(mockRpc).toHaveBeenCalledTimes(1);
+  expect(mockClearDiary).not.toHaveBeenCalled();
+  expect(onChanged).toHaveBeenCalled();
+});
+
 test('retrying an incomplete deletion is single-flight: a double tap runs the wipes once', async () => {
   mockClearDiary.mockRejectedValueOnce(new Error('disk full'));
   const onChanged = jest.fn();

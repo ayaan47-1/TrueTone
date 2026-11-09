@@ -7,7 +7,7 @@ jest.mock('expo-router', () => ({
     useEffect(cb, []);
   },
 }));
-jest.mock('../../src/lib/scans', () => ({ fetchScanHistory: jest.fn(() => Promise.resolve([])) }));
+jest.mock('../../src/lib/scans', () => ({ fetchScanHistoryCount: jest.fn(() => Promise.resolve(0)) }));
 
 // The Account screen now also carries the identity seam (Task 11) and the routine logger
 // (Task 13), so this suite mocks the same app-context deps tabs.test uses: a signed-in
