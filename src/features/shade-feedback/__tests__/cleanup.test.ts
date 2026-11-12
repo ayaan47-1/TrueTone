@@ -69,13 +69,60 @@ test('marker storage failure does not prevent the requested deletion', async () 
   expect(cleanup.getSnapshot()).toBe(false);
 });
 
-test('an unreadable UI hint cannot prevent the deletion attempt', async () => {
+test('a marker getItem failure preserves active answers, blocks saves and recovers by rereading', async () => {
   const f = fixture();
-  const cleanup = createFeedbackCleanup(f.storage, f.wipe, f.checks);
+  let residual = true;
+  const wipe = jest.fn(async () => { residual = false; });
+  const cleanup = createFeedbackCleanup(f.storage, wipe, { ...f.checks, hasFeedback: async () => residual });
   f.storage.getItem.mockRejectedValueOnce(new Error('locked'));
   await cleanup.retry();
-  expect(f.wipe).toHaveBeenCalledTimes(1);
-  expect(cleanup.getSnapshot()).toBe(false);
+  expect(wipe).not.toHaveBeenCalled();
+  expect(residual).toBe(true);
+  expect(cleanup.canSave()).toBe(false);
+  const write = jest.fn(async () => {});
+  await expect(cleanup.save(write)).rejects.toThrow();
+  expect(write).not.toHaveBeenCalled();
+  await cleanup.retry();
+  expect(cleanup.canSave()).toBe(true);
+  expect(residual).toBe(true);
+});
+
+test.each(['unknown', 'profile-error'] as const)('transient %s consent at startup preserves answers without authorizing saves', async (status) => {
+  const f = fixture();
+  const readConsent = jest.fn(async (): Promise<'active'|'unknown'> => {
+    if (status === 'profile-error') throw new Error('offline');
+    return 'unknown';
+  });
+  const cleanup = createFeedbackCleanup(f.storage, f.wipe, { readConsent, hasFeedback: async () => true });
+  await cleanup.retry();
+  expect(f.wipe).not.toHaveBeenCalled();
+  const write = jest.fn(async () => {});
+  await expect(cleanup.save(write)).rejects.toThrow();
+  expect(write).not.toHaveBeenCalled();
+  readConsent.mockResolvedValue('active');
+  await cleanup.retry();
+  expect(cleanup.canSave()).toBe(true);
+  expect(f.wipe).not.toHaveBeenCalled();
+});
+
+test('a marker read failure during save preserves answers and refuses the new write', async () => {
+  const f = fixture();
+  const cleanup = createFeedbackCleanup(f.storage, f.wipe, { ...f.checks, hasFeedback: async () => true });
+  await cleanup.retry();
+  f.storage.getItem.mockRejectedValueOnce(new Error('locked'));
+  const write = jest.fn(async () => {});
+  await expect(cleanup.save(write)).rejects.toThrow();
+  expect(write).not.toHaveBeenCalled();
+  expect(f.wipe).not.toHaveBeenCalled();
+  expect(cleanup.canSave()).toBe(false);
+});
+
+test.each(['0', 'unexpected'])('a successfully read marker %s does not authorize deletion', async (hint) => {
+  const f = fixture();
+  f.values.set(FEEDBACK_CLEANUP_KEY, hint);
+  const cleanup = createFeedbackCleanup(f.storage, f.wipe, { ...f.checks, hasFeedback: async () => true });
+  await cleanup.retry();
+  expect(f.wipe).not.toHaveBeenCalled();
 });
 
 test('withdrawal during a save consent lookup invalidates that save before any answer is written', async () => {

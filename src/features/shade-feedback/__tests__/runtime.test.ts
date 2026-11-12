@@ -46,5 +46,5 @@ test('the production local save API refuses unknown consent and pending cleanup,
   expect((await localFeedback.list('owner'))[0]).toMatchObject(answer);
   mockConsent.mockResolvedValueOnce('unknown');
   await expect(localFeedback.save('owner',answer)).rejects.toThrow();
-  expect(await localFeedback.list('owner')).toEqual([]);
+  expect((await localFeedback.list('owner'))[0]).toMatchObject(answer);
 });
