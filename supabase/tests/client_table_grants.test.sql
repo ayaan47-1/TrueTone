@@ -20,6 +20,7 @@ select results_eq(
     from (
       values
         ('anon'::text, 'policy_versions'::text, 'SELECT'::text),
+        ('authenticated'::text, 'catalog_recommendable'::text, 'SELECT'::text),
         ('authenticated'::text, 'consent_log'::text, 'SELECT'::text),
         ('authenticated'::text, 'orders'::text, 'SELECT'::text),
         ('authenticated'::text, 'policy_versions'::text, 'SELECT'::text),
