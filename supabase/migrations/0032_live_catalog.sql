@@ -14,7 +14,10 @@ $$;
 
 create function public.catalog_reviewers_valid(reviewers text[],required_count integer)
 returns boolean language sql immutable set search_path=public,pg_temp as $$
-  select required_count >= 0 and (select count(distinct r) from unnest(reviewers) r where length(trim(r))>0) >= required_count;
+  select coalesce(reviewers is not null and required_count >= 0
+    and not exists(select 1 from unnest(reviewers) r
+      where r is null or r='' or r<>lower(btrim(r)) or r ~ '[[:space:]]')
+    and (select count(distinct lower(btrim(r))) from unnest(reviewers) r) >= required_count, false);
 $$;
 
 create table public.catalog_variants (
@@ -98,6 +101,7 @@ create table public.catalog_tone_labels (
   finish text,
   coverage text,
   unique (formula_key,formula_version,shade_key,revision),
+  check (public.catalog_reviewers_valid(reviewer_ids,0)),
   check (public.catalog_modifiers_valid(undertone_modifiers, modifier_confidence)),
   check ((lab_status='unmeasured' and lab_l is null and lab_a is null and lab_b is null and not lab_validated)
     or (lab_status='measured' and lab_l is not null and lab_a is not null and lab_b is not null
