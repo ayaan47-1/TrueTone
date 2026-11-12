@@ -3,8 +3,6 @@
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import { ProductDetail } from '../../src/features/shop/ProductDetail';
 import { useMatchProfile } from '../../src/features/shop/use-match-profile';
-import { View } from 'react-native';
-import { PrimaryButton } from '../../src/components/ui';
 
 export default function ProductRoute() {
   const router = useRouter();
@@ -13,7 +11,6 @@ export default function ProductRoute() {
   const close = (): void => (router.canGoBack() ? router.back() : router.replace('/shop'));
 
   return (
-    <View style={{flex:1}}>
     <ProductDetail
       productId={String(id ?? '')}
       profile={profile}
@@ -22,7 +19,5 @@ export default function ProductRoute() {
       onAdded={close}
       onClose={close}
     />
-    {/^gid:\/\/shopify\/ProductVariant\/\d+$/.test(id??'') ? <PrimaryButton label="How did this shade look?" variant="ghost" onPress={()=>router.push({pathname:'/shade-feedback',params:{variant:id}})} /> : null}
-    </View>
   );
 }

@@ -89,9 +89,18 @@ export function DataRights({ onChanged, confirm, feedbackOwner }: Props) {
 
   async function run(fn: RpcName, msg: string) {
     if (!(await confirm(msg))) return;
+    let feedbackCleared = true;
     if(fn==='withdraw_consent') {
       try {await clearAllLocalFeedback();setFeedbackWipeIncomplete(false);}
-      catch {setFeedbackWipeIncomplete(true);}
+      catch {
+        feedbackCleared = false;
+        setFeedbackWipeIncomplete(true);
+        // Stop local capture immediately, but do not report cleanup as complete.
+        if (SUPABASE_OFFLINE) {
+          cameraDemoWithdrawConsent();
+          return;
+        }
+      }
     }
     if (SUPABASE_OFFLINE) return runLocalOnly(fn);
     if (fn === 'clear_shade_history') {
@@ -114,7 +123,7 @@ export function DataRights({ onChanged, confirm, feedbackOwner }: Props) {
       // remains too. Account deletion erases both the session value and its encryption key.
       return finishLocalWipe(fn === 'delete_account');
     }
-    onChanged();
+    if (feedbackCleared) onChanged();
   }
   return (
     <Screen className="px-6" topGap={8}>

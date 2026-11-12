@@ -8,7 +8,12 @@ export default function ShopifyProductRoute() {
   const backToShop = (): void => (router.canGoBack() ? router.back() : router.replace('/shop'));
   return (
     <Screen topGap={0} bottomGap={0} scroll={false}>
-      <ShopifyProductScreen handle={String(handle ?? '')} onBack={backToShop} onAdded={() => router.push('/shop-bag')} />
+      <ShopifyProductScreen
+        handle={String(handle ?? '')}
+        onBack={backToShop}
+        onAdded={() => router.push('/shop-bag')}
+        onFeedback={(variant) => router.push({ pathname: '/shade-feedback', params: { variant } })}
+      />
     </Screen>
   );
 }
