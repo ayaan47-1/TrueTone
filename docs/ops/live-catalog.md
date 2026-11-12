@@ -16,6 +16,8 @@ npm run check:no-egress
 
 In an isolated local Supabase development stack, apply the migrations and run pgTAP:
 
+The catalogue migrations are `0034_live_catalog.sql`, `0035_catalog_sync.sql`, and `0036_catalog_reconcile_schedule.sql`, after main's audit-execute and shade-history migrations.
+
 ```sh
 supabase db reset --local
 supabase test db --local
