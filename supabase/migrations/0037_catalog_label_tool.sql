@@ -37,6 +37,15 @@ begin
     raise exception using errcode='22023',message='reviewer IDs required';
   end if;
 
+  -- Approval must enforce provenance even when callers bypass the CLI.
+  -- Trim ASCII whitespace as well as spaces (btrim's default).
+  if p_action='approve' and exists (
+    select 1 from unnest(array['depth_source','undertone_source','source_url','source_market','parser_version']) field
+    where nullif(btrim(evidence->>field,E' \t\n\r\f' || chr(11)),'') is null
+  ) then
+    raise exception using errcode='22023',message='approval requires nonblank provenance';
+  end if;
+
   perform pg_advisory_xact_lock(hashtextextended('truetone-catalog-sync',0));
   select * into v from public.catalog_variants where variant_gid=p_review->>'variant_gid' for update;
   select label_id into current_label from public.catalog_label_bindings where variant_gid=v.variant_gid;

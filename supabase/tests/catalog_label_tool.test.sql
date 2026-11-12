@@ -1,5 +1,5 @@
 begin;
-select plan(17);
+select plan(29);
 
 insert into public.catalog_variants(variant_gid,product_gid,formula_key,formula_version,shade_name,vendor,observed_at)
 values ('label-tool-v','label-tool-p','label-tool-formula','1','Tan','Test',now());
@@ -25,6 +25,30 @@ select throws_ok($$select public.catalog_submit_label(jsonb_set(pg_temp.review()
 select throws_ok($$select public.catalog_submit_label(jsonb_set(pg_temp.review(),'{label,status}','"approved"'),'draft')$$, '22023', null, 'server-owned fields rejected');
 select throws_ok($$select public.catalog_submit_label(pg_temp.review('["Alice Smith","ALICESMITH"]'),'approve')$$, '23514', null, 'normalized aliases cannot approve C');
 select is((select count(*)::int from public.catalog_tone_labels where formula_key='label-tool-formula'),0,'failed approval leaves no orphan revision');
+
+-- Exercise the service-role RPC directly, bypassing CLI validation. Each case
+-- gets its own queue entry so an unexpected approval cannot mask later failures.
+create temp table invalid_provenance as
+select field, bad_value, 'label-tool-' || field || '-' || kind as variant_gid
+from unnest(array['depth_source','undertone_source','source_url','source_market','parser_version']) field
+cross join (values ('blank',''),('whitespace',E' \t\n\r\f ')) blanks(kind,bad_value);
+insert into public.catalog_variants(variant_gid,product_gid,formula_key,formula_version,shade_name,vendor,observed_at)
+select variant_gid,'label-tool-p','label-tool-provenance','1',variant_gid,'Test',now()
+from invalid_provenance;
+
+grant select on invalid_provenance to service_role;
+set local role service_role;
+select throws_ok(format('select public.catalog_submit_label(%L::jsonb,%L)',
+  jsonb_set(pg_temp.review('["alice","bob"]','B') || jsonb_build_object(
+    'variant_gid',variant_gid,'formula_key','label-tool-provenance','shade_name',variant_gid),
+    array['label',field],to_jsonb(bad_value)), 'approve'),
+  '22023',null,field || ' rejects ' || case when bad_value='' then 'blank' else 'whitespace-only' end || ' provenance')
+from invalid_provenance;
+reset role;
+select is((select count(*)::int from public.catalog_tone_labels where formula_key='label-tool-provenance'),0,
+  'rejected provenance leaves no orphan revisions');
+select is((select count(*)::int from public.catalog_label_bindings where variant_gid in
+  (select variant_gid from invalid_provenance)),0,'rejected provenance leaves no bindings');
 
 create temp table saved(id uuid);
 insert into saved select public.catalog_submit_label(pg_temp.review(),'draft');
