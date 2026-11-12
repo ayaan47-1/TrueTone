@@ -15,12 +15,12 @@ const productInfo = z.object({
   id: gid, title: z.string().min(1), vendor: z.string(), publishedOnPublication: z.boolean(), status: z.string(),
   formula: z.object({ value: z.string().min(1) }).nullable(), variants: variantPage,
 });
-const inventoryFields = `id inventoryLevels(first:100, after:$levelsAfter) {
+const inventoryFields = `id inventoryLevels(first:20, after:$levelsAfter) {
   nodes { location { id } quantities(names:["available"]) { name quantity } }
   pageInfo { hasNextPage endCursor }
 }`;
 const productFields = `id title vendor status publishedOnPublication(publicationId:$publication) formula:metafield(namespace:"truetone",key:"formula_version"){value}
-  variants(first:100,after:$variantsAfter){nodes{id title sku barcode price inventoryItem{${inventoryFields}}} pageInfo{hasNextPage endCursor}}`;
+  variants(first:20,after:$variantsAfter){nodes{id title sku barcode price inventoryItem{${inventoryFields}}} pageInfo{hasNextPage endCursor}}`;
 
 export class ShopifyCatalogue implements CatalogueSource {
   private readonly config: {

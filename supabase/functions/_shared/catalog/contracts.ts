@@ -31,5 +31,7 @@ export interface CatalogueStore {
   applyProduct(product: ProductSnapshot, observedAt: string): Promise<void>;
   deleteProduct(id: string, observedAt: string): Promise<void>;
   applyInventory(inventory: InventorySnapshot, observedAt: string): Promise<void>;
+  beginReconcile(startedAt: string): Promise<void>;
+  failReconcile(startedAt: string): Promise<void>;
   finishReconcile(productIds: string[], startedAt: string): Promise<void>;
 }

@@ -84,12 +84,18 @@ export function createWebhookHandler({ secret, shop, store, shopify }: {
 export async function reconcileCatalogue({ store, shopify }: { store: CatalogueStore; shopify: CatalogueSource }): Promise<void> {
   const startedAt = new Date().toISOString();
   const productIds: string[] = [];
-  for await (const product of shopify.products()) {
-    await store.applyProduct(product, startedAt);
-    productIds.push(product.product_gid);
+  await store.beginReconcile(startedAt);
+  try {
+    for await (const product of shopify.products()) {
+      await store.applyProduct(product, startedAt);
+      productIds.push(product.product_gid);
+    }
+    // Never mark anything missing after a partial/failed page traversal.
+    await store.finishReconcile(productIds, startedAt);
+  } catch (error) {
+    try { await store.failReconcile(startedAt); } catch { /* A stale running row still signals failure. */ }
+    throw error;
   }
-  // Never mark anything missing after a partial/failed page traversal.
-  await store.finishReconcile(productIds, startedAt);
 }
 
 export function createReconcileHandler({ secret, store, shopify }: {

@@ -15,6 +15,8 @@ function fixture() {
     applyProduct: async row => { calls.push(['product', row]); },
     deleteProduct: async id => { calls.push(['delete', id]); },
     applyInventory: async row => { calls.push(['inventory', row]); },
+    beginReconcile: async () => {},
+    failReconcile: async () => {},
     finishReconcile: async (ids, started) => { calls.push(['reconcile', ids, started]); },
   };
   const shopify = { product: async () => product, inventory: async () => ({ inventory_item_gid: 'i1', levels: [] }), products: async function* () { yield product; } };
@@ -96,6 +98,15 @@ test('complete reconciliation marks missing only after every page succeeds', asy
   assert.deepEqual(calls.map(row => row[0]), ['product']);
 });
 
+test('reconciliation records both successful start and failed traversal without deleting missing rows', async () => {
+  const { store, shopify, calls } = fixture();
+  store.beginReconcile = async () => calls.push(['begin']);
+  store.failReconcile = async () => calls.push(['failed']);
+  shopify.products = async function* () { throw new Error('synthetic failure'); };
+  await assert.rejects(reconcileCatalogue({ store, shopify }));
+  assert.deepEqual(calls.map(row => row[0]), ['begin', 'failed']);
+});
+
 test('Shopify adapter rejects GraphQL errors instead of treating them as an empty catalogue', async () => {
   const client = new ShopifyCatalogue({ shop: 'test.myshopify.com', accessToken: 'fake', publicationId: 'gid://shopify/Publication/1', onlineLocationIds: ['gid://shopify/Location/1'], fetcher: async () => Response.json({ errors: [{ message: 'denied' }] }) });
   await assert.rejects(client.product('gid://shopify/Product/1'), /Shopify/);
@@ -120,6 +131,16 @@ test('adapter keeps only product attributes, uses stable formula identity and al
   assert.equal(result.variants[0].formula_key, 'brand:formula');
   assert.equal(result.variants[0].levels[0].available, 3);
   assert.equal(JSON.stringify(result).includes('face_image'), false);
+});
+
+test('nested GraphQL connections use bounded pages instead of a 100-by-100 cost explosion', async () => {
+  const adapter = client(async (_url, request) => {
+    const { query } = JSON.parse(request.body);
+    assert.match(query, /variants\(first:20,/);
+    assert.match(query, /inventoryLevels\(first:20,/);
+    return Response.json({ data: { product: shopProduct, shop: { currencyCode: 'USD' } } });
+  });
+  await adapter.product(shopProduct.id);
 });
 
 test('non-advancing variant pagination fails instead of truncating', async () => {

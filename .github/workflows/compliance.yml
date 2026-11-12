@@ -13,6 +13,8 @@ jobs:
       # copy in web/ drifts across the cosmetic/medical line (CLAUDE.md §1).
       - run: npm run check:compliance
       - run: npm run check:no-egress
+      - run: npm run test:catalog
+      - run: npm run check:catalog
       # Unit tests (integration tests need a live Supabase and run separately).
       - run: npm test
       # Jest only collects .ts/.tsx, so the node:test suites covering the compliance
