@@ -1,0 +1,35 @@
+import { fireEvent, render, waitFor } from '@testing-library/react-native';
+const mockList=jest.fn().mockResolvedValue([]),mockClear=jest.fn().mockResolvedValue(0),mockServer=jest.fn().mockResolvedValue({events:[],candidates:[]}),mockWithdraw=jest.fn().mockResolvedValue(undefined),mockDelete=jest.fn().mockResolvedValue(undefined);
+jest.mock('../runtime',()=>({localFeedback:{list:(...args:unknown[])=>mockList(...args),clear:(...args:unknown[])=>mockClear(...args)},feedbackService:{list:(...args:unknown[])=>mockServer(...args),withdraw:()=>mockWithdraw()},deleteOwnedFeedback:(...args:unknown[])=>mockDelete(...args)}));
+jest.mock('../../../lib/supabase',()=>({SUPABASE_OFFLINE:false}));
+import { FeedbackDataPanel } from '../FeedbackDataPanel';
+beforeEach(()=>jest.clearAllMocks());
+test('view, readable export and one-tap deletion are owner-scoped and explicit',async()=>{
+  const view=await render(<FeedbackDataPanel owner="owner" confirm={async()=>true} />);
+  expect(mockList).not.toHaveBeenCalled();
+  await fireEvent.press(view.getByText('View / copy local feedback'));
+  expect(mockList).toHaveBeenCalledWith('owner');
+  await fireEvent.press(view.getByText('View / copy server feedback'));
+  expect(mockServer).toHaveBeenCalledWith(0);
+  await fireEvent.press(view.getByText('Delete Shade Feedback'));
+  expect(mockDelete).toHaveBeenCalledWith('owner');
+  await fireEvent.press(view.getByText('Withdraw Shade Feedback consent'));
+  expect(mockClear).toHaveBeenCalledWith('owner');
+  expect(mockWithdraw).toHaveBeenCalledTimes(1);
+});
+test('cancel and errors never report a completed deletion',async()=>{
+  const cancel=await render(<FeedbackDataPanel owner="owner" confirm={async()=>false} />);
+  await fireEvent.press(cancel.getByText('Delete Shade Feedback'));
+  expect(mockDelete).not.toHaveBeenCalled();
+  await cancel.unmount();
+  mockDelete.mockRejectedValueOnce(Error('private detail'));
+  mockList.mockRejectedValueOnce(Error('private detail'));
+  mockServer.mockRejectedValueOnce(Error('private detail'));
+  const view=await render(<FeedbackDataPanel owner="owner" confirm={async()=>true} />);
+  await fireEvent.press(view.getByText('View / copy local feedback'));
+  await waitFor(()=>expect(view.getByText('Could not read local answers.')).toBeTruthy());
+  await fireEvent.press(view.getByText('View / copy server feedback'));
+  await fireEvent.press(view.getByText('Delete Shade Feedback'));
+  await waitFor(()=>expect(view.getByText('Deletion incomplete. Try Delete Shade Feedback again.')).toBeTruthy());
+  expect(view.queryByText('private detail')).toBeNull();
+});

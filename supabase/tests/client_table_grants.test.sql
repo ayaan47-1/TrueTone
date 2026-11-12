@@ -26,6 +26,8 @@ select results_eq(
         ('authenticated'::text, 'policy_versions'::text, 'SELECT'::text),
         ('authenticated'::text, 'profiles'::text, 'SELECT'::text),
         ('authenticated'::text, 'scans'::text, 'SELECT'::text)
+        ,('authenticated'::text, 'shade_feedback_events'::text, 'SELECT'::text)
+        ,('authenticated'::text, 'shade_feedback_candidates'::text, 'SELECT'::text)
     ) as allowed(grantee, table_name, privilege_type)
     order by grantee, table_name, privilege_type
   $$,
