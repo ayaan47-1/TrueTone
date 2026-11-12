@@ -1,3 +1,13 @@
+-- Match the explicit blank character set in scripts/catalog-label.mjs.
+-- Unicode White_Space plus U+200B and U+FEFF; independent of database locale.
+create function public.catalog_is_blank(value text)
+returns boolean language sql immutable parallel safe set search_path=pg_catalog as $$
+  select value is null or btrim(value,
+    U&'\0009\000A\000B\000C\000D\0020\0085\00A0\1680\2000\2001\2002\2003\2004\2005\2006\2007\2008\2009\200A\200B\2028\2029\202F\205F\3000\FEFF') = '';
+$$;
+revoke all on function public.catalog_is_blank(text) from public,anon,authenticated;
+grant execute on function public.catalog_is_blank(text) to service_role;
+
 -- Operator-only, atomic queue submission. Uses the same lock as commerce sync.
 create function public.catalog_submit_label(p_review jsonb,p_action text)
 returns uuid language plpgsql security definer set search_path=public,pg_temp as $$
@@ -38,10 +48,9 @@ begin
   end if;
 
   -- Approval must enforce provenance even when callers bypass the CLI.
-  -- Trim ASCII whitespace as well as spaces (btrim's default).
   if p_action='approve' and exists (
     select 1 from unnest(array['depth_source','undertone_source','source_url','source_market','parser_version']) field
-    where nullif(btrim(evidence->>field,E' \t\n\r\f' || chr(11)),'') is null
+    where public.catalog_is_blank(evidence->>field)
   ) then
     raise exception using errcode='22023',message='approval requires nonblank provenance';
   end if;

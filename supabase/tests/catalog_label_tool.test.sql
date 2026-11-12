@@ -1,5 +1,5 @@
 begin;
-select plan(29);
+select plan(61);
 
 insert into public.catalog_variants(variant_gid,product_gid,formula_key,formula_version,shade_name,vendor,observed_at)
 values ('label-tool-v','label-tool-p','label-tool-formula','1','Tan','Test',now());
@@ -31,7 +31,10 @@ select is((select count(*)::int from public.catalog_tone_labels where formula_ke
 create temp table invalid_provenance as
 select field, bad_value, 'label-tool-' || field || '-' || kind as variant_gid
 from unnest(array['depth_source','undertone_source','source_url','source_market','parser_version']) field
-cross join (values ('blank',''),('whitespace',E' \t\n\r\f ')) blanks(kind,bad_value);
+cross join (values ('blank',''),('whitespace',E' \t\n\r\f '),
+  ('null',null),('nbsp',U&'\00A0'),('em-space',U&'\2003'),
+  ('ideographic',U&'\3000'),('bom',U&'\FEFF'),
+  ('mixed',U&' \0009\0085\00A0\1680\200B\2028\2029\202F\205F\3000\FEFF')) blanks(kind,bad_value);
 insert into public.catalog_variants(variant_gid,product_gid,formula_key,formula_version,shade_name,vendor,observed_at)
 select variant_gid,'label-tool-p','label-tool-provenance','1',variant_gid,'Test',now()
 from invalid_provenance;
@@ -41,7 +44,7 @@ set local role service_role;
 select throws_ok(format('select public.catalog_submit_label(%L::jsonb,%L)',
   jsonb_set(pg_temp.review('["alice","bob"]','B') || jsonb_build_object(
     'variant_gid',variant_gid,'formula_key','label-tool-provenance','shade_name',variant_gid),
-    array['label',field],to_jsonb(bad_value)), 'approve'),
+    array['label',field],coalesce(to_jsonb(bad_value),'null'::jsonb)), 'approve'),
   '22023',null,field || ' rejects ' || case when bad_value='' then 'blank' else 'whitespace-only' end || ' provenance')
 from invalid_provenance;
 reset role;
@@ -51,15 +54,20 @@ select is((select count(*)::int from public.catalog_label_bindings where variant
   (select variant_gid from invalid_provenance)),0,'rejected provenance leaves no bindings');
 
 create temp table saved(id uuid);
-insert into saved select public.catalog_submit_label(pg_temp.review(),'draft');
+insert into saved select public.catalog_submit_label(
+  jsonb_set(pg_temp.review(),'{label,source_url}',to_jsonb(U&'\FEFF'::text)),'draft');
+select is((select source_url from public.catalog_tone_labels where id=(select id from saved)),U&'\FEFF',
+  'draft still accepts blank provenance');
 select is((select reviewer_ids from public.catalog_tone_labels where id=(select id from saved)),array['alicesmith','bob'],'IDs normalized');
 select is((select reviewer_count from public.catalog_tone_labels where id=(select id from saved)),2,'count derived from unique IDs');
 select is((select label_id from public.catalog_label_bindings where variant_gid='label-tool-v'),(select id from saved),'draft bound atomically');
 select throws_ok($$select public.catalog_submit_label(pg_temp.review(),'draft')$$,'40001',null,'stale binding rejected');
 
 create temp table approved(id uuid);
-insert into approved select public.catalog_submit_label(jsonb_set(pg_temp.review(),'{expected_label_id}',to_jsonb((select id from saved))),'approve');
+insert into approved select public.catalog_submit_label(jsonb_set(jsonb_set(pg_temp.review(),'{label,depth_source}',to_jsonb(U&'brand\00A0chart'::text)),'{expected_label_id}',to_jsonb((select id from saved))),'approve');
 select is((select status from public.catalog_tone_labels where id=(select id from approved)),'approved','complete C approval succeeds');
+select is((select depth_source from public.catalog_tone_labels where id=(select id from approved)),U&'brand\00A0chart',
+  'real provenance with internal NBSP is accepted unchanged');
 select is((select revision from public.catalog_tone_labels where id=(select id from approved)),2,'new revision preserves draft');
 select is((select native_undertone from public.catalog_tone_labels where id=(select id from approved)),'Golden','native brand wording retained');
 select throws_ok($$select public.catalog_submit_label(jsonb_set(pg_temp.review(),'{expected_label_id}',to_jsonb((select id from approved))),'approve')$$,'40001',null,'approved shade no longer in queue');

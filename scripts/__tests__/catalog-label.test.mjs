@@ -125,3 +125,22 @@ test('CLI help needs no credentials and failures exit nonzero without dumping en
   assert.equal(failed.code, 1);
   assert.match(failed.stderr, /Set server-only/);
 });
+
+
+const provenanceFields = ['depth_source', 'undertone_source', 'source_url', 'source_market', 'parser_version'];
+const blankCharacters = '\u0009\u000A\u000B\u000C\u000D\u0020\u0085\u00A0\u1680' +
+  '\u2000\u2001\u2002\u2003\u2004\u2005\u2006\u2007\u2008\u2009\u200A\u200B' +
+  '\u2028\u2029\u202F\u205F\u3000\uFEFF';
+for (const field of provenanceFields) {
+  for (const blank of [null, '', ...blankCharacters, blankCharacters]) {
+    test(`approval rejects ${field} containing only blanks ${JSON.stringify(blank)}`, () => {
+      const data = input(); data.label[field] = blank;
+      assert.throws(() => prepareLabel(data, 'approve'), new RegExp(field));
+      assert.doesNotThrow(() => prepareLabel(data, 'draft'));
+    });
+  }
+  test(`approval preserves real ${field} with internal NBSP`, () => {
+    const data = input(); data.label[field] = 'brand\u00A0chart';
+    assert.equal(prepareLabel(data, 'approve').label[field], data.label[field]);
+  });
+}

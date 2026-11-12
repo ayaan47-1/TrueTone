@@ -11,6 +11,9 @@ const fields = ['depth_band', 'brand_depth_rank', 'base_undertone', 'undertone_m
 const modifiers = ['olive', 'golden/yellow', 'peach', 'pink/rosy', 'red'];
 const usage = 'Usage: node scripts/catalog-label.mjs queue [limit=50] [offset=0] | show <variant_gid> | draft <review.json> | approve <review.json>';
 const nonempty = value => typeof value === 'string' && value.trim().length > 0;
+// Same Unicode White_Space + U+200B/U+FEFF set as catalog_is_blank in migration 0037.
+const provenanceNonempty = value => typeof value === 'string' &&
+  /[^\u0009-\u000D\u0020\u0085\u00A0\u1680\u2000-\u200B\u2028\u2029\u202F\u205F\u3000\uFEFF]/u.test(value);
 const object = value => value !== null && typeof value === 'object' && !Array.isArray(value);
 function requireValue(condition, message) { if (!condition) throw new Error(message); }
 
@@ -57,7 +60,7 @@ export function prepareLabel(input, action) {
     // The DB counts rank C even when the optional rank is absent.
     requireValue(![...tiers, label.rank_confidence].includes('C') || label.reviewer_ids.length >= 2, 'C evidence requires two distinct reviewers');
     for (const key of ['depth_source', 'undertone_source', 'source_url', 'source_market', 'source_as_of', 'parser_version']) {
-      requireValue(nonempty(label[key]), `Approval requires ${key}`);
+      requireValue(provenanceNonempty(label[key]), `Approval requires ${key}`);
     }
   }
   return { variant_gid: input.variant_gid, expected_label_id: input.expected_label_id,
