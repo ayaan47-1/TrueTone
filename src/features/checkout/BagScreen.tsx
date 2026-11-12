@@ -8,7 +8,7 @@ import { ShopGlyph } from '../../components/ui/tab-icons';
 import { useInsets } from '../../components/ui/use-insets';
 import { palette } from '../../theme/tokens';
 import type { Product } from '../match/match-types';
-import { catalog } from '../match/product-catalog';
+import { catalog, useProductCatalogue } from '../match/product-catalog';
 import { ProductArt } from '../shop/ProductArt';
 import { productLine } from '../shop/product-visual';
 import { SAMPLE_CATALOG_LABEL } from '../shop/sample-content';
@@ -27,6 +27,7 @@ interface BagScreenProps {
 }
 
 export function BagScreen({ onBack, onShop, onCheckout }: BagScreenProps) {
+  useProductCatalogue();
   const state = useBag();
   const insets = useInsets();
   const count = bagCount(state);

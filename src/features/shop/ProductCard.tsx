@@ -24,10 +24,11 @@ interface ProductCardProps {
   profile?: MatchProfile;
   /** True for the single top-ranked card in the current filter view (post-scan only). */
   isBestMatch?: boolean;
+  onOpen?: (id: string) => void;
 }
 
 /** Product card — fit-ranked when scanned, neutral shade-availability copy before. */
-export function ProductCard({ product, profile, isBestMatch = false }: ProductCardProps) {
+export function ProductCard({ product, profile, isBestMatch = false, onOpen }: ProductCardProps) {
   const fit = profile ? scoreProduct(product, profile) : null;
   const reason = profile ? fitReason(product, profile) : null;
   const [justAdded, setJustAdded] = useState(false);
@@ -38,6 +39,7 @@ export function ProductCard({ product, profile, isBestMatch = false }: ProductCa
   }, []);
 
   const addToBag = (): void => {
+    if (product.catalogue) { onOpen?.(product.id); return; }
     bag.add(product);
     setJustAdded(true);
     if (revertTimer.current) clearTimeout(revertTimer.current);
@@ -72,14 +74,14 @@ export function ProductCard({ product, profile, isBestMatch = false }: ProductCa
 
       <PressableScale
         accessibilityRole="button"
-        accessibilityLabel={`Add ${product.name} to bag`}
+        accessibilityLabel={product.catalogue ? `View ${product.name}` : `Add ${product.name} to bag`}
         onPress={addToBag}
         testID={`add-to-bag-${product.id}`}
         hitSlop={8}
         className="self-end"
       >
         <View className="rounded-full bg-brand-terracottaDark px-4 py-2">
-          <Caption className="text-white">{justAdded ? 'Added' : 'Add to bag'}</Caption>
+          <Caption className="text-white">{product.catalogue ? 'View shade' : justAdded ? 'Added' : 'Add to bag'}</Caption>
         </View>
       </PressableScale>
     </GlassCard>

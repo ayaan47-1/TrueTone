@@ -22,6 +22,8 @@ import {
 import { ProductRail } from '../../src/features/foryou/ProductRail';
 import { RecentMatchesCard } from '../../src/features/foryou/RecentMatchesCard';
 import { useRecentShadeMatches } from '../../src/features/foryou/use-recent-shade-matches';
+import { useProductCatalogue } from '../../src/features/match/product-catalog';
+import { CatalogueNotice } from '../../src/features/catalog/CatalogueNotice';
 
 /**
  * Home — the one home surface (always the first tab and the landing route; every "Back
@@ -33,6 +35,7 @@ import { useRecentShadeMatches } from '../../src/features/foryou/use-recent-shad
  * Shade twins lives in the Community tab.
  */
 export default function TodayScreen() {
+  const catalogue = useProductCatalogue();
   const router = useRouter();
   const { hasScanned, currentShade } = usePersonalization();
   const { userId } = useProfile();
@@ -43,7 +46,7 @@ export default function TodayScreen() {
 
   const prefs = preferencesStore.get() ?? DEFAULT_SETUP_ANSWERS;
   const forYouProfile = resolveForYouProfile(hasScanned, currentShade, prefs, DEMO_MODE);
-  const picks = forYouProfile ? pickedForYourShade(forYouProfile) : featuredProducts();
+  const picks = forYouProfile ? pickedForYourShade(forYouProfile,catalogue.products) : featuredProducts(catalogue.products);
   const shadeName = hasScanned ? currentShade?.shadeName : undefined;
   const go = (path: string): void => router.push(path);
   // Saved shade history (labels only). Refetch when a new scan publishes a shade.
@@ -87,6 +90,7 @@ export default function TodayScreen() {
           <View className="mt-[30px]">
             <RecentMatchesCard state={recentMatches} />
             <View className="mt-[30px]">
+              <CatalogueNotice state={catalogue} />
               <ProductRail
                 title={forYouProfile ? 'For You' : 'Featured'}
                 subtitle={
@@ -95,6 +99,7 @@ export default function TodayScreen() {
                     : 'A range from fair to deep'
                 }
                 products={picks}
+                onOpenProduct={id => go(`/product/${encodeURIComponent(id)}`)}
                 profile={forYouProfile ?? undefined}
                 onSeeAll={() => go('/shop')}
                 seeAllLabel={forYouProfile ? 'Shop' : undefined}

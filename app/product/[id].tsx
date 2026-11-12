@@ -18,6 +18,7 @@ export default function ProductRoute() {
       onScan={() => router.push('/scan-gate')}
       onAdded={close}
       onClose={close}
+      onShop={() => router.push('/shop')}
     />
   );
 }

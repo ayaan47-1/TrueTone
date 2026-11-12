@@ -17,6 +17,7 @@ import { __resetShopifyStoreForTests, shopifyStore } from '../shopify-store';
 
 beforeEach(() => {
   jest.clearAllMocks();
+  mockList.mockReset();
   __resetShopifyStoreForTests();
   mockCacheRead.mockResolvedValue(null);
   mockCacheWrite.mockResolvedValue(undefined);
@@ -29,6 +30,15 @@ it('shows a fixed user-safe message instead of a raw Shopify error', async () =>
 
   expect(shopifyStore.getState().error).toBe('The shop is unavailable right now. Please try again.');
   expect(shopifyStore.getState().error).not.toContain('GraphQL');
+});
+
+it('refreshes approved products explicitly instead of retaining removed variants', async () => {
+  mockList.mockResolvedValueOnce([mapProductNode(PRODUCT_FIXTURE_NODE)]).mockResolvedValueOnce([]);
+  await shopifyStore.loadProducts();
+  expect(shopifyStore.getState().products).toHaveLength(1);
+  await shopifyStore.loadProducts(true);
+  expect(shopifyStore.getState().products).toEqual([]);
+  expect(mockList).toHaveBeenCalledTimes(2);
 });
 
 it('shows a dated cached catalog when the live request fails', async () => {

@@ -14,7 +14,8 @@ import { hasLiquidGlass } from '../../components/ui/liquid-glass';
 import { CameraGlyph } from '../../components/ui/tab-icons';
 import { glass, palette, softShadow } from '../../theme/tokens';
 import type { MatchProfile } from '../match/match-types';
-import { catalog } from '../match/product-catalog';
+import { catalog, useProductCatalogue } from '../match/product-catalog';
+import { LiveProductDetail } from '../catalog/LiveProductDetail';
 import { scoreProduct } from '../match/scoring';
 import { fitReason } from '../match/fit-reason';
 import { fitTier } from '../match/fit-tier';
@@ -40,12 +41,20 @@ interface ProductDetailProps {
   onAdded: () => void;
   /** Dismisses the sheet (the floating back button). */
   onClose: () => void;
+  onShop?: () => void;
   /** Sample ratings; defaults to the SAMPLE_RATINGS_ENABLED build flag. */
   showRatings?: boolean;
 }
 
 /** Keyed so the shade/qty state resets when the product changes or a scan lands mid-visit. */
 export function ProductDetail(props: ProductDetailProps) {
+  return <SelectedProductDetail key={props.productId} {...props} />;
+}
+
+function SelectedProductDetail(props: ProductDetailProps) {
+  const state=useProductCatalogue();
+  const [selected,setSelected]=useState(props.productId);
+  if (state.status!=='demo') return <LiveProductDetail productId={selected} state={state} onChoose={setSelected} onClose={props.onClose} onAdded={props.onAdded} onShop={props.onShop} />;
   return <ProductPage key={`${props.productId}:${props.profile?.shade ?? ''}`} {...props} />;
 }
 

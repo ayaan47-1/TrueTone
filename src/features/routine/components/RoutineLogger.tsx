@@ -15,7 +15,7 @@ import {
   SectionLabel,
   Subheading,
 } from '../../../components/ui';
-import { catalog } from '../../match/product-catalog';
+import { catalog, useProductCatalogue } from '../../match/product-catalog';
 import type { CommunityProfile } from '../../identity/community-profile-types';
 import { useDailyRoutine } from '../use-daily-routine';
 import type { RoutineSlot } from '../routine-types';
@@ -35,6 +35,7 @@ function productName(id: string): string {
 }
 
 export function RoutineLogger({ userId, profile }: RoutineLoggerProps) {
+  useProductCatalogue();
   const { today, summary, addToSlot, removeFromSlot, publish } = useDailyRoutine(userId);
   const [pickerSlot, setPickerSlot] = useState<RoutineSlot | null>(null);
   const [published, setPublished] = useState(false);

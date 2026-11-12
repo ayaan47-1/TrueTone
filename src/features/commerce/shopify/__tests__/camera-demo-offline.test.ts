@@ -2,6 +2,12 @@
 // production-looking Shopify values leak into its environment.
 import AsyncStorage from '@react-native-async-storage/async-storage';
 
+// Normal-build control has an approved variant; camera mode must still block transport.
+jest.mock('../../../match/product-catalog', () => ({
+  refreshCatalogue: async () => undefined,
+  getCatalogueState: () => ({ status: 'ready', products: [{ id: 'gid://shopify/ProductVariant/2' }] }),
+}));
+
 const PROD_LIKE_SHOPIFY_ENV = {
   EXPO_PUBLIC_SHOPIFY_STORE_DOMAIN: 'truetone-prodlike.myshopify.com',
   EXPO_PUBLIC_SHOPIFY_STOREFRONT_TOKEN: 'prodlike-public-storefront-token',

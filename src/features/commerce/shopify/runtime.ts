@@ -1,6 +1,8 @@
 import { createCartAdapter, type CartAdapter } from './cart-adapter';
-import { createCatalogCache, type CatalogCache } from './catalog-cache';
-import { createShopifyCatalog, type ShopifyCatalog } from './catalog';
+import type { CatalogCache } from './catalog-cache';
+import type { ShopifyCatalog } from './catalog';
+import { createApprovedShopifyCatalog } from './approved-catalog';
+import { getCatalogueState, refreshCatalogue } from '../../match/product-catalog';
 import { createShopifyClient } from './client';
 import { readShopifyConfig, type ShopifyConfig } from './env';
 import { SUPABASE_OFFLINE } from '../../../lib/supabase';
@@ -26,10 +28,23 @@ let cached: ShopifyServices | null = null;
 export function getShopifyServices(): ShopifyServices {
   if (cached) return cached;
   const client = createShopifyClient(SUPABASE_OFFLINE ? OFFLINE_CONFIG : readShopifyConfig());
+  const approved=async()=>{
+    if(SUPABASE_OFFLINE) throw new Error('The shop is off in this test build');
+    await refreshCatalogue(true);
+    const state=getCatalogueState();
+    if(state.status!=='ready' && state.status!=='empty') throw new Error('catalogue unavailable');
+    return state.products;
+  };
+  const cart=createCartAdapter(client);
   cached = {
-    catalog: createShopifyCatalog(client),
-    catalogCache: SUPABASE_OFFLINE ? OFFLINE_CATALOG_CACHE : createCatalogCache(),
-    cart: createCartAdapter(client),
+    catalog: createApprovedShopifyCatalog(client,approved),
+    // A prior Storefront cache cannot establish current label approval or stock.
+    catalogCache: OFFLINE_CATALOG_CACHE,
+    cart: {...cart,async add(id,quantity){
+      const products=await approved();
+      if(!products.some(product=>product.id===id)) throw new Error('shade unavailable');
+      return cart.add(id,quantity);
+    }},
   };
   return cached;
 }

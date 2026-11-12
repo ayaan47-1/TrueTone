@@ -7,6 +7,7 @@ import { formatMoney } from '../money';
 import { pickPurchasableVariant } from '../product-mapper';
 import { hasAcceptedShopPrivacy } from '../shop-privacy';
 import { shopifyStore, useShopifyStore } from '../shopify-store';
+import { catalogueIsDemo, useProductCatalogue } from '../../../match/product-catalog';
 
 interface Props {
   readonly handle: string;
@@ -21,6 +22,7 @@ export function ShopifyProductScreen(props: Props) {
 }
 
 function ShopifyProductScreenOnline({ handle, onBack, onAdded }: Props) {
+  const catalogue=useProductCatalogue();
   const privacyAccepted = hasAcceptedShopPrivacy();
   const {
     products,
@@ -31,7 +33,12 @@ function ShopifyProductScreenOnline({ handle, onBack, onAdded }: Props) {
     catalogUpdatedAt,
     liveProductHandles,
   } = useShopifyStore();
-  const product = useMemo(() => products.find((item) => item.handle === handle), [handle, products]);
+  const product = useMemo(() => {
+    const match=products.find(item=>item.handle===handle);
+    if(!match || catalogueIsDemo) return match;
+    const allowed=new Set(catalogue.products.map(item=>item.id));
+    return {...match,variants:match.variants.filter(item=>allowed.has(item.id))};
+  }, [handle, products, catalogue.products]);
   const [selectedVariantId, setSelectedVariantId] = useState<string | null>(null);
   const variant = product
     ? product.variants.find((item) => item.id === selectedVariantId && item.availableForSale)

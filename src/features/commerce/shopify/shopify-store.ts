@@ -41,8 +41,8 @@ export const shopifyStore = {
     listeners.add(listener);
     return () => listeners.delete(listener);
   },
-  async loadProducts(): Promise<void> {
-    if (state.loadingProducts || (state.catalogStatus === 'live' && state.products.length > 0)) return;
+  async loadProducts(force = false): Promise<void> {
+    if (state.loadingProducts || (!force && state.catalogStatus === 'live' && state.products.length > 0)) return;
     setState({ loadingProducts: true, error: null });
     const services = getShopifyServices();
     let hasCachedProducts = state.catalogStatus === 'cached' && state.products.length > 0;

@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { SUPABASE_OFFLINE } from '../../../../lib/supabase';
 import { ShopOfflineNotice } from './ShopOfflineNotice';
 import { Image, Pressable, ScrollView, Text, View } from 'react-native';
@@ -7,6 +7,8 @@ import { formatMoney } from '../money';
 import { acceptShopPrivacy, __resetShopPrivacyForTests, hasAcceptedShopPrivacy } from '../shop-privacy';
 import { shopifyStore, useShopifyStore } from '../shopify-store';
 import type { ShopifyProduct } from '../types';
+import { catalogueIsDemo, useProductCatalogue } from '../../../match/product-catalog';
+import { CatalogueNotice } from '../../../catalog/CatalogueNotice';
 
 interface Props {
   readonly onOpen: (handle: string) => void;
@@ -21,12 +23,25 @@ export function ShopifyShopScreen(props: Props) {
 }
 
 function ShopifyShopScreenOnline({ onOpen, onBag, onDecline }: Props) {
+  const catalogue=useProductCatalogue();
   const [accepted, setAccepted] = useState(hasAcceptedShopPrivacy());
   const { products, cart, loadingProducts, error, catalogStatus, catalogUpdatedAt } = useShopifyStore();
+  const approvedIds=new Set(catalogue.products.map(product=>product.id));
+  const visibleProducts=catalogueIsDemo?products:products.map(product=>({...product,variants:product.variants.filter(variant=>approvedIds.has(variant.id))})).filter(product=>product.variants.length>0);
+  const approvedKey = catalogue.status === 'ready' || catalogue.status === 'empty'
+    ? catalogue.products.map(product => product.id).join(',') : null;
+  const requestedKey = useRef<string | null>(null);
 
   useEffect(() => {
     if (accepted) void shopifyStore.loadProducts();
   }, [accepted]);
+
+  useEffect(() => {
+    if (accepted && approvedKey !== null && !catalogueIsDemo && requestedKey.current !== approvedKey) {
+      requestedKey.current = approvedKey;
+      void shopifyStore.loadProducts(true);
+    }
+  }, [accepted, approvedKey]);
 
   if (!accepted) {
     return (
@@ -69,6 +84,7 @@ function ShopifyShopScreenOnline({ onOpen, onBag, onDecline }: Props) {
         </Pressable>
       </View>
       <Caption className="mb-4">Products and checkout are provided by Shopify.</Caption>
+      <CatalogueNotice state={catalogue} />
       {loadingProducts ? <Body>Loading products…</Body> : null}
       {catalogStatus === 'cached' && catalogUpdatedAt ? (
         <GlassCard radius={22} className="mb-4 px-5 py-4">
@@ -92,7 +108,7 @@ function ShopifyShopScreenOnline({ onOpen, onBag, onDecline }: Props) {
         </GlassCard>
       ) : null}
       <View className="gap-4">
-        {products.map((product) => (
+        {visibleProducts.map((product) => (
           <ProductCard key={product.id} product={product} onOpen={onOpen} />
         ))}
       </View>

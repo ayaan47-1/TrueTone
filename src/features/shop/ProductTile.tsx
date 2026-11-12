@@ -42,6 +42,7 @@ export function ProductTile({ product, tier, isBestMatch = false, artHeight = 13
   }, []);
 
   const add = (): void => {
+    if (product.catalogue) { onOpen(product.id); return; }
     bag.add(product);
     setAdded(true);
     if (timer.current) clearTimeout(timer.current);
@@ -89,7 +90,7 @@ export function ProductTile({ product, tier, isBestMatch = false, artHeight = 13
             <Text className="font-body-bold text-[16px] text-ink">${product.price}</Text>
             <PressableScale
               accessibilityRole="button"
-              accessibilityLabel={`Add ${product.name} to bag`}
+              accessibilityLabel={product.catalogue ? `View ${product.name}` : `Add ${product.name} to bag`}
               onPress={add}
               hitSlop={8}
               testID={`add-to-bag-${product.id}`}
