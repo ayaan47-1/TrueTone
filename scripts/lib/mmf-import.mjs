@@ -84,7 +84,7 @@ export async function applyMmfImport(prepared, {url,serviceKey,fetch:send = glob
   let response;
   try {
     response = await send(`${target.origin}/rest/v1/rpc/catalog_import_mmf`, {
-      method:'POST',headers:{apikey:serviceKey,Authorization:`Bearer ${serviceKey}`,'Content-Type':'application/json'},
+      method:'POST',redirect:'error',headers:{apikey:serviceKey,Authorization:`Bearer ${serviceKey}`,'Content-Type':'application/json'},
       body:JSON.stringify({p_batch:prepared.batch,p_rows:prepared.rows}),
     });
   } catch { throw new Error('MMF import failed'); }

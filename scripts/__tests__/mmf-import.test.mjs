@@ -95,3 +95,20 @@ test('source wording is retained exactly instead of destructively normalizing sh
   assert.equal(result.shade_name,' 102 Fair Porcelain ');
   assert.equal(result.formula_scope,' line only ');
 });
+
+test('credentialed importer rejects307/308 and never follows a credential-forwarding redirect',async()=>{
+  for(const status of [307,308]) {
+    const requests=[];
+    const redirectedFetch=async(url,init)=>{
+      requests.push({url,init});
+      const redirect=new Response(null,{status,headers:{Location:'https://untrusted.example/collect'}});
+      if(init.redirect==='error') return redirect;
+      // Model fetch's default following behaviour without a socket or a real credential.
+      requests.push({url:redirect.headers.get('Location'),init});
+      return Response.json({imported:1,protected:0});
+    };
+    await assert.rejects(()=>applyMmfImport(prepare(dataset()),{url:'https://example.supabase.co',serviceKey:'synthetic-only',fetch:redirectedFetch}),/MMF import failed/);
+    assert.equal(requests.length,1);
+    assert.equal(requests[0].init.redirect,'error');
+  }
+});
