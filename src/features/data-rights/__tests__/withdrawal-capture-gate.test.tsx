@@ -6,7 +6,12 @@ import { cameraDemoSetConsent, cameraDemoSetIs18 } from '../../../lib/camera-dem
 
 jest.mock('../../../lib/supabase', () => ({ SUPABASE_OFFLINE: true, CAMERA_DEMO: true, DEMO_MODE: false, supabase: {} }));
 jest.mock('../../../lib/auth', () => ({ bootstrapSession: jest.fn() }));
-jest.mock('../../shade-feedback/runtime', () => ({ clearAllLocalFeedback: async () => { throw new Error('storage unavailable'); } }));
+jest.mock('../../shade-feedback/runtime', () => {
+  const { createFeedbackCleanup } = jest.requireActual('../../shade-feedback/cleanup');
+  const storage = require('@react-native-async-storage/async-storage');
+  const feedbackCleanup = createFeedbackCleanup(storage, async () => { throw new Error('storage unavailable'); });
+  return { feedbackCleanup, clearAllLocalFeedback: () => feedbackCleanup.clear() };
+});
 
 function Device() {
   const { route, refresh } = useProfile();

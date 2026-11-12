@@ -11,6 +11,7 @@ import { wipeEncryptedLocalData } from '../../lib/encrypted-storage';
 import { Screen, GlassCard, Display, Eyebrow, Body, Caption } from '../../components/ui';
 import { FeedbackDataPanel } from '../shade-feedback/FeedbackDataPanel';
 import { clearAllLocalFeedback } from '../shade-feedback/runtime';
+import { FeedbackCleanupNotice } from '../shade-feedback/FeedbackCleanupNotice';
 
 type RpcName = 'withdraw_consent' | 'clear_shade_history' | 'delete_my_data' | 'delete_account';
 type Props = { onChanged: () => void; confirm: (msg: string) => Promise<boolean>; feedbackOwner?:string|null };
@@ -51,7 +52,6 @@ async function wipeLocalData(includeAuthSession: boolean): Promise<boolean> {
 
 export function DataRights({ onChanged, confirm, feedbackOwner }: Props) {
   const [wipeIncomplete, setWipeIncomplete] = useState(false);
-  const [feedbackWipeIncomplete,setFeedbackWipeIncomplete]=useState(false);
 
   const wiping = useRef(false);
   const wipeAuthSession = useRef(false);
@@ -90,9 +90,8 @@ export function DataRights({ onChanged, confirm, feedbackOwner }: Props) {
   async function run(fn: RpcName, msg: string) {
     if (!(await confirm(msg))) return;
     if(fn==='withdraw_consent') {
-      try {await clearAllLocalFeedback();setFeedbackWipeIncomplete(false);}
+      try {await clearAllLocalFeedback();}
       catch {
-        setFeedbackWipeIncomplete(true);
         // Gate refresh is required even when cleanup remains incomplete.
         if (SUPABASE_OFFLINE) {
           cameraDemoWithdrawConsent();
@@ -148,7 +147,7 @@ export function DataRights({ onChanged, confirm, feedbackOwner }: Props) {
           </Pressable>
         ))}
       </View>
-      {feedbackWipeIncomplete ? <Body accessibilityRole="alert">Some local shade feedback could not be cleared. Try Withdraw Consent again.</Body> : null}
+      <FeedbackCleanupNotice />
       {wipeIncomplete && (
         <GlassCard flat intensity={28} radius={22} className="px-5 py-4 gap-2 mt-4">
           <Text accessibilityRole="alert" className="font-body-semibold text-base text-clay">

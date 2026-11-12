@@ -23,6 +23,7 @@ import { DEMO_MODE, SUPABASE_OFFLINE } from '../src/lib/supabase';
 import { migrateLegacyPlaintext } from '../src/lib/encrypted-storage';
 import { MistBackground, GlassCard, Heading, Body, PrimaryButton } from '../src/components/ui';
 import { palette } from '../src/theme/tokens';
+import { useFeedbackCleanupLifecycle } from '../src/features/shade-feedback/cleanup-lifecycle';
 
 // The demo build stubs an already-onboarded identity (profile-context.tsx) and skips the
 // gate chain entirely, so a live camera at this path would have no age-gate/consent in
@@ -133,6 +134,7 @@ function Guard() {
 }
 
 export default function RootLayout() {
+  useFeedbackCleanupLifecycle();
   const [fontsLoaded] = useFonts({
     PlusJakartaSans_500Medium,
     PlusJakartaSans_600SemiBold,

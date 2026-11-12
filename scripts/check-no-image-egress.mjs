@@ -9,7 +9,7 @@ const FORBIDDEN = ['.storage', 'upload', 'imageUri', 'photo.path', 'FormData'];
 // They are the most likely place for a debugging shortcut to leak an image, so they are guarded
 // like the pipeline itself rather than trusted for being dev-only.
 const GUARDED_DIRS = ['src/features/capture', 'src/features/read', 'app/(dev)'];
-const GUARDED_FILES = ['app/shade-feedback.tsx', ...['contract.ts','service.ts','runtime.ts','local.ts','ShadeFeedbackScreen.tsx','ShadeFeedbackConsent.tsx','FeedbackDataPanel.tsx']
+const GUARDED_FILES = ['app/shade-feedback.tsx', ...['contract.ts','service.ts','runtime.ts','local.ts','cleanup.ts','cleanup-lifecycle.ts','FeedbackCleanupNotice.tsx','ShadeFeedbackScreen.tsx','ShadeFeedbackConsent.tsx','FeedbackDataPanel.tsx']
   .map(name => `src/features/shade-feedback/${name}`)];
 // image-lifecycle + preprocess legitimately reference the uri locally; allow file-system + tensor ops.
 const ALLOW = ['deleteAsync', 'FileSystem', 'normalizeToTensor', 'readAsStringAsync'];
