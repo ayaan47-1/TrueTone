@@ -166,6 +166,24 @@ test('a new cleanup instance recovers residual answers after BOTH marker write a
   expect(restarted.getSnapshot()).toBe(false);
 });
 
+test('the same double failure followed by UNKNOWN consent preserves residual answers and blocks saves', async () => {
+  const f = fixture();
+  let residual = true;
+  const wipe = jest.fn(async () => { residual = false; });
+  wipe.mockRejectedValueOnce(new Error('locked'));
+  const checks = { readConsent: async () => 'unknown' as const, hasFeedback: async () => residual };
+  f.storage.setItem.mockRejectedValueOnce(new Error('marker unavailable'));
+  const first = createFeedbackCleanup(f.storage, wipe, checks);
+  await expect(first.clear()).rejects.toThrow();
+  const restarted = createFeedbackCleanup(f.storage, wipe, checks);
+  await restarted.retry();
+  expect(residual).toBe(true);
+  expect(wipe).toHaveBeenCalledTimes(1);
+  const write = jest.fn(async () => {});
+  await expect(restarted.save(write)).rejects.toThrow();
+  expect(write).not.toHaveBeenCalled();
+});
+
 test('unknown consent and pending cleanup block saves, and later retries preserve a post-reconsent answer', async () => {
   const f = fixture();
   let answerExists = true;

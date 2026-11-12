@@ -1,10 +1,26 @@
 import { useState } from 'react';
-import { ScrollView, View } from 'react-native';
-import { Body, Heading, PrimaryButton } from '../../components/ui';
+import { Pressable, View } from 'react-native';
+import { Body, Caption, GlassCard, Heading, PrimaryButton, Screen, HEADER_CLEARANCE } from '../../components/ui';
 import { localAnswerSchema } from './contract';
 import type { z } from 'zod';
 
 type Answer = z.infer<typeof localAnswerSchema>;
+
+function ChoiceGroup<T extends string|null>({title,options,value,onChange}:{
+  title:string;options:readonly (readonly [T,string])[];value:T;onChange:(next:T)=>void;
+}) {
+  return <View style={{gap:8}} accessibilityRole="radiogroup" accessibilityLabel={title}>
+    <Heading>{title}</Heading>
+    <GlassCard flat radius={22} className="px-4 py-1">
+      {options.map(([next,label])=><Pressable key={label} accessibilityRole="radio" accessibilityLabel={label}
+        accessibilityState={{checked:value===next,selected:value===next}} onPress={()=>onChange(next)}
+        style={{minHeight:44,paddingVertical:14,flexDirection:'row',alignItems:'center',gap:12}}>
+        <Body style={{flex:1}}>{label}</Body>
+        <Body accessible={false}>{value===next?'●':'○'}</Body>
+      </Pressable>)}
+    </GlassCard>
+  </View>;
+}
 export function ShadeFeedbackScreen({variantId,save,onClose}:{variantId:string;save:(answer:Answer)=>Promise<void>;onClose:()=>void}) {
   const [depth,setDepth]=useState<Answer['depth_correction']>('not_sure');
   const [undertone,setUndertone]=useState<Answer['undertone_correction']>('not_sure');
@@ -23,17 +39,15 @@ export function ShadeFeedbackScreen({variantId,save,onClose}:{variantId:string;s
     } catch { setMessage('Could not save. Please try again.'); }
     finally { setBusy(false); }
   }
-  return <ScrollView contentContainerStyle={{padding:24,paddingTop:64,paddingBottom:48,gap:12}}>
+  return <Screen className="px-6" topGap={HEADER_CLEARANCE} bottomGap={24} contentStyle={{gap:12}} scrollTestID="shade-feedback-form">
     <Heading>How did this shade look?</Heading>
     <Body>Answer only after trying it. This optional answer stays on this phone and does not change your suggestions.</Body>
-    <Heading>Depth</Heading>
-    <View style={{gap:8}}>{options.map(([value,label])=><PrimaryButton key={value} label={label} variant={depth===value?'primary':'ghost'} onPress={()=>setDepth(value)} />)}</View>
-    <Heading>Undertone</Heading>
-    <View style={{gap:8}}>{tones.map(([value,label])=><PrimaryButton key={value} label={label} variant={undertone===value?'primary':'ghost'} onPress={()=>setUndertone(value)} />)}</View>
-    <Heading>Outcome, optional</Heading>
-    <View style={{gap:8}}>{outcomes.map(([value,label])=><PrimaryButton key={label} label={label} variant={outcome===value?'primary':'ghost'} onPress={()=>setOutcome(value)} />)}</View>
+    <ChoiceGroup title="Depth" options={options} value={depth} onChange={setDepth} />
+    <ChoiceGroup title="Undertone" options={tones} value={undertone} onChange={setUndertone} />
+    <ChoiceGroup title="Outcome, optional" options={outcomes} value={outcome} onChange={setOutcome} />
+    {depth==='not_sure' && undertone==='not_sure' ? <Caption>Pick at least one direction for depth or undertone to save.</Caption> : null}
     <PrimaryButton label="Save on this phone" disabled={busy || (depth==='not_sure' && undertone==='not_sure')} onPress={()=>void submit()} />
     <PrimaryButton label="Cancel" variant="ghost" onPress={onClose} />
     {message ? <Body accessibilityRole="alert">{message}</Body> : null}
-  </ScrollView>;
+  </Screen>;
 }
