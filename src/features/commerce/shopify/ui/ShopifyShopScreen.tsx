@@ -7,7 +7,7 @@ import { formatMoney } from '../money';
 import { acceptShopPrivacy, __resetShopPrivacyForTests, hasAcceptedShopPrivacy } from '../shop-privacy';
 import { shopifyStore, useShopifyStore } from '../shopify-store';
 import type { ShopifyProduct } from '../types';
-import { catalogueIsDemo, useProductCatalogue } from '../../../match/product-catalog';
+import { catalogueIsDemo, refreshCatalogue, useProductCatalogue } from '../../../match/product-catalog';
 import { CatalogueNotice } from '../../../catalog/CatalogueNotice';
 
 interface Props {
@@ -93,7 +93,10 @@ function ShopifyShopScreenOnline({ onOpen, onBag, onDecline }: Props) {
       <CatalogueNotice state={catalogue} shop={{loading:loadingProducts,error,
         cachedAt:catalogStatus==='cached'?catalogUpdatedAt:null,
         empty:catalogStatus==='live' && visibleProducts.length===0}}
-        onRetry={()=>void shopifyStore.loadProducts(true)} />
+        onRetry={()=>{
+          void refreshCatalogue(true);
+          void shopifyStore.loadProducts(true);
+        }} />
       <View className="gap-4">
         {visibleProducts.map((product) => (
           <ProductCard key={product.id} product={product} onOpen={onOpen} />
