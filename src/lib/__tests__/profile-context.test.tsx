@@ -181,7 +181,29 @@ test('a retry after a connection error keeps the error up until the reload settl
   let pending: Promise<void> = Promise.resolve();
   await act(async () => { pending = refresh(); });
   // In flight: still the error screen, never error=false with the stale initial route.
-  expect(screen.getByText('false|true|region-blocked')).toBeTruthy();
+  expect(screen.getByText('true|true|region-blocked')).toBeTruthy();
   await act(async () => { finish('u1'); await pending; });
   await waitFor(() => expect(screen.getByText('false|false|home')).toBeTruthy());
+});
+
+test('refresh blocks a cached home route until current consent has been loaded', async () => {
+  mockRegion.mockReturnValue(true);
+  mockBootstrap.mockResolvedValue('u1');
+  mockProfileRow({ is_18_plus: true, consent_active: true });
+  let refresh = async (): Promise<void> => {};
+  function RefreshProbe() {
+    const ctx = useProfile();
+    refresh = ctx.refresh;
+    return <Text>{`${ctx.loading}|${ctx.error}|${ctx.route}`}</Text>;
+  }
+  const view = await render(<ProfileProvider><RefreshProbe /></ProfileProvider>);
+  await waitFor(() => expect(view.getByText('false|false|home')).toBeTruthy());
+  let finish = (_uid: string): void => {};
+  mockBootstrap.mockImplementationOnce(() => new Promise<string>((resolve) => { finish = resolve; }));
+  mockProfileRow({ is_18_plus: true, consent_active: false });
+  let pending = Promise.resolve();
+  await act(async () => { pending = refresh(); });
+  expect(view.getByText('true|false|home')).toBeTruthy();
+  await act(async () => { finish('u1'); await pending; });
+  expect(view.getByText('false|false|consent')).toBeTruthy();
 });

@@ -15,6 +15,8 @@ jest.mock('../../src/features/read/run-read', () => ({ runRead: jest.fn() }));
 
 let mockDemoMode = false;
 let mockCameraDemo = false;
+const mockProfile = { loading: false, error: false, route: 'home', userId: 'user' };
+jest.mock('../../src/lib/profile-context', () => ({ useProfile: () => mockProfile }));
 jest.mock('../../src/lib/supabase', () => ({
   get DEMO_MODE() {
     return mockDemoMode;
@@ -41,6 +43,16 @@ beforeEach(() => {
   jest.clearAllMocks();
   mockDemoMode = false;
   mockCameraDemo = false;
+  Object.assign(mockProfile, { loading: false, error: false, route: 'home', userId: 'user' });
+});
+
+test.each([
+  { loading: true }, { error: true }, { route: 'consent' }, { route: 'age-gate' },
+  { route: 'region-blocked' }, { userId: null },
+])('does not mount capture while profile is gated or unknown: %j', async (state) => {
+  Object.assign(mockProfile, state);
+  await render(<ScanRoute />);
+  expect(mockCapture).not.toHaveBeenCalled();
 });
 
 test('DEMO_MODE on: <Capture> never renders -- a synchronous redirect takes its place', async () => {

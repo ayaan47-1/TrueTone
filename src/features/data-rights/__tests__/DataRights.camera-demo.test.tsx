@@ -27,17 +27,17 @@ beforeEach(() => {
   cameraDemoSetConsent();
 });
 
-test('withdrawal does not report completion when feedback clearing fails and can be retried', async () => {
+test('withdrawal refreshes the consent gate despite cleanup failure and leaves cleanup retryable', async () => {
   mockClearFeedback.mockRejectedValueOnce(new Error('storage unavailable'));
   const onChanged = jest.fn();
   const view = await render(<DataRights onChanged={onChanged} confirm={async () => true} />);
   await fireEvent.press(view.getByTestId('withdraw'));
   await waitFor(() => expect(view.getByText(/Some local shade feedback could not be cleared/)).toBeTruthy());
-  expect(onChanged).not.toHaveBeenCalled();
+  expect(onChanged).toHaveBeenCalledTimes(1);
   expect(cameraDemoState().consentActive).toBe(false);
   expect(mockRpc).not.toHaveBeenCalled();
   await fireEvent.press(view.getByTestId('withdraw'));
-  await waitFor(() => expect(onChanged).toHaveBeenCalledTimes(1));
+  await waitFor(() => expect(onChanged).toHaveBeenCalledTimes(2));
   expect(mockClearFeedback).toHaveBeenCalledTimes(2);
   expect(cameraDemoState().consentActive).toBe(false);
   expect(view.queryByText(/Some local shade feedback could not be cleared/)).toBeNull();

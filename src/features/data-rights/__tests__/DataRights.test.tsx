@@ -18,7 +18,7 @@ jest.mock('../../diary/diary-storage', () => ({ clearDiary: () => mockClearDiary
 
 beforeEach(() => jest.clearAllMocks());
 
-test('feedback cleanup failure still withdraws server consent but reports incomplete until retry', async () => {
+test('feedback cleanup failure still withdraws and refreshes server consent while cleanup remains retryable', async () => {
   const clear = jest.spyOn(localFeedback, 'clearAll').mockRejectedValueOnce(new Error('storage unavailable'));
   const onChanged = jest.fn();
   try {
@@ -26,9 +26,9 @@ test('feedback cleanup failure still withdraws server consent but reports incomp
     await fireEvent.press(view.getByTestId('withdraw'));
     await waitFor(() => expect(mockRpc).toHaveBeenCalledWith('withdraw_consent'));
     expect(view.getByText(/Some local shade feedback could not be cleared/)).toBeTruthy();
-    expect(onChanged).not.toHaveBeenCalled();
+    expect(onChanged).toHaveBeenCalledTimes(1);
     await fireEvent.press(view.getByTestId('withdraw'));
-    await waitFor(() => expect(onChanged).toHaveBeenCalledTimes(1));
+    await waitFor(() => expect(onChanged).toHaveBeenCalledTimes(2));
     expect(clear).toHaveBeenCalledTimes(2);
   } finally {
     clear.mockRestore();
