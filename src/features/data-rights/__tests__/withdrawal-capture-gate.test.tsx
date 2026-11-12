@@ -9,7 +9,9 @@ jest.mock('../../../lib/auth', () => ({ bootstrapSession: jest.fn() }));
 jest.mock('../../shade-feedback/runtime', () => {
   const { createFeedbackCleanup } = jest.requireActual('../../shade-feedback/cleanup');
   const storage = require('@react-native-async-storage/async-storage');
-  const feedbackCleanup = createFeedbackCleanup(storage, async () => { throw new Error('storage unavailable'); });
+  const feedbackCleanup = createFeedbackCleanup(storage, async () => { throw new Error('storage unavailable'); }, {
+    readConsent: async () => 'inactive', hasFeedback: async () => false,
+  });
   return { feedbackCleanup, clearAllLocalFeedback: () => feedbackCleanup.clear() };
 });
 

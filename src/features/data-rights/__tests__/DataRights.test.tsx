@@ -18,6 +18,17 @@ jest.mock('../../diary/diary-storage', () => ({ clearDiary: () => mockClearDiary
 
 beforeEach(() => jest.clearAllMocks());
 
+test('withdrawal revokes first and refreshes the gate without waiting for the queued local wipe', async () => {
+  const order: string[] = [];
+  const wipe = jest.spyOn(localFeedback, 'clearAll').mockImplementationOnce(async () => { order.push('wipe'); });
+  mockRpc.mockImplementationOnce(async () => { order.push('revoked'); return { error: null }; });
+  try {
+    const view = await render(<DataRights onChanged={() => { order.push('gate'); }} confirm={async () => true} />);
+    await fireEvent.press(view.getByTestId('withdraw'));
+    expect(order).toEqual(['revoked', 'gate', 'wipe']);
+  } finally { wipe.mockRestore(); }
+});
+
 test('feedback cleanup failure still withdraws and refreshes server consent while cleanup remains retryable', async () => {
   const clear = jest.spyOn(localFeedback, 'clearAll').mockRejectedValueOnce(new Error('storage unavailable'));
   const onChanged = jest.fn();

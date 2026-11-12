@@ -21,7 +21,9 @@ const mockClearFeedback = jest.fn(() => Promise.resolve());
 jest.mock('../../shade-feedback/runtime', () => {
   const { createFeedbackCleanup } = jest.requireActual('../../shade-feedback/cleanup');
   const storage = require('@react-native-async-storage/async-storage');
-  const feedbackCleanup = createFeedbackCleanup(storage, () => mockClearFeedback());
+  const feedbackCleanup = createFeedbackCleanup(storage, () => mockClearFeedback(), {
+    readConsent: async () => 'inactive', hasFeedback: async () => false,
+  });
   return { feedbackCleanup, clearAllLocalFeedback: () => feedbackCleanup.clear() };
 });
 

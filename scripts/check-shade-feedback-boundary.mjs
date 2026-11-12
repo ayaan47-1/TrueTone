@@ -79,7 +79,7 @@ export function inspectFeedbackBoundary(files) {
         /shopify|checkout|analytics|camera|scan-record|\bscans\b|openai|anthropic|filesystem|node:fs/i.test(node.moduleSpecifier.text)) failures.push(`${file}: prohibited import`);
       if(ts.isImportDeclaration(node) && ts.isStringLiteral(node.moduleSpecifier)) {
         const module=node.moduleSpecifier.text;
-        const fixed=['react','react-native','zod','expo-router','../../components/ui','../../lib/supabase','../../lib/encrypted-storage','../src/components/ui','../src/lib/profile-context','@react-native-async-storage/async-storage'];
+        const fixed=['react','react-native','zod','expo-router','../../components/ui','../../lib/supabase','../../lib/encrypted-storage','../../lib/feedback-consent','../src/components/ui','../src/lib/profile-context','@react-native-async-storage/async-storage'];
         if(!fixed.includes(module) && !/^\.\/[A-Za-z][\w-]*$/.test(module) && !/^\.\.\/src\/features\/shade-feedback\/[A-Za-z][\w-]*$/.test(module)) failures.push(`${file}: unreviewed import`);
         const bindings=node.importClause?.namedBindings;
         if(bindings && ts.isNamedImports(bindings) && bindings.elements.some(element=>['Share','Linking','Image','XMLHttpRequest'].includes((element.propertyName??element.name).text))) failures.push(`${file}: unreviewed destination`);

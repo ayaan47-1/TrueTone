@@ -72,11 +72,6 @@ export function DataRights({ onChanged, confirm, feedbackOwner }: Props) {
   // Camera build (Dwight FAIL on PR #60): there is no server account, so every action applies to
   // this device only -- the in-memory scans and the local age/consent gates -- and never calls an RPC.
   async function runLocalOnly(fn: RpcName) {
-    if (fn === 'withdraw_consent') {
-      cameraDemoWithdrawConsent();
-      onChanged();
-      return;
-    }
     if (fn === 'clear_shade_history') {
       await clearShadeHistory();
       onChanged();
@@ -90,15 +85,17 @@ export function DataRights({ onChanged, confirm, feedbackOwner }: Props) {
   async function run(fn: RpcName, msg: string) {
     if (!(await confirm(msg))) return;
     if(fn==='withdraw_consent') {
-      try {await clearAllLocalFeedback();}
-      catch {
-        // Gate refresh is required even when cleanup remains incomplete.
-        if (SUPABASE_OFFLINE) {
-          cameraDemoWithdrawConsent();
-          onChanged();
-          return;
-        }
+      if (SUPABASE_OFFLINE) cameraDemoWithdrawConsent();
+      else {
+        const { error } = await supabase.rpc(fn);
+        if (error) return;
       }
+      // Invalidate saves synchronously, then refresh the revoked gate without waiting
+      // for disk access. The shared notice survives navigation while cleanup runs.
+      const cleaning = clearAllLocalFeedback();
+      onChanged();
+      await cleaning.catch(() => undefined);
+      return;
     }
     if (SUPABASE_OFFLINE) return runLocalOnly(fn);
     if (fn === 'clear_shade_history') {
