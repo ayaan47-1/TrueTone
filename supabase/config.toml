@@ -4,6 +4,15 @@
 # working directory name when running `supabase init`.
 project_id = "TrueTone"
 
+# These endpoints authenticate Shopify HMAC and a dedicated reconcile token respectively.
+[functions.shopify-catalog-webhook]
+verify_jwt = false
+import_map = "./functions/catalog-import-map.json"
+
+[functions.catalog-reconcile]
+verify_jwt = false
+import_map = "./functions/catalog-import-map.json"
+
 [api]
 enabled = true
 # Port to use for the API URL.

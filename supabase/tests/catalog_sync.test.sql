@@ -1,0 +1,37 @@
+begin;
+select plan(17);
+select is(public.catalog_claim_event('e1','products/update'),'claimed','first webhook obtains lease');
+select is(public.catalog_claim_event('e1','products/update'),'busy','concurrent retry remains retryable');
+select public.catalog_finish_event('e1',true);
+select is(public.catalog_claim_event('e1','products/update'),'done','completed webhook deduplicates');
+select is(public.catalog_claim_event('e2','products/update'),'claimed','another event obtains lease');
+select public.catalog_finish_event('e2',false);
+select is(public.catalog_claim_event('e2','products/update'),'claimed','failed webhook retries');
+
+create temporary table snapshot(value jsonb);
+insert into snapshot values ('{"product_gid":"p-sync","variants":[{"variant_gid":"v-sync","inventory_item_gid":"i-sync","formula_key":"synthetic:formula","formula_version":"1","shade_name":"Neutral 5","vendor":"Synthetic","sku":"sku1","barcode":null,"published":true,"price":20,"currency":"USD","levels":[{"location_gid":"l-sync","available":2,"online":true}]}]}');
+select public.catalog_apply_product((select value from snapshot),now());
+select is((select status from public.catalog_tone_labels where formula_key='synthetic:formula'),'unverified','new label starts unverified');
+select is((select count(*)::int from public.catalog_needs_label where variant_gid='v-sync'),1,'new shade queued');
+select is((select available from public.catalog_inventory_levels where inventory_item_gid='i-sync'),2,'inventory persisted');
+select public.catalog_apply_product(jsonb_set((select value from snapshot),'{variants,0,shade_name}','"Stale"'),now()-interval '1 hour');
+select is((select shade_name from public.catalog_variants where variant_gid='v-sync'),'Neutral 5','older snapshot cannot overwrite current');
+select public.catalog_apply_product(jsonb_set((select value from snapshot),'{variants,0,formula_version}','"2"'),now()+interval '1 second');
+select is((select count(*)::int from public.catalog_tone_labels where formula_key='synthetic:formula'),2,'reformulation creates label version');
+select is((select l.formula_version from public.catalog_label_bindings b join public.catalog_tone_labels l on l.id=b.label_id where b.variant_gid='v-sync'),'2','binding returns to new unverified version');
+select public.catalog_apply_product('{"product_gid":"p-sync","variants":[]}',now()+interval '2 seconds');
+select ok((select deleted from public.catalog_variants where variant_gid='v-sync'),'removed variant tombstoned');
+select public.catalog_delete_product('p-sync',now()+interval '3 seconds');
+select public.catalog_apply_product((select value from snapshot),now()+interval '2 seconds');
+select ok((select deleted from public.catalog_variants where variant_gid='v-sync'),'delayed snapshot cannot resurrect deleted product');
+
+select public.catalog_begin_reconcile(now());
+select public.catalog_finish_reconcile('{}',now());
+select is((select status from public.catalog_sync_runs order by started_at desc limit 1),'complete','successful reconciliation recorded');
+set local role authenticated;
+select throws_ok($$select public.catalog_claim_event('stolen','products/update')$$,'42501',null,'mobile cannot claim event');
+select throws_ok($$select public.catalog_finish_reconcile('{}',now())$$,'42501',null,'mobile cannot reconcile');
+reset role;
+select ok(exists(select 1 from cron.job where jobname='truetone-catalog-reconcile' and schedule='0 4 * * *'),'nightly reconcile scheduled');
+select * from finish();
+rollback;

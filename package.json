@@ -70,6 +70,8 @@
     "test": "jest",
     "test:watch": "jest --watch",
     "test:coverage": "jest --coverage",
+    "test:catalog": "node --experimental-strip-types --test test/catalog/*.test.mjs",
+    "check:catalog": "tsc --ignoreConfig --noEmit --strict --target es2022 --module nodenext --moduleResolution nodenext --allowImportingTsExtensions --skipLibCheck supabase/functions/_shared/catalog/*.ts supabase/functions/shopify-catalog-webhook/index.ts supabase/functions/catalog-reconcile/index.ts src/features/catalog/fallback.ts",
     "test:eval": "jest -c jest.eval.config.js",
     "test:integration": "node --test \"test/integration/**/*.test.mjs\"",
     "test:scripts": "node --test \"scripts/__tests__/**/*.test.mjs\" \"test/web/**/*.test.mjs\" \"test/content/**/*.test.mjs\"",
