@@ -96,7 +96,7 @@ export default function TodayScreen() {
                 subtitle={
                   forYouProfile
                     ? `Ranked for ${currentShade?.shadeName ?? 'your shade'}`
-                    : 'A range from fair to deep'
+                    : 'Available reviewed shades'
                 }
                 products={picks}
                 onOpenProduct={id => go(`/product/${encodeURIComponent(id)}`)}

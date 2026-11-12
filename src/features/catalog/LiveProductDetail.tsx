@@ -1,6 +1,8 @@
 import { useState } from 'react';
-import { ScrollView, View } from 'react-native';
-import { Body, Caption, Heading, PrimaryButton } from '../../components/ui';
+import { View } from 'react-native';
+import { Body, Caption, Eyebrow, Heading, PrimaryButton } from '../../components/ui';
+import { ProductDetailShell } from '../shop/ProductDetailShell';
+import { ProductArt } from '../shop/ProductArt';
 import { FINISH_LABELS } from '../../content/makeup-vocab';
 import { getCatalogueState, refreshCatalogue } from '../match/product-catalog';
 import { shopifyStore } from '../commerce/shopify/shopify-store';
@@ -33,18 +35,21 @@ export function LiveProductDetail({ productId,state,onChoose,onClose,onAdded,onS
     setAdding(false);
   }
 
-  return <ScrollView contentContainerStyle={{padding:24,paddingTop:64,gap:12}}>
-    <PrimaryButton label="Back" variant="ghost" onPress={onClose} />
+  const footer = product ? hasAcceptedShopPrivacy()
+    ? <PrimaryButton label="Add this shade to Shopify bag" fullWidth disabled={adding} onPress={()=>void add()} />
+    : <PrimaryButton label="Open Shop" fullWidth onPress={onShop ?? onClose} /> : null;
+  return <ProductDetailShell onClose={onClose} hero={product ? <ProductArt product={product} height={380} radius={0} /> : undefined} footer={footer}>
+    <View className="rounded-t-[28px] bg-mist-50 px-6 pt-6 gap-3">
     <CatalogueNotice state={state} />
     {product ? <>
+      <Eyebrow>Reviewed catalogue shade</Eyebrow>
       <Heading>{product.name}</Heading>
       <Caption>{product.shadeName}</Caption>
       <Body>{FINISH_LABELS[product.finish]}</Body>
       <Body>{`$${product.price.toFixed(2)} USD`}</Body>
       <Caption>Product image and colour swatch unavailable.</Caption>
       <Caption>Reviewed catalogue shade. Shade suggestions are estimates.</Caption>
-      {hasAcceptedShopPrivacy() ? <PrimaryButton label="Add this shade to Shopify bag" disabled={adding} onPress={()=>void add()} /> :
-        <><Body>Open Shop first to review its privacy notice before adding this shade.</Body><PrimaryButton label="Open Shop" onPress={onShop ?? onClose} /></>}
+      {!hasAcceptedShopPrivacy() ? <Body>Open Shop first to review its privacy notice before adding this shade.</Body> : null}
     </> : state.status==='ready' || state.status==='empty' ? <>
       <Heading>This shade is unavailable</Heading>
       {previous?.catalogue?.coverage && previous.finish!=='unknown' ? <>
@@ -55,6 +60,6 @@ export function LiveProductDetail({ productId,state,onChoose,onClose,onAdded,onS
       {alternatives.map(item=><PrimaryButton key={item.id} label={item.name} variant="glass" onPress={()=>{setFindAlternatives(false);onChoose(item.id);}} />)}
     </> : null}
     {message ? <Body>{message}</Body> : null}
-    <View />
-  </ScrollView>;
+    </View>
+  </ProductDetailShell>;
 }

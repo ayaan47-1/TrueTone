@@ -3,6 +3,7 @@ jest.unmock('../../match/product-catalog');
 const mockRange=jest.fn();
 jest.mock('../../../lib/supabase',()=>({DEMO_MODE:false,SUPABASE_OFFLINE:false,supabase:{from:()=>({select:()=>({order:()=>({range:mockRange})})})}}));
 import { ProductDetail } from '../../shop/ProductDetail';
+jest.mock('../../../components/ui/use-insets',()=>({useInsets:()=>({top:47,bottom:34,left:0,right:0})}));
 import { CatalogueNotice } from '../CatalogueNotice';
 afterEach(async()=>{await cleanup();});
 
@@ -16,6 +17,10 @@ test('live product detail uses only its actual shade and does not invent swatche
   const view=await render(<ProductDetail productId="gid://shopify/ProductVariant/1" onScan={jest.fn()} onAdded={jest.fn()} onClose={jest.fn()} />);
   await waitFor(()=>expect(view.getByText('Brand Neutral 5')).toBeTruthy());
   expect(view.getByText('Finish not specified')).toBeTruthy();
+  expect(view.getByTestId('product-detail-shell').props.className).toContain('bg-mist-50');
+  expect(view.getByTestId('product-detail-cta')).toHaveStyle({paddingBottom:50});
+  expect(view.getByRole('button',{name:'Back'})).toHaveStyle({position:'absolute',top:55});
+  expect(view.getByRole('image',{name:'Product image unavailable, Brand Neutral 5'})).toBeTruthy();
   expect(view.queryByText('Sample')).toBeNull();
   expect(view.queryByText('30 ml')).toBeNull();
   expect(view.queryAllByTestId(/product-art-/)).toHaveLength(0);

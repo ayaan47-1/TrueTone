@@ -42,7 +42,7 @@ export const shopifyStore = {
     return () => listeners.delete(listener);
   },
   async loadProducts(force = false): Promise<void> {
-    if (state.loadingProducts || (!force && state.catalogStatus === 'live' && state.products.length > 0)) return;
+    if (state.loadingProducts || (!force && state.catalogStatus === 'live' && state.catalogUpdatedAt !== null && Date.now() - state.catalogUpdatedAt < 60_000)) return;
     setState({ loadingProducts: true, error: null });
     const services = getShopifyServices();
     let hasCachedProducts = state.catalogStatus === 'cached' && state.products.length > 0;

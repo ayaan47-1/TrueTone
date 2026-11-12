@@ -7,7 +7,7 @@
 // tier word only: no numeric "% fit" and no fit bar (Dwight's ruling, PR #38). The Back
 // button floats over the art so the modal always has a visible way out.
 import { useState, type ReactNode } from 'react';
-import { Pressable, ScrollView, Share, Text, View, type PressableProps } from 'react-native';
+import { Pressable, Share, Text, View, type PressableProps } from 'react-native';
 import { Body, Caption, GlassSurface, Heading, PressableScale, PrimaryButton, Eyebrow } from '../../components/ui';
 import { useInsets } from '../../components/ui/use-insets';
 import { hasLiquidGlass } from '../../components/ui/liquid-glass';
@@ -21,6 +21,7 @@ import { fitReason } from '../match/fit-reason';
 import { fitTier } from '../match/fit-tier';
 import { CATEGORY_LABELS, FINISH_LABELS, FIT_TIER_LABELS } from '../../content/makeup-vocab';
 import { bag } from '../checkout/bag-store';
+import { ProductDetailShell, BackButton } from './ProductDetailShell';
 import { ProductGallery } from './ProductGallery';
 import { HeartButton } from './HeartButton';
 import { SampleRatingLine } from './SampleRatingLine';
@@ -29,7 +30,7 @@ import { productLine } from './product-visual';
 import { defaultShadeIndex, shadeOptions, type ShadeOption } from './shade-options';
 import { Accordion } from './Accordion';
 import { Stepper } from './Stepper';
-import { CheckGlyph, ChevronGlyph } from './shop-icons';
+import { CheckGlyph } from './shop-icons';
 
 interface ProductDetailProps {
   productId: string;
@@ -91,9 +92,16 @@ function ProductPage({ productId, profile, shadeName, onScan, onAdded, onClose, 
   };
 
   return (
-    <View className="flex-1 bg-mist-50">
-      <ScrollView contentContainerStyle={{ paddingBottom: 130 + insets.bottom }}>
-        <ProductGallery product={product} height={380} />
+    <ProductDetailShell onClose={onClose} hero={<ProductGallery product={product} height={380} />}
+      footer={<PrimaryButton label={`Add to bag · $${product.price * qty}`} fullWidth onPress={add} />}
+      actions={<View className="absolute right-5 flex-row gap-2.5" style={{ top: insets.top + 8 }}>
+        <FloatingIconButton accessibilityLabel="Share" onPress={share}>
+          <Text className="font-body-bold text-[17px] text-ink">↗</Text>
+        </FloatingIconButton>
+        <View style={[{ borderRadius: 21 }, softShadow]}>
+          <HeartButton productId={product.id} name={product.name} size={42} />
+        </View>
+      </View>}>
         <View className="-mt-7 rounded-t-[28px] bg-mist-50 px-6 pt-6">
           <View className="flex-row items-center justify-between">
             <Eyebrow>{line}</Eyebrow>
@@ -156,23 +164,7 @@ function ProductPage({ productId, profile, shadeName, onScan, onAdded, onClose, 
             </Accordion>
           </View>
         </View>
-      </ScrollView>
-      <View
-        className="absolute bottom-0 left-0 right-0 border-t border-ink-faint/20 bg-mist-50/95 px-5 pt-3"
-        style={{ paddingBottom: 16 + insets.bottom }}
-      >
-        <PrimaryButton label={`Add to bag · $${product.price * qty}`} fullWidth onPress={add} />
-      </View>
-      <BackButton onPress={onClose} top={insets.top + 8} />
-      <View className="absolute right-5 flex-row gap-2.5" style={{ top: insets.top + 8 }}>
-        <FloatingIconButton accessibilityLabel="Share" onPress={share}>
-          <Text className="font-body-bold text-[17px] text-ink">↗</Text>
-        </FloatingIconButton>
-        <View style={[{ borderRadius: 21 }, softShadow]}>
-          <HeartButton productId={product.id} name={product.name} size={42} />
-        </View>
-      </View>
-    </View>
+    </ProductDetailShell>
   );
 }
 
@@ -218,35 +210,6 @@ function FloatingIconButton({ children, ...rest }: PressableProps & { children: 
         fallbackStyle={{ borderWidth: 1, borderColor: glass.edge }}
       >
         {children}
-      </GlassSurface>
-    </Pressable>
-  );
-}
-
-/** Kit IconBtn: a 48px glass circle pinned over the art, outside the scroll so it never scrolls away. */
-function BackButton({ onPress, top }: { onPress: () => void; top: number }) {
-  return (
-    <Pressable
-      accessibilityRole="button"
-      accessibilityLabel="Back"
-      onPress={onPress}
-      hitSlop={4}
-      style={[
-        { position: 'absolute', top, left: 20, width: 48, height: 48, borderRadius: 24 },
-        // Fallback fill lives on the shadow-bearing view so Android elevation still draws.
-        hasLiquidGlass() ? null : { backgroundColor: glass.fillStrong },
-        softShadow,
-      ]}
-    >
-      <GlassSurface
-        interactive
-        intensity={0}
-        style={{ flex: 1, borderRadius: 24, alignItems: 'center', justifyContent: 'center' }}
-        fallbackStyle={{ borderWidth: 1, borderColor: glass.edge }}
-      >
-        <View style={{ marginLeft: 3 }}>
-          <ChevronGlyph color={palette.ink} size={9} dir="left" />
-        </View>
       </GlassSurface>
     </Pressable>
   );

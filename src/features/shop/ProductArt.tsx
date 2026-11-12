@@ -4,7 +4,9 @@
 // Offline, no remote images. When a bundled LOCAL photo is registered for
 // the product (product-photos.ts) it is shown instead, full-bleed.
 import type { ReactNode } from 'react';
-import { Image, Text, View, type ImageSourcePropType, type StyleProp, type ViewStyle } from 'react-native';
+import { Image, View, type ImageSourcePropType, type StyleProp, type ViewStyle } from 'react-native';
+import { Caption } from '../../components/ui';
+import { palette } from '../../theme/tokens';
 import type { Product } from '../match/match-types';
 import { productPhoto, productShape, productTone, type ProductShape } from './product-visual';
 
@@ -104,8 +106,10 @@ function Drawing({ shape, color, k }: { shape: ProductShape; color: string; k: n
 
 /** Product visual: registered licensed photo if any, else the drawn shape. */
 export function ProductArt({ product, height, radius = 18, style, photo, drawn = false, children }: ProductArtProps) {
-  if (product.catalogue) return <View style={[{height,borderRadius:radius,backgroundColor:'#EEEDEA',alignItems:'center',justifyContent:'center'},style]}>
-    <Text accessibilityLabel={`Product image unavailable, ${product.name}`}>Image unavailable</Text>{children}
+  if (product.catalogue) return <View style={[{height,borderRadius:radius,backgroundColor:palette.mist100},style]}>
+    <View accessible accessibilityRole="image" accessibilityLabel={`Product image unavailable, ${product.name}`} style={{flex:1,backgroundColor:palette.mist100,alignItems:'center',justifyContent:'center'}}>
+      <Caption>Image unavailable</Caption>
+    </View>{children}
   </View>;
   const source = drawn ? undefined : photo ?? productPhoto(product.id);
   const tone = productTone(product);

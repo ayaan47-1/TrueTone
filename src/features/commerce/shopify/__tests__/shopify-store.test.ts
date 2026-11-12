@@ -87,3 +87,18 @@ it('marks only a directly fetched product fresh when the rest of the catalog is 
     liveProductHandles: ['direct-link'],
   });
 });
+
+it('refreshes a same-ID price after the bounded freshness window', async () => {
+  jest.useFakeTimers();
+  try {
+    const first=mapProductNode(PRODUCT_FIXTURE_NODE);
+    const changed={...first,variants:first.variants.map(v=>({...v,price:{...v.price,amount:'31.00'}}))};
+    mockList.mockResolvedValueOnce([first]).mockResolvedValueOnce([changed]);
+    await shopifyStore.loadProducts();
+    await shopifyStore.loadProducts();
+    expect(mockList).toHaveBeenCalledTimes(1);
+    jest.advanceTimersByTime(60_001);
+    await shopifyStore.loadProducts();
+    expect(shopifyStore.getState().products[0].variants[0].price.amount).toBe('31.00');
+  } finally { jest.useRealTimers(); }
+});

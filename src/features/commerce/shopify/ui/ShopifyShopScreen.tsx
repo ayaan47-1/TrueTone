@@ -1,7 +1,7 @@
 import { useEffect, useRef, useState } from 'react';
 import { SUPABASE_OFFLINE } from '../../../../lib/supabase';
 import { ShopOfflineNotice } from './ShopOfflineNotice';
-import { Image, Pressable, ScrollView, Text, View } from 'react-native';
+import { AppState, Image, Pressable, ScrollView, Text, View } from 'react-native';
 import { Body, Caption, Display, GlassCard, PrimaryButton, Subheading } from '../../../../components/ui';
 import { formatMoney } from '../money';
 import { acceptShopPrivacy, __resetShopPrivacyForTests, hasAcceptedShopPrivacy } from '../shop-privacy';
@@ -29,11 +29,17 @@ function ShopifyShopScreenOnline({ onOpen, onBag, onDecline }: Props) {
   const approvedIds=new Set(catalogue.products.map(product=>product.id));
   const visibleProducts=catalogueIsDemo?products:products.map(product=>({...product,variants:product.variants.filter(variant=>approvedIds.has(variant.id))})).filter(product=>product.variants.length>0);
   const approvedKey = catalogue.status === 'ready' || catalogue.status === 'empty'
-    ? catalogue.products.map(product => product.id).join(',') : null;
+    ? JSON.stringify(catalogue.products) : null;
   const requestedKey = useRef<string | null>(null);
 
   useEffect(() => {
-    if (accepted) void shopifyStore.loadProducts();
+    if (!accepted) return;
+    void shopifyStore.loadProducts();
+    const timer=setInterval(()=>void shopifyStore.loadProducts(true),60_000);
+    const subscription=AppState.addEventListener('change',next=>{
+      if(next==='active') void shopifyStore.loadProducts(true);
+    });
+    return ()=>{clearInterval(timer);subscription.remove();};
   }, [accepted]);
 
   useEffect(() => {
@@ -84,29 +90,10 @@ function ShopifyShopScreenOnline({ onOpen, onBag, onDecline }: Props) {
         </Pressable>
       </View>
       <Caption className="mb-4">Products and checkout are provided by Shopify.</Caption>
-      <CatalogueNotice state={catalogue} />
-      {loadingProducts ? <Body>Loading products…</Body> : null}
-      {catalogStatus === 'cached' && catalogUpdatedAt ? (
-        <GlassCard radius={22} className="mb-4 px-5 py-4">
-          <Subheading>Offline products · Last updated {formatCachedTime(catalogUpdatedAt)}</Subheading>
-          <Body className="mt-2">Prices and availability may have changed. Adding to bag and checkout are unavailable.</Body>
-          <PrimaryButton className="mt-4" label="Try again" onPress={() => void shopifyStore.loadProducts()} />
-        </GlassCard>
-      ) : null}
-      {error && catalogStatus !== 'cached' ? (
-        <GlassCard radius={22} className="px-5 py-5">
-          <Subheading>Shop unavailable</Subheading>
-          <Body className="mt-2">{error}</Body>
-          <PrimaryButton className="mt-4" label="Try again" onPress={() => void shopifyStore.loadProducts()} />
-        </GlassCard>
-      ) : null}
-      {!loadingProducts && !error && catalogStatus === 'live' && products.length === 0 ? (
-        <GlassCard radius={22} className="px-5 py-5">
-          <Subheading>No products available</Subheading>
-          <Body className="mt-2">The Shopify collection is empty right now.</Body>
-          <PrimaryButton className="mt-4" label="Refresh" onPress={() => void shopifyStore.loadProducts()} />
-        </GlassCard>
-      ) : null}
+      <CatalogueNotice state={catalogue} shop={{loading:loadingProducts,error,
+        cachedAt:catalogStatus==='cached'?catalogUpdatedAt:null,
+        empty:catalogStatus==='live' && visibleProducts.length===0}}
+        onRetry={()=>void shopifyStore.loadProducts(true)} />
       <View className="gap-4">
         {visibleProducts.map((product) => (
           <ProductCard key={product.id} product={product} onOpen={onOpen} />
@@ -114,15 +101,6 @@ function ShopifyShopScreenOnline({ onOpen, onBag, onDecline }: Props) {
       </View>
     </ScrollView>
   );
-}
-
-function formatCachedTime(updatedAt: number): string {
-  return new Date(updatedAt).toLocaleString(undefined, {
-    month: 'short',
-    day: 'numeric',
-    hour: 'numeric',
-    minute: '2-digit',
-  });
 }
 
 function ProductCard({ product, onOpen }: { readonly product: ShopifyProduct; readonly onOpen: (handle: string) => void }) {

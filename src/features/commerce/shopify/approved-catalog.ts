@@ -23,7 +23,8 @@ export function createApprovedShopifyCatalog(client:ShopifyClient,approved:()=>P
     for(let offset=0;offset<ids.length;offset+=50){
       const response=z.object({nodes:z.array(node.nullable())}).parse(await client.request(query,{ids:ids.slice(offset,offset+50)}));
       for(const variant of response.nodes){
-        if(!variant || !allowed.has(variant.id) || !variant.availableForSale) continue;
+        if(!variant || !allowed.has(variant.id) || !variant.availableForSale || variant.price.currencyCode !== 'USD' ||
+          (variant.compareAtPrice && variant.compareAtPrice.currencyCode !== 'USD')) continue;
         const mapped=mapProductNode({...variant.product,variants:{nodes:[variant]}});
         const previous=products.get(mapped.id);
         products.set(mapped.id,previous?{...mapped,variants:[...previous.variants,...mapped.variants]}:mapped);

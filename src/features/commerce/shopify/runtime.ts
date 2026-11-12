@@ -36,13 +36,14 @@ export function getShopifyServices(): ShopifyServices {
     return state.products;
   };
   const cart=createCartAdapter(client);
+  const catalog = createApprovedShopifyCatalog(client,approved);
   cached = {
-    catalog: createApprovedShopifyCatalog(client,approved),
+    catalog,
     // A prior Storefront cache cannot establish current label approval or stock.
     catalogCache: OFFLINE_CATALOG_CACHE,
     cart: {...cart,async add(id,quantity){
-      const products=await approved();
-      if(!products.some(product=>product.id===id)) throw new Error('shade unavailable');
+      const products=await catalog.list();
+      if(!products.some(product=>product.variants.some(variant=>variant.id===id))) throw new Error('shade unavailable');
       return cart.add(id,quantity);
     }},
   };

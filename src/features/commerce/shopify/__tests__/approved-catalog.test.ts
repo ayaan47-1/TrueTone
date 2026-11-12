@@ -22,3 +22,9 @@ test('view failure is propagated instead of falling back to an unreviewed Storef
   await expect(source.list()).rejects.toThrow('offline');
   expect(request).not.toHaveBeenCalled();
 });
+
+ test.each(['price', 'compareAtPrice'])('rejects CAD %s before mapping an approved variant', async (field) => {
+  const variant = {...PRODUCT_FIXTURE_NODE.variants.nodes[1], [field]: {amount:'30.00',currencyCode:'CAD'}, product:PRODUCT_FIXTURE_NODE};
+  const request=jest.fn().mockResolvedValue({nodes:[variant]});
+  expect(await createApprovedShopifyCatalog({request},async()=>[{id:variant.id}]).list()).toEqual([]);
+});
