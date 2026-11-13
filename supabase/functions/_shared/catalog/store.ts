@@ -14,7 +14,7 @@ export class SupabaseCatalogueStore implements CatalogueStore {
 
   private async rpc(name: string, parameters: Record<string, unknown>): Promise<unknown> {
     const response = await (this.config.fetcher ?? fetch)(`${this.config.url}/rest/v1/rpc/${name}`, {
-      method: 'POST', headers: { Authorization: `Bearer ${this.config.serviceKey}`, apikey: this.config.serviceKey, 'Content-Type': 'application/json' },
+      method: 'POST', redirect: 'error', headers: { Authorization: `Bearer ${this.config.serviceKey}`, apikey: this.config.serviceKey, 'Content-Type': 'application/json' },
       body: JSON.stringify(parameters), signal: AbortSignal.timeout(15_000),
     });
     if (!response.ok) throw new Error('catalogue persistence failed');
