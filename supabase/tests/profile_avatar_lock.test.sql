@@ -3,7 +3,7 @@
 -- clients cannot write it, it cannot hold a value, and delete_my_data clears it server-side.
 -- NOT RUN when written (shared Supabase stack was in use); run with the next DB test pass.
 begin;
-select plan(10);
+select plan(14);
 
 -- 1. The migration's scrub left no stored path behind.
 select is((select count(*) from public.profiles where avatar_uri is not null), 0::bigint,
@@ -57,6 +57,23 @@ select ok(
   pg_get_functiondef('public.delete_my_data()'::regprocedure) ~* 'avatar_uri\s*=\s*null'
   and (select avatar_uri is null from public.profiles where id = '42424242-4242-4242-4242-424242424201'),
   'delete_my_data sets avatar_uri = null server-side and the row is clear');
+
+-- 11-14. Upgraded accounts (Toby round 2): seed the legacy file:// paths older builds wrote, then
+-- prove the migration's scrub clears them. The constraint is dropped only inside this rolled-back
+-- transaction so the legacy state can exist.
+alter table public.profiles drop constraint profiles_avatar_uri_unused;
+update public.profiles set avatar_uri = 'file:///var/mobile/Containers/Data/Application/X/Library/Caches/ImagePicker/a.jpg'
+ where id = '42424242-4242-4242-4242-424242424201';
+update public.profiles set avatar_uri = 'file:///var/mobile/Containers/Data/Application/Y/Library/Caches/ImagePicker/b.jpg'
+ where id = '42424242-4242-4242-4242-424242424202';
+select ok(not has_function_privilege('authenticated', 'public.scrub_profile_avatar_uris()', 'EXECUTE')
+          and not has_function_privilege('anon', 'public.scrub_profile_avatar_uris()', 'EXECUTE'),
+  'clients cannot execute the scrub');
+select is(public.scrub_profile_avatar_uris(), 2, 'the scrub clears both legacy device paths');
+select is((select count(*) from public.profiles where avatar_uri is not null), 0::bigint,
+  'no upgraded account keeps a device path on the server');
+select is((select username from public.profiles where id = '42424242-4242-4242-4242-424242424202'),
+  'avatar_lock_b', 'the scrub leaves other profile fields alone');
 
 select * from finish();
 rollback;

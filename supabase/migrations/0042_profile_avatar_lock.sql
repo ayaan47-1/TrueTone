@@ -12,7 +12,19 @@
 -- Older clients that still send avatar_uri in their profile save will get a permission error
 -- (fail closed); their username change is refused until they update.
 
-update public.profiles set avatar_uri = null where avatar_uri is not null;
+-- Owner-only scrub, kept as a function so pgTAP can seed legacy rows and prove it works.
+-- Returns how many rows it cleared. No client role may execute it.
+create or replace function public.scrub_profile_avatar_uris() returns integer
+language plpgsql set search_path = public, pg_temp as $$
+declare n integer;
+begin
+  update public.profiles set avatar_uri = null where avatar_uri is not null;
+  get diagnostics n = row_count;
+  return n;
+end; $$;
+revoke all on function public.scrub_profile_avatar_uris() from public, anon, authenticated;
+
+select public.scrub_profile_avatar_uris();
 
 revoke insert (avatar_uri), update (avatar_uri) on table public.profiles from authenticated, anon;
 -- 0026 already removed table-level INSERT/UPDATE; restate the only client-writable column.

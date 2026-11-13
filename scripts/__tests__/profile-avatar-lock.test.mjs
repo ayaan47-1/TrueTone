@@ -21,7 +21,10 @@ test('a profile_avatar_lock migration exists and sorts after 0040_chat_quota', (
 
 test('the migration scrubs, revokes, constrains and clears on Delete My Data', () => {
   const sql = squash(read(`supabase/migrations/${lockFile}`));
-  assert.match(sql, /update public\.profiles set avatar_uri ?= ?null where avatar_uri is not null/);
+  // The scrub lives in a reusable, owner-only function so pgTAP can seed legacy rows and prove it.
+  assert.match(sql, /function public\.scrub_profile_avatar_uris\(\)[\s\S]*update public\.profiles set avatar_uri ?= ?null where avatar_uri is not null/);
+  assert.match(sql, /select public\.scrub_profile_avatar_uris\(\);[\s\S]*add constraint profiles_avatar_uri_unused/);
+  assert.match(sql, /revoke all on function public\.scrub_profile_avatar_uris\(\) from public, anon, authenticated/);
   assert.match(sql, /revoke insert \(avatar_uri\), update \(avatar_uri\) on (table )?public\.profiles from authenticated, anon/);
   assert.match(sql, /check \(avatar_uri is null\)/);
   const fn = sql.slice(sql.indexOf('function public.delete_my_data()'));
@@ -43,6 +46,8 @@ test('pgTAP regression covers the scrub, the revoke and server-side deletion', (
   assert.match(t, /throws_ok\([\s\S]*avatar_uri[\s\S]*'42501'/);
   assert.match(t, /delete_my_data\(\)/);
   assert.match(t, /avatar_uri is null/i);
+  // Toby round-2: upgraded accounts' legacy file:// paths are seeded and then proven scrubbed.
+  assert.match(t, /file:\/\/\/var\/mobile[\s\S]*scrub_profile_avatar_uris\(\)/);
 });
 
 test('app code never writes profiles.avatar_uri', () => {
