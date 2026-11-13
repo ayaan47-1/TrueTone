@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 # Runs every Maestro flow variant for one platform and prints a per-flow pass/fail summary.
-# Usage: run-all.sh <ios|android> [simulator/emulator name]
+# Usage: run-all.sh <ios|android> [simulator/emulator name] [runtime name]
 set -uo pipefail
 
 PLATFORM="${1:?Usage: run-all.sh <ios|android> [device name]}"
@@ -16,6 +16,7 @@ if [ "$PLATFORM" = "android" ]; then
 fi
 
 DEVICE="${2:-iPhone 17}"
+RUNTIME="${3:-iOS 26.4}"
 # "physical-device" (flow 2's real-camera variant) is deliberately excluded - it needs a real
 # iPhone, not this script's simulator loop. See docs/ops/e2e.md "Flow 2".
 VARIANTS=(demo shopify-offline camera-demo camera-demo-fixture)
@@ -26,7 +27,7 @@ for variant in "${VARIANTS[@]}"; do
   echo "######################################################################"
   echo "# Variant: $variant"
   echo "######################################################################"
-  if "$ROOT_DIR/scripts/e2e/run-maestro.sh" "$variant" "$DEVICE"; then
+  if "$ROOT_DIR/scripts/e2e/run-maestro.sh" "$variant" "$DEVICE" "$RUNTIME"; then
     RESULTS[$variant]="PASS"
   else
     RESULTS[$variant]="FAIL"

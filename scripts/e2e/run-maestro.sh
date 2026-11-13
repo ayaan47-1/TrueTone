@@ -3,17 +3,25 @@
 # variant's Maestro flows, print a pass/fail summary. Run per-variant (so a variant rebuild
 # failure doesn't abort the whole suite) or let `npm run e2e:ios` loop over all four.
 #
-# Usage: run-maestro.sh <demo|shopify-offline|camera-demo|camera-demo-fixture> [simulator name] [--skip-build]
+# Usage: run-maestro.sh <demo|shopify-offline|camera-demo|camera-demo-fixture> [simulator name] [runtime name] [--skip-build]
 # "physical-device" is NOT run by this script — see docs/ops/e2e.md "Flow 2" for the manual
 # `maestro test --device <udid> .maestro/physical-device/` command that needs a real iPhone.
+#
+# The simulator is resolved by DEVICE NAME + RUNTIME NAME TOGETHER (HAG-231, Toby re-review
+# finding 1) -- a same-named device can exist under more than one installed iOS runtime (e.g.
+# "iPhone 17" under iOS 26.2, 26.4, and 26.5 on the macos-26 runner image), so name alone is
+# ambiguous. See docs/ops/e2e.md "Prerequisites" for which runtime the pinned CI Xcode ships.
 set -uo pipefail
 
-VARIANT="${1:?Usage: run-maestro.sh <demo|shopify-offline|camera-demo|camera-demo-fixture> [simulator name] [--skip-build]}"
+VARIANT="${1:?Usage: run-maestro.sh <demo|shopify-offline|camera-demo|camera-demo-fixture> [simulator name] [runtime name] [--skip-build]}"
 SIMULATOR="${2:-iPhone 17}"
-SKIP_BUILD="${3:-}"
+RUNTIME="${3:-iOS 26.4}"
+SKIP_BUILD="${4:-}"
 
 ROOT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/../.." && pwd)"
 FLOW_DIR="$ROOT_DIR/.maestro/$VARIANT"
+# shellcheck source=lib/simulator-resolve.sh
+source "$ROOT_DIR/scripts/e2e/lib/simulator-resolve.sh"
 
 if [ ! -d "$FLOW_DIR" ]; then
   echo "No flow directory for variant '$VARIANT' (looked for $FLOW_DIR)" >&2
@@ -26,9 +34,17 @@ if ! command -v maestro >/dev/null 2>&1; then
   exit 1
 fi
 
-echo "== Booting simulator '$SIMULATOR' =="
-xcrun simctl boot "$SIMULATOR" 2>/dev/null || true
-open -a Simulator --args -CurrentDeviceUDID "$(xcrun simctl list devices | grep "$SIMULATOR" | grep -oE '[0-9A-F-]{36}' | head -1)" 2>/dev/null || true
+echo "== Resolving simulator '$SIMULATOR' under runtime '$RUNTIME' =="
+SIMULATOR_UDID="$(resolve_simulator_udid "$SIMULATOR" "$RUNTIME" "$(xcrun simctl list devices available)")"
+if [ -z "$SIMULATOR_UDID" ]; then
+  echo "No simulator named '$SIMULATOR' under runtime '$RUNTIME' is installed on this machine." >&2
+  echo "Installed devices (xcrun simctl list devices available):" >&2
+  xcrun simctl list devices available >&2
+  exit 1
+fi
+echo "== Booting simulator '$SIMULATOR' ($RUNTIME, $SIMULATOR_UDID) =="
+xcrun simctl boot "$SIMULATOR_UDID" 2>/dev/null || true
+open -a Simulator --args -CurrentDeviceUDID "$SIMULATOR_UDID" 2>/dev/null || true
 
 if [ "$SKIP_BUILD" != "--skip-build" ]; then
   "$ROOT_DIR/scripts/e2e/build-variant.sh" "$VARIANT" "$SIMULATOR"
