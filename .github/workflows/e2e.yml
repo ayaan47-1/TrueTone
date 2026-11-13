@@ -87,7 +87,14 @@ jobs:
           node-version: 22
       - run: npm ci
       - name: Install Maestro
+        # Fail-closed sweep (HAG-231 round 6): explicit `set -euo pipefail`, matching the "Pin
+        # Xcode" step above, so a failed install (curl or the installer script itself) can never
+        # fall through to registering a non-functional Maestro path on $GITHUB_PATH. GitHub
+        # Actions already defaults non-Windows `run:` steps to `-eo pipefail`, but stating it
+        # explicitly here means this step's correctness doesn't depend on that platform default
+        # staying unchanged.
         run: |
+          set -euo pipefail
           curl -fsSL "https://get.maestro.mobile.dev" | bash
           echo "$HOME/.maestro/bin" >> "$GITHUB_PATH"
       - name: Ensure the iOS 26.4 Simulator runtime exists
