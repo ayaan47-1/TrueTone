@@ -1,0 +1,11 @@
+{
+  "cxxNamespace": ["truetone", "vision"],
+  "ios": { "iosModuleName": "TrueToneAppleVision" },
+  "android": { "androidNamespace": ["truetone", "vision"], "androidCxxLibName": "TrueToneAppleVision" },
+  "autolinking": {
+    "AppleVisionDetector": {
+      "ios": { "language": "swift", "implementationClassName": "HybridAppleVisionDetector" }
+    }
+  },
+  "ignorePaths": ["**/node_modules"]
+}

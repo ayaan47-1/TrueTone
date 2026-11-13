@@ -22,6 +22,7 @@ import {
   Animated,
   Easing,
   Linking,
+  Platform,
   Pressable,
   StyleSheet,
   Text,
@@ -75,7 +76,24 @@ interface CaptureProps {
   devForceCapture?: boolean;
 }
 
-export function Capture({ onCaptured, onCancel, devForceCapture = false }: CaptureProps) {
+export function Capture(props: CaptureProps) {
+  if (Platform.OS !== 'ios') {
+    return (
+      <Screen className="px-6">
+        <View className="flex-1 items-center justify-center">
+          <GlassCard className="w-full items-center gap-4 px-7 py-8" radius={32}>
+            <Display className="text-center text-[26px]">Not supported on this device yet</Display>
+            <Body className="text-center text-ink-soft">The on-device shade camera is currently available on iPhone only.</Body>
+            <PrimaryButton label="Go back" fullWidth onPress={props.onCancel} />
+          </GlassCard>
+        </View>
+      </Screen>
+    );
+  }
+  return <SupportedCapture {...props} />;
+}
+
+function SupportedCapture({ onCaptured, onCancel, devForceCapture = false }: CaptureProps) {
   const insets = useSafeAreaInsets();
   const window = useWindowDimensions();
   // Guide oval scales to the viewport so it fits a folded (narrow/short) or unfolded

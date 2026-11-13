@@ -79,7 +79,7 @@ export function describeOutcome(r: StillDetectionReport): string {
     case 'threw':
       return `detectFaces() threw: ${r.error}. A URI form it cannot open is the usual cause — try the path with and without the file:// prefix.`;
     case 'empty':
-      return 'The call worked and MLKit saw no face. If the face below looks upright and well lit, suspect the image handed to it, not the detector.';
+      return 'The local detector returned no usable face. Check image orientation and framing.';
     case 'unusable-shape':
       return `${r.rawCount} face(s) came back but none had readable bounds${r.firstKeys.length === 0 ? ' and none of their properties enumerate, which is what a Nitro HybridObject looks like' : ` (keys: ${r.firstKeys.join(', ')})`}. This is a reader bug, not a detection miss.`;
     case 'not-a-list':

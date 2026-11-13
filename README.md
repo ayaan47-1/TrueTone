@@ -248,7 +248,7 @@ module map live in [`docs/ARCHITECTURE.md`](./docs/ARCHITECTURE.md).
 | App shell | Expo SDK 56 (RN 0.85, React 19, New Arch), Expo Router, NativeWind, TypeScript |
 | Design system | "Mist" liquid glass — `expo-blur` + `expo-linear-gradient`, Fraunces + Mulish (`@expo-google-fonts`), `react-native-reanimated` |
 | Auth | `@supabase/supabase-js` v2 — **anonymous-first** (stable user id from launch) |
-| Capture | `react-native-vision-camera` v5 (+ `-face-detector`, `react-native-nitro-image`) — guided front-camera + quality gate |
+| Capture | `react-native-vision-camera` v5, local Apple Vision bridge on iOS, `react-native-nitro-image`; see `docs/ops/apple-vision.md` for release gates |
 | On-device read | `CvReadEngine` — classical computer vision, fairness-instrumented on a synthetic tone self-test (device-only decode shell; `react-native-executorch` shell reserved for a future ML model) |
 | Dev/CI builds | EAS Build (`eas.json`: development / preview / production; Android dev build = arm64-v8a APK) |
 | Backend | Supabase: Postgres + Auth + Row-Level Security + RPCs (`SECURITY DEFINER`) + `pg_cron` + Edge Functions |
