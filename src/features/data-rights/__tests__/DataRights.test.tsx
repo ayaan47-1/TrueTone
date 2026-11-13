@@ -16,6 +16,9 @@ jest.mock('../../../lib/supabase', () => ({
 const mockClearDiary = jest.fn(() => Promise.resolve());
 jest.mock('../../diary/diary-storage', () => ({ clearDiary: () => mockClearDiary() }));
 
+jest.mock('../../identity/avatar-file', () => ({ avatarFileStore: () => ({ wipe: async () => undefined }) }));
+jest.mock('../../identity/community-profile-repository', () => ({ clearServerAvatarUri: async () => undefined }));
+
 beforeEach(() => jest.clearAllMocks());
 
 test('withdrawal revokes first and refreshes the gate without waiting for the queued local wipe', async () => {

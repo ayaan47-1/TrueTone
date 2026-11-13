@@ -12,6 +12,8 @@ import { Screen, GlassCard, Display, Eyebrow, Body, Caption } from '../../compon
 import { FeedbackDataPanel } from '../shade-feedback/FeedbackDataPanel';
 import { clearAllLocalFeedback } from '../shade-feedback/runtime';
 import { FeedbackCleanupNotice } from '../shade-feedback/FeedbackCleanupNotice';
+import { avatarFileStore } from '../identity/avatar-file';
+import { clearServerAvatarUri } from '../identity/community-profile-repository';
 
 type RpcName = 'withdraw_consent' | 'clear_shade_history' | 'delete_my_data' | 'delete_account';
 type Props = { onChanged: () => void; confirm: (msg: string) => Promise<boolean>; feedbackOwner?:string|null };
@@ -30,8 +32,10 @@ const ACTIONS: { id: string; rpc: RpcName; label: string; hint: string; danger?:
 ];
 
 // On-device data the server never sees: the skin-feel diary, the daily-routine tracker + its
-// locally published Community routines, and order history. All must go for deletion to be complete.
+// locally published Community routines, order history, and the profile photo file (MASVS M1).
+// All must go for deletion to be complete.
 const LOCAL_WIPES: (() => Promise<void>)[] = [
+  () => avatarFileStore().wipe(),
   () => orderHistory.clear(),
   clearDiary,
   clearAllRoutines,
@@ -39,9 +43,13 @@ const LOCAL_WIPES: (() => Promise<void>)[] = [
   clearAllLocalFeedback,
 ];
 
-/** Runs every wipe even if one fails; true only when all of them succeeded. */
-async function wipeLocalData(includeAuthSession: boolean): Promise<boolean> {
-  const localResults = await Promise.allSettled(LOCAL_WIPES.map((wipe) => wipe()));
+/**
+ * Runs every wipe even if one fails; true only when all of them succeeded. clearServerAvatar is set
+ * for Delete My Data, where the profile row survives and its avatar_uri must be cleared (MASVS M1).
+ */
+async function wipeLocalData(includeAuthSession: boolean, clearServerAvatar: boolean): Promise<boolean> {
+  const tasks = clearServerAvatar ? [...LOCAL_WIPES, () => clearServerAvatarUri()] : LOCAL_WIPES;
+  const localResults = await Promise.allSettled(tasks.map((wipe) => wipe()));
   // Finish by removing every managed ciphertext and destroying the key. This runs even if an
   // earlier store failed, and its own failure is reported without hiding the earlier results.
   const [encryptedResult] = await Promise.allSettled([
@@ -55,13 +63,18 @@ export function DataRights({ onChanged, confirm, feedbackOwner }: Props) {
 
   const wiping = useRef(false);
   const wipeAuthSession = useRef(false);
+  const wipeServerAvatar = useRef(false);
 
-  async function finishLocalWipe(includeAuthSession = wipeAuthSession.current) {
+  async function finishLocalWipe(
+    includeAuthSession = wipeAuthSession.current,
+    clearServerAvatar = wipeServerAvatar.current,
+  ) {
     // Single-flight: a double tap on Try again must not run two overlapping wipes.
     if (wiping.current) return;
     wipeAuthSession.current = includeAuthSession;
+    wipeServerAvatar.current = clearServerAvatar;
     wiping.current = true;
-    const ok = await wipeLocalData(includeAuthSession).finally(() => {
+    const ok = await wipeLocalData(includeAuthSession, clearServerAvatar).finally(() => {
       wiping.current = false;
     });
     setWipeIncomplete(!ok);
@@ -79,7 +92,7 @@ export function DataRights({ onChanged, confirm, feedbackOwner }: Props) {
     }
     clearCameraDemoScans();
     if (fn === 'delete_account') cameraDemoReset();
-    return finishLocalWipe(fn === 'delete_account');
+    return finishLocalWipe(fn === 'delete_account', false);
   }
 
   async function run(fn: RpcName, msg: string) {
@@ -116,7 +129,7 @@ export function DataRights({ onChanged, confirm, feedbackOwner }: Props) {
     if (fn === 'delete_my_data' || fn === 'delete_account') {
       // The account remains after delete_my_data, so its independently encrypted auth session
       // remains too. Account deletion erases both the session value and its encryption key.
-      return finishLocalWipe(fn === 'delete_account');
+      return finishLocalWipe(fn === 'delete_account', fn === 'delete_my_data');
     }
     onChanged();
   }
@@ -150,7 +163,7 @@ export function DataRights({ onChanged, confirm, feedbackOwner }: Props) {
           <Text accessibilityRole="alert" className="font-body-semibold text-base text-clay">
             Deletion incomplete
           </Text>
-          <Caption>Your server data is gone, but some data on this phone couldn’t be cleared.</Caption>
+          <Caption>Some of your data, on this phone or our servers, couldn’t be cleared yet.</Caption>
           <Pressable testID="retry-wipe" accessibilityRole="button" onPress={() => void finishLocalWipe()}>
             <Text className="font-body-semibold text-base text-ink">Try again</Text>
           </Pressable>

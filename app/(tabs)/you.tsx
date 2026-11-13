@@ -115,6 +115,11 @@ export default function YouScreen() {
         {avatarStatus === 'error' && (
           <Caption className="mt-2 text-center text-red-600">Couldn&apos;t update your photo. Try again.</Caption>
         )}
+        {avatarStatus === 'cleanup-incomplete' && (
+          <Caption className="mt-2 text-center text-red-600">
+            An older copy of your photo couldn&apos;t be deleted yet. Pick a photo again or use Delete My Data to retry.
+          </Caption>
+        )}
         {!hasScanned ? (
           <View className="mt-3.5">
             <PrimaryButton label="Find my shade" onPress={() => router.push('/scan-gate')} />
