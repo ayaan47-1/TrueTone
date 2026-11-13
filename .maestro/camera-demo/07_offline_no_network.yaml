@@ -1,0 +1,30 @@
+# Flow 7 — camera-offline build makes no network calls.
+# Same CAMERA_DEMO build as flow 6. SUPABASE_OFFLINE (== CAMERA_DEMO) short-circuits every
+# Shopify UI surface to ShopOfflineNotice BEFORE any request is made (see
+# src/features/commerce/shopify/ui/ShopifyShopScreen.tsx /
+# ShopifyProductScreen.tsx / ShopifyBagScreen.tsx — each starts with
+# "if (SUPABASE_OFFLINE) return <ShopOfflineNotice ... />", a client-side guard that runs ahead
+# of any fetch, not a dead endpoint the app still tries to hit). This flow proves the guarded
+# code path, which is the Maestro-level assertion available here.
+#
+# Stronger, runtime-level proof (that literally no bytes left the device during the flow) is a
+# companion check, not a Maestro capability: run
+# `scripts/e2e/assert-no-network.sh .maestro/camera-demo/07_offline_no_network.yaml` instead of
+# `maestro test` directly — it tails the simulator's unified log for the app process during the
+# same run and fails if any outbound connection attempt to a non-offline host shows up, in
+# addition to (not instead of) running this flow itself.
+appId: com.ayaan47.truetone
+---
+- launchApp:
+    clearState: true
+
+- tapOn:
+    id: "dob-submit"
+- tapOn:
+    id: "consent-check"
+- tapOn:
+    id: "consent-submit"
+- assertVisible: "Home"
+
+- tapOn: "Shop"
+- assertVisible: "This build runs on your device only. Nothing is loaded from or sent to Shopify."

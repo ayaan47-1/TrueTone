@@ -1,0 +1,43 @@
+# Flow 2 — camera scan to shade match. PHYSICAL IPHONE ONLY — do not run on Simulator.
+#
+# CLAUDE.md §4: "The iOS Simulator has no camera -> the scan flow MUST be tested on a physical
+# iPhone." This flow drives the REAL camera: real device, real face, the camera-demo build
+# (EXPO_PUBLIC_CAMERA_DEMO=1 — see docs/ops/e2e.md's "camera-demo" variant and
+# docs/ops/camera-on-testflight-compliance.md §9/§12), direct-installed to a device the developer
+# owns, never TestFlight/App Store. This is the live counterpart to the synthetic-fixture flow
+# (.maestro/camera-demo/02_camera_scan_to_shade_match_fixture.yaml, Simulator/CI-safe, no real
+# face involved) — both exist; neither replaces the other. See docs/ops/e2e.md for which to run
+# where.
+#
+# Run with: maestro test --device <physical-device-udid> .maestro/physical-device/
+appId: com.ayaan47.truetone
+---
+- launchApp:
+    clearState: true
+
+- tapOn:
+    id: "dob-submit"
+- tapOn:
+    id: "consent-check"
+- tapOn:
+    id: "consent-submit"
+- assertVisible: "Home"
+
+- tapOn: "Enable camera"
+- assertVisible: "Your scan stays on your device"
+- tapOn: "Enable camera"
+
+# ---- real camera: hold steady until the quality gate passes and the countdown auto-fires ----
+- extendedWaitUntil:
+    visible:
+      id: "capture-oval-area"
+    timeout: 10000
+# The auto-capture state machine fires on its own once framing/lighting/focus all pass (see
+# src/features/capture/capture-controller.ts) — this just waits for the result screen rather
+# than tapping anything, since there's no manual shutter in a non-dev build. "We found your
+# match" is ShadeResult.tsx's real heading (src/features/shade/ShadeResult.tsx) — the shade-
+# match screen, not the skin-read analysis screen (CLAUDE.md: shade name + product picks only).
+- extendedWaitUntil:
+    visible: "We found your match"
+    timeout: 60000
+- assertVisible: "Your shade"

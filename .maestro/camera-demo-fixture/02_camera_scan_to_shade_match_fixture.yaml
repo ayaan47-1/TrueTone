@@ -1,0 +1,37 @@
+# Flow 2 — camera scan to shade match, SIMULATOR/CI-SAFE variant.
+# Same camera-demo build as flows 1/6/7 (EXPO_PUBLIC_CAMERA_DEMO=1), plus
+# EXPO_PUBLIC_E2E_FIXTURE_SCAN=1. Requires a build that also had __DEV__ true at compile time
+# (a Debug configuration — the same one `expo run:ios` produces locally and in CI; do NOT set
+# this flag on a Release/EAS production build, where src/lib/e2e-fixture.ts's __DEV__ check
+# makes it structurally inert regardless of the env var).
+#
+# This does NOT exercise the real camera or a real face — see src/features/capture/
+# e2e-fixture-image.ts: app/scan/index.tsx substitutes a bundled SYNTHETIC image (the same
+# generator the fairness self-test already uses, eval/fairness/self-test-images.ts) for the
+# capture step only; the on-device read, shade derivation, persistence and no-egress pipeline
+# downstream are completely unchanged, real code paths. The physical-device variant
+# (.maestro/physical-device/02_camera_scan_to_shade_match.yaml) is the one that proves the real
+# camera works — this one proves everything AFTER the camera works, deterministically and
+# without hardware.
+appId: com.ayaan47.truetone
+---
+- launchApp:
+    clearState: true
+
+- tapOn:
+    id: "dob-submit"
+- tapOn:
+    id: "consent-check"
+- tapOn:
+    id: "consent-submit"
+- assertVisible: "Home"
+
+- tapOn: "Enable camera"
+- assertVisible: "Your scan stays on your device"
+- tapOn: "Enable camera"
+
+# ---- fixture substitutes the capture; everything after is the real pipeline ----
+- extendedWaitUntil:
+    visible: "We found your match"
+    timeout: 15000
+- assertVisible: "Your shade"

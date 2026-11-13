@@ -64,8 +64,8 @@
   "scripts": {
     "postinstall": "patch-package",
     "start": "expo start",
-    "android": "expo start --android",
-    "ios": "expo start --ios",
+    "android": "expo run:android",
+    "ios": "expo run:ios",
     "web": "expo start --web",
     "test": "jest",
     "test:watch": "jest --watch",
@@ -78,7 +78,13 @@
     "waitlist:build": "node scripts/build-waitlist.mjs",
     "check:compliance": "node scripts/check-no-analytics-sdk.mjs && node scripts/check-waitlist-copy.mjs",
     "check:no-egress": "node scripts/check-no-image-egress.mjs",
-    "eval:invariance": "jest -c jest.eval.config.js eval/invariance/__tests__/report-writer.test.ts"
+    "eval:invariance": "jest -c jest.eval.config.js eval/invariance/__tests__/report-writer.test.ts",
+    "e2e:ios": "bash scripts/e2e/run-all.sh ios",
+    "e2e:ios:demo": "bash scripts/e2e/run-maestro.sh demo",
+    "e2e:ios:shopify-offline": "bash scripts/e2e/run-maestro.sh shopify-offline",
+    "e2e:ios:camera-demo": "bash scripts/e2e/run-maestro.sh camera-demo",
+    "e2e:ios:camera-demo-fixture": "bash scripts/e2e/run-maestro.sh camera-demo-fixture",
+    "e2e:android": "bash scripts/e2e/run-all.sh android"
   },
   "private": true,
   "expo": {

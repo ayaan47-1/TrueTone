@@ -1,0 +1,36 @@
+# Flow 6 — camera permission denied.
+# Run against the CAMERA_DEMO build (EXPO_PUBLIC_CAMERA_DEMO=1, EXPO_PUBLIC_DEMO unset/0 — the
+# "camera-demo"/"testflight-camera" EAS profile shape, Supabase/Shopify hosts pointed offline).
+# This is the only build where /scan actually mounts <Capture> — DEMO_MODE (a separate build,
+# used for flows 3a/4/5) blocks /scan outright (app/_layout.tsx).
+#
+# Capture.tsx checks `!hasPermission` BEFORE `!device`, so this works even though the iOS
+# Simulator has no physical camera device at all: denying permission up front means the
+# "Camera access needed" branch renders regardless of whether a device would ever be found.
+appId: com.ayaan47.truetone
+---
+- setPermissions:
+    permissions:
+      camera: deny
+
+- launchApp:
+    clearState: true
+
+- tapOn:
+    id: "dob-submit"
+- tapOn:
+    id: "consent-check"
+- tapOn:
+    id: "consent-submit"
+
+- assertVisible: "Home"
+- tapOn: "Enable camera"
+
+# ---- scan-gate, then the real permission-denied state inside Capture.tsx ----
+- assertVisible: "Your scan stays on your device"
+- tapOn: "Enable camera"
+- assertVisible: "Camera access needed"
+- assertVisible: "Open Settings"
+- assertVisible: "Go back"
+- tapOn: "Go back"
+- assertVisible: "Home"

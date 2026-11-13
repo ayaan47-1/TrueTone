@@ -1,0 +1,31 @@
+# Flow 4 — add to bag.
+# Same DEMO build as 03a (EXPO_PUBLIC_DEMO=1 + real Shopify env). Opens the first product tile,
+# adds the screen's default purchasable variant to the Shopify bag. Asserts the bag screen
+# reflects the add — no checkout call yet (that's flow 5).
+appId: com.ayaan47.truetone
+---
+- launchApp:
+    clearState: true
+
+- assertVisible: "Home"
+- tapOn: "Shop"
+- tapOn: "Continue to shop"
+- assertNotVisible:
+    id: "catalogue-notice"
+    timeout: 15000
+
+# ---- open the first product tile ----
+- tapOn:
+    id: "shopify-product-.*"
+    index: 0
+
+- assertVisible:
+    text: "Add to Shopify bag.*"
+    timeout: 10000
+- tapOn:
+    text: "Add to Shopify bag.*"
+
+# ---- lands in the Shopify bag with the line present ----
+- assertVisible: "Shopify bag"
+- assertVisible:
+    text: "Guest checkout.*"
