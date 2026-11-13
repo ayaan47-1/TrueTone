@@ -5,9 +5,8 @@ import Vision
 @testable import AppleVisionCore
 
 final class VisionTests: XCTestCase {
-  func testPositiveStillObservationKeepsBoundsAndUnknownPose() throws {
+  private func blankExif7JPEG() throws -> URL {
     let url = FileManager.default.temporaryDirectory.appendingPathComponent(UUID().uuidString + ".jpg")
-    defer { try? FileManager.default.removeItem(at: url) }
     let context = try XCTUnwrap(CGContext(data: nil, width: 400, height: 600, bitsPerComponent: 8,
       bytesPerRow: 1600, space: CGColorSpaceCreateDeviceRGB(), bitmapInfo: CGImageAlphaInfo.noneSkipLast.rawValue))
     context.setFillColor(CGColor(gray: 0, alpha: 1))
@@ -16,10 +15,15 @@ final class VisionTests: XCTestCase {
     let destination = try XCTUnwrap(CGImageDestinationCreateWithURL(url as CFURL, "public.jpeg" as CFString, 1, nil))
     CGImageDestinationAddImage(destination, image, [kCGImagePropertyOrientation: 7] as CFDictionary)
     XCTAssertTrue(CGImageDestinationFinalize(destination))
+    return url
+  }
+  func testPositiveStillObservationKeepsBoundsAndUnknownPose() throws {
+    let url = try blankExif7JPEG()
+    defer { try? FileManager.default.removeItem(at: url) }
     let observation = VNFaceObservation(requestRevision: VNDetectFaceRectanglesRequestRevision3,
       boundingBox: CGRect(x: 0.1, y: 0.2, width: 0.4, height: 0.5), roll: nil, yaw: nil, pitch: nil)
     var calls = 0
-    let result = try VisionEngine.detectStill(uri: url.absoluteString) { _, _ in
+    let result = try VisionEngine.detectStillForTesting(uri: url.absoluteString) { _, _ in
       calls += 1
       return [observation]
     }
@@ -35,13 +39,23 @@ final class VisionTests: XCTestCase {
     XCTAssertNil(face.yawAngle)
     XCTAssertNil(face.rollAngle)
   }
+  func testRealRequestThroughNitroExposedStillEntryPoint() throws {
+    let url = try blankExif7JPEG()
+    defer { try? FileManager.default.removeItem(at: url) }
+    let completedBefore = VisionEngine.completedRequests
+    let bridged = try HybridAppleVisionDetector().detectStill(uri: url.absoluteString)
+    XCTAssertEqual(VisionEngine.completedRequests, completedBefore + 1)
+    XCTAssertEqual(bridged.imageWidth, 600)
+    XCTAssertEqual(bridged.imageHeight, 400)
+    XCTAssertTrue(bridged.faces.isEmpty)
+  }
   func testPositiveObservationSurvivesRealDetectionResultPathWithUnknownPose() throws {
     var buffer: CVPixelBuffer?
     XCTAssertEqual(CVPixelBufferCreate(nil, 640, 480, kCVPixelFormatType_32BGRA, nil, &buffer), kCVReturnSuccess)
     let observation = VNFaceObservation(requestRevision: VNDetectFaceRectanglesRequestRevision3,
       boundingBox: CGRect(x: 0.1, y: 0.2, width: 0.4, height: 0.5), roll: nil, yaw: nil, pitch: nil)
     var calls = 0
-    let result = try VisionEngine.detect(pixelBuffer: XCTUnwrap(buffer), orientation: .right) { _, _ in
+    let result = try VisionEngine.detectForTesting(pixelBuffer: XCTUnwrap(buffer), orientation: .right) { _, _ in
       calls += 1
       return [observation]
     }
@@ -92,6 +106,32 @@ final class VisionTests: XCTestCase {
     XCTAssertEqual(result.faces.count, 0)
     XCTAssertEqual(result.imageWidth, 64)
     XCTAssertEqual(result.imageHeight, 64)
+  }
+  func testRealRequestThroughNitroExposedFrameEntryPoint() throws {
+    struct Frame: HybridFrameSpec, NativeFrame {
+      let sampleBuffer: CMSampleBuffer?
+      let orientation = HostFrameOrientation.right
+      let isMirrored = true
+    }
+    var buffer: CVPixelBuffer?
+    XCTAssertEqual(CVPixelBufferCreate(nil, 320, 240, kCVPixelFormatType_32BGRA, nil, &buffer), kCVReturnSuccess)
+    let pixelBuffer = try XCTUnwrap(buffer)
+    CVPixelBufferLockBaseAddress(pixelBuffer, [])
+    memset(CVPixelBufferGetBaseAddress(pixelBuffer), 0, CVPixelBufferGetDataSize(pixelBuffer))
+    CVPixelBufferUnlockBaseAddress(pixelBuffer, [])
+    var format: CMVideoFormatDescription?
+    XCTAssertEqual(CMVideoFormatDescriptionCreateForImageBuffer(allocator: nil, imageBuffer: pixelBuffer,
+      formatDescriptionOut: &format), noErr)
+    var sample: CMSampleBuffer?
+    var timing = CMSampleTimingInfo(duration: .invalid, presentationTimeStamp: .zero, decodeTimeStamp: .invalid)
+    XCTAssertEqual(CMSampleBufferCreateReadyWithImageBuffer(allocator: nil, imageBuffer: pixelBuffer,
+      formatDescription: try XCTUnwrap(format), sampleTiming: &timing, sampleBufferOut: &sample), noErr)
+    let completedBefore = VisionEngine.completedRequests
+    let result = try HybridAppleVisionDetector().detectFrame(frame: Frame(sampleBuffer: try XCTUnwrap(sample)))
+    XCTAssertEqual(VisionEngine.completedRequests, completedBefore + 1)
+    XCTAssertEqual(result.imageWidth, 240)
+    XCTAssertEqual(result.imageHeight, 320)
+    XCTAssertTrue(result.faces.isEmpty)
   }
   func testStillRejectsNetworkAndMissingLocalFiles() {
     XCTAssertThrowsError(try VisionEngine.detectStill(uri: "https://example.com/face.jpg"))

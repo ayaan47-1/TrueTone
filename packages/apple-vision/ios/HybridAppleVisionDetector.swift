@@ -1,7 +1,9 @@
 import CoreMedia
 import ImageIO
+#if !APPLE_VISION_HOST_TESTING
 import NitroModules
 import VisionCamera
+#endif
 
 final class HybridAppleVisionDetector: HybridAppleVisionDetectorSpec {
   // Each invocation owns its request. No frame, image, geometry or tracking state survives it.
