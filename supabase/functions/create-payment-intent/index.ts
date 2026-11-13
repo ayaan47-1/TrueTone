@@ -1,5 +1,5 @@
 import { serve } from 'https://deno.land/std@0.224.0/http/server.ts';
-import { createClient } from 'https://esm.sh/@supabase/supabase-js@2';
+import { createClient } from '@supabase/supabase-js';
 import Stripe from 'https://esm.sh/stripe@14.19.0';
 import { computeOrderTotalCents } from '../_shared/checkout/pricing.ts';
 import { insertPendingOrder } from '../_shared/checkout/pending-order.ts';

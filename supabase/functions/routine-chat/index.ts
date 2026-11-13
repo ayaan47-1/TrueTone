@@ -8,7 +8,7 @@
 // bundler (docs consistently show _shared/ as the cross-function sharing pattern), so the _shared
 // fallback from the task brief is used here.
 import { serve } from 'https://deno.land/std@0.224.0/http/server.ts';
-import { createClient } from 'https://esm.sh/@supabase/supabase-js@2';
+import { createClient } from '@supabase/supabase-js';
 import Anthropic from 'https://esm.sh/@anthropic-ai/sdk@0.32.1';
 import { handleChat, type ChatDeps } from '../_shared/recommend/handle.ts';
 import { parseChatRequest } from '../_shared/recommend/validate.ts';
