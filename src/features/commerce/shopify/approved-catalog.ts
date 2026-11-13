@@ -50,7 +50,7 @@ export function createApprovedShopifyCatalog(client:ShopifyClient,approved:()=>P
       const page=await productPage(identity.product.id,after);
       const product=(await fetchApproved(client,page.products)).find(product=>product.id===identity.product?.id && product.handle===handle);
       if(product) return {...product,optionsPage:{nextCursor:page.nextCursor}};
-      if(page.nextCursor===null) return null;
+      if(page.nextCursor===null) return {...mapProductNode({...identity.product,variants:{nodes:[]}}),optionsPage:{nextCursor:null}};
       if(seen.has(page.nextCursor) || page.nextCursor===after) throw Error('options did not advance');
       seen.add(page.nextCursor);after=page.nextCursor;
     }

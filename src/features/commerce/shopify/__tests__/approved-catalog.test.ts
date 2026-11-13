@@ -72,3 +72,12 @@ test('the bounded empty-page traversal keeps its cursor so a later click can con
   expect(result?.variants).toEqual([]);expect(result?.optionsPage?.nextCursor).toBe('cursor-5');
   expect(result?.title).toBe(PRODUCT_FIXTURE_NODE.title);expect(scoped).toHaveBeenCalledTimes(5);
 });
+
+test('sold-out terminal options return an explicit exhausted page, not a missing product',async()=>{
+  const variant=PRODUCT_FIXTURE_NODE.variants.nodes[1];
+  const scoped=jest.fn().mockResolvedValue({products:[{...demo[0],id:variant.id}],nextCursor:null});
+  const request=jest.fn().mockResolvedValueOnce({product:PRODUCT_FIXTURE_NODE})
+    .mockResolvedValueOnce({nodes:[{...variant,availableForSale:false,product:PRODUCT_FIXTURE_NODE}]});
+  const result=await createApprovedShopifyCatalog({request},async()=>[],scoped).getByHandle(PRODUCT_FIXTURE_NODE.handle,'terminal');
+  expect(result?.variants).toEqual([]);expect(result?.optionsPage).toEqual({nextCursor:null});
+});

@@ -16,12 +16,21 @@ beforeEach(()=>{jest.clearAllMocks();__setShopifyServicesForTests(null);});
 test('cart add validates one selected variant without downloading all approved IDs',async()=>{
   const variant={...PRODUCT_FIXTURE_NODE.variants.nodes[1],product:PRODUCT_FIXTURE_NODE};
   mockVariant.mockResolvedValue({id:variant.id});mockRequest.mockResolvedValue({nodes:[variant]});
+  mockAdd.mockResolvedValue(cart);
   await getShopifyServices().cart.add(variant.id,1);
   expect(mockVariant).toHaveBeenCalledWith(variant.id);
   expect(mockRefresh).not.toHaveBeenCalled();
-  expect(mockRequest).toHaveBeenCalledTimes(1);
+  expect(mockRequest).toHaveBeenCalledTimes(2);
   expect(mockRequest).toHaveBeenCalledWith(expect.stringContaining('visitorConsent'),{ids:[variant.id]});
   expect(mockAdd).toHaveBeenCalledWith(variant.id,1);
+});
+test('adding a valid shade also retains flags for invalid lines already in the returned bag',async()=>{
+  const selected=cart.lines[0].merchandise.id;
+  mockVariant.mockImplementation(async(id:string)=>id===selected?{id}:null);
+  mockRequest.mockResolvedValue({nodes:[{...PRODUCT_FIXTURE_NODE.variants.nodes[1],product:PRODUCT_FIXTURE_NODE}]});
+  mockAdd.mockResolvedValue({...cart,totalQuantity:2,lines:[cart.lines[0],{...cart.lines[0],id:'old-line',merchandise:{...cart.lines[0].merchandise,id:'gid://shopify/ProductVariant/99'}}]});
+  expect((await getShopifyServices().cart.add(selected,1)).unavailableVariantIds).toEqual(['gid://shopify/ProductVariant/99']);
+  expect(mockRefresh).not.toHaveBeenCalled();
 });
 test('a removed selected shade cannot cause Shopify traffic or a cart mutation',async()=>{
   mockVariant.mockResolvedValue(null);
