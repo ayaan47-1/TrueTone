@@ -43,15 +43,16 @@ test('loading a bag flags a previously added shade whose approval was removed',a
   expect(result.unavailableVariantIds).toEqual([cart.lines[0].merchandise.id]);
   expect(mockRequest).not.toHaveBeenCalled();
 });
-test('approval read errors fail closed before checkout can obtain a fresh cart',async()=>{
+test('approval read errors retain the fresh cart as unverified so checkout stays blocked',async()=>{
   mockLoad.mockResolvedValue(cart);mockVariant.mockRejectedValue(Error('offline'));
-  await expect(getShopifyServices().cart.load()).rejects.toThrow();
+  const result=await getShopifyServices().cart.load();
+  expect(result.id).toBe(cart.id);expect(result.approvalStatus).toBe('unverified');
 });
 test('a non-USD cart cannot be validated for checkout even if its variant is approved',async()=>{
   mockLoad.mockResolvedValue({...cart,subtotal:{amount:'30.00',currencyCode:'CAD'}});
   mockVariant.mockResolvedValue({id:cart.lines[0].merchandise.id});
   mockRequest.mockResolvedValue({nodes:[{...PRODUCT_FIXTURE_NODE.variants.nodes[1],product:PRODUCT_FIXTURE_NODE}]});
-  await expect(getShopifyServices().cart.load()).rejects.toThrow('bag currency unavailable');
+  expect((await getShopifyServices().cart.load()).approvalStatus).toBe('unverified');
 });
 test('increasing an existing line revalidates approval, while decreasing stays possible',async()=>{
   mockLoad.mockResolvedValue(cart);mockVariant.mockResolvedValue(null);

@@ -97,3 +97,11 @@ it('flags unavailable bag lines and keeps their remove action available',async()
   expect(view.getByRole('button',{name:'Guest checkout · $24.00'})).toBeDisabled();
   expect(view.getByRole('button',{name:'Remove Test product'})).not.toBeDisabled();
 });
+
+it('blocks presentation when checkout refresh returns an unverified approval status',async()=>{
+  mockRefreshCart.mockResolvedValue({...freshCart,approvalStatus:'unverified'});
+  const view=await render(<ShopifyBagScreen onShop={jest.fn()} />);
+  await fireEvent.press(view.getByRole('button',{name:'Guest checkout · $24.00'}));
+  await waitFor(()=>expect(view.getByText('We could not confirm every shade. Remove unavailable shades or try again before checkout.')).toBeTruthy());
+  expect(mockPresent).not.toHaveBeenCalled();
+});

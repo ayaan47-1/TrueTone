@@ -39,13 +39,18 @@ export function getShopifyServices(): ShopifyServices {
   const cart=createCartAdapter(client);
   const annotate=async(fresh:ShopifyCart):Promise<ShopifyCart>=>{
     if(DEMO_MODE) return fresh;
-    if(fresh.subtotal.currencyCode!=='USD' || fresh.lines.some(line=>line.merchandise.price.currencyCode!=='USD' || line.merchandise.compareAtPrice && line.merchandise.compareAtPrice.currencyCode!=='USD')) throw Error('bag currency unavailable');
-    if(fresh.lines.reduce((n,line)=>n+line.quantity,0)!==fresh.totalQuantity) throw Error('incomplete bag');
-    const unavailableVariantIds:string[]=[];
-    for(const line of fresh.lines) {
-      if(!await approvedShopifyVariant(client,readApprovedVariant,line.merchandise.id)) unavailableVariantIds.push(line.merchandise.id);
+    try {
+      if(fresh.subtotal.currencyCode!=='USD' || fresh.lines.some(line=>line.merchandise.price.currencyCode!=='USD' || line.merchandise.compareAtPrice && line.merchandise.compareAtPrice.currencyCode!=='USD')) throw Error('bag currency unavailable');
+      if(fresh.lines.reduce((n,line)=>n+line.quantity,0)!==fresh.totalQuantity) throw Error('incomplete bag');
+      const unavailableVariantIds:string[]=[];
+      for(const line of fresh.lines) {
+        if(!await approvedShopifyVariant(client,readApprovedVariant,line.merchandise.id)) unavailableVariantIds.push(line.merchandise.id);
+      }
+      return {...fresh,approvalStatus:'verified',unavailableVariantIds};
+    } catch {
+      // Shopify's returned cart is authoritative even if later approval reads fail.
+      return {...fresh,approvalStatus:'unverified',unavailableVariantIds:[]};
     }
-    return {...fresh,unavailableVariantIds};
   };
   const catalog = DEMO_MODE?createShopifyCatalog(client):createApprovedShopifyCatalog(client,approved,readApprovedProduct);
   cached = {

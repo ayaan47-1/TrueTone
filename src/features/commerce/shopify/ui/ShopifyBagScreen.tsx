@@ -62,7 +62,7 @@ function ShopifyBagScreenOnline({ onShop }: Props) {
     setCheckoutError(null);
     try {
       const freshCart = await shopifyStore.refreshCart();
-      if (!freshCart || freshCart.unavailableVariantIds?.length || !freshCart.lines.length) throw new Error('Cart refresh failed');
+      if (!freshCart || freshCart.approvalStatus==='unverified' || freshCart.unavailableVariantIds?.length || !freshCart.lines.length) throw new Error('Cart refresh failed');
       await present(freshCart.checkoutUrl);
     } catch {
       setCheckoutError('We could not confirm every shade. Remove unavailable shades or try again before checkout.');
@@ -80,6 +80,11 @@ function ShopifyBagScreenOnline({ onShop }: Props) {
           <PrimaryButton className="mt-4" label="Try again" onPress={() => void shopifyStore.loadCart()} />
         </GlassCard>
       ) : null}
+      {isCartOnline && cart.approvalStatus==='unverified' ? <GlassCard radius={22} className="mb-5 gap-3 px-5 py-4">
+        <Subheading>Approval not confirmed</Subheading>
+        <Body>We couldn't verify shade approval. Checkout is paused.</Body>
+        <PrimaryButton label={loadingCart?'Checking bag approval…':'Check bag approval'} disabled={loadingCart} variant="glass" onPress={()=>void shopifyStore.loadCart()} />
+      </GlassCard> : null}
       <View className="gap-3">
         {cart.lines.map((line) => (
           <GlassCard key={line.id} radius={22} className="flex-row items-center gap-4 px-4 py-4">
@@ -122,7 +127,7 @@ function ShopifyBagScreenOnline({ onShop }: Props) {
       <PrimaryButton
         className="mt-5"
         label={`Guest checkout · ${formatMoney(cart.subtotal)}`}
-        disabled={!isCartOnline || loadingCart || !!cart.unavailableVariantIds?.length}
+        disabled={!isCartOnline || loadingCart || cart.approvalStatus==='unverified' || !!cart.unavailableVariantIds?.length}
         onPress={() => void checkout()}
       />
       <PrimaryButton className="mt-3" label="Keep shopping" variant="glass" onPress={onShop} />

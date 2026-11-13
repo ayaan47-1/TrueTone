@@ -42,6 +42,7 @@ export interface ShopifyCartLine {
 }
 
 export interface ShopifyCart {
+  readonly approvalStatus?:'verified'|'unverified';
   readonly unavailableVariantIds?:readonly string[];
   readonly id: string;
   /** Includes Shopify's consent payload. It must be passed to checkout unchanged. */
