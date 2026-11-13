@@ -13,10 +13,13 @@ import {
   createSupabaseCommunityProfileRepository,
   type CommunityProfileRepository,
 } from './community-profile-repository';
+import { avatarFileStore, type AvatarFileStore } from './avatar-file';
 import { normalizeUsername, validateUsername, type CommunityProfile } from './community-profile-types';
 
 export type SaveUsernameResult = { ok: true } | { ok: false; error: string };
-export type AvatarStatus = 'idle' | 'picking' | 'unavailable' | 'error';
+// 'cleanup-incomplete': the new photo is set, but an older copy could not be deleted yet. The next
+// pick or Delete My Data removes the whole avatar folder again.
+export type AvatarStatus = 'idle' | 'picking' | 'unavailable' | 'error' | 'cleanup-incomplete';
 
 interface UseCommunityProfileResult {
   profile: CommunityProfile | null;
@@ -40,6 +43,7 @@ function isUniqueViolation(err: unknown): boolean {
 export function useCommunityProfile(
   userId: string | null,
   repository: CommunityProfileRepository = defaultRepository(),
+  avatarFiles?: AvatarFileStore,
 ): UseCommunityProfileResult {
   const [profile, setProfile] = useState<CommunityProfile | null>(null);
   const [loading, setLoading] = useState(true);
@@ -107,19 +111,21 @@ export function useCommunityProfile(
         setAvatarStatus('idle');
         return;
       }
+      // MASVS M1: keep only an app-owned copy (old one deleted) -- never the picker's cache file.
+      const adopted = await (avatarFiles ?? avatarFileStore()).adopt(result.assets[0].uri);
       const saved = await repository.save({
         userId,
         username: profile.username,
-        avatarUri: result.assets[0].uri,
+        avatarUri: adopted.uri,
       });
       setProfile(saved);
-      setAvatarStatus('idle');
+      setAvatarStatus(adopted.cleanupComplete ? 'idle' : 'cleanup-incomplete');
     } catch {
       // Permission denial, picker cancel, or a save failure all resolve here -- never
       // crash the Account screen over an avatar pick.
       setAvatarStatus('error');
     }
-  }, [userId, profile, repository]);
+  }, [userId, profile, repository, avatarFiles]);
 
   return { profile, loading, saveUsername, pickAvatar, avatarStatus };
 }

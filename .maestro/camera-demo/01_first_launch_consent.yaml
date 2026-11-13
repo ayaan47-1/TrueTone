@@ -1,0 +1,35 @@
+# Flow 1 — first launch + consent.
+# Run against the CAMERA_DEMO build (EXPO_PUBLIC_CAMERA_DEMO=1, Supabase + Shopify both pointed
+# offline — see scripts/e2e/build-variant.sh "camera-demo"). This is NOT the EXPO_PUBLIC_DEMO=1
+# build: DEMO_MODE pre-resolves route='home' and skips age-gate/consent entirely, so there would
+# be nothing here to tap. CAMERA_DEMO is the opposite — profile-context.tsx still drives the
+# real /age-gate + /consent screens and still requires a real affirmative tap (see
+# src/features/age-gate/AgeGate.tsx, src/features/consent/Consent.tsx); it just persists the
+# result to local state instead of Supabase, so no backend is needed for this flow.
+#
+# The age-gate's default DOB (2000-01-01) already clears the 18+ check against any date this app
+# will run on, so this flow never has to drive the native date-picker spinner — it just confirms
+# the default and continues.
+appId: com.ayaan47.truetone
+---
+- launchApp:
+    clearState: true
+
+# ---- age gate ----
+- assertVisible: "Before we begin"
+- assertVisible: "Confirm your date of birth"
+- tapOn:
+    id: "dob-submit"
+
+# ---- consent ----
+- assertVisible: "Your photo stays yours"
+- assertVisible:
+    id: "consent-check"
+- tapOn:
+    id: "consent-check"
+- tapOn:
+    id: "consent-submit"
+
+# ---- lands on Home ----
+- assertVisible: "Home"
+- assertVisible: "Shop"

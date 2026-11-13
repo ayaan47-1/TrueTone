@@ -31,16 +31,23 @@ import {
   type ShippingAddressField,
 } from '../../../supabase/functions/_shared/checkout/shipping-address';
 
-/** A short human-readable pseudo order number (display only — not a real order). */
-function makeOrderNumber(): string {
-  return `TT-${Math.floor(100000 + Math.random() * 900000)}`;
+const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+
+/**
+ * The customer-facing order reference: the full server order id (the orders primary key), so it is
+ * unique by construction and support can find exactly one row (MASVS L5; a truncated prefix could
+ * collide). null when the server sent no valid id -- never a made-up number.
+ */
+export function orderReference(orderId: unknown): string | null {
+  if (typeof orderId !== 'string' || !UUID_RE.test(orderId)) return null;
+  return `TT-${orderId.toUpperCase()}`;
 }
 
 export function CheckoutScreen() {
   const router = useRouter();
   const state = useBag();
   const { initPaymentSheet, presentPaymentSheet } = useStripe();
-  const [placed, setPlaced] = useState<{ orderNo: string; total: number; items: number } | null>(
+  const [placed, setPlaced] = useState<{ orderNo: string | null; total: number; items: number } | null>(
     null,
   );
   const [loading, setLoading] = useState(false);
@@ -101,7 +108,7 @@ export function CheckoutScreen() {
       }
 
       // Success
-      setPlaced({ orderNo: makeOrderNumber(), total: bagSubtotal(state), items: bagCount(state) });
+      setPlaced({ orderNo: orderReference(data.orderId), total: bagSubtotal(state), items: bagCount(state) });
       void orderHistory.record(state.lines.map((l) => l.product.id));
       bag.clear();
     } catch (e) {
@@ -271,7 +278,7 @@ function OrderSummary({ state }: { state: BagState }) {
 }
 
 /** Post-"Place order" confirmation state. */
-function Confirmation({ orderNo, onDone }: { orderNo: string; onDone: () => void }) {
+function Confirmation({ orderNo, onDone }: { orderNo: string | null; onDone: () => void }) {
   return (
     <Screen className="gap-6 px-6" topGap={HEADER_CLEARANCE} bottomGap={32}>
       <View className="flex-1 items-center justify-center gap-4 py-16">
@@ -282,10 +289,12 @@ function Confirmation({ orderNo, onDone }: { orderNo: string; onDone: () => void
         <Body className="text-center text-ink-soft">
           Thanks! Your order is being processed.
         </Body>
-        <GlassCard className="items-center gap-1 px-6 py-4" flat>
-          <Caption className="text-ink-soft">Order number</Caption>
-          <Heading testID="order-number">{orderNo}</Heading>
-        </GlassCard>
+        {orderNo ? (
+          <GlassCard className="items-center gap-1 px-6 py-4" flat>
+            <Caption className="text-ink-soft">Order number</Caption>
+            <Heading testID="order-number">{orderNo}</Heading>
+          </GlassCard>
+        ) : null}
       </View>
       <PrimaryButton label="Back to shop" fullWidth onPress={onDone} testID="confirm-done" />
     </Screen>

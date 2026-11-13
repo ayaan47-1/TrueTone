@@ -1,0 +1,25 @@
+begin;
+select plan(13);
+create temporary table claimed as select public.catalog_claim_reconcile(null) value;
+select ok((select value->>'id' from claimed) is not null,'new job claimed');
+select is(public.catalog_claim_reconcile(null),null::jsonb,'second worker cannot claim active lease');
+insert into public.catalog_variants(variant_gid,product_gid,formula_key,formula_version,shade_name,vendor,published,observed_at)
+values('scale-protect','scale-old','synthetic','1','synthetic','Synthetic',true,now()-interval '1 hour');
+select public.catalog_checkpoint_reconcile((value->>'id')::uuid,(value->>'lease_token')::uuid,'[{"product_gid":"gid://shopify/Product/1","variants":[]}]','next') from claimed;
+select ok(not (select deleted from catalog_variants where variant_gid='scale-protect'),'unfinished page never marks missing products');
+select is((select status from catalog_sync_runs order by started_at desc limit 1),'running','partial job is not complete');
+select throws_ok(format('select public.catalog_checkpoint_reconcile(%L,%L,%L,null)',(value->>'id'),'00000000-0000-4000-8000-000000000000','[]'),'55000',null,'wrong lease cannot publish') from claimed;
+select public.catalog_retry_reconcile((value->>'id')::uuid,(value->>'lease_token')::uuid,false) from claimed;
+select is((select failures from catalog_reconcile_jobs where id=(select (value->>'id')::uuid from claimed)),0,'normal continuation is not a failure');
+update public.catalog_reconcile_jobs set next_attempt_at=now()-interval '1 second' where id=(select (value->>'id')::uuid from claimed);
+create temporary table resumed as select public.catalog_claim_reconcile((value->>'id')::uuid) value from claimed;
+select is((select value->>'cursor' from resumed),'next','retry resumes saved cursor');
+select isnt((select value->>'lease_token' from resumed),(select value->>'lease_token' from claimed),'retry fences old worker');
+select throws_ok(format('select public.catalog_checkpoint_reconcile(%L,%L,%L,null)',(value->>'id'),(value->>'lease_token'),'[]'),'55000',null,'old worker cannot finish after takeover') from claimed;
+select public.catalog_checkpoint_reconcile((value->>'id')::uuid,(value->>'lease_token')::uuid,'[{"product_gid":"gid://shopify/Product/2","variants":[]}]',null) from resumed;
+select is((select status from catalog_sync_runs order by started_at desc limit 1),'complete','only final checkpoint completes');
+select ok((select deleted from catalog_variants where variant_gid='scale-protect'),'final checkpoint applies missing-product deletion');
+select is((select cardinality(product_ids) from catalog_reconcile_jobs where id=(select (value->>'id')::uuid from claimed)),2,'seen products persist across invocations');
+select is(public.catalog_claim_reconcile((value->>'id')::uuid),null::jsonb,'completed retry is idempotent') from resumed;
+select * from finish();
+rollback;

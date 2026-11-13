@@ -32,6 +32,7 @@ export interface ShopifyProduct {
   readonly vendor: string;
   readonly featuredImage: ShopifyImage | null;
   readonly variants: readonly ShopifyVariant[];
+  readonly optionsPage?: {readonly nextCursor:string|null};
 }
 
 export interface ShopifyCartLine {
@@ -41,6 +42,8 @@ export interface ShopifyCartLine {
 }
 
 export interface ShopifyCart {
+  readonly approvalStatus?:'verified'|'unverified';
+  readonly unavailableVariantIds?:readonly string[];
   readonly id: string;
   /** Includes Shopify's consent payload. It must be passed to checkout unchanged. */
   readonly checkoutUrl: string;

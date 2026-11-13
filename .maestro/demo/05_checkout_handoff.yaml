@@ -1,0 +1,48 @@
+# Flow 5 — Shopify checkout hand-off, up to the external hand-off only.
+# Same DEMO build as 03a/04. Continues from "add to bag" through tapping "Guest checkout",
+# which calls usePresentCheckout() -> the real @shopify/checkout-sheet-kit native sheet
+# (src/features/commerce/shopify/use-present-checkout.ts) against a real Shopify checkout URL.
+#
+# BOUNDARY (god's limits, HAG-231): stops the instant the checkout sheet is confirmed open —
+# never types anything, never fills a customer login/email/address/payment field, never enters
+# the sheet's content at all. The sheet is a native modal outside the RN view tree; "Checkout"
+# appearing is proof-of-open (presence-based, not an assertion about the sheet's contents).
+# Dismiss is a plain swipe-down from the top edge — the standard iOS modal-sheet-dismiss
+# gesture — tried first via a "Done" tap (optional) since some presentation styles show one;
+# either way nothing is tapped or typed INSIDE the sheet's own content.
+#
+# This leaves a real, empty-of-payment-info cart behind in the live store (see docs/ops/e2e.md).
+appId: com.ayaan47.truetone
+---
+- launchApp:
+    clearState: true
+
+- assertVisible: "Home"
+- tapOn: "Shop"
+- tapOn: "Continue to shop"
+- assertNotVisible:
+    id: "catalogue-notice"
+    timeout: 15000
+- tapOn:
+    id: "shopify-product-.*"
+    index: 0
+- assertVisible:
+    text: "Add to Shopify bag.*"
+    timeout: 10000
+- tapOn:
+    text: "Add to Shopify bag.*"
+- assertVisible: "Shopify bag"
+
+# ---- the external hand-off: open the Shopify checkout sheet, dismiss without entering it ----
+- tapOn:
+    text: "Guest checkout.*"
+- extendedWaitUntil:
+    visible: "Checkout"
+    timeout: 15000
+- tapOn:
+    text: "Done"
+    optional: true
+- swipe:
+    start: "50%, 3%"
+    end: "50%, 90%"
+- assertVisible: "Shopify bag"

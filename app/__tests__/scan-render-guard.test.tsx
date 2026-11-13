@@ -27,6 +27,24 @@ jest.mock('../../src/lib/supabase', () => ({
   supabase: {},
 }));
 
+let mockFixtureScan = false;
+jest.mock('../../src/lib/e2e-fixture', () => ({
+  get E2E_FIXTURE_SCAN() {
+    return mockFixtureScan;
+  },
+}));
+jest.mock('../../src/features/capture/e2e-fixture-image', () => ({
+  E2E_FIXTURE_IMAGE_BASE64_JPEG: 'fake-base64',
+}));
+const mockWriteAsStringAsync = jest.fn((_uri: string, _contents: string, _options?: unknown) =>
+  Promise.resolve(),
+);
+jest.mock('expo-file-system/legacy', () => ({
+  cacheDirectory: 'file:///cache/',
+  writeAsStringAsync: (uri: string, contents: string, options?: unknown) =>
+    mockWriteAsStringAsync(uri, contents, options),
+}));
+
 const mockReplace = jest.fn();
 const mockBack = jest.fn();
 jest.mock('expo-router', () => {
@@ -43,6 +61,8 @@ beforeEach(() => {
   jest.clearAllMocks();
   mockDemoMode = false;
   mockCameraDemo = false;
+  mockFixtureScan = false;
+  mockWriteAsStringAsync.mockClear();
   Object.assign(mockProfile, { loading: false, error: false, route: 'home', userId: 'user' });
 });
 
@@ -80,4 +100,47 @@ test('both flags on (should never happen in a real build) still blocks -- DEMO_M
   const view = await render(<ScanRoute />);
   expect(mockCapture).not.toHaveBeenCalled();
   expect(view.getByText('redirect:/')).toBeTruthy();
+});
+
+// --- E2E_FIXTURE_SCAN (HAG-231): replaces only the capture step, gates unchanged ---
+
+test('E2E_FIXTURE_SCAN on, gates clear: <Capture> never mounts, the fixture is written and fed through handleCaptured', async () => {
+  mockFixtureScan = true;
+  await render(<ScanRoute />);
+  expect(mockCapture).not.toHaveBeenCalled();
+  await new Promise((resolve) => setImmediate(resolve));
+  expect(mockWriteAsStringAsync).toHaveBeenCalledTimes(1);
+  const [fixtureUri, contents] = mockWriteAsStringAsync.mock.calls[0];
+  expect(fixtureUri).toBe('file:///cache/e2e-fixture-scan.jpg');
+  expect(contents).toBe('fake-base64');
+  expect(mockReplace).toHaveBeenCalledWith('/scan/result');
+});
+
+test.each([
+  { loading: true }, { error: true }, { route: 'consent' }, { route: 'age-gate' },
+  { route: 'region-blocked' }, { userId: null },
+])('E2E_FIXTURE_SCAN on, but gated or unknown: no fixture write, no capture: %j', async (state) => {
+  mockFixtureScan = true;
+  Object.assign(mockProfile, state);
+  await render(<ScanRoute />);
+  await new Promise((resolve) => setImmediate(resolve));
+  expect(mockCapture).not.toHaveBeenCalled();
+  expect(mockWriteAsStringAsync).not.toHaveBeenCalled();
+});
+
+test('E2E_FIXTURE_SCAN on, but DEMO_MODE also on: DEMO_MODE still wins, no fixture write', async () => {
+  mockFixtureScan = true;
+  mockDemoMode = true;
+  const view = await render(<ScanRoute />);
+  await new Promise((resolve) => setImmediate(resolve));
+  expect(mockCapture).not.toHaveBeenCalled();
+  expect(mockWriteAsStringAsync).not.toHaveBeenCalled();
+  expect(view.getByText('redirect:/')).toBeTruthy();
+});
+
+test('E2E_FIXTURE_SCAN off (default): no fixture write, real <Capture> path unaffected', async () => {
+  await render(<ScanRoute />);
+  await new Promise((resolve) => setImmediate(resolve));
+  expect(mockWriteAsStringAsync).not.toHaveBeenCalled();
+  expect(mockCapture).toHaveBeenCalledTimes(1);
 });
