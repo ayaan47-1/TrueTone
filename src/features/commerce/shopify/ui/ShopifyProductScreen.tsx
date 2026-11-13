@@ -134,7 +134,7 @@ function ShopifyProductScreenOnline({ handle, onBack, onAdded, onFeedback }: Pro
             ))}
           </View>
         ) : null}
-        {product.optionsPage?.nextCursor ? <PrimaryButton label="More shade options" variant="glass" disabled={loadingProducts}
+        {product.optionsPage?.nextCursor ? <PrimaryButton className="mt-4" label={loadingProducts?'Loading more shade options…':'More shade options'} variant="glass" disabled={loadingProducts}
           onPress={()=>void shopifyStore.loadMoreOptions(handle)} /> : null}
         {error ? <Body className="mt-4">{error}</Body> : null}
         <PrimaryButton

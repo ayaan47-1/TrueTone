@@ -69,7 +69,28 @@ test('a slow page cannot extend the server freshness deadline by its download ti
     time+=150;return {products:[mapCatalogueRow(row())],nextCursor:null};
   }},{now:()=>time});
   await store.load();
-  assert.equal(store.getSnapshot().status,'offline');
+  assert.equal(store.getSnapshot().status,'stale');
+  assert.deepEqual(store.getSnapshot().products,[]);
+});
+
+test('a write during Next discards the mixed page and restarts under a stable revision',async()=>{
+  let revision='1',race=false;const calls=[];
+  const store=createCatalogueState({revision:async()=>({revision,ttlMs:60_000}),page:async after=>{
+    calls.push(after);if(race&&after){revision='2';race=false;}
+    return {products:[mapCatalogueRow(row(after?2:1))],nextCursor:after?null:row(1).variant_gid};
+  }});
+  await store.load();race=true;await store.loadMore();
+  assert.deepEqual(store.getSnapshot().products.map(p=>p.id),[row(1).variant_gid]);
+  assert.equal(store.getSnapshot().pageNumber,1);
+  assert.deepEqual(calls,[null,row(1).variant_gid,null]);
+});
+
+test('continuous catalogue writes stop after a bounded retry and show stale, not offline',async()=>{
+  let version=0,reads=0;
+  const store=createCatalogueState({revision:async()=>({revision:String(version),ttlMs:60_000}),page:async()=>{
+    reads++;version++;return {products:[mapCatalogueRow(row())],nextCursor:null};
+  }});
+  await store.load();assert.equal(reads,2);assert.equal(store.getSnapshot().status,'stale');
   assert.deepEqual(store.getSnapshot().products,[]);
 });
 

@@ -91,7 +91,7 @@ export default function TodayScreen() {
             <RecentMatchesCard state={recentMatches} />
             <View className="mt-[30px]">
               <CatalogueNotice state={catalogue} />
-              {!DEMO_MODE && (catalogue.hasMore || catalogue.hasPrevious) ? <Caption>Showing a page of reviewed shades. Open Shop to browse more.</Caption> : null}
+              {!DEMO_MODE && (catalogue.hasMore || catalogue.hasPrevious) ? <Caption className="mb-4">Suggestions use the reviewed shades shown here. Browse more in Shop.</Caption> : null}
               <ProductRail
                 title={forYouProfile ? 'For You' : 'Featured'}
                 subtitle={

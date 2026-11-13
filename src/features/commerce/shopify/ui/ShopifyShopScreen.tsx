@@ -1,7 +1,7 @@
 import { useEffect, useRef, useState } from 'react';
 import { SUPABASE_OFFLINE } from '../../../../lib/supabase';
 import { ShopOfflineNotice } from './ShopOfflineNotice';
-import { AppState, Image, Pressable, ScrollView, Text, View } from 'react-native';
+import { AccessibilityInfo,findNodeHandle,AppState, Image, Pressable, ScrollView, Text, View } from 'react-native';
 import { Body, Caption, Display, GlassCard, PrimaryButton, Subheading } from '../../../../components/ui';
 import { formatMoney } from '../money';
 import { acceptShopPrivacy, __resetShopPrivacyForTests, hasAcceptedShopPrivacy } from '../shop-privacy';
@@ -31,6 +31,19 @@ function ShopifyShopScreenOnline({ onOpen, onBag, onDecline }: Props) {
   const approvedKey = catalogue.status === 'ready' || catalogue.status === 'empty'
     ? JSON.stringify(catalogue.products) : null;
   const requestedKey = useRef<string | null>(null);
+  const scroll=useRef<ScrollView>(null);
+  const heading=useRef<Text>(null);
+  const lastRange=useRef<string|null>(null);
+  const range=catalogue.rangeStart && catalogue.rangeEnd ? `Shades ${catalogue.rangeStart}-${catalogue.rangeEnd}` : null;
+  useEffect(()=>{
+    if(catalogue.status!=='ready' || !range) return;
+    const previous=lastRange.current;lastRange.current=range;
+    if(previous===null || previous===range) return;
+    scroll.current?.scrollTo({y:0,animated:false});
+    const node=heading.current?findNodeHandle(heading.current):null;
+    if(node!==null) AccessibilityInfo.setAccessibilityFocus(node);
+    AccessibilityInfo.announceForAccessibility(range);
+  },[catalogue.status,range]);
 
   useEffect(() => {
     if (!accepted) return;
@@ -82,7 +95,7 @@ function ShopifyShopScreenOnline({ onOpen, onBag, onDecline }: Props) {
   }
 
   return (
-    <ScrollView contentContainerStyle={{ paddingBottom: 32 }}>
+    <ScrollView ref={scroll} testID="catalogue-scroll" contentContainerStyle={{ paddingBottom: 32 }}>
       <View className="flex-row items-center justify-between py-3">
         <Display>Shop</Display>
         <Pressable accessibilityRole="button" accessibilityLabel="Shopify bag" onPress={onBag}>
@@ -90,6 +103,7 @@ function ShopifyShopScreenOnline({ onOpen, onBag, onDecline }: Props) {
         </Pressable>
       </View>
       <Caption className="mb-4">Products and checkout are provided by Shopify.</Caption>
+      {range ? <Text ref={heading} accessible accessibilityRole="header" className="mb-4 font-body text-[13px] text-ink">{range}</Text> : null}
       <CatalogueNotice state={catalogue} shop={{loading:loadingProducts,error,
         cachedAt:catalogStatus==='cached'?catalogUpdatedAt:null,
         empty:catalogStatus==='live' && visibleProducts.length===0}}
@@ -97,7 +111,7 @@ function ShopifyShopScreenOnline({ onOpen, onBag, onDecline }: Props) {
           void refreshCatalogue(true);
           void shopifyStore.loadProducts(true);
         }} />
-      {catalogue.hasPrevious ? <PrimaryButton label="Previous shades" variant="glass" onPress={()=>void loadPreviousCatalogue()} /> : null}
+      {catalogue.hasPrevious ? <PrimaryButton className="mb-4" label="Previous shades" variant="glass" onPress={()=>void loadPreviousCatalogue()} /> : null}
       <View className="gap-4">
         {visibleProducts.map((product) => (
           <ProductCard key={product.id} product={product} onOpen={onOpen} />

@@ -35,7 +35,7 @@ test('product detail resolves only its scoped approved options page, including a
   const variant=PRODUCT_FIXTURE_NODE.variants.nodes[1];
   const approved=jest.fn().mockResolvedValue(Array.from({length:1000},(_,n)=>({id:`gid://shopify/ProductVariant/${n+100}`})));
   const scoped=jest.fn().mockResolvedValue({products:[{...demo[0],id:variant.id}],nextCursor:variant.id});
-  const request=jest.fn().mockResolvedValueOnce({product:{id:PRODUCT_FIXTURE_NODE.id}}).mockResolvedValueOnce({nodes:[{...variant,product:PRODUCT_FIXTURE_NODE}]});
+  const request=jest.fn().mockResolvedValueOnce({product:PRODUCT_FIXTURE_NODE}).mockResolvedValueOnce({nodes:[{...variant,product:PRODUCT_FIXTURE_NODE}]});
   const source=createApprovedShopifyCatalog({request},approved,scoped);
   const result=await source.getByHandle(PRODUCT_FIXTURE_NODE.handle,'gid://shopify/ProductVariant/0');
   expect(approved).not.toHaveBeenCalled();
@@ -49,4 +49,26 @@ test('a missing product identity does not fall back to a full catalogue scan',as
   const approved=jest.fn(),scoped=jest.fn(),request=jest.fn().mockResolvedValue({product:null});
   expect(await createApprovedShopifyCatalog({request},approved,scoped).getByHandle('gone')).toBeNull();
   expect(request).toHaveBeenCalledTimes(1);expect(approved).not.toHaveBeenCalled();expect(scoped).not.toHaveBeenCalled();
+});
+
+test.each([null,'middle'])('sold-out options at %s retain navigation to the next purchasable page',async after=>{
+  const variant=PRODUCT_FIXTURE_NODE.variants.nodes[1];
+  const scoped=jest.fn().mockResolvedValueOnce({products:[{...demo[0],id:variant.id}],nextCursor:'later'})
+    .mockResolvedValueOnce({products:[{...demo[0],id:variant.id}],nextCursor:null});
+  const request=jest.fn().mockResolvedValueOnce({product:PRODUCT_FIXTURE_NODE})
+    .mockResolvedValueOnce({nodes:[{...variant,availableForSale:false,product:PRODUCT_FIXTURE_NODE}]})
+    .mockResolvedValueOnce({nodes:[{...variant,availableForSale:true,product:PRODUCT_FIXTURE_NODE}]});
+  const result=await createApprovedShopifyCatalog({request},async()=>[],scoped).getByHandle(PRODUCT_FIXTURE_NODE.handle,after);
+  expect(result?.variants.map(v=>v.id)).toEqual([variant.id]);
+  expect(scoped).toHaveBeenLastCalledWith(PRODUCT_FIXTURE_NODE.id,'later');
+});
+
+test('the bounded empty-page traversal keeps its cursor so a later click can continue',async()=>{
+  const variant=PRODUCT_FIXTURE_NODE.variants.nodes[1];let n=0;
+  const scoped=jest.fn(async()=>({products:[{...demo[0],id:variant.id}],nextCursor:`cursor-${++n}`}));
+  const request=jest.fn().mockResolvedValue({nodes:[{...variant,availableForSale:false,product:PRODUCT_FIXTURE_NODE}]})
+    .mockResolvedValueOnce({product:PRODUCT_FIXTURE_NODE});
+  const result=await createApprovedShopifyCatalog({request},async()=>[],scoped).getByHandle(PRODUCT_FIXTURE_NODE.handle);
+  expect(result?.variants).toEqual([]);expect(result?.optionsPage?.nextCursor).toBe('cursor-5');
+  expect(result?.title).toBe(PRODUCT_FIXTURE_NODE.title);expect(scoped).toHaveBeenCalledTimes(5);
 });

@@ -21,7 +21,7 @@ test('a removed or malformed selection never becomes a purchasable fallback',asy
   expect(await readApprovedVariant(row(2).variant_gid)).toBeNull();
   jest.clearAllMocks();expect(await readApprovedVariant('not-a-variant')).toBeNull();expect(mockFrom).not.toHaveBeenCalled();
 });
-test.each(['offline','demo'])('%s point/product reads never touch the network',async mode=>{
+test.each(['offline','demo'])('%s point/product reads make no Supabase requests',async mode=>{
   mockOffline=mode==='offline';mockDemo=mode==='demo';
   expect(await readApprovedVariant(row(1).variant_gid)).toBeNull();
   expect((await readApprovedProduct(row(1).product_gid,null)).products).toEqual([]);

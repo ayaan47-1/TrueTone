@@ -1,11 +1,11 @@
 import { createCartAdapter, type CartAdapter } from './cart-adapter';
 import type { CatalogCache } from './catalog-cache';
-import type { ShopifyCatalog } from './catalog';
+import { createShopifyCatalog, type ShopifyCatalog } from './catalog';
 import { createApprovedShopifyCatalog, approvedShopifyVariant } from './approved-catalog';
 import { getCatalogueState, refreshCatalogue, readApprovedVariant, readApprovedProduct } from '../../match/product-catalog';
 import { createShopifyClient } from './client';
 import { readShopifyConfig, type ShopifyConfig } from './env';
-import { SUPABASE_OFFLINE } from '../../../lib/supabase';
+import { SUPABASE_OFFLINE, DEMO_MODE } from '../../../lib/supabase';
 
 // Camera build: Shopify values are blank (readShopifyConfig would throw) and must be ignored even
 // if present. The client refuses every request; this config is never sent anywhere.
@@ -36,15 +36,33 @@ export function getShopifyServices(): ShopifyServices {
     return state.products;
   };
   const cart=createCartAdapter(client);
-  const catalog = createApprovedShopifyCatalog(client,approved,readApprovedProduct);
+  const catalog = DEMO_MODE?createShopifyCatalog(client):createApprovedShopifyCatalog(client,approved,readApprovedProduct);
   cached = {
     catalog:{...catalog,async getByHandle(handle,after){
-      if(SUPABASE_OFFLINE || getCatalogueState().status==='demo') throw new Error('The shop is off in this test build');
+      if(SUPABASE_OFFLINE) throw new Error('The shop is off in this test build');
       return catalog.getByHandle(handle,after);
     }},
     // A prior Storefront cache cannot establish current label approval or stock.
     catalogCache: OFFLINE_CATALOG_CACHE,
-    cart: {...cart,async add(id,quantity){
+    cart: {...cart,async load(){
+      if(SUPABASE_OFFLINE) throw new Error('The shop is off in this test build');
+      const fresh=await cart.load();
+      if(DEMO_MODE) return fresh;
+      if(fresh.subtotal.currencyCode!=='USD' || fresh.lines.some(line=>line.merchandise.price.currencyCode!=='USD' || line.merchandise.compareAtPrice && line.merchandise.compareAtPrice.currencyCode!=='USD')) throw Error('bag currency unavailable');
+      if(fresh.lines.reduce((n,line)=>n+line.quantity,0)!==fresh.totalQuantity) throw Error('incomplete bag');
+      const unavailableVariantIds:string[]=[];
+      for(const line of fresh.lines) {
+        if(!await approvedShopifyVariant(client,readApprovedVariant,line.merchandise.id)) unavailableVariantIds.push(line.merchandise.id);
+      }
+      return {...fresh,unavailableVariantIds};
+    },async update(lineId,quantity){
+      if(SUPABASE_OFFLINE) throw new Error('The shop is off in this test build');
+      const fresh=await cart.load();
+      const line=fresh.lines.find(line=>line.id===lineId);
+      if(!line) throw Error('line unavailable');
+      if(quantity>line.quantity && !DEMO_MODE && !await approvedShopifyVariant(client,readApprovedVariant,line.merchandise.id)) throw Error('shade unavailable');
+      return cart.update(lineId,quantity);
+    },async add(id,quantity){
       if(SUPABASE_OFFLINE) throw new Error('The shop is off in this test build');
       if(!await approvedShopifyVariant(client,readApprovedVariant,id)) throw new Error('shade unavailable');
       return cart.add(id,quantity);

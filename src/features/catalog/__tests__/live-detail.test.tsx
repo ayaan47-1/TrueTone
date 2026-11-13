@@ -62,3 +62,9 @@ test('empty and offline catalogue states are explicit and retryable',async()=>{
   expect(offline.getByText('Catalogue unavailable')).toBeTruthy();
   expect(offline.getByRole('button',{name:'Try again'})).toBeTruthy();
 });
+test('freshness expiry offers refresh without incorrectly telling a connected user to reconnect',async()=>{
+  const view=await render(<CatalogueNotice state={{status:'stale',products:[],previousProducts:[]}} />);
+  expect(view.getByText('Shades need refreshing')).toBeTruthy();
+  expect(view.getByText("We couldn't confirm the latest shades. Try again.")).toBeTruthy();
+  expect(view.queryByText(/Reconnect/)).toBeNull();expect(view.getByRole('button',{name:'Try again'})).toBeTruthy();
+});

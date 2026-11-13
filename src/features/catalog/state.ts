@@ -2,12 +2,16 @@ import type { Product } from '../match/match-types';
 import type { CatalogueRepository } from './repository';
 
 export interface CatalogueSnapshot {
-  status: 'idle'|'loading'|'ready'|'empty'|'offline'|'demo';
+  status: 'idle'|'loading'|'ready'|'empty'|'offline'|'stale'|'demo';
   products: readonly Product[];
   previousProducts: readonly Product[];
   hasMore?:boolean;
   hasPrevious?:boolean;
+  pageNumber?:number;
+  rangeStart?:number;
+  rangeEnd?:number;
 }
+class StaleCatalogue extends Error {}
 
 export function createCatalogueState(repository:CatalogueRepository,options:{offline?:boolean;demo?:readonly Product[];now?:()=>number}={}) {
   const now=options.now??(()=>performance.now());
@@ -15,7 +19,8 @@ export function createCatalogueState(repository:CatalogueRepository,options:{off
   let cached:readonly Product[]=[];
   let revision:string|null=null,cursor:string|null=null;
   let currentAfter:string|null=null;
-  let history:(string|null)[]=[];
+  let history:{after:string|null;start:number}[]=[];
+  let rangeStart=1;
   let expiresAt=0,verifiedAt=-Infinity;
   let pending: Promise<void> | null = null;
   const listeners = new Set<() => void>();
@@ -29,25 +34,33 @@ export function createCatalogueState(repository:CatalogueRepository,options:{off
     publish({status:'loading',products:[],previousProducts,hasMore:false});
     pending=Promise.resolve().then(async()=>{
       try {
-        const checkedAt=now();
-        const meta=await repository.revision();
-        const unchanged=revision===meta.revision && now()<expiresAt;
-        if(move!==0 || !unchanged) {
-          const after=unchanged?(move===1?cursor:history.at(-1)??null):null;
+        let stable=false,restart=false;
+        for(let attempt=0;attempt<2;attempt++) {
+          const checkedAt=now();
+          const meta=await repository.revision();
+          if(meta.ttlMs<=0) throw new StaleCatalogue();
+          const unchanged=!restart && revision===meta.revision && now()<expiresAt;
+          if(move===0 && unchanged) {stable=true;break;}
+          const after=unchanged?(move===1?cursor:history.at(-1)?.after??null):null;
           const page=await repository.page(after);
-          const deadline=checkedAt+meta.ttlMs;
-          if(now()>=deadline) throw Error('catalogue freshness expired during download');
-          if(!unchanged) history=[];
-          else if(move===1) history.push(currentAfter);
-          else if(move===-1) history.pop();
+          const confirmedAt=now();
+          const confirmed=await repository.revision();
+          if(meta.revision!==confirmed.revision) {restart=true;continue;}
+          const deadline=Math.min(checkedAt+meta.ttlMs,confirmedAt+confirmed.ttlMs);
+          if(now()>=deadline) throw new StaleCatalogue();
+          if(!unchanged) {history=[];rangeStart=1;}
+          else if(move===1) {history.push({after:currentAfter,start:rangeStart});rangeStart+=cached.length;}
+          else if(move===-1) {rangeStart=history.pop()?.start??1;}
           cached=page.products;cursor=page.nextCursor;currentAfter=after;
-          revision=meta.revision;expiresAt=deadline;
+          revision=meta.revision;expiresAt=deadline;stable=true;break;
         }
+        if(!stable) throw new StaleCatalogue();
         verifiedAt=now();
-        publish({status:cached.length?'ready':'empty',products:cached,previousProducts,hasMore:cursor!==null,hasPrevious:history.length>0});
-      } catch {
+        publish({status:cached.length?'ready':'empty',products:cached,previousProducts,hasMore:cursor!==null,hasPrevious:history.length>0,
+          pageNumber:history.length+1,rangeStart:cached.length?rangeStart:0,rangeEnd:cached.length?rangeStart+cached.length-1:0});
+      } catch(error) {
         verifiedAt=-Infinity;
-        publish({status:'offline',products:[],previousProducts,hasMore:false});
+        publish({status:error instanceof StaleCatalogue?'stale':'offline',products:[],previousProducts,hasMore:false});
       } finally {pending=null;}
     });
     return pending;

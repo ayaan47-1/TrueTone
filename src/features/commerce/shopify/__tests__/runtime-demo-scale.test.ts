@@ -1,12 +1,20 @@
-const mockRequest=jest.fn();
+jest.unmock('../../../match/product-catalog');
+const mockRequest=jest.fn(),mockFrom=jest.fn(),mockRpc=jest.fn();
 jest.mock('../client',()=>({createShopifyClient:()=>({request:mockRequest})}));
 jest.mock('../env',()=>({readShopifyConfig:()=>({})}));
 jest.mock('../cart-adapter',()=>({createCartAdapter:()=>({})}));
-jest.mock('../../../../lib/supabase',()=>({SUPABASE_OFFLINE:false}));
-jest.mock('../../../match/product-catalog',()=>({refreshCatalogue:async()=>{},getCatalogueState:()=>({status:'demo',products:[]}),readApprovedProduct:async()=>({products:[],nextCursor:null}),readApprovedVariant:async()=>null}));
+jest.mock('../../../../lib/supabase',()=>({SUPABASE_OFFLINE:false,DEMO_MODE:true,supabase:{from:mockFrom,rpc:mockRpc}}));
 import { getShopifyServices,__setShopifyServicesForTests } from '../runtime';
-test('demo product detail never queries a real Shopify identity',async()=>{
+import {refreshCatalogue,readApprovedVariant,readApprovedProduct} from '../../../match/product-catalog';
+import {PRODUCT_FIXTURE_NODE} from '../fixtures/products';
+test('demo allows Shopify browsing while revision, page, and point paths make zero Supabase calls',async()=>{
   __setShopifyServicesForTests(null);
-  await expect(getShopifyServices().catalog.getByHandle('synthetic')).rejects.toThrow();
-  expect(mockRequest).not.toHaveBeenCalled();
+  mockRequest.mockResolvedValueOnce({products:{nodes:[PRODUCT_FIXTURE_NODE]}}).mockResolvedValueOnce({product:PRODUCT_FIXTURE_NODE});
+  await refreshCatalogue(true);
+  await readApprovedVariant('gid://shopify/ProductVariant/2');
+  await readApprovedProduct(PRODUCT_FIXTURE_NODE.id,null);
+  expect(await getShopifyServices().catalog.list()).toHaveLength(1);
+  expect((await getShopifyServices().catalog.getByHandle(PRODUCT_FIXTURE_NODE.handle))?.id).toBe(PRODUCT_FIXTURE_NODE.id);
+  expect(mockRequest).toHaveBeenCalledTimes(2);
+  expect(mockFrom).not.toHaveBeenCalled();expect(mockRpc).not.toHaveBeenCalled();
 });

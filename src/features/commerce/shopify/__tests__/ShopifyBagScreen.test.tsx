@@ -81,3 +81,19 @@ it('shows real variant titles in the bag without showing Shopify Default Title',
   const singleVariant = await render(<ShopifyBagScreen onShop={jest.fn()} />);
   expect(singleVariant.queryByText('Default Title')).toBeNull();
 });
+
+it('does not open checkout when the fresh bag contains a de-approved variant',async()=>{
+  mockRefreshCart.mockResolvedValue({...freshCart,unavailableVariantIds:[staleCart.lines[0].merchandise.id]});
+  const view=await render(<ShopifyBagScreen onShop={jest.fn()} />);
+  await fireEvent.press(view.getByRole('button',{name:'Guest checkout · $24.00'}));
+  await waitFor(()=>expect(view.getByText('We could not confirm every shade. Remove unavailable shades or try again before checkout.')).toBeTruthy());
+  expect(mockPresent).not.toHaveBeenCalled();
+});
+
+it('flags unavailable bag lines and keeps their remove action available',async()=>{
+  mockCart={...staleCart,unavailableVariantIds:[staleCart.lines[0].merchandise.id]};
+  const view=await render(<ShopifyBagScreen onShop={jest.fn()} />);
+  expect(view.getByText('This shade is no longer available for checkout. Remove it from your bag.')).toBeTruthy();
+  expect(view.getByRole('button',{name:'Guest checkout · $24.00'})).toBeDisabled();
+  expect(view.getByRole('button',{name:'Remove Test product'})).not.toBeDisabled();
+});

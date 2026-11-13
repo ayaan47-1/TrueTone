@@ -16,7 +16,7 @@ const query=`query ApprovedVariants($ids:[ID!]!) @inContext(visitorConsent:{anal
     product{id handle title vendor featuredImage{url width height}}}}
 }`;
 
-const identityQuery=`query ApprovedProductIdentity($handle:String!) @inContext(visitorConsent:{analytics:false,preferences:false,marketing:false,saleOfData:false}) {product(handle:$handle){id}}`;
+const identityQuery=`query ApprovedProductIdentity($handle:String!) @inContext(visitorConsent:{analytics:false,preferences:false,marketing:false,saleOfData:false}) {product(handle:$handle){id handle title vendor featuredImage{url width height}}}`;
 async function fetchApproved(client:ShopifyClient,approved:readonly {id:string}[]):Promise<ShopifyProduct[]> {
     const ids=Array.from(new Set(approved.map(product=>product.id)));
     const allowed=new Set(ids);
@@ -43,10 +43,17 @@ export async function approvedShopifyVariant(client:ShopifyClient,validate:(id:s
 export function createApprovedShopifyCatalog(client:ShopifyClient,approved:()=>Promise<readonly {id:string}[]>,productPage:(id:string,after:string|null)=>Promise<CataloguePage>):ShopifyCatalog {
   const list=async()=>fetchApproved(client,await approved());
   return {list,async getByHandle(handle,after=null){
-    const identity=z.object({product:z.object({id:z.string().regex(/^gid:\/\/shopify\/Product\/\d+$/)}).nullable()}).parse(await client.request(identityQuery,{handle}));
+    const identity=z.object({product:z.object({id:z.string().regex(/^gid:\/\/shopify\/Product\/\d+$/),handle:z.string(),title:z.string(),vendor:z.string(),featuredImage:image.nullable()}).nullable()}).parse(await client.request(identityQuery,{handle}));
     if(!identity.product) return null;
-    const page=await productPage(identity.product.id,after);
-    const product=(await fetchApproved(client,page.products)).find(product=>product.id===identity.product?.id && product.handle===handle);
-    return product?{...product,optionsPage:{nextCursor:page.nextCursor}}:null;
+    const seen=new Set<string>();
+    for(let attempt=0;attempt<5;attempt++) {
+      const page=await productPage(identity.product.id,after);
+      const product=(await fetchApproved(client,page.products)).find(product=>product.id===identity.product?.id && product.handle===handle);
+      if(product) return {...product,optionsPage:{nextCursor:page.nextCursor}};
+      if(page.nextCursor===null) return null;
+      if(seen.has(page.nextCursor) || page.nextCursor===after) throw Error('options did not advance');
+      seen.add(page.nextCursor);after=page.nextCursor;
+    }
+    return {...mapProductNode({...identity.product,variants:{nodes:[]}}),optionsPage:{nextCursor:after}};
   }};
 }

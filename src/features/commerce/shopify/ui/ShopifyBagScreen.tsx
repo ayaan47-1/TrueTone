@@ -62,10 +62,10 @@ function ShopifyBagScreenOnline({ onShop }: Props) {
     setCheckoutError(null);
     try {
       const freshCart = await shopifyStore.refreshCart();
-      if (!freshCart) throw new Error('Cart refresh failed');
+      if (!freshCart || freshCart.unavailableVariantIds?.length || !freshCart.lines.length) throw new Error('Cart refresh failed');
       await present(freshCart.checkoutUrl);
     } catch {
-      setCheckoutError('Checkout could not open. Please try again.');
+      setCheckoutError('We could not confirm every shade. Remove unavailable shades or try again before checkout.');
     }
   };
 
@@ -88,8 +88,10 @@ function ShopifyBagScreenOnline({ onShop }: Props) {
               <Caption>{line.merchandise.product.vendor}</Caption>
               <Subheading className="mt-1">{line.merchandise.product.title}</Subheading>
               {line.merchandise.title ? <Body className="mt-1">{line.merchandise.title}</Body> : null}
+              {cart.unavailableVariantIds?.includes(line.merchandise.id) ? <Body className="mt-2">This shade is no longer available for checkout. Remove it from your bag.</Body> : null}
               <Body className="mt-1">{formatMoney(line.merchandise.price)} · Qty {line.quantity}</Body>
               <View className="mt-3 flex-row gap-3">
+                <Pressable accessibilityRole="button" accessibilityLabel={`Remove ${line.merchandise.product.title}`} disabled={loadingCart || !isCartOnline} onPress={()=>void shopifyStore.updateLine(line.id,0)}><Text className="font-body-semibold text-brand-terracottaDark">Remove</Text></Pressable>
                 <Pressable
                   accessibilityRole="button"
                   accessibilityLabel={`Decrease ${line.merchandise.product.title}`}
@@ -120,7 +122,7 @@ function ShopifyBagScreenOnline({ onShop }: Props) {
       <PrimaryButton
         className="mt-5"
         label={`Guest checkout · ${formatMoney(cart.subtotal)}`}
-        disabled={!isCartOnline || loadingCart}
+        disabled={!isCartOnline || loadingCart || !!cart.unavailableVariantIds?.length}
         onPress={() => void checkout()}
       />
       <PrimaryButton className="mt-3" label="Keep shopping" variant="glass" onPress={onShop} />
