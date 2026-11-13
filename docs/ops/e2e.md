@@ -26,13 +26,27 @@
   Confirmed environment-wide, not specific to one machine or author (another engineer hit the
   identical failure on the same Xcode build independently). If you hit this, install an older
   Xcode side-by-side and `xcode-select -s` it before building; there is no app-level fix.
-  `.github/workflows/e2e.yml` pins Xcode 16.4 for exactly this reason — see that workflow's
-  comments for the exact version and the GitHub runner-image doc it's pinned from. Also:
-  `expo run:ios --device "<name>"` can fail Xcode's own destination matching for every concrete
-  simulator device while still listing "Any iOS Simulator Device" as valid — if so, build once
-  with an explicit generic destination
-  (`xcodebuild ... -destination "generic/platform=iOS Simulator"` from `ios/`) to warm Xcode's
-  device-destination cache, then retry the named-device build.
+  `.github/workflows/e2e.yml` pins an exact Xcode/runtime/device triple for exactly this reason —
+  see that workflow's comments for the full three-way reasoning (Expo SDK 56's documented Xcode
+  floor, the Swift-version ceiling, and which Simulator runtime actually has the requested
+  device) and the citations it pins from.
+  - **Resolve the Simulator by device name AND runtime together, not name alone** (Toby
+    re-review finding 1, HAG-231). A device name like "iPhone 17" can exist under more than one
+    installed iOS runtime at once — `scripts/e2e/run-maestro.sh` and `scripts/e2e/run-all.sh`
+    both now take an optional runtime argument (default `iOS 26.4`, matching the CI pin) and
+    fail loudly, printing every installed device, if that exact name+runtime pair isn't found,
+    instead of silently booting whichever same-named device a bare `grep` saw first. The
+    resolution logic lives in `scripts/e2e/lib/simulator-resolve.sh`, unit-tested in
+    `scripts/e2e/lib/__tests__/simulator-resolve.test.sh` (`npm run e2e:test-scripts`) against
+    synthetic `xcrun simctl list devices` output — no simulator needs to be running to test it.
+  - `expo run:ios --device "<name>"` can still fail Xcode's own destination matching for every
+    concrete simulator device while listing "Any iOS Simulator Device" as valid — if so, build
+    once with an explicit generic destination
+    (`xcodebuild ... -destination "generic/platform=iOS Simulator"` from `ios/`) to warm Xcode's
+    device-destination cache, then retry the named-device build. This is a separate, narrower
+    quirk than the name+runtime resolution above (which governs which Simulator Maestro talks
+    to, not which one `expo run:ios` installs onto) and hasn't recurred since the runner moved
+    to `macos-26` locally-equivalent toolchains, but is left here as a known workaround.
 - **Android (optional, "if feasible"):** not set up in a bare macOS checkout by default and isn't
   in this one either — no `$ANDROID_HOME`, no `emulator` binary. The flow YAML under `.maestro/`
   is platform-agnostic Maestro syntax and needs no changes to run against Android; what's missing
@@ -73,15 +87,30 @@ plain `expo run:ios` dev-client build (not an EAS cloud build, not TestFlight), 
 `scripts/e2e/run-maestro.sh <variant>` builds (unless `--skip-build`) then runs that variant's
 flow directory; `scripts/e2e/run-all.sh ios` loops all four and prints a pass/fail table.
 
-**Flow 7's network-silence check runs automatically, local and CI (Toby review finding 2,
-HAG-231).** `run-maestro.sh` runs `camera-demo`/`camera-demo-fixture`'s
+**Flow 7's network-silence check runs automatically, local and CI, for BOTH offline builds (Toby
+review finding 2, then re-review finding 2, HAG-231).** `run-maestro.sh` runs
 `07_offline_no_network.yaml` through `scripts/e2e/assert-no-network.sh` rather than through plain
-`maestro test` — it used to be a separate, on-request-only script that neither this runner nor
-`e2e.yml` ever actually called, so a background request could slip through flow 7's UI-only
-assertion undetected. The check now allowlists what's actually expected (the build-forced
-`offline.invalid` host, loopback, and iOS's own unrelated connectivity/push noise) and fails on
-*any other* dotted hostname seen in the app's own log during the flow, not just a fixed list of
-known Supabase/Shopify hosts.
+`maestro test`, for every variant directory that has that file — it used to be a separate,
+on-request-only script that neither this runner nor `e2e.yml` ever actually called, so a
+background request could slip through flow 7's UI-only assertion undetected. `camera-demo-fixture`
+previously had no `07_offline_no_network.yaml` of its own (it's a separate build from
+`camera-demo` — see the variant table above), so it silently skipped the check entirely even
+though `assert-no-network.sh`'s own header comment claimed otherwise; it now has one
+(`.maestro/camera-demo-fixture/07_offline_no_network.yaml`, same offline-host assertion as
+`camera-demo`'s).
+
+The check allowlists what's actually expected (the build-forced `offline.invalid` host, loopback,
+and iOS's own unrelated connectivity/push noise) and fails on *any other* dotted hostname seen in
+the app's own log during the flow, not just a fixed list of known Supabase/Shopify hosts.
+**Every entry in that allowlist is matched against the WHOLE extracted hostname, never a
+substring** (Toby re-review finding 3, HAG-231): the filtering previously used unanchored
+`grep -viE`, so a logged host like `offline.invalid.attacker.example` or
+`127.0.0.1.evil.example` was silently dropped from the suspicious list for merely *containing* an
+allowed host, even though it's a different, attacker-controlled destination. The filtering logic
+now lives in `scripts/e2e/lib/network-allowlist.sh`, unit-tested in
+`scripts/e2e/lib/__tests__/network-allowlist.test.sh` (`npm run e2e:test-scripts`) against
+synthetic log text covering both attack shapes, plus the legitimate allowed/OS-noise hosts and a
+genuinely unrelated real host — no simulator or log capture needed to run it.
 
 ## Flow 2 — camera scan to shade match
 
