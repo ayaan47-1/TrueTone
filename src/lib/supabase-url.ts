@@ -24,3 +24,22 @@ export function resolveSupabaseUrl({ offline, demo, isDev, envUrl }: SupabaseUrl
   }
   return url;
 }
+
+export interface SupabaseAnonKeyInput {
+  offline: boolean;
+  demo: boolean;
+  isDev: boolean;
+  envKey: string | undefined;
+  /** The local stack's publishable demo key (not a secret). */
+  localKey: string;
+}
+
+// Holly LOW (N2): same fail-closed rule as the URL. A release build with no anon key throws at
+// startup instead of silently using the local demo key (every call would 401).
+export function resolveSupabaseAnonKey({ offline, demo, isDev, envKey, localKey }: SupabaseAnonKeyInput): string {
+  if (offline) return localKey;
+  const key = (envKey ?? '').trim();
+  if (key) return key;
+  if (isDev || demo) return localKey;
+  throw new Error('EXPO_PUBLIC_SUPABASE_ANON_KEY is not set for this release build');
+}
