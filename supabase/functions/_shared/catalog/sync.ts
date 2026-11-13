@@ -1,5 +1,6 @@
 import { z } from 'zod';
-import type { CatalogueSource, CatalogueStore } from './contracts.ts';
+import type { CatalogueSource, CatalogueStore, ReconcileJob } from './contracts.ts';
+import { catalogLog, failureCode, type CatalogLog } from './diagnostics.ts';
 
 const MAX_BODY_BYTES = 2_000_000;
 const idSchema = z.union([z.string().regex(/^\d+$/), z.number().int().positive().max(Number.MAX_SAFE_INTEGER)]);
@@ -32,8 +33,8 @@ async function authentic(body: Uint8Array<ArrayBuffer>, signature: string, secre
   } catch { return false; }
 }
 
-export function createWebhookHandler({ secret, shop, store, shopify }: {
-  secret: string; shop: string; store: CatalogueStore; shopify: CatalogueSource;
+export function createWebhookHandler({ secret, shop, store, shopify, logger=catalogLog }: {
+  secret: string; shop: string; store: CatalogueStore; shopify: CatalogueSource; logger?:CatalogLog;
 }): (request: Request) => Promise<Response> {
   return async request => {
     if (request.method !== 'POST') return new Response('method not allowed', { status: 405 });
@@ -74,8 +75,9 @@ export function createWebhookHandler({ secret, shop, store, shopify }: {
       }
       await store.complete(eventId);
       return new Response('processed');
-    } catch {
-      try { await store.fail(eventId); } catch { /* A failed lease expires and remains retryable. */ }
+    } catch(error) {
+      logger({event:'catalog_webhook_failed',code:failureCode(error)});
+      try { await store.fail(eventId); } catch (error) { logger({event:'catalog_webhook_bookkeeping_failed',code:failureCode(error)}); }
       return new Response('catalogue sync failed', { status: 503 });
     }
   };
@@ -93,13 +95,13 @@ export async function reconcileCatalogue({ store, shopify }: { store: CatalogueS
     // Never mark anything missing after a partial/failed page traversal.
     await store.finishReconcile(productIds, startedAt);
   } catch (error) {
-    try { await store.failReconcile(startedAt); } catch { /* A stale running row still signals failure. */ }
+    try { await store.failReconcile(startedAt); } catch (error) { catalogLog({event:'catalog_reconcile_bookkeeping_failed',code:failureCode(error)}); }
     throw error;
   }
 }
 
-export function createReconcileHandler({ secret, store, shopify }: {
-  secret: string; store: CatalogueStore; shopify: CatalogueSource;
+export function createReconcileHandler({ secret, store, shopify, logger=catalogLog, now=()=>performance.now() }: {
+  secret: string; store: CatalogueStore; shopify: CatalogueSource; logger?:CatalogLog; now?:()=>number;
 }): (request: Request) => Promise<Response> {
   return async request => {
     if (request.method !== 'POST') return new Response('method not allowed', { status: 405 });
@@ -111,9 +113,32 @@ export function createReconcileHandler({ secret, store, shopify }: {
     let difference = 0;
     for (let index = 0; index < expected.length; index++) difference |= expected[index] ^ received[index];
     if (difference !== 0) return new Response('unauthorized', { status: 401 });
+    let job:ReconcileJob|null=null;
     try {
-      await reconcileCatalogue({ store, shopify });
-      return new Response('reconciled');
-    } catch { return new Response('reconcile failed', { status: 503 }); }
+      const bytes=await rawBody(request);
+      if(bytes.length>1024) return new Response('invalid job',{status:400});
+      const input=z.object({job_id:z.uuid().optional()}).strict().safeParse(JSON.parse(new TextDecoder().decode(bytes)||'{}'));
+      if(!input.success) return new Response('invalid job',{status:400});
+      job=await store.claimReconcile(input.data.job_id??null);
+      if(!job) return new Response('already active or complete',{status:202});
+      shopify.restoreCosts?.(job.query_costs);
+      const started=now();
+      do {
+        const page=await shopify.page(job.cursor);
+        job={...job,query_costs:shopify.queryCosts?.()??job.query_costs};
+        await store.checkpointReconcile(job,page);
+        if(page.nextCursor===null) return new Response('reconciled');
+        job={...job,cursor:page.nextCursor};
+      } while(now()-started<75_000);
+      await store.retryReconcile(job,false);
+      return new Response('checkpointed; continuation scheduled',{status:202});
+    } catch(error) {
+      logger({event:'catalog_reconcile_failed',code:failureCode(error)});
+      if(job) {
+        try { await store.retryReconcile({...job,query_costs:shopify.queryCosts?.()??job.query_costs},true,failureCode(error)); }
+        catch(error) { logger({event:'catalog_reconcile_bookkeeping_failed',code:failureCode(error)}); }
+      }
+      return new Response('reconcile failed', { status: 503 });
+    }
   };
 }
