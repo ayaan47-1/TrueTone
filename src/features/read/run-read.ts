@@ -6,6 +6,7 @@ import type { ReadResult } from './read-types';
 import { CvReadEngine } from './cv-read-engine';
 import { stubRead } from './stub-read';
 import { recordScan } from '../../lib/scans';
+import { E2E_FORCE_PERSIST_FAILURE } from '../../lib/e2e-force-persist-failure';
 import { estimateSkinAge } from '../age/skin-age-engine';
 import { personalization, type CurrentShade } from '../session/personalization';
 import { deriveShade, deriveToneFromLab } from '../shade/derive-shade';
@@ -22,6 +23,12 @@ export async function runRead(
 ): Promise<void> {
   const engine = deps.engine ?? new CvReadEngine();
   const persist = deps.persist ?? (async (result: ReadResult, shade: CurrentShade | null) => {
+    // HAG-231, Toby review finding 1: E2E-only seam so a test can force this step to fail
+    // deterministically -- see src/lib/e2e-force-persist-failure.ts. __DEV__-gated there, so
+    // this branch is dead code in any release build regardless of the env var.
+    if (E2E_FORCE_PERSIST_FAILURE) {
+      throw new Error('E2E_FORCE_PERSIST_FAILURE: simulated persistence failure (HAG-231)');
+    }
     await recordScan(result, estimateSkinAge(result), captureQuality, { shade });
   });
   try {

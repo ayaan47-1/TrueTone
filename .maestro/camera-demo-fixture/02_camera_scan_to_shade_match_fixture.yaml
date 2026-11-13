@@ -35,3 +35,17 @@ appId: com.ayaan47.truetone
     visible: "We found your match"
     timeout: 15000
 - assertVisible: "Your shade"
+
+# ---- persistence proof (Toby review finding 1, HAG-231) ----
+# The two assertions above only prove the IN-MEMORY shade was published --
+# personalization.setScan() in src/features/read/run-read.ts runs BEFORE persist(), so this
+# screen renders "success" even if the save that follows fails. Revisit the scan-history
+# surface, which reads back through fetchScanHistoryPage() -> the real on-device scan store
+# (src/lib/scans.ts), to prove the scan was actually SAVED, not just displayed. A regression
+# that reintroduces a persistence failure here (see src/lib/e2e-force-persist-failure.ts and
+# its test in src/features/read/__tests__/run-read.test.ts for the unit-level proof that this
+# assertion is not vacuous) will show an empty/"Shade removed" history and fail this flow.
+- tapOn: "Account"
+- tapOn: "Scan History"
+- assertVisible: "Recent scans"
+- assertNotVisible: "Shade removed"

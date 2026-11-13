@@ -41,3 +41,13 @@ appId: com.ayaan47.truetone
     visible: "We found your match"
     timeout: 60000
 - assertVisible: "Your shade"
+
+# ---- persistence proof (Toby review finding 1, HAG-231) ----
+# Same gap as the fixture variant: the result screen renders off the IN-MEMORY shade
+# (personalization.setScan(), published before persist() is awaited), so it can show success
+# even if the save afterwards fails. Revisit scan history to prove the scan round-tripped
+# through the real on-device store (src/lib/scans.ts), not just the session state.
+- tapOn: "Account"
+- tapOn: "Scan History"
+- assertVisible: "Recent scans"
+- assertNotVisible: "Shade removed"
