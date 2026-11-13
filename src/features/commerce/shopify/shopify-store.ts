@@ -82,27 +82,39 @@ export const shopifyStore = {
       });
     }
   },
-  async loadProduct(handle: string): Promise<ShopifyProduct | null> {
+  async loadProduct(handle: string,force=false): Promise<ShopifyProduct | null> {
     const existing = state.products.find((product) => product.handle === handle);
-    if (existing) return existing;
+    if (existing && !force) return existing;
     setState({ loadingProducts: true, error: null });
     try {
       const product = await getShopifyServices().catalog.getByHandle(handle);
       if (product) {
         setState({
-          products: [...state.products, product],
+          products: [...state.products.filter(item=>item.id!==product.id), product],
           liveProductHandles: state.liveProductHandles.includes(product.handle)
             ? state.liveProductHandles
             : [...state.liveProductHandles, product.handle],
           loadingProducts: false,
         });
       }
-      else setState({ loadingProducts: false });
+      else setState({ loadingProducts: false,...(force?{products:state.products.filter(item=>item.handle!==handle),liveProductHandles:state.liveProductHandles.filter(value=>value!==handle)}:{}) });
       return product;
     } catch (error) {
       setState({ error: errorMessage(error), loadingProducts: false });
       return null;
     }
+  },
+  async loadMoreOptions(handle:string):Promise<void> {
+    const current=state.products.find(product=>product.handle===handle);
+    if(state.loadingProducts || !current?.optionsPage?.nextCursor) return;
+    setState({loadingProducts:true,error:null});
+    try {
+      const page=await getShopifyServices().catalog.getByHandle(handle,current.optionsPage.nextCursor);
+      if(page) {
+        const variants=new Map([...current.variants,...page.variants].map(variant=>[variant.id,variant]));
+        setState({products:state.products.map(product=>product.handle===handle?{...page,variants:[...variants.values()]}:product),loadingProducts:false});
+      } else setState({loadingProducts:false,error:'No further available shades could be confirmed.'});
+    } catch {setState({loadingProducts:false,error:errorMessage()});}
   },
   async loadCart(): Promise<void> {
     if (state.loadingCart) return;

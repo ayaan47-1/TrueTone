@@ -18,8 +18,10 @@ function fixture() {
     beginReconcile: async () => {},
     failReconcile: async () => {},
     finishReconcile: async (ids, started) => { calls.push(['reconcile', ids, started]); },
+    claimReconcile:async()=>({id:'00000000-0000-4000-8000-000000000001',lease_token:'00000000-0000-4000-8000-000000000002',cursor:null,started_at:'2026-11-13T00:00:00Z'}),
+    checkpointReconcile:async()=>{},retryReconcile:async()=>{},
   };
-  const shopify = { product: async () => product, inventory: async () => ({ inventory_item_gid: 'i1', levels: [] }), products: async function* () { yield product; } };
+  const shopify = { page:async()=>({products:[product],nextCursor:null}),product: async () => product, inventory: async () => ({ inventory_item_gid: 'i1', levels: [] }), products: async function* () { yield product; } };
   const handler = createWebhookHandler({ secret: 'synthetic-secret', shop: 'test.myshopify.com', store, shopify });
   return { handler, store, shopify, calls };
 }
@@ -49,6 +51,15 @@ test('fetch/save failure is retriable and never acknowledged as completed', asyn
   store.applyProduct = async () => { throw new Error('synthetic failure'); };
   assert.equal((await handler(request())).status, 503);
   assert.deepEqual(calls, [['fail', 'event-1']]);
+});
+
+test('webhook operational and bookkeeping failures log only bounded classifications',async()=>{
+  const {store,shopify}=fixture(),logs=[];
+  store.applyProduct=async()=>{throw Error('secret customer@example.invalid');};
+  store.fail=async()=>{throw Error('secret bearer value');};
+  const handler=createWebhookHandler({secret:'synthetic-secret',shop:'test.myshopify.com',store,shopify,logger:record=>logs.push(record)});
+  assert.equal((await handler(request())).status,503);
+  assert.deepEqual(logs,[{event:'catalog_webhook_failed',code:'operation_failed'},{event:'catalog_webhook_bookkeeping_failed',code:'operation_failed'}]);
 });
 
 test('a busy lease returns retryable status instead of acknowledging unfinished work', async () => {
@@ -137,7 +148,7 @@ test('nested GraphQL connections use bounded pages instead of a 100-by-100 cost 
   const adapter = client(async (_url, request) => {
     const { query } = JSON.parse(request.body);
     assert.match(query, /variants\(first:20,/);
-    assert.match(query, /inventoryLevels\(first:20,/);
+    assert.match(query, /inventoryLevels\(first:1,/);
     return Response.json({ data: { product: shopProduct, shop: { currencyCode: 'USD' } } });
   });
   await adapter.product(shopProduct.id);

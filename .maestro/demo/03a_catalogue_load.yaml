@@ -1,0 +1,25 @@
+# Flow 3a — catalogue load (happy path).
+# Run against the DEMO build (EXPO_PUBLIC_DEMO=1) with REAL EXPO_PUBLIC_SHOPIFY_STORE_DOMAIN /
+# EXPO_PUBLIC_SHOPIFY_STOREFRONT_TOKEN. DEMO_MODE pre-resolves route='home' and never calls
+# Supabase at all (src/lib/profile-context.tsx: "Offline demo: stand in a stubbed onboarded
+# identity ... skip the backend") - no age-gate, no consent screen, the app launches straight to
+# Home. Crucially, DEMO_MODE does NOT gate the Shop/bag/checkout surface - only
+# SUPABASE_OFFLINE (== EXPO_PUBLIC_CAMERA_DEMO, unset here) does that - so this build reaches
+# live Shopify Storefront traffic for browsing with zero Supabase writes of any kind.
+appId: com.ayaan47.truetone
+---
+- launchApp:
+    clearState: true
+
+- assertVisible: "Home"
+- tapOn: "Shop"
+
+# ---- Shop privacy notice (first entry only) ----
+- assertVisible: "Shop powered by Shopify"
+- tapOn: "Continue to shop"
+
+# ---- catalogue loads live ----
+- assertVisible: "Shop"
+- assertNotVisible:
+    id: "catalogue-notice"
+    timeout: 15000

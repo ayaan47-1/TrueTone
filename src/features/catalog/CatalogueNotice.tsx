@@ -15,6 +15,7 @@ export function CatalogueNotice({state,shop,onRetry}: {
   let detail:string|undefined;
   let retry=false;
   if(loading) title=shop ? 'Loading products…' : 'Loading verified shades…';
+  else if(state.status==='stale') {title='Shades need refreshing';detail="We couldn't confirm the latest shades. Try again.";retry=true;}
   else if(offline) {title='Catalogue unavailable';detail='Reconnect to check current shades, prices and availability.';retry=true;}
   else if(empty) {title='No verified shades available';detail='New shades appear after review and stock updates.';retry=true;}
   else if(shop?.cachedAt) {
@@ -26,6 +27,6 @@ export function CatalogueNotice({state,shop,onRetry}: {
   return <GlassCard testID="catalogue-notice" radius={22} className="my-3 gap-2 px-5 py-5">
     <Body>{title}</Body>
     {detail ? <Caption>{detail}</Caption> : null}
-    {retry ? <PrimaryButton label={shop?.empty && !offline && !empty && !shop.error ? 'Refresh' : 'Try again'} variant="glass" onPress={onRetry ?? (()=>void refreshCatalogue(true))} /> : null}
+    {retry ? <PrimaryButton label={shop?.empty && !offline && !empty && state.status!=='stale' && !shop.error ? 'Refresh' : 'Try again'} variant="glass" onPress={onRetry ?? (()=>void refreshCatalogue(true))} /> : null}
   </GlassCard>;
 }

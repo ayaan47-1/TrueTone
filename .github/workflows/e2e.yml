@@ -1,0 +1,103 @@
+name: e2e
+# Manually-triggered pre-release gate, not a per-push/PR check: a full multi-variant native iOS
+# build-and-test pass (vision-camera, executorch, the Shopify checkout sheet kit are all native
+# modules) is slow and needs a macOS runner, so it doesn't belong on every push. Run it from the
+# Actions tab before cutting a release; treat any job failure as a release blocker.
+#
+# "demo" hits the LIVE Shopify Storefront (real browsing + a real cart create/update, never a
+# completed order — see docs/ops/e2e.md) and needs network; it leaves a throwaway cart behind
+# in the live store on every run, by design.
+#
+# Runner/Xcode/simulator pairing (HAG-231, Toby re-review finding 1): the pin below has to
+# satisfy THREE independent constraints at once, and macos-15 cannot satisfy all three:
+#   (a) Expo SDK 56 (this app's `expo` version) requires Xcode 26.4 or newer for native builds —
+#       https://expo.dev/blog/upgrading-to-sdk-56 ("Android API level 36 and Xcode 26.4 and
+#       higher are supported"). macos-15's newest listed Xcode is 26.3
+#       (https://github.com/actions/runner-images/blob/main/images/macos/macos-15-Readme.md),
+#       below that floor — no Xcode on macos-15 can build this app at all, independent of the
+#       Swift-version issue below. This is why the runner itself had to change, not just the
+#       Xcode pin.
+#   (b) A freshly-installed, very new Xcode/Swift toolchain fails to compile expo-modules-jsi (a
+#       Swift-compiler-version incompatibility upstream of this app, found authoring this
+#       locally: Xcode 27.2 / Swift 6.4.2). Xcode 26.4(.1) ships Swift 6.3 — "Xcode 26.4 includes
+#       Swift 6.3 and SDKs for iOS 26.4..." per Apple's own release notes
+#       (https://developer.apple.com/documentation/xcode-release-notes/xcode-26_4-release-notes)
+#       — comfortably below the Swift 6.4.x line that breaks locally.
+#   (c) The requested Simulator device must actually exist under that Xcode's SDK/runtime. The
+#       macos-26 runner image (https://github.com/actions/runner-images/blob/main/images/macos/
+#       macos-26-Readme.md) lists Xcode 26.4.1 and an "iOS 26.4" simulator runtime that includes
+#       iPhone 17 — unlike macos-15's Xcode 16.4 (iOS 18.5 SDK, iPhone 16 family only, no iPhone
+#       17), which is what the previous pin on macos-15 got wrong.
+# No single Xcode version on macos-15 satisfies (a) at all, so this job now runs on macos-26 and
+# pins the exact Xcode 26.4.1 / "iOS 26.4" device+runtime pair that satisfies (a), (b), and (c)
+# together. run-maestro.sh resolves the Simulator by DEVICE NAME + RUNTIME NAME together (not
+# name alone — "iPhone 17" also exists under iOS 26.2/26.5 on this same runner image) and fails
+# clearly if that exact pair is missing, rather than silently booting an unrelated match.
+#
+# See docs/ops/e2e.md for what each variant covers and why separate builds are needed.
+on:
+  workflow_dispatch: {}
+jobs:
+  maestro-ios:
+    runs-on: macos-26
+    strategy:
+      fail-fast: false
+      matrix:
+        variant: [demo, shopify-offline, camera-demo, camera-demo-fixture]
+    env:
+      # Only "demo" needs real Shopify credentials to build (shopify-offline swaps the host at
+      # build time; camera-demo/camera-demo-fixture force everything offline) - wire these three
+      # as repo/org secrets, under exactly these names, before enabling this job for "demo".
+      EXPO_PUBLIC_SHOPIFY_STORE_DOMAIN: ${{ secrets.EXPO_PUBLIC_SHOPIFY_STORE_DOMAIN }}
+      EXPO_PUBLIC_SHOPIFY_STOREFRONT_TOKEN: ${{ secrets.EXPO_PUBLIC_SHOPIFY_STOREFRONT_TOKEN }}
+      EXPO_PUBLIC_SHOPIFY_CHECKOUT_HOSTS: ${{ secrets.EXPO_PUBLIC_SHOPIFY_CHECKOUT_HOSTS }}
+    steps:
+      - uses: actions/checkout@v4
+      - name: Pin Xcode 26.4.1 (Expo SDK 56 floor + pre-6.4 Swift + has iPhone 17) (HAG-231)
+        # Exact version, not a "newest/next-newest" guess (Toby review finding 3, then
+        # re-review finding 1). 26.4.1 is listed on macos-26's own documented Xcode table, per
+        # the "Xcode" section of:
+        # https://github.com/actions/runner-images/blob/main/images/macos/macos-26-Readme.md
+        # It is the oldest Xcode on that runner that still meets Expo SDK 56's documented
+        # minimum (https://expo.dev/blog/upgrading-to-sdk-56: "Xcode 26.4 and higher"), ships
+        # Swift 6.3 (https://developer.apple.com/documentation/xcode-release-notes/
+        # xcode-26_4-release-notes) -- below the Swift 6.4.2 toolchain that fails to compile
+        # expo-modules-jsi (docs/ops/e2e.md) -- and its "iOS 26.4" simulator runtime includes
+        # iPhone 17. If GitHub's runner image drops 26.4.1, this step fails clearly (rather than
+        # silently building with an untested toolchain) -- re-check that Xcode section, re-verify
+        # the Expo/Swift/device constraints above still hold for the replacement, and update
+        # XCODE_PATH below plus the version named in this comment and in run-maestro.sh's
+        # default runtime.
+        run: |
+          set -euo pipefail
+          XCODE_PATH="/Applications/Xcode_26.4.1.app/Contents/Developer"
+          if [ ! -d "$XCODE_PATH" ]; then
+            echo "Expected Xcode 26.4.1 at $XCODE_PATH but it is not installed on this runner." >&2
+            echo "Check the current macos-26 Xcode list and update this pin (re-verify the Expo" >&2
+            echo "SDK 56 / Swift / iPhone 17 constraints explained above still hold):" >&2
+            echo "https://github.com/actions/runner-images/blob/main/images/macos/macos-26-Readme.md" >&2
+            echo "Installed Xcode versions on this runner:" >&2
+            ls -d /Applications/Xcode*.app >&2
+            exit 1
+          fi
+          sudo xcode-select -s "$XCODE_PATH"
+          xcodebuild -version
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+      - run: npm ci
+      - name: Install Maestro
+        # Fail-closed sweep (HAG-231 round 6): explicit `set -euo pipefail`, matching the "Pin
+        # Xcode" step above, so a failed install (curl or the installer script itself) can never
+        # fall through to registering a non-functional Maestro path on $GITHUB_PATH. GitHub
+        # Actions already defaults non-Windows `run:` steps to `-eo pipefail`, but stating it
+        # explicitly here means this step's correctness doesn't depend on that platform default
+        # staying unchanged.
+        run: |
+          set -euo pipefail
+          curl -fsSL "https://get.maestro.mobile.dev" | bash
+          echo "$HOME/.maestro/bin" >> "$GITHUB_PATH"
+      - name: Ensure the iOS 26.4 Simulator runtime exists
+        run: xcrun simctl list runtimes | grep -q "iOS 26.4" || xcodebuild -downloadPlatform iOS
+      - name: Run variant
+        run: bash scripts/e2e/run-maestro.sh ${{ matrix.variant }} "iPhone 17" "iOS 26.4"

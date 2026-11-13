@@ -1,11 +1,11 @@
 import 'react-native-url-polyfill/auto';
 import { createClient } from '@supabase/supabase-js';
 import { supabaseAuthStorage } from './supabase-auth-storage';
+import { LOCAL_SUPABASE_URL, resolveSupabaseAnonKey, resolveSupabaseUrl } from './supabase-url';
 
-// EXPO_PUBLIC_* vars are inlined by the Expo bundler at build time. Fall back to the
-// local Supabase defaults so the singleton always constructs (e.g. under Jest, where
-// the bundler's env inlining does not run). Real builds always supply these via .env.
-const LOCAL_URL = 'http://127.0.0.1:54321';
+// EXPO_PUBLIC_* vars are inlined by the Expo bundler at build time. Dev builds and Jest (where
+// the bundler's env inlining does not run) fall back to the local Supabase defaults; a release
+// build without an https URL throws at startup instead (MASVS L1, see supabase-url.ts).
 // Local-only publishable anon key (safe to ship; not a secret). Used only as a
 // construction fallback so the singleton builds when the bundler hasn't inlined env.
 const LOCAL_ANON_KEY =
@@ -48,12 +48,19 @@ export const CAMERA_DEMO = /^(1|true|yes|on)$/i.test(
  */
 export const SUPABASE_OFFLINE = CAMERA_DEMO;
 
-export const SUPABASE_TARGET_URL = SUPABASE_OFFLINE
-  ? LOCAL_URL
-  : process.env.EXPO_PUBLIC_SUPABASE_URL || LOCAL_URL;
-const anonKey = SUPABASE_OFFLINE
-  ? LOCAL_ANON_KEY
-  : process.env.EXPO_PUBLIC_SUPABASE_ANON_KEY || LOCAL_ANON_KEY;
+export const SUPABASE_TARGET_URL = resolveSupabaseUrl({
+  offline: SUPABASE_OFFLINE,
+  demo: DEMO_MODE,
+  isDev: typeof __DEV__ !== 'undefined' && __DEV__,
+  envUrl: process.env.EXPO_PUBLIC_SUPABASE_URL,
+});
+const anonKey = resolveSupabaseAnonKey({
+  offline: SUPABASE_OFFLINE,
+  demo: DEMO_MODE,
+  isDev: typeof __DEV__ !== 'undefined' && __DEV__,
+  envKey: process.env.EXPO_PUBLIC_SUPABASE_ANON_KEY,
+  localKey: LOCAL_ANON_KEY,
+});
 
 export const SUPABASE_AUTH_OPTIONS = SUPABASE_OFFLINE
   ? { autoRefreshToken: false, persistSession: false, detectSessionInUrl: false }

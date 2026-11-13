@@ -23,7 +23,11 @@ export interface PendingOrderRow {
 
 /** The minimal slice of a Supabase client this module needs (keeps it testable without Deno). */
 export interface OrderInsertDb {
-  from(table: 'orders'): { insert(row: PendingOrderRow): PromiseLike<{ error: unknown }> };
+  from(table: 'orders'): {
+    insert(row: PendingOrderRow): {
+      select(columns: 'id'): { single(): PromiseLike<{ data: { id: string } | null; error: unknown }> };
+    };
+  };
 }
 
 export function buildPendingOrderRow(input: PendingOrderInput): PendingOrderRow {
@@ -44,7 +48,9 @@ export function buildPendingOrderRow(input: PendingOrderInput): PendingOrderRow 
 export async function insertPendingOrder(
   db: OrderInsertDb,
   input: PendingOrderInput,
-): Promise<{ error: unknown }> {
-  const { error } = await db.from('orders').insert(buildPendingOrderRow(input));
-  return { error };
+): Promise<{ error: unknown; orderId: string | null }> {
+  // The new row's id is the customer-facing order reference (MASVS L5).
+  const { data, error } = await db.from('orders').insert(buildPendingOrderRow(input)).select('id').single();
+  if (error) return { error, orderId: null };
+  return { error: null, orderId: data?.id ?? null };
 }

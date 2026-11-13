@@ -12,6 +12,7 @@ import { Screen, GlassCard, Display, Eyebrow, Body, Caption } from '../../compon
 import { FeedbackDataPanel } from '../shade-feedback/FeedbackDataPanel';
 import { clearAllLocalFeedback } from '../shade-feedback/runtime';
 import { FeedbackCleanupNotice } from '../shade-feedback/FeedbackCleanupNotice';
+import { avatarFileStore } from '../identity/avatar-file';
 
 type RpcName = 'withdraw_consent' | 'clear_shade_history' | 'delete_my_data' | 'delete_account';
 type Props = { onChanged: () => void; confirm: (msg: string) => Promise<boolean>; feedbackOwner?:string|null };
@@ -30,8 +31,10 @@ const ACTIONS: { id: string; rpc: RpcName; label: string; hint: string; danger?:
 ];
 
 // On-device data the server never sees: the skin-feel diary, the daily-routine tracker + its
-// locally published Community routines, and order history. All must go for deletion to be complete.
+// locally published Community routines, order history, and the profile photo file (MASVS M1).
+// All must go for deletion to be complete.
 const LOCAL_WIPES: (() => Promise<void>)[] = [
+  () => avatarFileStore().wipe(),
   () => orderHistory.clear(),
   clearDiary,
   clearAllRoutines,
@@ -39,7 +42,11 @@ const LOCAL_WIPES: (() => Promise<void>)[] = [
   clearAllLocalFeedback,
 ];
 
-/** Runs every wipe even if one fails; true only when all of them succeeded. */
+/**
+ * Runs every wipe even if one fails; true only when all of them succeeded. The server copy of the
+ * avatar path (profiles.avatar_uri) is cleared inside delete_my_data itself (MASVS M1); clients have
+ * no write access to that column.
+ */
 async function wipeLocalData(includeAuthSession: boolean): Promise<boolean> {
   const localResults = await Promise.allSettled(LOCAL_WIPES.map((wipe) => wipe()));
   // Finish by removing every managed ciphertext and destroying the key. This runs even if an
@@ -150,7 +157,7 @@ export function DataRights({ onChanged, confirm, feedbackOwner }: Props) {
           <Text accessibilityRole="alert" className="font-body-semibold text-base text-clay">
             Deletion incomplete
           </Text>
-          <Caption>Your server data is gone, but some data on this phone couldn’t be cleared.</Caption>
+          <Caption>Some of your data, on this phone or our servers, couldn’t be cleared yet.</Caption>
           <Pressable testID="retry-wipe" accessibilityRole="button" onPress={() => void finishLocalWipe()}>
             <Text className="font-body-semibold text-base text-ink">Try again</Text>
           </Pressable>

@@ -8,10 +8,10 @@
 // bundler (docs consistently show _shared/ as the cross-function sharing pattern), so the _shared
 // fallback from the task brief is used here.
 import { serve } from 'https://deno.land/std@0.224.0/http/server.ts';
-import { createClient } from 'https://esm.sh/@supabase/supabase-js@2';
+import { createClient } from '@supabase/supabase-js';
 import Anthropic from 'https://esm.sh/@anthropic-ai/sdk@0.32.1';
 import { handleChat, type ChatDeps } from '../_shared/recommend/handle.ts';
-import type { ChatTurn } from '../_shared/recommend/prompt.ts';
+import { parseChatRequest } from '../_shared/recommend/validate.ts';
 
 const MODEL = 'claude-sonnet-4-6';
 
@@ -29,20 +29,13 @@ serve(async (req) => {
   );
   const anthropic = new Anthropic({ apiKey: Deno.env.get('ANTHROPIC_API_KEY')! });
 
-  let body: { scanId?: string; message?: string; history?: unknown };
-  try { body = await req.json(); } catch { return new Response('bad request', { status: 400 }); }
+  let raw: unknown;
+  try { raw = await req.json(); } catch { return new Response('bad request', { status: 400 }); }
 
-  // Input bounds: reject missing/empty/oversized message and malformed/oversized history.
-  // (The output guard backstops content regardless, but we bound sizes at the boundary.)
-  if (!body.scanId || !body.message) return new Response('bad request', { status: 400 });
-  if (typeof body.message !== 'string' || body.message.trim() === '' || body.message.length > 2000) {
-    return new Response('bad request', { status: 400 });
-  }
-  if (body.history !== undefined) {
-    if (!Array.isArray(body.history) || body.history.length > 20) {
-      return new Response('bad request', { status: 400 });
-    }
-  }
+  // MASVS M3: validate every field, including each history turn (role allowlist, per-turn and
+  // total size caps). Only the parsed copy -- never the raw body -- reaches handleChat.
+  const parsed = parseChatRequest(raw);
+  if (!parsed.ok) return new Response('bad request', { status: 400 });
 
   const deps: ChatDeps = {
     async loadScan(scanId) {
@@ -63,6 +56,11 @@ serve(async (req) => {
         routine: data.routine,
       };
     },
+    async consumeQuota() {
+      // Per-user daily limit (migration 0042). Any RPC failure fails closed: no model call.
+      const { data, error } = await supabase.rpc('consume_chat_quota');
+      return !error && data === true;
+    },
     async complete(system, messages) {
       const res = await anthropic.messages.create({
         model: MODEL, max_tokens: 600, system,
@@ -74,16 +72,13 @@ serve(async (req) => {
   };
 
   try {
-    const out = await handleChat(deps, {
-      scanId: body.scanId,
-      message: body.message,
-      history: (body.history as ChatTurn[] | undefined) ?? [],
-    });
+    const out = await handleChat(deps, parsed.value);
     if (out.blocked) console.warn('routine-chat: output blocked by post-filter');
     return Response.json(out);
   } catch (e) {
     const msg = e instanceof Error ? e.message : 'error';
     if (msg === 'scan-not-found') return new Response('not found', { status: 404 });
+    if (msg === 'rate-limited') return new Response('daily chat limit reached', { status: 429 });
     console.error('routine-chat: chat failed', e instanceof Error ? e.message : 'unknown');
     return new Response('chat unavailable', { status: 502 });
   }
