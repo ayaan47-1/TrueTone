@@ -10,10 +10,11 @@ name: e2e
 #
 # Xcode/Swift version caveat (found authoring this locally, HAG-231): a freshly-installed,
 # very new Xcode/Swift toolchain can fail to compile expo-modules-jsi (a Swift-compiler-version
-# incompatibility upstream of this app, not fixable here). The "Pin Xcode" step below selects an
-# older-than-newest Xcode on the runner for exactly this reason — if a build step still fails
-# with a Swift "C function pointer" error, that heuristic guessed wrong; hardcode the pin to a
-# specific Xcode path instead (see the step's own comment).
+# incompatibility upstream of this app, not fixable here). The "Pin Xcode" step below pins an
+# exact, documented Xcode version from GitHub's own macos-15 runner image install list
+# (https://github.com/actions/runner-images/blob/main/images/macos/macos-15-Readme.md) — well
+# below the Swift 6.4 line that breaks locally — and fails clearly if that path is ever missing
+# (Toby review finding 3, HAG-231), rather than guessing "whatever's newest" at run time.
 #
 # See docs/ops/e2e.md for what each variant covers and why separate builds are needed.
 on:
@@ -34,22 +35,27 @@ jobs:
       EXPO_PUBLIC_SHOPIFY_CHECKOUT_HOSTS: ${{ secrets.EXPO_PUBLIC_SHOPIFY_CHECKOUT_HOSTS }}
     steps:
       - uses: actions/checkout@v4
-      - name: Pin Xcode below the Swift 6.4 expo-modules-jsi break (HAG-231)
-        # Don't wait to find out whether macos-15's *current* default Xcode carries the
-        # Swift 6.4.2 incompatibility documented in docs/ops/e2e.md — pin explicitly.
-        # macos-15 runners ship several Xcode versions side by side specifically so a job
-        # can select an older one (full list: https://github.com/actions/runner-images).
-        # Heuristic: assume the newest installed Xcode is the one most likely to carry the
-        # just-released, broken Swift toolchain, so pick the next-newest instead. If that
-        # guess is wrong (the break moves, or the runner image changes), replace this with
-        # an explicit `sudo xcode-select -s /Applications/Xcode_<version>.app/Contents/Developer`
-        # pin and update the comment above.
+      - name: Pin Xcode 16.4 below the Swift 6.4 expo-modules-jsi break (HAG-231)
+        # Exact version, not a "newest/next-newest" guess (Toby review finding 3, HAG-231).
+        # 16.4 is macos-15's own documented DEFAULT Xcode as of this writing, per the "Xcode"
+        # section of: https://github.com/actions/runner-images/blob/main/images/macos/macos-15-Readme.md
+        # That list also carries 16.0-16.4 and the newer 26.x line; 16.4 is comfortably below
+        # the Swift 6.4.2 toolchain (Xcode 27.x locally) that fails to compile expo-modules-jsi
+        # (docs/ops/e2e.md). If GitHub's runner image drops 16.4, this step fails clearly
+        # (rather than silently building with an untested toolchain) — re-check that Xcode
+        # section and update XCODE_PATH below, and the version named in this comment.
         run: |
-          echo "Xcode installs on this runner:"
-          ls -d /Applications/Xcode*.app
-          XCODE_PATH=$(ls -d /Applications/Xcode*.app | sort -V | tail -2 | head -1)
-          echo "Selecting: $XCODE_PATH"
-          sudo xcode-select -s "$XCODE_PATH/Contents/Developer"
+          set -euo pipefail
+          XCODE_PATH="/Applications/Xcode_16.4.app/Contents/Developer"
+          if [ ! -d "$XCODE_PATH" ]; then
+            echo "Expected Xcode 16.4 at $XCODE_PATH but it is not installed on this runner." >&2
+            echo "Check the current macos-15 Xcode list and update this pin:" >&2
+            echo "https://github.com/actions/runner-images/blob/main/images/macos/macos-15-Readme.md" >&2
+            echo "Installed Xcode versions on this runner:" >&2
+            ls -d /Applications/Xcode*.app >&2
+            exit 1
+          fi
+          sudo xcode-select -s "$XCODE_PATH"
           xcodebuild -version
       - uses: actions/setup-node@v4
         with:
