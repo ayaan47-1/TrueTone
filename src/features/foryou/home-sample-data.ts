@@ -2,7 +2,7 @@
 // SAMPLE DATA — NOT THE USER'S REAL DATA. The designer's v3 home shows a daily routine and
 // a "Running low" list; we have no routine-plan or refill signal yet, so these cards run on
 // this fixed local sample until real data exists. Cosmetic copy only; no numbers claimed.
-import { catalog } from '../match/product-catalog';
+import { catalog, catalogueIsDemo } from '../match/product-catalog';
 import type { Product } from '../match/match-types';
 
 export type RoutineSlot = 'AM' | 'PM';
@@ -43,10 +43,10 @@ function byId(id: string): Product {
   return product;
 }
 
-export const SAMPLE_RUNNING_LOW: readonly SampleRunningLowItem[] = [
+export const SAMPLE_RUNNING_LOW: readonly SampleRunningLowItem[] = catalogueIsDemo ? [
   { product: byId('lum-tint-01'), note: 'Almost out', urgent: true },
   { product: byId('lum-lip-29'), note: 'About a week left', urgent: false },
-];
+] : [];
 
 /** Shown on the Running low card: the stock notes above are sample, not the user's supplies. */
 export const SAMPLE_RUNNING_LOW_LABEL = 'Sample items — not based on your purchases.';

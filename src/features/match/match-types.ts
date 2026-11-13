@@ -9,6 +9,7 @@ import type {
   Skip,
   Undertone,
 } from '../../content/makeup-vocab';
+import type { CatalogueEvidence } from '../catalog/repository';
 
 /** Depth of a shade on a 1 (fairest) .. 10 (deepest) scale. Foundation-tone DATA. */
 export type ShadeDepth = number;
@@ -23,8 +24,9 @@ export interface Product {
   /** Brand-neutral, cosmetic-only display name. */
   readonly name: string;
   readonly category: ProductCategory;
-  readonly finish: Finish;
-  readonly hasShimmer: boolean;
+  readonly finish: Finish | 'unknown';
+  readonly hasShimmer: boolean | null;
+  readonly catalogue?: CatalogueEvidence;
   /** Target shade depth this product suits (1..10). */
   readonly shade: ShadeDepth;
   /** Target undertone this product suits. */

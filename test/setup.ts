@@ -1,5 +1,9 @@
 import '@testing-library/jest-native/extend-expect';
 
+// Historical component suites use an explicit demo fixture. Catalogue integration tests
+// jest.unmock this facade and exercise normal empty/live/offline reads with a test transport.
+jest.mock('../src/features/match/product-catalog', () => require('./demo-product-catalog'));
+
 // Reanimated's native/worklets layer can't initialise under Jest (and the shipped
 // mock still pulls it in), so stub the slice we use: Animated.View + chainable
 // layout-animation builders (FadeIn/FadeInDown).

@@ -5,7 +5,7 @@
 // owns the add-to-bag action; no cart wiring here.
 import { View } from 'react-native';
 import { GlassSheet, Body, Caption, PressableScale, Subheading } from '../../../components/ui';
-import { catalog } from '../../match/product-catalog';
+import { catalog, useProductCatalogue } from '../../match/product-catalog';
 
 interface ProductTagDrawerProps {
   productIds: readonly string[];
@@ -14,6 +14,7 @@ interface ProductTagDrawerProps {
 }
 
 export function ProductTagDrawer({ productIds, onClose, onOpenProduct }: ProductTagDrawerProps) {
+  useProductCatalogue();
   const products = catalog.filter((product) => productIds.includes(product.id));
 
   return (

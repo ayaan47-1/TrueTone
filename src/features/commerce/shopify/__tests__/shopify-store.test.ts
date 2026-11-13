@@ -17,6 +17,7 @@ import { __resetShopifyStoreForTests, shopifyStore } from '../shopify-store';
 
 beforeEach(() => {
   jest.clearAllMocks();
+  mockList.mockReset();
   __resetShopifyStoreForTests();
   mockCacheRead.mockResolvedValue(null);
   mockCacheWrite.mockResolvedValue(undefined);
@@ -29,6 +30,15 @@ it('shows a fixed user-safe message instead of a raw Shopify error', async () =>
 
   expect(shopifyStore.getState().error).toBe('The shop is unavailable right now. Please try again.');
   expect(shopifyStore.getState().error).not.toContain('GraphQL');
+});
+
+it('refreshes approved products explicitly instead of retaining removed variants', async () => {
+  mockList.mockResolvedValueOnce([mapProductNode(PRODUCT_FIXTURE_NODE)]).mockResolvedValueOnce([]);
+  await shopifyStore.loadProducts();
+  expect(shopifyStore.getState().products).toHaveLength(1);
+  await shopifyStore.loadProducts(true);
+  expect(shopifyStore.getState().products).toEqual([]);
+  expect(mockList).toHaveBeenCalledTimes(2);
 });
 
 it('shows a dated cached catalog when the live request fails', async () => {
@@ -76,4 +86,19 @@ it('marks only a directly fetched product fresh when the rest of the catalog is 
     catalogUpdatedAt: 1_760_811_600_000,
     liveProductHandles: ['direct-link'],
   });
+});
+
+it('refreshes a same-ID price after the bounded freshness window', async () => {
+  jest.useFakeTimers();
+  try {
+    const first=mapProductNode(PRODUCT_FIXTURE_NODE);
+    const changed={...first,variants:first.variants.map(v=>({...v,price:{...v.price,amount:'31.00'}}))};
+    mockList.mockResolvedValueOnce([first]).mockResolvedValueOnce([changed]);
+    await shopifyStore.loadProducts();
+    await shopifyStore.loadProducts();
+    expect(mockList).toHaveBeenCalledTimes(1);
+    jest.advanceTimersByTime(60_001);
+    await shopifyStore.loadProducts();
+    expect(shopifyStore.getState().products[0].variants[0].price.amount).toBe('31.00');
+  } finally { jest.useRealTimers(); }
 });
