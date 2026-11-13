@@ -129,7 +129,12 @@ assert_app_not_flagged "loopback stays allowed even on the app-attributed stream
 # by the app-scoped predicate". The predicate text itself can't be exercised against a real
 # `log stream` in this sandbox, so this proves the predicate STRING actually encodes that rule
 # (field/operator support confirmed via `log help predicates` on this machine: processImagePath
-# is a string field, operators include !=, CONTAINS, NOT).
+# is a string field, operators include !=, ENDSWITH, NOT).
+#
+# Toby re-review round 7 (HAG-231, review-toby.md "Re-review at 00072e0"): both predicates now
+# take the app's EXECUTABLE name ("TrueTone"), resolved per-run off the installed app
+# (scripts/e2e/lib/app-executable.sh) -- never the bundle id, which never appears in
+# processImagePath (a filesystem path to the binary).
 assert_contains_text() {
   local label="$1" needle="$2" haystack="$3"
   if printf '%s' "$haystack" | grep -qF -- "$needle"; then
@@ -140,9 +145,9 @@ assert_contains_text() {
   fi
 }
 
-SYSTEM_PREDICATE="$(build_system_noise_predicate "com.ayaan47.truetone")"
-assert_contains_text "the system-noise predicate excludes this app's own process" \
-  'NOT (processImagePath CONTAINS "com.ayaan47.truetone")' \
+SYSTEM_PREDICATE="$(build_system_noise_predicate "TrueTone")"
+assert_contains_text "the system-noise predicate excludes this app's own process by executable name" \
+  'NOT (processImagePath ENDSWITH "/TrueTone")' \
   "$SYSTEM_PREDICATE"
 assert_contains_text "the system-noise predicate requires a NON-EMPTY process attribution (rejects unattributed lines)" \
   'processImagePath != ""' \
@@ -151,9 +156,9 @@ assert_contains_text "the system-noise predicate is still scoped to the network 
   'subsystem == "com.apple.network"' \
   "$SYSTEM_PREDICATE"
 
-APP_PREDICATE="$(build_app_attributed_predicate "com.ayaan47.truetone")"
-assert_contains_text "the app-attributed predicate matches this app's own process" \
-  'processImagePath CONTAINS "com.ayaan47.truetone"' \
+APP_PREDICATE="$(build_app_attributed_predicate "TrueTone")"
+assert_contains_text "the app-attributed predicate matches this app's own process by executable name" \
+  'processImagePath ENDSWITH "/TrueTone"' \
   "$APP_PREDICATE"
 
 echo ""

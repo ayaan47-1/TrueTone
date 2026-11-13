@@ -48,9 +48,31 @@ if [ "\$1" = "simctl" ] && [ "\$2" = "list" ]; then
   echo "    iPhone 17 ($FAKE_UDID) (Shutdown)"
   exit 0
 fi
+# HAG-231 round 7 (Toby re-review at 00072e0): assert-no-network.sh now resolves the installed
+# app's executable name via 'simctl get_app_container' before capturing anything, and spawns
+# the log capture ON the resolved simulator via 'simctl spawn <udid> log stream ...' instead of
+# a bare host 'log stream'. Forward the spawn call straight to this file's existing \$FAKE_BIN/log
+# stub (after stripping "simctl spawn <udid>") so every fail-closed scenario below (log never
+# starts / dies mid-run / stays silent / healthy) is exercised exactly as before, just reached
+# through the new call shape.
+if [ "\$1" = "simctl" ] && [ "\$2" = "get_app_container" ]; then
+  echo "/fake/Containers/Bundle/Application/fake-uuid/TrueTone.app"
+  exit 0
+fi
+if [ "\$1" = "simctl" ] && [ "\$2" = "spawn" ]; then
+  shift 3
+  exec "\$@"
+fi
 exit 0
 FAKE_XCRUN
 chmod +x "$FAKE_BIN/xcrun"
+
+cat > "$FAKE_BIN/plutil" <<'FAKE_PLUTIL'
+#!/usr/bin/env bash
+echo "TrueTone"
+exit 0
+FAKE_PLUTIL
+chmod +x "$FAKE_BIN/plutil"
 
 FLOW_FILE="$TMP_ROOT/fake_flow.yaml"
 printf 'appId: com.ayaan47.truetone\n---\n- launchApp\n' > "$FLOW_FILE"

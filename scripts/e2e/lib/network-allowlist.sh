@@ -77,15 +77,27 @@ filter_app_attributed_suspicious_hosts() {
     | sort -u
 }
 
-# build_app_attributed_predicate <bundle-id>
-# The `log stream`/`log show` predicate for the stream that IS scoped to this app's own process.
-# Field confirmed via `log help predicates`: processImagePath (string); CONTAINS is a supported
-# comparison operator.
+# build_app_attributed_predicate <executable-name>
+#
+# Toby re-review (HAG-231, round 7, review-toby.md "Re-review at 00072e0"): this predicate used
+# to search processImagePath for the BUNDLE IDENTIFIER ("com.ayaan47.truetone"). processImagePath
+# is a filesystem path to the running BINARY (e.g. ".../TrueTone.app/TrueTone"), which never
+# contains the bundle id -- the binary is named after Xcode's PRODUCT_NAME / CFBundleExecutable
+# instead, a different value entirely. That meant this predicate matched zero lines from the
+# app's real process on a device, so the "app always emits SOME log activity" fail-closed check
+# (round 6) could never actually be exercised against a genuine app-attributed capture.
+#
+# Takes the EXECUTABLE NAME (resolved per-run off the installed app via
+# resolve_app_executable_name, scripts/e2e/lib/app-executable.sh -- never hardcoded, since
+# CFBundleExecutable can change). `ENDSWITH "/<name>"` matches the trailing path component
+# exactly (the binary itself), not merely a substring anywhere in the path. Field/operator
+# confirmed via `log help predicates` on this machine: processImagePath (string), ENDSWITH is a
+# supported comparison operator.
 build_app_attributed_predicate() {
-  printf 'processImagePath CONTAINS "%s"' "$1"
+  printf 'processImagePath ENDSWITH "/%s"' "$1"
 }
 
-# build_system_noise_predicate <bundle-id>
+# build_system_noise_predicate <executable-name>
 #
 # Dwight re-review (HAG-231, round 6): the generic/system-wide capture used to be
 # `subsystem == "com.apple.network"` alone -- scoped by subsystem only, with NO check on which
@@ -96,12 +108,17 @@ build_app_attributed_predicate() {
 # OS-noise exemption may apply ONLY when a line is positively attributed to some OTHER, specific,
 # non-TrueTone process -- never when it's unattributed, and never when it's this app.
 #
-# This predicate enforces that at the OS/kernel level (not by re-deriving attribution from
+# Toby re-review (HAG-231, round 7): the exclusion clause has the SAME bundle-id-vs-executable
+# mismatch as build_app_attributed_predicate above -- `NOT (processImagePath CONTAINS bundle-id)`
+# could never actually match this app's own process, so it excluded nothing in practice. Takes
+# the EXECUTABLE NAME for the same reason and with the same ENDSWITH matching.
+#
+# This predicate enforces the rule at the OS/kernel level (not by re-deriving attribution from
 # rendered log text afterward, which is what caused the round-5 bug): `processImagePath != ""`
 # requires a real, non-empty process attribution (rejects unattributed lines), and
-# `NOT (processImagePath CONTAINS bundle-id)` excludes this app specifically. Fields/operators
+# `NOT (processImagePath ENDSWITH "/<name>")` excludes this app specifically. Fields/operators
 # confirmed via `log help predicates` on this machine: processImagePath (string), operators
-# include !=, CONTAINS, NOT.
+# include !=, ENDSWITH, NOT.
 build_system_noise_predicate() {
-  printf 'subsystem == "com.apple.network" AND processImagePath != "" AND NOT (processImagePath CONTAINS "%s")' "$1"
+  printf 'subsystem == "com.apple.network" AND processImagePath != "" AND NOT (processImagePath ENDSWITH "/%s")' "$1"
 }

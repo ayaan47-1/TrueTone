@@ -78,6 +78,38 @@ sleep 60
 FAKE_LOG
 chmod +x "$FAKE_BIN/log"
 
+# HAG-231 round 7 (Toby re-review at 00072e0): assert-no-network.sh now resolves the installed
+# app's executable name via `simctl get_app_container` + `plutil`, then spawns its log capture
+# ON the resolved simulator via `simctl spawn <udid> log stream ...` -- forward that spawn call
+# straight to this file's `log` stub (after stripping "simctl spawn <udid>") so Test 2/3 below
+# exercise exactly the same healthy-capture behavior as before, just through the new call shape.
+# Defined up front (not just before Test 3, as in earlier rounds) since Test 2 now needs it too.
+cat > "$FAKE_BIN/xcrun" <<FAKE_XCRUN_EARLY
+#!/usr/bin/env bash
+if [ "\$1" = "simctl" ] && [ "\$2" = "list" ]; then
+  echo "-- iOS 26.4 --"
+  echo "    iPhone 17 ($FAKE_UDID) (Shutdown)"
+  exit 0
+fi
+if [ "\$1" = "simctl" ] && [ "\$2" = "get_app_container" ]; then
+  echo "/fake/Containers/Bundle/Application/fake-uuid/TrueTone.app"
+  exit 0
+fi
+if [ "\$1" = "simctl" ] && [ "\$2" = "spawn" ]; then
+  shift 3
+  exec "\$@"
+fi
+exit 0
+FAKE_XCRUN_EARLY
+chmod +x "$FAKE_BIN/xcrun"
+
+cat > "$FAKE_BIN/plutil" <<'FAKE_PLUTIL_EARLY'
+#!/usr/bin/env bash
+echo "TrueTone"
+exit 0
+FAKE_PLUTIL_EARLY
+chmod +x "$FAKE_BIN/plutil"
+
 # -----------------------------------------------------------------------------------------------
 # Test 1: build-variant.sh, given a resolved UDID, must pass the UDID (not the name) to
 # `expo run:ios --device`.
@@ -117,7 +149,8 @@ assert_contains "assert-no-network.sh passes the device UDID to maestro test --d
 # -----------------------------------------------------------------------------------------------
 # Test 3: run-maestro.sh's own direct `maestro test` call (the branch used for a variant with no
 # network-silence flow, e.g. "demo") must also pin --device to the resolved UDID, not the name.
-# Stubs xcrun too, so no real Simulator is touched.
+# This variant never reaches assert-no-network.sh, so re-scoping xcrun down to just `simctl list`
+# here is fine -- it's the same resolve-the-simulator stub run-maestro.sh itself needs.
 # -----------------------------------------------------------------------------------------------
 cat > "$FAKE_BIN/xcrun" <<FAKE_XCRUN
 #!/usr/bin/env bash

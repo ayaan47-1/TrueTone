@@ -38,6 +38,8 @@ set -euo pipefail
 ROOT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/../.." && pwd)"
 # shellcheck source=lib/network-allowlist.sh
 source "$ROOT_DIR/scripts/e2e/lib/network-allowlist.sh"
+# shellcheck source=lib/app-executable.sh
+source "$ROOT_DIR/scripts/e2e/lib/app-executable.sh"
 
 if [ "$#" -lt 2 ]; then
   echo "Usage: assert-no-network.sh <device-udid> <maestro-flow-path> [<maestro-flow-path> ...]" >&2
@@ -47,6 +49,18 @@ DEVICE_UDID="$1"
 shift
 FLOW_PATHS=("$@")
 BUNDLE_ID="com.ayaan47.truetone"
+
+# Toby re-review (HAG-231, round 7): the predicates below used to match processImagePath against
+# $BUNDLE_ID directly, which never appears in a process's filesystem path (see
+# network-allowlist.sh's comments). Resolve the actual EXECUTABLE name off the app installed on
+# THIS resolved simulator before starting any capture -- fail closed (no capture, no Maestro run)
+# if it can't be resolved, rather than falling back to the bundle id or a hardcoded guess.
+EXECUTABLE_NAME="$(resolve_app_executable_name "$DEVICE_UDID" "$BUNDLE_ID" || true)"
+if [ -z "$EXECUTABLE_NAME" ]; then
+  echo "FAIL: could not resolve the installed app's executable name on simulator $DEVICE_UDID (bundle $BUNDLE_ID) -- is the app installed/booted there?" >&2
+  exit 1
+fi
+echo "== Resolved app executable on $DEVICE_UDID: $EXECUTABLE_NAME =="
 # Dwight re-review (HAG-231, round 5, re-review of e83ef82): these two predicates used to be
 # OR'd into ONE `log stream` call, merged into one text blob -- which meant an outbound
 # connection the OS attributed to this app's OWN process (processImagePath CONTAINS bundle id)
@@ -66,10 +80,17 @@ trap 'rm -f "$APP_LOG_FILE" "$SYSTEM_LOG_FILE"' EXIT
 
 export PATH="$PATH:$HOME/.maestro/bin"
 
-echo "== Starting log capture for $BUNDLE_ID (app-attributed + system network noise) =="
-log stream --predicate "$(build_app_attributed_predicate "$BUNDLE_ID")" --style compact > "$APP_LOG_FILE" &
+# Toby re-review (HAG-231, round 7): this used to run bare `log stream` on the HOST, not the
+# resolved simulator -- on a machine with more than one simulator/device, a host-wide log stream
+# proves nothing about which device actually produced any given line. `xcrun simctl spawn
+# "$DEVICE_UDID" log stream ...` runs the capture ON that exact simulator instead (same pattern
+# Flutter's own simulator log reader uses), tying it to the device run-maestro.sh resolved,
+# booted, and built onto -- the same device-pinning discipline as the build/Maestro --device
+# flags already have (rounds 5-6).
+echo "== Starting log capture on $DEVICE_UDID for executable $EXECUTABLE_NAME (app-attributed + system network noise) =="
+xcrun simctl spawn "$DEVICE_UDID" log stream --predicate "$(build_app_attributed_predicate "$EXECUTABLE_NAME")" --style compact > "$APP_LOG_FILE" &
 APP_LOG_PID=$!
-log stream --predicate "$(build_system_noise_predicate "$BUNDLE_ID")" --style compact > "$SYSTEM_LOG_FILE" &
+xcrun simctl spawn "$DEVICE_UDID" log stream --predicate "$(build_system_noise_predicate "$EXECUTABLE_NAME")" --style compact > "$SYSTEM_LOG_FILE" &
 SYSTEM_LOG_PID=$!
 
 # Toby re-review HIGH 2: confirm both captures actually started (are still running, not already

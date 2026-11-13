@@ -158,6 +158,30 @@ operators confirmed via `log help predicates`: `processImagePath` is a string fi
 `CONTAINS`, `NOT` are supported). An unattributed line or one attributed to this app can never
 reach the exemption-eligible stream at all now.
 
+**Both predicates above matched the wrong thing entirely, and the capture ran on the wrong
+machine (Toby re-review round 7, HAG-231, review-toby.md "Re-review at `00072e0`").**
+`processImagePath` is a filesystem path to the running *binary* (e.g. `.../TrueTone.app/TrueTone`),
+not the bundle identifier — a path like that never contains `com.ayaan47.truetone`, so both the
+app-attributed predicate and the system-noise predicate's exclusion clause matched zero lines
+from the app's real process on a device; the capture also ran `log stream` on the **host**, not
+the resolved Simulator, so even a correct predicate would have observed the wrong machine's
+traffic. The fix is two changes: (1) `scripts/e2e/lib/app-executable.sh::resolve_app_executable_name`
+resolves the installed app's actual executable name per run — `xcrun simctl get_app_container
+<udid> <bundle-id> app` finds the `.app` on the **resolved simulator**, then `plutil -extract
+CFBundleExecutable raw` reads its real name straight out of that bundle's `Info.plist` (never
+hardcoded, since `CFBundleExecutable` can change); `assert-no-network.sh` fails closed (no
+capture started at all) if this can't be resolved. (2) Both predicates now take that executable
+name and match `processImagePath ENDSWITH "/<name>"` (the exact trailing path component, not a
+substring), and both `log stream` calls run as `xcrun simctl spawn "$DEVICE_UDID" log stream
+...` — spawned ON the resolved simulator, the same device-pinning discipline the build and
+Maestro `--device` flags already had (rounds 5–6). Every round-6 fail-closed control (PID
+liveness before/after, non-empty app-attributed capture) is unchanged, just reached through the
+new call shape. `scripts/e2e/lib/__tests__/app-executable.test.sh` proves the resolver against a
+stubbed `xcrun`/`plutil`; `scripts/e2e/__tests__/simulator-log-capture.test.sh` proves end-to-end
+that `assert-no-network.sh` actually invokes `simctl spawn <udid> log stream` with the
+executable-based predicate, and fails closed before any capture starts when the executable can't
+be resolved.
+
 Both filtering functions live in `scripts/e2e/lib/network-allowlist.sh`, unit-tested in
 `scripts/e2e/lib/__tests__/network-allowlist.test.sh` (including an explicit TrueTone→`apple.com`
 case and predicate-string assertions for `build_system_noise_predicate`/
@@ -166,9 +190,9 @@ case and predicate-string assertions for `build_system_noise_predicate`/
 `scripts/e2e/lib/__tests__/flow-selection.test.sh` against synthetic temp directories (no
 simulator needed); the device-UDID pinning through `build-variant.sh`/`maestro test` (Toby
 re-review, HAG-231 round 5 — see "Prerequisites" above) is proven by
-`scripts/e2e/__tests__/device-pinning.test.sh`, which stubs `npx`/`maestro`/`xcrun`/`log` with
-fake executables that record their argv instead of touching a real Simulator. All of these run
-via `npm run e2e:test-scripts`.
+`scripts/e2e/__tests__/device-pinning.test.sh`, which stubs `npx`/`maestro`/`xcrun`/`log`/`plutil`
+with fake executables that record their argv instead of touching a real Simulator. All of these
+run via `npm run e2e:test-scripts`.
 
 **The check fails closed on three distinct capture/build failure modes, not just a suspicious
 hostname (Toby re-review round 6, 2 HIGHs).** Previously: (1) `run-maestro.sh` never checked
@@ -189,7 +213,9 @@ this rule, since a short run with no activity from any other process is a normal
 result). `scripts/e2e/__tests__/fail-closed.test.sh` proves all three failure modes (log stream
 dead on arrival, log stream dies mid-run, log stream alive but silent) plus the build-failure
 case, each via stub executables, alongside a no-regression case proving the healthy path still
-passes.
+passes. A fourth fail-closed mode added in round 7 — the installed app's executable name can't
+be resolved at all (see above) — is checked *before* any of these, since no capture can start
+without it; `scripts/e2e/__tests__/simulator-log-capture.test.sh` proves that case.
 
 ## Flow 2 — camera scan to shade match
 
