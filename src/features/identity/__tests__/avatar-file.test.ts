@@ -82,3 +82,23 @@ test('wipe also removes photos an earlier build left in the image picker cache f
   expect(fs.files.size).toBe(0);
   expect(fs.remove).toHaveBeenCalledWith('file:///cache/ImagePicker/');
 });
+
+// Toby round-2 MEDIUM: on an upgraded device the current photo is still an earlier build's
+// picker-cache file (ImagePicker/old.jpg), not a managed copy. Replacing it must delete it too.
+test('replacing the photo on an upgraded device deletes the legacy picker-cache photo', async () => {
+  const fs = fakeFs(['file:///cache/ImagePicker/old.jpg', 'file:///cache/ImagePicker/new.jpg']);
+  const store = createAvatarFileStore(fs, () => 3);
+  const result = await store.adopt('file:///cache/ImagePicker/new.jpg');
+  expect(fs.files.has('file:///cache/ImagePicker/old.jpg')).toBe(false);
+  expect([...fs.files]).toEqual([result.uri]);
+  expect(result.cleanupComplete).toBe(true);
+});
+
+test('a failed delete of the legacy picker-cache folder is reported as incomplete cleanup', async () => {
+  const fs = fakeFs(['file:///cache/ImagePicker/old.jpg', 'file:///cache/ImagePicker/new.jpg']);
+  fs.failDelete.add('file:///cache/ImagePicker/');
+  const store = createAvatarFileStore(fs, () => 3);
+  const result = await store.adopt('file:///cache/ImagePicker/new.jpg');
+  expect(result.cleanupComplete).toBe(false);
+  expect(fs.files.has(result.uri)).toBe(true);
+});

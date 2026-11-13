@@ -70,8 +70,11 @@ export function createAvatarFileStore(
       const uri = `${folder}${name}`;
       await fs.copy({ from: pickedUri, to: uri });
       const older = (await fs.list(folder)).filter((n) => n !== name);
+      // The legacy picker-cache folder goes too: on an upgraded device the current photo may still be
+      // an earlier build's ImagePicker/ file rather than a managed copy (Toby round-2 MEDIUM).
       const cleanupComplete = await settleAll([
         fs.remove(pickedUri),
+        fs.remove(`${fs.root}${PICKER_FOLDER}`),
         ...older.map((n) => fs.remove(`${folder}${n}`)),
       ]);
       return { uri, cleanupComplete };
