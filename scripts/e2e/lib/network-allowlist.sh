@@ -37,11 +37,42 @@ OS_NOISE_SUFFIX_HOSTS='apple\.com|icloud\.com|push\.apple\.com|mzstatic\.com|cra
 # filter_suspicious_hosts <log-text>
 # Prints each distinct hostname-looking token in <log-text> that is neither an exact allowed
 # host nor a suffix match of the OS-noise list, one per line, sorted/deduped.
+#
+# For a GENERIC capture that is NOT scoped to this app's own process (e.g. a system-wide
+# "subsystem == com.apple.network" log stream, which also carries unrelated traffic from other
+# processes on the machine) -- see filter_app_attributed_suspicious_hosts below for the stricter
+# filter used on a capture that IS process-scoped to this app.
 filter_suspicious_hosts() {
   local log_text="$1"
   printf '%s\n' "$log_text" \
     | grep -ohE "$DOMAIN_PATTERN" \
     | grep -vxiE "$ALLOWED_EXACT_HOSTS" \
     | grep -viE "(^|\\.)(${OS_NOISE_SUFFIX_HOSTS})\$" \
+    | sort -u
+}
+
+# filter_app_attributed_suspicious_hosts <log-text>
+#
+# Dwight re-review (HAG-231, round 5, re-review of e83ef82): assert-no-network.sh used to merge
+# an app-process-scoped log stream ("processImagePath CONTAINS bundle id") and a generic
+# system-wide one ("subsystem == com.apple.network") into ONE text blob, then ran the single
+# OS-noise-exempting filter above over the merged result. Once merged, there was no way to tell
+# which extracted hostname came from which stream, so an app-originated request to an
+# Apple/Crashlytics domain was silently exempted as "OS noise" exactly like genuine unrelated
+# system traffic would be -- hiding a real violation of the zero-network contract.
+#
+# The fix keeps the two streams in SEPARATE files (assert-no-network.sh now runs two `log
+# stream` processes, one per predicate) instead of trying to re-derive attribution from log line
+# text after the fact. Call this function ONLY on a capture that the OS itself already scoped to
+# this app's own process: every non-loopback hostname found there is a genuine app-originated
+# destination by construction, so NO OS-noise exemption applies here -- only the narrow loopback
+# entries (needed by the debug harness) are ever allowed. Call filter_suspicious_hosts (above)
+# on the separate generic/system-wide capture instead, where the OS-noise exemption is still
+# appropriate.
+filter_app_attributed_suspicious_hosts() {
+  local log_text="$1"
+  printf '%s\n' "$log_text" \
+    | grep -ohE "$DOMAIN_PATTERN" \
+    | grep -vxiE "$ALLOWED_EXACT_HOSTS" \
     | sort -u
 }

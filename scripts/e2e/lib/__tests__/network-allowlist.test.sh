@@ -33,6 +33,26 @@ assert_not_flagged() {
   fi
 }
 
+assert_app_flagged() {
+  local label="$1" host="$2" log_text="$3"
+  if filter_app_attributed_suspicious_hosts "$log_text" | grep -qxF "$host"; then
+    PASS=$((PASS + 1))
+  else
+    FAIL=$((FAIL + 1))
+    echo "FAIL: $label — expected '$host' to be flagged suspicious (app-attributed), but it was filtered out" >&2
+  fi
+}
+
+assert_app_not_flagged() {
+  local label="$1" host="$2" log_text="$3"
+  if filter_app_attributed_suspicious_hosts "$log_text" | grep -qxF "$host"; then
+    FAIL=$((FAIL + 1))
+    echo "FAIL: $label — expected '$host' to be filtered out (app-attributed), but it was flagged suspicious" >&2
+  else
+    PASS=$((PASS + 1))
+  fi
+}
+
 # The two exact attack cases from god's dispatch / Toby's re-review finding 3.
 assert_flagged "attacker suffix on the forced-offline host must NOT be allowlisted" \
   "offline.invalid.attacker.example" \
@@ -74,6 +94,30 @@ assert_flagged "a lookalike host containing 'crashlytics' as a substring is NOT 
 assert_not_flagged "the real crashlytics.com host is filtered as OS noise" \
   "crashlytics.com" \
   "2026-11-13 Connected to crashlytics.com"
+
+# Dwight re-review (HAG-231, round 5, re-review of e83ef82): the capture intentionally also
+# includes generic "subsystem == com.apple.network" system noise alongside app-attributed lines,
+# and the OS-noise suffix exemption was being applied to BOTH -- so a line already attributed by
+# the OS to this app's OWN process (processImagePath CONTAINS bundle id) could still have its
+# Apple/Crashlytics-domain destination silently exempted as "OS noise", hiding a genuine
+# app-originated call to one of those domains. filter_app_attributed_suspicious_hosts is the
+# stricter filter for that already-app-scoped stream: NO OS-noise exemption applies, only
+# loopback (used by the debug harness) stays allowed.
+assert_app_flagged "an app-attributed request to an Apple domain is NOT exempt as OS noise" \
+  "push.apple.com" \
+  "2026-11-13 TrueTone[1234] Connected to push.apple.com"
+
+assert_app_flagged "an app-attributed request to crashlytics.com is NOT exempt as OS noise" \
+  "crashlytics.com" \
+  "2026-11-13 TrueTone[1234] Connected to crashlytics.com"
+
+assert_app_flagged "an app-attributed request to the forced-offline sentinel still fails" \
+  "offline.invalid" \
+  "2026-11-13 TrueTone[1234] Connected to offline.invalid"
+
+assert_app_not_flagged "loopback stays allowed even on the app-attributed stream" \
+  "localhost" \
+  "2026-11-13 TrueTone[1234] Connected to localhost"
 
 echo ""
 echo "network-allowlist.test.sh: $PASS passed, $FAIL failed"

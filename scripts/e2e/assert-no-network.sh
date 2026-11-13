@@ -39,23 +39,33 @@ DEVICE_UDID="$1"
 shift
 FLOW_PATHS=("$@")
 BUNDLE_ID="com.ayaan47.truetone"
-LOG_FILE="$(mktemp)"
-trap 'rm -f "$LOG_FILE"' EXIT
+# Dwight re-review (HAG-231, round 5, re-review of e83ef82): these two predicates used to be
+# OR'd into ONE `log stream` call, merged into one text blob -- which meant an outbound
+# connection the OS attributed to this app's OWN process (processImagePath CONTAINS bundle id)
+# was indistinguishable, once captured, from the generic system-wide "com.apple.network" noise
+# alongside it. The OS-noise exemption (Apple/Crashlytics domains) therefore applied to BOTH,
+# silently hiding an app-originated request to one of those domains. Keeping the two streams in
+# SEPARATE files -- one `log stream` process per predicate -- preserves attribution at the
+# source instead of trying to re-derive it from log line text afterward.
+APP_LOG_FILE="$(mktemp)"
+SYSTEM_LOG_FILE="$(mktemp)"
+trap 'rm -f "$APP_LOG_FILE" "$SYSTEM_LOG_FILE"' EXIT
 
 export PATH="$PATH:$HOME/.maestro/bin"
 
-echo "== Starting log capture for $BUNDLE_ID =="
-log stream --predicate "processImagePath CONTAINS \"$BUNDLE_ID\" OR subsystem == \"com.apple.network\"" \
-  --style compact > "$LOG_FILE" &
-LOG_PID=$!
+echo "== Starting log capture for $BUNDLE_ID (app-attributed + system network noise) =="
+log stream --predicate "processImagePath CONTAINS \"$BUNDLE_ID\"" --style compact > "$APP_LOG_FILE" &
+APP_LOG_PID=$!
+log stream --predicate "subsystem == \"com.apple.network\"" --style compact > "$SYSTEM_LOG_FILE" &
+SYSTEM_LOG_PID=$!
 
 echo "== Running flow(s) on device $DEVICE_UDID: ${FLOW_PATHS[*]} =="
 maestro test --device "$DEVICE_UDID" "${FLOW_PATHS[@]}"
 FLOW_STATUS=$?
 
 sleep 2
-kill "$LOG_PID" 2>/dev/null || true
-wait "$LOG_PID" 2>/dev/null || true
+kill "$APP_LOG_PID" "$SYSTEM_LOG_PID" 2>/dev/null || true
+wait "$APP_LOG_PID" "$SYSTEM_LOG_PID" 2>/dev/null || true
 
 echo "== Scanning captured log for any outbound destination outside the loopback allowlist =="
 # Toby review finding 2 (HAG-231) + re-review finding 3: a 3-item blacklist
@@ -64,10 +74,15 @@ echo "== Scanning captured log for any outbound destination outside the loopback
 # attacker.example" and "127.0.0.1.evil.example" must NOT be treated as an allowed host just
 # because they contain one). Dwight re-review round 5: "offline.invalid" itself is no longer
 # allowlisted either -- it's the build-time config sentinel, not a permitted destination, so a
-# connection attempt TO it is the exact regression this check exists to catch. The filtering
-# logic lives in scripts/e2e/lib/network-allowlist.sh (sourced above) so it can be unit-tested
-# directly -- see scripts/e2e/lib/__tests__/network-allowlist.test.sh.
-SUSPICIOUS="$(filter_suspicious_hosts "$(cat "$LOG_FILE" 2>/dev/null)")"
+# connection attempt TO it is the exact regression this check exists to catch. The APP-attributed
+# stream gets the strict filter (no OS-noise exemption at all -- see
+# filter_app_attributed_suspicious_hosts's comment); only the generic system-wide stream keeps
+# the OS-noise exemption, since it alone is genuinely dominated by unrelated system traffic. Both
+# live in scripts/e2e/lib/network-allowlist.sh so they can be unit-tested directly -- see
+# scripts/e2e/lib/__tests__/network-allowlist.test.sh.
+APP_SUSPICIOUS="$(filter_app_attributed_suspicious_hosts "$(cat "$APP_LOG_FILE" 2>/dev/null)")"
+SYSTEM_SUSPICIOUS="$(filter_suspicious_hosts "$(cat "$SYSTEM_LOG_FILE" 2>/dev/null)")"
+SUSPICIOUS="$(printf '%s\n%s\n' "$APP_SUSPICIOUS" "$SYSTEM_SUSPICIOUS" | grep -v '^$' | sort -u)"
 
 if [ -n "$SUSPICIOUS" ]; then
   echo "FAIL: found outbound destination(s) outside the zero-network contract during the capture window:" >&2
