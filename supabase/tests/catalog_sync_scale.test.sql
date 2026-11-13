@@ -1,0 +1,17 @@
+begin;
+select plan(8);
+select has_table('public','catalog_reconcile_jobs','durable cursor and fenced lease exist');
+select has_function('public','catalog_sync_health',array['timestamp with time zone'],'stale sync is checkable');
+select ok((public.catalog_sync_health(now())->>'stale')::boolean,'no completed run is stale');
+insert into public.catalog_sync_runs(started_at,completed_at,status) values(now(),now(),'complete');
+select ok(not (public.catalog_sync_health(now())->>'stale')::boolean,'fresh completion is healthy');
+insert into public.catalog_sync_runs(started_at,status) values(now()-interval '10 minutes','running');
+select ok((public.catalog_sync_health(now())->>'stuck')::boolean,'old uncheckpointed run is stuck');
+insert into public.catalog_sync_runs(started_at,status) select now()-interval '10 minutes'-n*interval '1 second','failed' from generate_series(1,3) n;
+select ok((public.catalog_sync_health(now())->>'rising_failures')::boolean,'recent failure growth is flagged');
+set local role authenticated;
+select throws_ok($$select public.catalog_sync_health(now())$$,'42501',null,'health details are service only');
+select throws_ok($$select public.catalog_claim_reconcile(null)$$,'42501',null,'mobile cannot start jobs');
+reset role;
+select * from finish();
+rollback;

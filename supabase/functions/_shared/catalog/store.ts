@@ -1,5 +1,5 @@
 import { z } from 'zod';
-import type { CatalogueStore, InventorySnapshot, ProductSnapshot } from './contracts.ts';
+import { reconcileJobSchema, type ReconcileJob, type ProductPage, type CatalogueStore, type InventorySnapshot, type ProductSnapshot } from './contracts.ts';
 
 export class SupabaseCatalogueStore implements CatalogueStore {
   private readonly config: { url: string; serviceKey: string; fetcher?: typeof fetch };
@@ -24,6 +24,15 @@ export class SupabaseCatalogueStore implements CatalogueStore {
 
   async claim(id: string, topic: string): Promise<'claimed' | 'done' | 'busy'> {
     return z.enum(['claimed','done','busy']).parse(await this.rpc('catalog_claim_event', { p_event_id: id, p_topic: topic }));
+  }
+  async claimReconcile(id:string|null):Promise<ReconcileJob|null> {
+    return reconcileJobSchema.nullable().parse(await this.rpc('catalog_claim_reconcile',{p_job_id:id}));
+  }
+  async checkpointReconcile(job:ReconcileJob,page:ProductPage):Promise<void> {
+    await this.rpc('catalog_checkpoint_reconcile',{p_job_id:job.id,p_lease_token:job.lease_token,p_products:page.products,p_next_cursor:page.nextCursor});
+  }
+  async retryReconcile(job:ReconcileJob,failed=true):Promise<void> {
+    await this.rpc('catalog_retry_reconcile',{p_job_id:job.id,p_lease_token:job.lease_token,p_failed:failed});
   }
   async complete(id: string): Promise<void> { await this.rpc('catalog_finish_event', { p_event_id: id, p_success: true }); }
   async fail(id: string): Promise<void> { await this.rpc('catalog_finish_event', { p_event_id: id, p_success: false }); }

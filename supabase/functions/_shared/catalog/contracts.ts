@@ -22,9 +22,17 @@ export interface CatalogueSource {
   product(id: string): Promise<ProductSnapshot | null>;
   inventory(id: string): Promise<InventorySnapshot>;
   products(): AsyncIterable<ProductSnapshot>;
+  page(cursor: string | null): Promise<ProductPage>;
 }
 
+export type ProductPage = { products: ProductSnapshot[]; nextCursor: string | null };
+export const reconcileJobSchema = z.object({ id:z.uuid(),lease_token:z.uuid(),cursor:z.string().nullable(),started_at:z.iso.datetime({offset:true}) });
+export type ReconcileJob = z.infer<typeof reconcileJobSchema>;
+
 export interface CatalogueStore {
+  claimReconcile(id: string | null): Promise<ReconcileJob | null>;
+  checkpointReconcile(job: ReconcileJob, page: ProductPage): Promise<void>;
+  retryReconcile(job: ReconcileJob, failed?:boolean): Promise<void>;
   claim(id: string, topic: string): Promise<'claimed' | 'done' | 'busy'>;
   complete(id: string): Promise<void>;
   fail(id: string): Promise<void>;
