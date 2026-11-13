@@ -23,10 +23,14 @@
   Xcode/Swift toolchain can fail to compile `expo-modules-jsi` with a Swift "a C function pointer
   can only be formed from a reference to a func or a literal closure" error — a Swift-compiler-
   version incompatibility in that Expo module, upstream of this app, not something to patch here.
-  If you hit this, install an older Xcode side-by-side and `xcode-select -s` it before building;
-  there is no app-level fix. Also: `expo run:ios --device "<name>"` can fail Xcode's own
-  destination matching for every concrete simulator device while still listing "Any iOS Simulator
-  Device" as valid — if so, build once with an explicit generic destination
+  Confirmed environment-wide, not specific to one machine or author (another engineer hit the
+  identical failure on the same Xcode build independently). If you hit this, install an older
+  Xcode side-by-side and `xcode-select -s` it before building; there is no app-level fix.
+  `.github/workflows/e2e.yml` pins Xcode 16.4 for exactly this reason — see that workflow's
+  comments for the exact version and the GitHub runner-image doc it's pinned from. Also:
+  `expo run:ios --device "<name>"` can fail Xcode's own destination matching for every concrete
+  simulator device while still listing "Any iOS Simulator Device" as valid — if so, build once
+  with an explicit generic destination
   (`xcodebuild ... -destination "generic/platform=iOS Simulator"` from `ios/`) to warm Xcode's
   device-destination cache, then retry the named-device build.
 - **Android (optional, "if feasible"):** not set up in a bare macOS checkout by default and isn't
@@ -69,6 +73,16 @@ plain `expo run:ios` dev-client build (not an EAS cloud build, not TestFlight), 
 `scripts/e2e/run-maestro.sh <variant>` builds (unless `--skip-build`) then runs that variant's
 flow directory; `scripts/e2e/run-all.sh ios` loops all four and prints a pass/fail table.
 
+**Flow 7's network-silence check runs automatically, local and CI (Toby review finding 2,
+HAG-231).** `run-maestro.sh` runs `camera-demo`/`camera-demo-fixture`'s
+`07_offline_no_network.yaml` through `scripts/e2e/assert-no-network.sh` rather than through plain
+`maestro test` — it used to be a separate, on-request-only script that neither this runner nor
+`e2e.yml` ever actually called, so a background request could slip through flow 7's UI-only
+assertion undetected. The check now allowlists what's actually expected (the build-forced
+`offline.invalid` host, loopback, and iOS's own unrelated connectivity/push noise) and fails on
+*any other* dotted hostname seen in the app's own log during the flow, not just a fixed list of
+known Supabase/Shopify hosts.
+
 ## Flow 2 — camera scan to shade match
 
 Two variants exist, because the Simulator genuinely cannot drive a live camera (CLAUDE.md §4:
@@ -90,6 +104,28 @@ no existing way around that, so this adds one, scoped exactly to HAG-231's decis
   Needs its own build (`camera-demo-fixture`), separate from plain `camera-demo`: flow 6 needs the
   real `<Capture>` permission-denied UI, which `E2E_FIXTURE_SCAN` would skip entirely if both were
   in the same binary.
+  - **Fixture decode provenance (Dwight review, HAG-231).** The embedded base64 must decode with
+    the exact codec+options the production read path uses (`jpeg.decode(bytes, { useTArray: true,
+    formatAsRGBA: true })`, `src/features/read/decode-rgb.ts`) at exactly 120×120 — a broken image
+    makes `run-read.ts`'s outer catch silently fall back to `stubRead()` in `__DEV__`, so the flow
+    could reach "We found your match" without exercising the real read at all.
+    `src/features/capture/__tests__/e2e-fixture-image.test.ts` decodes the committed string and
+    pins its SHA-256, so a hand-edit or a bad regeneration fails that test immediately. Regenerate
+    only with the exact command in `e2e-fixture-image.ts`'s header comment, never by hand-editing
+    the base64.
+  - **Persistence proof (Toby review finding 1, HAG-231).** The result-screen assertions
+    (`"We found your match"` / `"Your shade"`) only prove the shade was *published*, not *saved* —
+    `run-read.ts` calls `personalization.setScan(shade)` before `persist()` is awaited, so the
+    screen renders success even if the save afterwards fails. The flow now also taps
+    Account → Scan History and asserts a saved match actually appears there
+    (`"Recent scans"` visible, `"Shade removed"` not), reading back through the real
+    `fetchScanHistoryPage()` → on-device scan store (`src/lib/scans.ts`). That this is a real,
+    non-vacuous check (not just a second screen that would pass the same way) is proven at the
+    unit level in `src/features/read/__tests__/run-read.test.ts` using the E2E-only
+    `src/lib/e2e-force-persist-failure.ts` seam (same `__DEV__`-AND gate as `E2E_FIXTURE_SCAN`):
+    forcing persistence to fail still publishes the shade but never calls `recordScan`, which is
+    exactly the state the new assertion is designed to catch. The underlying premature-success
+    behavior itself is a real app finding, reported separately — not something this branch fixes.
 - **`.maestro/physical-device/02_camera_scan_to_shade_match.yaml`** (physical iPhone, the one that
   proves the real camera works). Run with
   `maestro test --device <physical-device-udid> .maestro/physical-device/` against the real
