@@ -3,6 +3,7 @@ import type { ShopifyCatalog } from './catalog';
 import type { ShopifyClient } from './client';
 import { mapProductNode } from './product-mapper';
 import type { ShopifyProduct } from './types';
+import type { CataloguePage } from '../../catalog/repository';
 
 const money=z.object({amount:z.string().regex(/^\d+(\.\d+)?$/),currencyCode:z.string().length(3)});
 const image=z.object({url:z.string(),width:z.number().nullable().optional(),height:z.number().nullable().optional()});
@@ -15,9 +16,9 @@ const query=`query ApprovedVariants($ids:[ID!]!) @inContext(visitorConsent:{anal
     product{id handle title vendor featuredImage{url width height}}}}
 }`;
 
-export function createApprovedShopifyCatalog(client:ShopifyClient,approved:()=>Promise<readonly {id:string}[]>):ShopifyCatalog {
-  const list=async():Promise<ShopifyProduct[]>=>{
-    const ids=Array.from(new Set((await approved()).map(product=>product.id)));
+const identityQuery=`query ApprovedProductIdentity($handle:String!) @inContext(visitorConsent:{analytics:false,preferences:false,marketing:false,saleOfData:false}) {product(handle:$handle){id handle title vendor featuredImage{url width height}}}`;
+async function fetchApproved(client:ShopifyClient,approved:readonly {id:string}[]):Promise<ShopifyProduct[]> {
+    const ids=Array.from(new Set(approved.map(product=>product.id)));
     const allowed=new Set(ids);
     const products=new Map<string,ShopifyProduct>();
     for(let offset=0;offset<ids.length;offset+=50){
@@ -31,6 +32,28 @@ export function createApprovedShopifyCatalog(client:ShopifyClient,approved:()=>P
       }
     }
     return [...products.values()];
-  };
-  return {list,async getByHandle(handle){return (await list()).find(product=>product.handle===handle)??null;}};
+}
+
+export async function approvedShopifyVariant(client:ShopifyClient,validate:(id:string)=>Promise<{id:string}|null>,id:string) {
+  if((await validate(id))?.id!==id) return null;
+  const products=await fetchApproved(client,[{id}]);
+  return products.flatMap(product=>product.variants).find(variant=>variant.id===id)??null;
+}
+
+export function createApprovedShopifyCatalog(client:ShopifyClient,approved:()=>Promise<readonly {id:string}[]>,productPage:(id:string,after:string|null)=>Promise<CataloguePage>):ShopifyCatalog {
+  const list=async()=>fetchApproved(client,await approved());
+  return {list,async getByHandle(handle,after=null){
+    const identity=z.object({product:z.object({id:z.string().regex(/^gid:\/\/shopify\/Product\/\d+$/),handle:z.string(),title:z.string(),vendor:z.string(),featuredImage:image.nullable()}).nullable()}).parse(await client.request(identityQuery,{handle}));
+    if(!identity.product) return null;
+    const seen=new Set<string>();
+    for(let attempt=0;attempt<5;attempt++) {
+      const page=await productPage(identity.product.id,after);
+      const product=(await fetchApproved(client,page.products)).find(product=>product.id===identity.product?.id && product.handle===handle);
+      if(product) return {...product,optionsPage:{nextCursor:page.nextCursor}};
+      if(page.nextCursor===null) return {...mapProductNode({...identity.product,variants:{nodes:[]}}),optionsPage:{nextCursor:null}};
+      if(seen.has(page.nextCursor) || page.nextCursor===after) throw Error('options did not advance');
+      seen.add(page.nextCursor);after=page.nextCursor;
+    }
+    return {...mapProductNode({...identity.product,variants:{nodes:[]}}),optionsPage:{nextCursor:after}};
+  }};
 }

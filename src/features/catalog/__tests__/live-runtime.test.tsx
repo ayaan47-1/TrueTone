@@ -3,9 +3,10 @@ import { Text } from 'react-native';
 
 jest.unmock('../../match/product-catalog');
 const mockRange = jest.fn();
-const mockSelect = jest.fn(() => ({ order: () => ({ range: mockRange }) }));
+const mockRpc=jest.fn();
+const mockSelect = jest.fn(() => ({ order: () => ({ limit: mockRange }) }));
 const mockFrom = jest.fn((_table: string) => ({ select: mockSelect }));
-jest.mock('../../../lib/supabase', () => ({ DEMO_MODE:false, SUPABASE_OFFLINE:false, supabase:{from:(table: string) => mockFrom(table)} }));
+jest.mock('../../../lib/supabase', () => ({ DEMO_MODE:false, SUPABASE_OFFLINE:false, supabase:{from:(table: string) => mockFrom(table),rpc:(name:string)=>mockRpc(name)} }));
 import { useProductCatalogue, refreshCatalogue } from '../../match/product-catalog';
 
 function Probe() { const state=useProductCatalogue(); return <Text>{`${state.status}:${state.products.length}`}</Text>; }
@@ -13,14 +14,18 @@ afterEach(async()=>{await cleanup();});
 
 test('normal runtime queries only the safe view and renders an honest empty state', async () => {
   mockRange.mockResolvedValue({data:[],error:null});
+  mockRpc.mockResolvedValue({data:{revision:'1',expires_at:null,server_now:'2026-11-13T00:00:00Z'},error:null});
   const view=await render(<Probe />);
   await waitFor(() => expect(view.getByText('empty:0')).toBeTruthy());
   expect(mockFrom).toHaveBeenCalledWith('catalog_recommendable');
   expect(mockSelect).toHaveBeenCalledWith(expect.not.stringContaining('*'));
+  expect(mockRange).toHaveBeenCalledWith(31);
+  expect(mockRpc).toHaveBeenCalledWith('catalog_read_revision');
 });
 
 test('read failure renders offline with no synthetic products', async () => {
   mockRange.mockResolvedValue({data:null,error:{message:'internal'}});
+  mockRpc.mockResolvedValue({data:null,error:{message:'internal'}});
   const view=await render(<Probe />);
   await act(async () => { await refreshCatalogue(true); });
   await waitFor(() => expect(view.getByText('offline:0')).toBeTruthy());

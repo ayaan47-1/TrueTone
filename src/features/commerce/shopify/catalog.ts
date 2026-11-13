@@ -5,7 +5,7 @@ import type { ShopifyProduct } from './types';
 
 export interface ShopifyCatalog {
   list(first?: number): Promise<readonly ShopifyProduct[]>;
-  getByHandle(handle: string): Promise<ShopifyProduct | null>;
+  getByHandle(handle: string, after?:string|null): Promise<ShopifyProduct | null>;
 }
 
 export function createShopifyCatalog(client: ShopifyClient): ShopifyCatalog {

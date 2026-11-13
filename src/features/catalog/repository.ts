@@ -52,19 +52,24 @@ export function mapCatalogueRow(value: unknown): Product {
   };
 }
 
-export function createCatalogueRepository(readPage: (from: number,to: number) => Promise<unknown[]>, pageSize = 500) {
-  return { async list(): Promise<Product[]> {
-    const products: Product[] = [];
-    const seen = new Set<string>();
-    for (let from = 0; ; from += pageSize) {
-      const rows = await readPage(from,from + pageSize - 1);
-      for (const row of rows) {
-        const product = mapCatalogueRow(row);
-        if (seen.has(product.id)) throw new Error('catalogue changed during pagination');
-        seen.add(product.id);
-        products.push(product);
-      }
-      if (rows.length < pageSize) return products;
-    }
-  } };
+const revisionSchema=z.object({revision:z.string().regex(/^\d+$/),expires_at:z.iso.datetime({offset:true}).nullable(),server_now:z.iso.datetime({offset:true})});
+export interface CataloguePage { products:Product[]; nextCursor:string|null }
+export interface CatalogueRepository {
+  revision():Promise<{revision:string;ttlMs:number}>;
+  page(after:string|null):Promise<CataloguePage>;
+}
+export function createCatalogueRepository(read:{readPage:(after:string|null,limit:number)=>Promise<unknown[]>;readRevision:()=>Promise<unknown>},pageSize=30):CatalogueRepository {
+  return {
+    async revision() {
+      const meta=revisionSchema.parse(await read.readRevision());
+      const ttlMs=meta.expires_at===null?26*3600_000:Math.max(0,Date.parse(meta.expires_at)-Date.parse(meta.server_now));
+      return {revision:meta.revision,ttlMs:Math.min(ttlMs,26*3600_000)};
+    },
+    async page(after) {
+      const rows=await read.readPage(after,pageSize+1);
+      const products=rows.slice(0,pageSize).map(mapCatalogueRow);
+      if(new Set(products.map(p=>p.id)).size!==products.length) throw Error('catalogue changed during pagination');
+      return {products,nextCursor:rows.length>pageSize?products.at(-1)?.id??null:null};
+    },
+  };
 }
