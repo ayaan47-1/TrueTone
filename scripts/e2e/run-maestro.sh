@@ -35,8 +35,30 @@ if [ "$SKIP_BUILD" != "--skip-build" ]; then
 fi
 
 echo "== Running Maestro flows: $FLOW_DIR =="
-maestro test "$FLOW_DIR"
-STATUS=$?
+# Toby review finding 2 (HAG-231): the network-silence check (assert-no-network.sh) used to be
+# optional/on-request only, so neither this script nor e2e.yml ever actually invoked it -- flow 7
+# only asserted the offline-notice UI, which a stray background request could pass alongside.
+# Run it for real here, on every local and CI pass, whenever this variant's directory has a
+# no-network flow; everything else in the directory still runs as one plain `maestro test`.
+NETWORK_CHECK_FLOW="$FLOW_DIR/07_offline_no_network.yaml"
+if [ -f "$NETWORK_CHECK_FLOW" ]; then
+  OTHER_FLOWS=()
+  for f in "$FLOW_DIR"/*.yaml; do
+    [ "$f" = "$NETWORK_CHECK_FLOW" ] || OTHER_FLOWS+=("$f")
+  done
+  OTHER_STATUS=0
+  if [ "${#OTHER_FLOWS[@]}" -gt 0 ]; then
+    maestro test "${OTHER_FLOWS[@]}"
+    OTHER_STATUS=$?
+  fi
+  "$ROOT_DIR/scripts/e2e/assert-no-network.sh" "$NETWORK_CHECK_FLOW"
+  NETWORK_STATUS=$?
+  STATUS=$OTHER_STATUS
+  [ "$STATUS" -eq 0 ] && STATUS=$NETWORK_STATUS
+else
+  maestro test "$FLOW_DIR"
+  STATUS=$?
+fi
 
 if [ $STATUS -eq 0 ]; then
   echo "== PASS: $VARIANT =="
