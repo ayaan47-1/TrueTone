@@ -41,14 +41,14 @@ test('successful add survives a later validation failure; retry only validates a
   expect(shopifyStore.getState().cart?.totalQuantity).toBe(1);
   expect(shopifyStore.getState().error).toBeNull();
   const view=await render(<ShopifyBagScreen onShop={jest.fn()} />);
-  await waitFor(()=>expect(view.getByRole('button',{name:'Check bag approval'})).not.toBeDisabled());
+  await waitFor(()=>expect(view.getByRole('button',{name:'Check bag again'})).not.toBeDisabled());
   expect(view.getByRole('button',{name:'Guest checkout · $30.00'})).toBeDisabled();
-  await fireEvent.press(view.getByRole('button',{name:'Check bag approval'}));
+  await fireEvent.press(view.getByRole('button',{name:'Check bag again'}));
   await waitFor(()=>expect(shopifyStore.getState().loadingCart).toBe(false));
   expect(shopifyStore.getState().cart?.totalQuantity).toBe(1);expect(mockAdd).toHaveBeenCalledTimes(1);
   mockValidationFails=false;
-  await fireEvent.press(view.getByRole('button',{name:'Check bag approval'}));
-  await waitFor(()=>expect(view.queryByRole('button',{name:'Check bag approval'})).toBeNull());
+  await fireEvent.press(view.getByRole('button',{name:'Check bag again'}));
+  await waitFor(()=>expect(view.queryByRole('button',{name:'Check bag again'})).toBeNull());
   expect(view.getByRole('button',{name:'Guest checkout · $30.00'})).not.toBeDisabled();expect(mockAdd).toHaveBeenCalledTimes(1);
 });
 test('successful removal is published even when validating the remaining line fails',async()=>{
@@ -63,7 +63,7 @@ test('successful removal is published even when validating the remaining line fa
   expect(view.getByRole('button',{name:'Remove Remaining shade'})).not.toBeDisabled();
   expect(view.getByRole('button',{name:'Guest checkout · $30.00'})).toBeDisabled();
   expect(shopifyStore.getState().error).toBeNull();
-  await fireEvent.press(view.getByRole('button',{name:'Check bag approval'}));
+  await fireEvent.press(view.getByRole('button',{name:'Check bag again'}));
   await waitFor(()=>expect(shopifyStore.getState().loadingCart).toBe(false));
   expect(mockRemove).toHaveBeenCalledTimes(1);expect(shopifyStore.getState().cart?.lines.map(line=>line.id)).toEqual(['keep']);
 });

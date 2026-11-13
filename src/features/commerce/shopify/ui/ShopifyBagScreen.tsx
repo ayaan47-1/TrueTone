@@ -62,10 +62,14 @@ function ShopifyBagScreenOnline({ onShop }: Props) {
     setCheckoutError(null);
     try {
       const freshCart = await shopifyStore.refreshCart();
-      if (!freshCart || freshCart.approvalStatus==='unverified' || freshCart.unavailableVariantIds?.length || !freshCart.lines.length) throw new Error('Cart refresh failed');
+      if (!freshCart || freshCart.approvalStatus === 'unverified' || !freshCart.lines.length) throw new Error('Cart refresh failed');
+      if (freshCart.unavailableVariantIds?.length) {
+        setCheckoutError('We could not confirm every shade. Remove unavailable shades or try again before checkout.');
+        return;
+      }
       await present(freshCart.checkoutUrl);
     } catch {
-      setCheckoutError('We could not confirm every shade. Remove unavailable shades or try again before checkout.');
+      setCheckoutError("We couldn't confirm every shade in your bag. Check bag again before checkout.");
     }
   };
 
@@ -81,9 +85,9 @@ function ShopifyBagScreenOnline({ onShop }: Props) {
         </GlassCard>
       ) : null}
       {isCartOnline && cart.approvalStatus==='unverified' ? <GlassCard radius={22} className="mb-5 gap-3 px-5 py-4">
-        <Subheading>Approval not confirmed</Subheading>
-        <Body>We couldn't verify shade approval. Checkout is paused.</Body>
-        <PrimaryButton label={loadingCart?'Checking bag approval…':'Check bag approval'} disabled={loadingCart} variant="glass" onPress={()=>void shopifyStore.loadCart()} />
+        <Subheading>Bag needs checking</Subheading>
+        <Body>We couldn't confirm every shade in your bag. Checkout is paused until we can check again.</Body>
+        <PrimaryButton label={loadingCart?'Checking bag…':'Check bag again'} disabled={loadingCart} variant="glass" onPress={()=>void shopifyStore.loadCart()} />
       </GlassCard> : null}
       <View className="gap-3">
         {cart.lines.map((line) => (
