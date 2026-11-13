@@ -19,7 +19,7 @@ export function checkCrashReporting(runtime, sources = []) {
   }
   if (FORBIDDEN.test(runtime)) errors.push('Crash reporting may only install the JS unhandled-error handlers');
   for (const call of runtime.matchAll(/\bsentry\.(\w+)\s*\(/g)) {
-    if (!['init','reactNativeErrorHandlersIntegration'].includes(call[1])) errors.push(`Unapproved crash SDK API: ${call[1]}`);
+    if (!['init','reactNativeErrorHandlersIntegration','debugMetaIntegration'].includes(call[1])) errors.push(`Unapproved crash SDK API: ${call[1]}`);
   }
   for (const source of sources) {
     if (/@sentry\/|crash-reporting/.test(source.text)) errors.push(`Crash SDK use outside its boundary: ${source.path}`);

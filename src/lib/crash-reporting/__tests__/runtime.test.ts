@@ -3,7 +3,7 @@ const mockInit = jest.fn<void, [ReactNativeOptions]>();
 const mockSdkLoad = jest.fn();
 jest.mock('@sentry/react-native', () => {
   mockSdkLoad();
-  return { init: mockInit, reactNativeErrorHandlersIntegration: () => ({ name: 'ReactNativeErrorHandlers' }) };
+  return { init: mockInit, reactNativeErrorHandlersIntegration: () => ({ name: 'ReactNativeErrorHandlers' }), debugMetaIntegration: () => ({name:'DebugMeta'}) };
 });
 jest.mock('../../supabase', () => ({ DEMO_MODE: false, SUPABASE_OFFLINE: false }));
 
@@ -50,7 +50,7 @@ test('initializes once with no native, replay, tracing, session, attachment or a
     enableNativeCrashHandling: false, attachScreenshot: false, attachViewHierarchy: false,
     enableLogs: false, enableAutoSessionTracking: false, sendClientReports: false,
     tracesSampleRate: 0, replaysSessionSampleRate: 0, replaysOnErrorSampleRate: 0,
-    maxBreadcrumbs: 0, defaultIntegrations: false, integrations: [{ name: 'ReactNativeErrorHandlers' }],
+    maxBreadcrumbs: 0, defaultIntegrations: false, integrations: [{ name: 'ReactNativeErrorHandlers' }, {name:'DebugMeta'}],
     beforeSend: expect.any(Function), beforeBreadcrumb: expect.any(Function),
   }));
 });

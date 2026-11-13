@@ -20,6 +20,11 @@ test('SDK imports in a sensitive module fail the static guard', () => {
   assert.ok(checkCrashReporting(runtime, [{ path: 'app/scan/index.tsx', text: "require('../src/lib/crash-reporting/runtime')" }]).length);
 });
 
+test('only the approved DebugMeta SDK call may be added',()=>{
+  assert.deepEqual(checkCrashReporting(`${runtime}\nsentry.debugMetaIntegration()`),[]);
+  assert.ok(checkCrashReporting(`${runtime}\nsentry.unapprovedIntegration()`).length);
+});
+
 const configure = createRequire(import.meta.url)('../../app.config.js');
 test('installed Android SDK manifest disables startup before JavaScript runs', () => {
   const manifest = readFileSync('node_modules/@sentry/react-native/android/src/main/AndroidManifest.xml','utf8');

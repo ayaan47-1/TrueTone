@@ -36,7 +36,7 @@ export function initializeCrashReporting(): void {
     tracesSampleRate: 0, profilesSampleRate: 0,
     replaysSessionSampleRate: 0, replaysOnErrorSampleRate: 0,
     maxBreadcrumbs: 0, defaultIntegrations: false,
-    integrations: [sentry.reactNativeErrorHandlersIntegration()],
+    integrations: [sentry.reactNativeErrorHandlersIntegration(), sentry.debugMetaIntegration()],
     beforeBreadcrumb: scrubCrashBreadcrumb,
     beforeSend: (event, hint) => scrubCrashEvent(event, hint, currentRoute),
     beforeSendTransaction: () => null,

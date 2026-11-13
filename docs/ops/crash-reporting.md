@@ -12,16 +12,32 @@ This branch reports JavaScript unhandled errors and rejected promises through `@
 
 The agent did not create a Sentry account, send events, edit `.env`, upload source maps, or make a native device build. Physical-device network inspection and dashboard verification remain release gates.
 
-Current review blocker: the event allowlist still removes source-map Debug IDs. Local bundle/map export works, but uploaded maps cannot yet be matched by Debug ID. A narrow technical-metadata exception is awaiting approval. Do not treat symbolication as complete or enable reporting for users until that finding and the device smoke test are closed.
+The technical metadata exception permits one UUID build Debug ID and one canonical bundle filename. The local artifact test proves that the ID in a built Hermes bundle and its map survives the real SDK integration and both filters. Source-map upload and dashboard symbolication still need the device smoke test before distribution.
 
 ## Runtime contract
 
 - No SDK load or initialization when the DSN is absent, `DEMO_MODE` or `SUPABASE_OFFLINE` is active, `__DEV__` is true, `NODE_ENV=test`, or `EXPO_PUBLIC_E2E` is truthy. Use `EXPO_PUBLIC_E2E=1` for a release-mode synthetic fixture build.
 - Only Shop and product/cart surfaces can report. Personalized Home, Account, Community, unknown routes, and sensitive routes cannot report. The root sets the route synchronously before child rendering. After visiting a scan, routine, feedback, setup, consent, data-rights, or developer flow, reporting stays suppressed until process restart. The developer route uses its real group-stripped path `/bbox-overlay`. This sacrifices later crash reports because a bundled asynchronous stack cannot reliably identify its original feature after navigation. Identifiable capture or read stack frames are also rejected.
-- No `Sentry.wrap`, navigation tracking, console capture, network breadcrumbs, sessions, replay, feedback, performance traces, profiling, screenshots, view hierarchy, logs, native initialization, or attachments.
+- The only integrations are JavaScript error handlers and `debugMetaIntegration`. No `Sentry.wrap`, navigation tracking, console capture, network breadcrumbs, sessions, replay, feedback, performance traces, profiling, screenshots, view hierarchy, logs, native initialization, or attachments.
 - `beforeSend` first rejects raw keys or values matching the personal, biometric, cosmetic, or account vocabulary. Cyclic or excessive input fails closed. It then reconstructs each remaining technical error from a static error-type allowlist, the fixed message `Crash details redacted`, bundle filename, line and column, random event identifier, and event time. Source values, function names, free-form messages, users, requests, contexts, tags, scores, skin type, shades, matches, routines, emails, account IDs, and URL queries are not copied. All breadcrumbs are dropped. The SDK block is reconstructed from the installed SDK version with `settings.infer_ip: never`; incoming SDK data cannot override it.
 - A second raw-data guard and allowlist at the transport boundary cover SDK-internal errors that skip `beforeSend`. The guard checks the original payload before schema projection can hide a sensitive field. It discards non-error envelope items and all incoming envelope headers, reconstructs the technical event including the IP-inference setting, and supplies the app release and production environment. Binary bodies and redirects are refused. No persistent SDK envelope cache is used because the native layer is off. Account-side IP storage prevention and geographic-field removal remain required as a second defense.
-- Source locations retain only known bundle basenames. No local filesystem path or remote URL is sent. Release metadata comes from `app.json`. Confirm source-map matching in the device smoke test before enabling the DSN for users.
+- Source locations retain only known bundle basenames or the canonical build filenames below. No local filesystem path or remote URL is sent. Release metadata comes from `app.json`. Confirm source-map matching in the device smoke test before enabling the DSN for users.
+
+## Technical Debug ID exception
+
+Only `debug_meta.images: [{ type: sourcemap, debug_id: <UUID>, code_file: <constant> }]` is permitted. The filename is either `app:///main.jsbundle` or `app:///index.android.bundle`. Extra metadata fields are discarded, malformed IDs and arbitrary filenames do not survive, and frames use the matching canonical filename when valid metadata exists. The raw-data guard exempts only this metadata's structural `images` key and a validated UUID at its specific path. It still rejects sensitive data elsewhere, including extra sensitive metadata fields. A UUID containing hex such as `face` is not mistaken for a free-form face field.
+
+Metro uses `getSentryExpoConfig`, not the generic `withSentryConfig` wrapper, because Expo's serializer needs its Debug ID registration plugin. The artifact regression first failed on the old export: the map had an ID but the Hermes bundle did not contain it. The corrected helper produces the same ID in both artifacts. `debugMetaIntegration` reads that build registration; it does not collect performance or profiling data.
+
+Reproduce the local artifact check without a DSN or upload token:
+
+```sh
+crash_artifacts=$(mktemp -d)
+EXPO_NO_TELEMETRY=1 CI=1 npx expo export --platform ios --source-maps --output-dir "$crash_artifacts"
+SENTRY_TEST_ARTIFACT_DIR="$crash_artifacts" npm run test:crash-artifact
+```
+
+The test reads the real exported map ID, checks that the Hermes bytecode contains it, then passes it through the installed SDK's actual DebugMeta integration, `beforeSend`, and the final transport. It checks the outgoing ID, canonical frame filename, and IP-inference setting. Transport is in memory; nothing is uploaded. This artifact test is separate from the ordinary Jest and database integration suites because it requires a freshly exported build.
 
 ## Local checks
 

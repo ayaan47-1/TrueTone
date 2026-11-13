@@ -71,6 +71,7 @@
     "test": "jest",
     "test:watch": "jest --watch",
     "test:coverage": "jest --coverage",
+    "test:crash-artifact": "jest --runInBand --testPathIgnorePatterns=/node_modules/ --runTestsByPath test/integration/crash-debug-id.artifact.test.ts",
     "test:catalog": "node --experimental-strip-types --test test/catalog/*.test.mjs",
     "check:catalog": "tsc --ignoreConfig --noEmit --strict --target es2022 --module nodenext --moduleResolution nodenext --allowImportingTsExtensions --skipLibCheck supabase/functions/_shared/catalog/*.ts supabase/functions/shopify-catalog-webhook/index.ts supabase/functions/catalog-reconcile/index.ts src/features/catalog/fallback.ts",
     "test:eval": "jest -c jest.eval.config.js",
