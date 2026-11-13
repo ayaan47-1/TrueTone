@@ -2,6 +2,7 @@
 // The live repository keeps the photo URI in encrypted local storage only, writes avatar_uri = null,
 // ignores any legacy path still on the server, and Delete My Data clears the server column.
 import AsyncStorage from '@react-native-async-storage/async-storage';
+import { wipeEncryptedLocalData } from '../../../lib/encrypted-storage';
 import {
   clearServerAvatarUri,
   createSupabaseCommunityProfileRepository,
@@ -43,6 +44,15 @@ test('the avatar path is kept only in encrypted on-device storage and reads back
   const stored = Object.values(Object.fromEntries(await AsyncStorage.multiGet(await AsyncStorage.getAllKeys())));
   expect(stored.join('\n')).not.toContain('file://');
   expect((await repo.load('u1'))?.avatarUri).toBe(LOCAL_URI);
+});
+
+test('the stored avatar path is removed by the Delete My Data encrypted-storage wipe', async () => {
+  const { client } = fakeClient({ username: 'ada', avatar_uri: null });
+  const repo = createSupabaseCommunityProfileRepository(client);
+  await repo.save({ userId: 'u1', username: 'ada', avatarUri: LOCAL_URI });
+  await wipeEncryptedLocalData({ includeAuthSession: false });
+  expect(await AsyncStorage.getAllKeys()).toEqual([]);
+  expect((await repo.load('u1'))?.avatarUri).toBeNull();
 });
 
 test('a legacy file path still on the server is ignored on load', async () => {

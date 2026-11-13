@@ -59,7 +59,9 @@ export function createLocalCommunityProfileRepository(): CommunityProfileReposit
 }
 
 function localAvatarKey(userId: string): string {
-  return `truetone.community-avatar.v1.${userId}`;
+  // Under the managed community-profile prefix: encrypted at rest and removed by
+  // wipeEncryptedLocalData (Delete My Data / Delete Account).
+  return `truetone.community-profile.avatar.v1.${userId}`;
 }
 
 async function loadLocalAvatar(userId: string): Promise<string | null> {
