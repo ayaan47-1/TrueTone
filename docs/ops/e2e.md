@@ -47,6 +47,17 @@
     quirk than the name+runtime resolution above (which governs which Simulator Maestro talks
     to, not which one `expo run:ios` installs onto) and hasn't recurred since the runner moved
     to `macos-26` locally-equivalent toolchains, but is left here as a known workaround.
+  - **The resolved UDID is passed to every build/test call, not just used to boot the right
+    simulator** (Toby re-review, HAG-231 round 5). Resolving by name+runtime (above) only chooses
+    which simulator `run-maestro.sh` boots; `expo run:ios --device "<name>"` and
+    `maestro test` were still called with the bare NAME, so Expo's own device resolver
+    (`findDeviceFromSearchValue` in `@expo/cli`, matches name OR udid) or Maestro could still
+    pick a *different*, same-named simulator already booted under another runtime. `run-maestro.sh`
+    now passes the resolved `$SIMULATOR_UDID` through to `build-variant.sh` (which uses it for
+    `expo run:ios --device <udid>` when given one) and to every `maestro test --device <udid>`
+    call, including inside `assert-no-network.sh` (now `assert-no-network.sh <device-udid>
+    <flow-path> [<flow-path> ...]`), so the exact resolved simulator is what actually runs,
+    not just what gets booted.
 - **Android (optional, "if feasible"):** not set up in a bare macOS checkout by default and isn't
   in this one either — no `$ANDROID_HOME`, no `emulator` binary. The flow YAML under `.maestro/`
   is platform-agnostic Maestro syntax and needs no changes to run against Android; what's missing
@@ -87,30 +98,41 @@ plain `expo run:ios` dev-client build (not an EAS cloud build, not TestFlight), 
 `scripts/e2e/run-maestro.sh <variant>` builds (unless `--skip-build`) then runs that variant's
 flow directory; `scripts/e2e/run-all.sh ios` loops all four and prints a pass/fail table.
 
-**Flow 7's network-silence check runs automatically, local and CI, for BOTH offline builds (Toby
-review finding 2, then re-review finding 2, HAG-231).** `run-maestro.sh` runs
-`07_offline_no_network.yaml` through `scripts/e2e/assert-no-network.sh` rather than through plain
-`maestro test`, for every variant directory that has that file — it used to be a separate,
-on-request-only script that neither this runner nor `e2e.yml` ever actually called, so a
-background request could slip through flow 7's UI-only assertion undetected. `camera-demo-fixture`
-previously had no `07_offline_no_network.yaml` of its own (it's a separate build from
-`camera-demo` — see the variant table above), so it silently skipped the check entirely even
-though `assert-no-network.sh`'s own header comment claimed otherwise; it now has one
+**The network-silence check runs automatically, local and CI, for BOTH offline builds (Toby
+review finding 2, re-review finding 2; Dwight re-review round 5, HAG-231).** Whenever a variant
+directory has `07_offline_no_network.yaml`, `run-maestro.sh` runs **every flow in that directory
+— not just flow 7 — inside one continuous `scripts/e2e/assert-no-network.sh` log capture**,
+selected by `scripts/e2e/lib/flow-selection.sh::select_monitored_flows`, rather than through plain
+`maestro test`. It used to run every other flow unmonitored and wrap only flow 7 by itself
+afterward; for `camera-demo-fixture` that left the fixture scan (flow 2 — the one flow that
+actually exercises the capture/read/persist path) completely outside the capture window, since
+flow 7 opens a fresh app instance and never touches that path — a fixture-only outbound request
+could slip through undetected while the job still passed. `camera-demo` had the identical
+structural gap (flows 1/6 ran unmonitored, only flow 7 was wrapped) and is fixed the same way.
+`camera-demo-fixture` previously had no `07_offline_no_network.yaml` of its own at all (it's a
+separate build from `camera-demo` — see the variant table above), so it silently skipped the
+check entirely; it now has one
 (`.maestro/camera-demo-fixture/07_offline_no_network.yaml`, same offline-host assertion as
 `camera-demo`'s).
 
-The check allowlists what's actually expected (the build-forced `offline.invalid` host, loopback,
-and iOS's own unrelated connectivity/push noise) and fails on *any other* dotted hostname seen in
-the app's own log during the flow, not just a fixed list of known Supabase/Shopify hosts.
-**Every entry in that allowlist is matched against the WHOLE extracted hostname, never a
+The check allowlists only what's genuinely expected — loopback (needed for the debug harness)
+and iOS's own unrelated connectivity/push noise — and fails on *any other* dotted hostname seen
+in the app's own log during the capture window, not just a fixed list of known Supabase/Shopify
+hosts. **`offline.invalid` is deliberately NOT in that allowlist** (Dwight re-review round 5,
+HAG-231): it's the build-forced Shopify/Supabase host (`scripts/e2e/build-variant.sh`) used to
+make the app structurally unable to reach a real endpoint, but under the HAG-230 zero-network
+contract `CAMERA_DEMO` makes no network calls at all — a DNS/connection attempt to that sentinel
+is itself the regression this check exists to catch, not a permitted destination.
+**Every entry in the allowlist is matched against the WHOLE extracted hostname, never a
 substring** (Toby re-review finding 3, HAG-231): the filtering previously used unanchored
 `grep -viE`, so a logged host like `offline.invalid.attacker.example` or
 `127.0.0.1.evil.example` was silently dropped from the suspicious list for merely *containing* an
 allowed host, even though it's a different, attacker-controlled destination. The filtering logic
-now lives in `scripts/e2e/lib/network-allowlist.sh`, unit-tested in
-`scripts/e2e/lib/__tests__/network-allowlist.test.sh` (`npm run e2e:test-scripts`) against
-synthetic log text covering both attack shapes, plus the legitimate allowed/OS-noise hosts and a
-genuinely unrelated real host — no simulator or log capture needed to run it.
+lives in `scripts/e2e/lib/network-allowlist.sh`, unit-tested in
+`scripts/e2e/lib/__tests__/network-allowlist.test.sh`; the flow-selection logic lives in
+`scripts/e2e/lib/flow-selection.sh`, unit-tested in
+`scripts/e2e/lib/__tests__/flow-selection.test.sh` against synthetic temp directories (no
+simulator needed). Both run via `npm run e2e:test-scripts`.
 
 ## Flow 2 — camera scan to shade match
 
