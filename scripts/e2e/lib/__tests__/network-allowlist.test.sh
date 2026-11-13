@@ -115,9 +115,46 @@ assert_app_flagged "an app-attributed request to the forced-offline sentinel sti
   "offline.invalid" \
   "2026-11-13 TrueTone[1234] Connected to offline.invalid"
 
+# god's round-6 dispatch (HAG-231): the explicit TrueTone -> apple.com case.
+assert_app_flagged "a TrueTone-attributed request to the bare apple.com domain is NOT exempt as OS noise" \
+  "apple.com" \
+  "2026-11-13 TrueTone[1234] Connected to apple.com"
+
 assert_app_not_flagged "loopback stays allowed even on the app-attributed stream" \
   "localhost" \
   "2026-11-13 TrueTone[1234] Connected to localhost"
+
+# Dwight re-review round 6 (HAG-231): the OS-noise exemption must require POSITIVE evidence a
+# line is attributed to some OTHER, specific, non-TrueTone process -- never merely "not matched
+# by the app-scoped predicate". The predicate text itself can't be exercised against a real
+# `log stream` in this sandbox, so this proves the predicate STRING actually encodes that rule
+# (field/operator support confirmed via `log help predicates` on this machine: processImagePath
+# is a string field, operators include !=, CONTAINS, NOT).
+assert_contains_text() {
+  local label="$1" needle="$2" haystack="$3"
+  if printf '%s' "$haystack" | grep -qF -- "$needle"; then
+    PASS=$((PASS + 1))
+  else
+    FAIL=$((FAIL + 1))
+    echo "FAIL: $label — expected to find [$needle] in [$haystack]" >&2
+  fi
+}
+
+SYSTEM_PREDICATE="$(build_system_noise_predicate "com.ayaan47.truetone")"
+assert_contains_text "the system-noise predicate excludes this app's own process" \
+  'NOT (processImagePath CONTAINS "com.ayaan47.truetone")' \
+  "$SYSTEM_PREDICATE"
+assert_contains_text "the system-noise predicate requires a NON-EMPTY process attribution (rejects unattributed lines)" \
+  'processImagePath != ""' \
+  "$SYSTEM_PREDICATE"
+assert_contains_text "the system-noise predicate is still scoped to the network subsystem" \
+  'subsystem == "com.apple.network"' \
+  "$SYSTEM_PREDICATE"
+
+APP_PREDICATE="$(build_app_attributed_predicate "com.ayaan47.truetone")"
+assert_contains_text "the app-attributed predicate matches this app's own process" \
+  'processImagePath CONTAINS "com.ayaan47.truetone"' \
+  "$APP_PREDICATE"
 
 echo ""
 echo "network-allowlist.test.sh: $PASS passed, $FAIL failed"

@@ -76,3 +76,32 @@ filter_app_attributed_suspicious_hosts() {
     | grep -vxiE "$ALLOWED_EXACT_HOSTS" \
     | sort -u
 }
+
+# build_app_attributed_predicate <bundle-id>
+# The `log stream`/`log show` predicate for the stream that IS scoped to this app's own process.
+# Field confirmed via `log help predicates`: processImagePath (string); CONTAINS is a supported
+# comparison operator.
+build_app_attributed_predicate() {
+  printf 'processImagePath CONTAINS "%s"' "$1"
+}
+
+# build_system_noise_predicate <bundle-id>
+#
+# Dwight re-review (HAG-231, round 6): the generic/system-wide capture used to be
+# `subsystem == "com.apple.network"` alone -- scoped by subsystem only, with NO check on which
+# process a line came from. That let a TrueTone-attributed line reach the OS-noise-exempting
+# filter whenever it happened to land in this stream instead of (or in addition to) the
+# app-attributed one, and let a line with no real process attribution at all pass the exemption
+# too, purely because nothing positively ruled it out. The required rule is the other way round:
+# OS-noise exemption may apply ONLY when a line is positively attributed to some OTHER, specific,
+# non-TrueTone process -- never when it's unattributed, and never when it's this app.
+#
+# This predicate enforces that at the OS/kernel level (not by re-deriving attribution from
+# rendered log text afterward, which is what caused the round-5 bug): `processImagePath != ""`
+# requires a real, non-empty process attribution (rejects unattributed lines), and
+# `NOT (processImagePath CONTAINS bundle-id)` excludes this app specifically. Fields/operators
+# confirmed via `log help predicates` on this machine: processImagePath (string), operators
+# include !=, CONTAINS, NOT.
+build_system_noise_predicate() {
+  printf 'subsystem == "com.apple.network" AND processImagePath != "" AND NOT (processImagePath CONTAINS "%s")' "$1"
+}
