@@ -35,11 +35,8 @@ function ShopifyProductScreenOnline({ handle, onBack, onAdded, onFeedback }: Pro
     liveProductHandles,
   } = useShopifyStore();
   const product = useMemo(() => {
-    const match=products.find(item=>item.handle===handle);
-    if(!match || catalogueIsDemo) return match;
-    const allowed=new Set(catalogue.products.map(item=>item.id));
-    return {...match,variants:match.variants.filter(item=>allowed.has(item.id))};
-  }, [handle, products, catalogue.products]);
+    return products.find(item=>item.handle===handle);
+  }, [handle, products]);
   const [selectedVariantId, setSelectedVariantId] = useState<string | null>(null);
   const variant = product
     ? product.variants.find((item) => item.id === selectedVariantId && item.availableForSale)
@@ -70,8 +67,8 @@ function ShopifyProductScreenOnline({ handle, onBack, onAdded, onFeedback }: Pro
   }, [privacyAccepted, onFeedback, variantId]);
 
   useEffect(() => {
-    if (privacyAccepted && !product) void shopifyStore.loadProduct(handle);
-  }, [handle, privacyAccepted, product]);
+    if (privacyAccepted) void shopifyStore.loadProduct(handle,true);
+  }, [handle, privacyAccepted]);
 
   if (!privacyAccepted) {
     return (
@@ -137,11 +134,13 @@ function ShopifyProductScreenOnline({ handle, onBack, onAdded, onFeedback }: Pro
             ))}
           </View>
         ) : null}
+        {product.optionsPage?.nextCursor ? <PrimaryButton label="More shade options" variant="glass" disabled={loadingProducts}
+          onPress={()=>void shopifyStore.loadMoreOptions(handle)} /> : null}
         {error ? <Body className="mt-4">{error}</Body> : null}
         <PrimaryButton
           className="mt-6"
           label={variant ? `Add to Shopify bag · ${formatMoney(variant.price)}` : 'Unavailable'}
-          disabled={!variant || loadingCart || !productLive}
+          disabled={!variant || loadingCart || !productLive || (!catalogueIsDemo && catalogue.status!=='ready' && catalogue.status!=='empty')}
           onPress={() => void add()}
         />
         <PrimaryButton className="mt-3" label="Back to shop" variant="glass" onPress={onBack} />

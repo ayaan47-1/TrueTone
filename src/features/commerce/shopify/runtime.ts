@@ -1,8 +1,8 @@
 import { createCartAdapter, type CartAdapter } from './cart-adapter';
 import type { CatalogCache } from './catalog-cache';
 import type { ShopifyCatalog } from './catalog';
-import { createApprovedShopifyCatalog } from './approved-catalog';
-import { getCatalogueState, refreshCatalogue } from '../../match/product-catalog';
+import { createApprovedShopifyCatalog, approvedShopifyVariant } from './approved-catalog';
+import { getCatalogueState, refreshCatalogue, readApprovedVariant, readApprovedProduct } from '../../match/product-catalog';
 import { createShopifyClient } from './client';
 import { readShopifyConfig, type ShopifyConfig } from './env';
 import { SUPABASE_OFFLINE } from '../../../lib/supabase';
@@ -30,20 +30,23 @@ export function getShopifyServices(): ShopifyServices {
   const client = createShopifyClient(SUPABASE_OFFLINE ? OFFLINE_CONFIG : readShopifyConfig());
   const approved=async()=>{
     if(SUPABASE_OFFLINE) throw new Error('The shop is off in this test build');
-    await refreshCatalogue(true);
+    await refreshCatalogue();
     const state=getCatalogueState();
     if(state.status!=='ready' && state.status!=='empty') throw new Error('catalogue unavailable');
     return state.products;
   };
   const cart=createCartAdapter(client);
-  const catalog = createApprovedShopifyCatalog(client,approved);
+  const catalog = createApprovedShopifyCatalog(client,approved,readApprovedProduct);
   cached = {
-    catalog,
+    catalog:{...catalog,async getByHandle(handle,after){
+      if(SUPABASE_OFFLINE || getCatalogueState().status==='demo') throw new Error('The shop is off in this test build');
+      return catalog.getByHandle(handle,after);
+    }},
     // A prior Storefront cache cannot establish current label approval or stock.
     catalogCache: OFFLINE_CATALOG_CACHE,
     cart: {...cart,async add(id,quantity){
-      const products=await catalog.list();
-      if(!products.some(product=>product.variants.some(variant=>variant.id===id))) throw new Error('shade unavailable');
+      if(SUPABASE_OFFLINE) throw new Error('The shop is off in this test build');
+      if(!await approvedShopifyVariant(client,readApprovedVariant,id)) throw new Error('shade unavailable');
       return cart.add(id,quantity);
     }},
   };

@@ -1,7 +1,7 @@
 import { useState } from 'react';
 import { View } from 'react-native';
 import { useRouter } from 'expo-router';
-import { Screen, Disclaimer, tabBarClearance, Rise } from '../../src/components/ui';
+import { Screen, Disclaimer, tabBarClearance, Rise, Caption } from '../../src/components/ui';
 import { Categories, HomeSearch, QuickActions, SectionHead } from '../../src/features/foryou/HomeV3Parts';
 import { HomeHeader } from '../../src/features/foryou/HomeHeader';
 import { HeroCarousel } from '../../src/features/foryou/HeroCarousel';
@@ -91,6 +91,7 @@ export default function TodayScreen() {
             <RecentMatchesCard state={recentMatches} />
             <View className="mt-[30px]">
               <CatalogueNotice state={catalogue} />
+              {!DEMO_MODE && (catalogue.hasMore || catalogue.hasPrevious) ? <Caption>Showing a page of reviewed shades. Open Shop to browse more.</Caption> : null}
               <ProductRail
                 title={forYouProfile ? 'For You' : 'Featured'}
                 subtitle={

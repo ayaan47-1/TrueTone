@@ -7,7 +7,7 @@ import { formatMoney } from '../money';
 import { acceptShopPrivacy, __resetShopPrivacyForTests, hasAcceptedShopPrivacy } from '../shop-privacy';
 import { shopifyStore, useShopifyStore } from '../shopify-store';
 import type { ShopifyProduct } from '../types';
-import { catalogueIsDemo, refreshCatalogue, useProductCatalogue } from '../../../match/product-catalog';
+import { catalogueIsDemo, refreshCatalogue, useProductCatalogue, loadMoreCatalogue, loadPreviousCatalogue } from '../../../match/product-catalog';
 import { CatalogueNotice } from '../../../catalog/CatalogueNotice';
 
 interface Props {
@@ -43,11 +43,11 @@ function ShopifyShopScreenOnline({ onOpen, onBag, onDecline }: Props) {
   }, [accepted]);
 
   useEffect(() => {
-    if (accepted && approvedKey !== null && !catalogueIsDemo && requestedKey.current !== approvedKey) {
+    if (accepted && approvedKey !== null && !catalogueIsDemo && !loadingProducts && requestedKey.current !== approvedKey) {
       requestedKey.current = approvedKey;
       void shopifyStore.loadProducts(true);
     }
-  }, [accepted, approvedKey]);
+  }, [accepted, approvedKey, loadingProducts]);
 
   if (!accepted) {
     return (
@@ -97,11 +97,13 @@ function ShopifyShopScreenOnline({ onOpen, onBag, onDecline }: Props) {
           void refreshCatalogue(true);
           void shopifyStore.loadProducts(true);
         }} />
+      {catalogue.hasPrevious ? <PrimaryButton label="Previous shades" variant="glass" onPress={()=>void loadPreviousCatalogue()} /> : null}
       <View className="gap-4">
         {visibleProducts.map((product) => (
           <ProductCard key={product.id} product={product} onOpen={onOpen} />
         ))}
       </View>
+      {catalogue.hasMore ? <PrimaryButton className="mt-4" label="Next shades" variant="glass" onPress={()=>void loadMoreCatalogue()} /> : null}
     </ScrollView>
   );
 }

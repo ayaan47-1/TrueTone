@@ -29,22 +29,77 @@ test('draft confidence, unknown undertone, partial Lab and non-USD prices fail c
   }
 });
 
-test('repository reads every sorted page and accepts empty results without a synthetic substitute', async () => {
+const revision=()=>({revision:'1',expires_at:null,server_now:'2026-11-13T00:00:00Z'});
+const source=(list)=>({revision:async()=>({revision:'1',ttlMs:60_000}),page:async()=>({products:await list(),nextCursor:null})});
+
+test('repository reads only one visible keyset page plus a sentinel', async () => {
   const calls = [];
-  const repo = createCatalogueRepository(async (from, to) => { calls.push([from,to]); return from === 0 ? [row(1),row(2)] : []; }, 2);
-  assert.equal((await repo.list()).length, 2);
-  assert.deepEqual(calls, [[0,1],[2,3]]);
-  assert.deepEqual(await createCatalogueRepository(async () => []).list(), []);
+  const repo = createCatalogueRepository({readRevision:async()=>revision(),readPage:async (after,limit) => { calls.push([after,limit]); return after===null?[row(1),row(2),row(3)]:[row(3)]; }},2);
+  const first=await repo.page(null);
+  assert.equal(first.products.length,2);
+  assert.equal(first.nextCursor,row(2).variant_gid);
+  assert.deepEqual(calls,[[null,3]]);
+  const second=await repo.page(first.nextCursor);
+  assert.deepEqual(second.products.map(p=>p.id),[row(3).variant_gid]);
+  assert.equal(second.nextCursor,null);
+});
+
+test('unchanged revisions avoid re-downloading pages; changed revision and expiry invalidate',async()=>{
+  let version='1',reads=0,time=0;
+  const repo={revision:async()=>({revision:version,ttlMs:500}),page:async()=>{reads++;return {products:[mapCatalogueRow(row())],nextCursor:null};}};
+  const store=createCatalogueState(repo,{now:()=>time});
+  await store.load();await store.load(true);
+  assert.equal(reads,1);
+  assert.equal(store.getSnapshot().products.length,1);
+  version='2';await store.load(true);assert.equal(reads,2);
+  time=501;await store.load(true);assert.equal(reads,3);
+});
+
+test('synchronous revision failure remains retryable instead of retaining a resolved pending request',async()=>{
+  let fail=true;
+  const store=createCatalogueState({revision:()=>{if(fail)throw Error('offline');return Promise.resolve({revision:'1',ttlMs:60_000});},
+    page:async()=>({products:[mapCatalogueRow(row())],nextCursor:null})});
+  await store.load();assert.equal(store.getSnapshot().status,'offline');
+  fail=false;await store.load(true);assert.equal(store.getSnapshot().status,'ready');
+});
+
+test('a slow page cannot extend the server freshness deadline by its download time',async()=>{
+  let time=0;
+  const store=createCatalogueState({revision:async()=>({revision:'1',ttlMs:100}),page:async()=>{
+    time+=150;return {products:[mapCatalogueRow(row())],nextCursor:null};
+  }},{now:()=>time});
+  await store.load();
+  assert.equal(store.getSnapshot().status,'offline');
+  assert.deepEqual(store.getSnapshot().products,[]);
+});
+
+test('next and previous loads keep only the visible page and reset on a changed revision',async()=>{
+  let version='1';const calls=[];
+  const store=createCatalogueState({revision:async()=>({revision:version,ttlMs:60_000}),page:async after=>{
+    calls.push(after);return {products:[mapCatalogueRow(row(after?2:1))],nextCursor:after?null:row(1).variant_gid};
+  }});
+  await store.load();await store.loadMore();
+  assert.deepEqual(store.getSnapshot().products.map(p=>p.id),[row(2).variant_gid]);
+  await store.loadPrevious();
+  assert.deepEqual(store.getSnapshot().products.map(p=>p.id),[row(1).variant_gid]);
+  version='2';await store.load(true);
+  assert.deepEqual(store.getSnapshot().products.map(p=>p.id),[row(1).variant_gid]);
+  assert.deepEqual(calls,[null,row(1).variant_gid,null,null]);
 });
 
 test('state clears stale recommendations on errors; retries recover; concurrent loads coalesce', async () => {
   let calls = 0;
   let fail = false;
-  const store = createCatalogueState({ list: async () => { calls++; if (fail) throw new Error('offline'); return [mapCatalogueRow(row())]; } });
+  const repo=source(async()=>{calls++;return [mapCatalogueRow(row())];});
+  repo.revision=async()=>{if(fail)throw Error('offline');return {revision:'1',ttlMs:60_000};};
+  const store = createCatalogueState(repo);
   await Promise.all([store.load(),store.load()]);
   assert.equal(calls, 1);
   assert.equal(store.getSnapshot().status, 'ready');
   fail = true;
+  // Revision transport failures must also clear stale recommendation permission.
+  const failed=createCatalogueState({revision:async()=>{throw Error('offline');},page:async()=>assert.fail('must not read')});
+  await failed.load();assert.equal(failed.getSnapshot().status,'offline');
   await store.load(true);
   assert.equal(store.getSnapshot().status, 'offline');
   assert.deepEqual(store.getSnapshot().products, []);
@@ -54,10 +109,10 @@ test('state clears stale recommendations on errors; retries recover; concurrent 
 });
 
 test('empty and offline modes never invent products and offline mode performs no reads', async () => {
-  const empty = createCatalogueState({ list: async () => [] });
+  const empty = createCatalogueState(source(async () => []));
   await empty.load();
   assert.equal(empty.getSnapshot().status, 'empty');
-  const offline = createCatalogueState({ list: async () => { throw new Error('must not run'); } }, { offline: true });
+  const offline = createCatalogueState(source(async () => { throw new Error('must not run'); }), { offline: true });
   await offline.load(true);
   assert.equal(offline.getSnapshot().status, 'offline');
   assert.deepEqual(offline.getSnapshot().products, []);

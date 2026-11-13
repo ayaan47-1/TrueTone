@@ -32,6 +32,7 @@ export interface ShopifyProduct {
   readonly vendor: string;
   readonly featuredImage: ShopifyImage | null;
   readonly variants: readonly ShopifyVariant[];
+  readonly optionsPage?: {readonly nextCursor:string|null};
 }
 
 export interface ShopifyCartLine {

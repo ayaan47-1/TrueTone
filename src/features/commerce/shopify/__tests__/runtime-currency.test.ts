@@ -4,7 +4,7 @@ jest.mock('../client',()=>({createShopifyClient:()=>({request:mockRequest})}));
 jest.mock('../env',()=>({readShopifyConfig:()=>({})}));
 jest.mock('../cart-adapter',()=>({createCartAdapter:()=>({add:mockAdd})}));
 jest.mock('../../../../lib/supabase',()=>({SUPABASE_OFFLINE:false}));
-jest.mock('../../../match/product-catalog',()=>({refreshCatalogue:async()=>{},getCatalogueState:()=>({status:'ready',products:[{id:'gid://shopify/ProductVariant/2'}]})}));
+jest.mock('../../../match/product-catalog',()=>({readApprovedVariant:async(id:string)=>({id}),readApprovedProduct:async()=>({products:[],nextCursor:null}),refreshCatalogue:async()=>{},getCatalogueState:()=>({status:'ready',products:[{id:'gid://shopify/ProductVariant/2'}]})}));
 import { getShopifyServices, __setShopifyServicesForTests } from '../runtime';
 import { PRODUCT_FIXTURE_NODE } from '../fixtures/products';
 beforeEach(()=>{jest.clearAllMocks();__setShopifyServicesForTests(null);});
