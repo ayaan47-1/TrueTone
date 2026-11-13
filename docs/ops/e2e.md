@@ -104,15 +104,26 @@ no existing way around that, so this adds one, scoped exactly to HAG-231's decis
   Needs its own build (`camera-demo-fixture`), separate from plain `camera-demo`: flow 6 needs the
   real `<Capture>` permission-denied UI, which `E2E_FIXTURE_SCAN` would skip entirely if both were
   in the same binary.
-  - **Fixture decode provenance (Dwight review, HAG-231).** The embedded base64 must decode with
-    the exact codec+options the production read path uses (`jpeg.decode(bytes, { useTArray: true,
-    formatAsRGBA: true })`, `src/features/read/decode-rgb.ts`) at exactly 120×120 — a broken image
-    makes `run-read.ts`'s outer catch silently fall back to `stubRead()` in `__DEV__`, so the flow
-    could reach "We found your match" without exercising the real read at all.
-    `src/features/capture/__tests__/e2e-fixture-image.test.ts` decodes the committed string and
-    pins its SHA-256, so a hand-edit or a bad regeneration fails that test immediately. Regenerate
-    only with the exact command in `e2e-fixture-image.ts`'s header comment, never by hand-editing
-    the base64.
+  - **Fixture decode provenance (Dwight review, HAG-231, fixes (a)/(b)/(c)).** The embedded base64
+    must decode with the exact codec+options the production read path uses (`jpeg.decode(bytes, {
+    useTArray: true, formatAsRGBA: true })`, `src/features/read/decode-rgb.ts`) at exactly
+    120×120, and must byte-for-byte match a FRESH call to the single-source generator
+    (`src/features/capture/e2e-fixture-generator.ts`'s `buildE2EFixtureJpeg()`) — not a frozen
+    pinned hash someone could update to match a bad regeneration.
+    `src/features/capture/__tests__/e2e-fixture-image.test.ts` asserts both. Regenerate with
+    `npm run e2e:regen-fixture` (the committed script at
+    `eval/fairness/__tests__/e2e-fixture-generator.regen.test.ts`, gated behind
+    `REGEN_E2E_FIXTURE=1` so a plain `npm run test:eval` never touches the committed file) —
+    never by hand-editing the base64.
+    `src/features/capture/__tests__/e2e-fixture-real-pipeline.test.ts` goes one step further:
+    it runs the fixture through every REAL pure step `cv-read-engine.ts`'s device wrapper runs
+    (decode → orientation → downscale → regions → `scoreFromRgb` → `deriveShade`) and pins the
+    exact resulting shade name (`"Light Warm"`) — which `.maestro/camera-demo-fixture/
+    02_camera_scan_to_shade_match_fixture.yaml` also asserts on-device, as a marker only a
+    genuine run of the real pipeline on the real fixture bytes can produce (unlike the static
+    page headers). `run-read.ts`'s `__DEV__` stub fallback is also now disabled whenever
+    `E2E_FIXTURE_SCAN` is on (`src/lib/e2e-fixture.ts`), so any decode/engine failure fails the
+    flow loudly instead of silently substituting a stub.
   - **Persistence proof (Toby review finding 1, HAG-231).** The result-screen assertions
     (`"We found your match"` / `"Your shade"`) only prove the shade was *published*, not *saved* —
     `run-read.ts` calls `personalization.setScan(shade)` before `persist()` is awaited, so the
