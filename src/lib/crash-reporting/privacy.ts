@@ -33,10 +33,12 @@ function hasSensitiveData(input: unknown): boolean {
     seen.add(value);
     return Object.entries(value).some(([key,entry]) => {
       if (entry === undefined || entry === null) return false;
-      // The only vocabulary exception is the approved technical build-ID structure.
+      // Exempt only validated technical fields at their approved paths.
       const imagesKey = path.length===1 && path[0]==='debug_meta' && key==='images';
       const buildId = path.length===3 && path[0]==='debug_meta' && path[1]==='images' && key==='debug_id' && debugIdSchema.safeParse(entry).success;
-      return !buildId && ((!imagesKey && blocked(key,depth+1)) || blocked(entry,depth+1,[...path,key]));
+      const eventId = path.length===0 && key==='event_id' && typeof entry==='string' && /^[a-f0-9]{32}$/i.test(entry);
+      const timestamp = path.length===0 && key==='timestamp' && typeof entry==='number' && Number.isFinite(entry);
+      return !buildId && !eventId && !timestamp && ((!imagesKey && blocked(key,depth+1)) || blocked(entry,depth+1,[...path,key]));
     });
   }
   try { return blocked(input,0); }

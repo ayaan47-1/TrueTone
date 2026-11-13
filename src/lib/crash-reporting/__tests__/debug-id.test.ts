@@ -39,3 +39,21 @@ test('a valid UUID with vocabulary-like hex is still a technical ID, not free-fo
   const buildId='face0000-0000-4000-8000-000000000000';
   expect(scrubCrashEvent(withImage(buildId),{},'/shop')?.debug_meta).toEqual({images:[{type:'sourcemap',debug_id:buildId,code_file:'app:///main.jsbundle'}]});
 });
+
+test('a validated event ID containing face survives both filters', async () => {
+  const eventId='face0000000000000000000000000000';
+  const scrubbed=scrubCrashEvent({...base,event_id:eventId,timestamp:1794592800},{},'/shop');
+  expect(scrubbed).toMatchObject({event_id:eventId,timestamp:1794592800});
+  const sent:Envelope[]=[];
+  const transport=guardCrashTransport({send:async envelope=>{sent.push(envelope);return {};},flush:async()=>true},()=>'/shop');
+  await transport.send([{event_id:eventId,sent_at:'2026-11-13T18:00:00Z'},[[{type:'event'},{...base,event_id:eventId,timestamp:1794592800}]]]);
+  expect(sent).toHaveLength(1);
+  expect(sent[0][0].event_id).toBe(eventId);
+  expect(sent[0][1][0][1]).toMatchObject({event_id:eventId,timestamp:1794592800});
+});
+
+test('technical-field exceptions do not allow malformed or nested sensitive values', () => {
+  expect(scrubCrashEvent({...base,event_id:'face'},{},'/shop')).toBeNull();
+  expect(scrubCrashEvent({...base,extra:{event_id:'face0000000000000000000000000000'}},{},'/shop')).toBeNull();
+  expect(scrubCrashEvent({...base,timestamp:Infinity},{},'/shop')?.timestamp).toBeUndefined();
+});
