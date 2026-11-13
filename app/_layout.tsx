@@ -24,6 +24,9 @@ import { migrateLegacyPlaintext } from '../src/lib/encrypted-storage';
 import { MistBackground, GlassCard, Heading, Body, PrimaryButton } from '../src/components/ui';
 import { palette } from '../src/theme/tokens';
 import { useFeedbackCleanupLifecycle } from '../src/features/shade-feedback/cleanup-lifecycle';
+import { initializeCrashReporting, setCrashReportingRoute } from '../src/lib/crash-reporting/runtime';
+
+initializeCrashReporting();
 
 // The demo build stubs an already-onboarded identity (profile-context.tsx) and skips the
 // gate chain entirely, so a live camera at this path would have no age-gate/consent in
@@ -134,6 +137,8 @@ function Guard() {
 }
 
 export default function RootLayout() {
+  // Set synchronously before children render; no effect-delay window on entry to /scan.
+  setCrashReportingRoute(usePathname());
   useFeedbackCleanupLifecycle();
   const [fontsLoaded] = useFonts({
     PlusJakartaSans_500Medium,
