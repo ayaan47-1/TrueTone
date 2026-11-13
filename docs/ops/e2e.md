@@ -146,8 +146,22 @@ the OS already scoped to this app's own process can't be "someone else's" traffi
 definition), and only the generic system-wide stream keeps the OS-noise-exempting
 `filter_suspicious_hosts`.
 
+**The generic/system-wide stream's own predicate is further scoped so OS-noise exemption needs
+POSITIVE evidence of a non-TrueTone process (Dwight re-review round 6, HAG-231).** The round-5
+stream split still let the generic stream's `log stream --predicate 'subsystem ==
+"com.apple.network"'` capture ANY line on that subsystem with no process check at all, so OS-noise
+exemption applied regardless of attribution — not just to genuinely-other-process traffic. The
+predicate is now built by `scripts/e2e/lib/network-allowlist.sh::build_system_noise_predicate`:
+`subsystem == "com.apple.network" AND processImagePath != "" AND NOT (processImagePath CONTAINS
+<bundle-id>)` — a real, non-empty process attribution that explicitly isn't this app (fields and
+operators confirmed via `log help predicates`: `processImagePath` is a string field; `!=`,
+`CONTAINS`, `NOT` are supported). An unattributed line or one attributed to this app can never
+reach the exemption-eligible stream at all now.
+
 Both filtering functions live in `scripts/e2e/lib/network-allowlist.sh`, unit-tested in
-`scripts/e2e/lib/__tests__/network-allowlist.test.sh`; the flow-selection logic lives in
+`scripts/e2e/lib/__tests__/network-allowlist.test.sh` (including an explicit TrueTone→`apple.com`
+case and predicate-string assertions for `build_system_noise_predicate`/
+`build_app_attributed_predicate`); the flow-selection logic lives in
 `scripts/e2e/lib/flow-selection.sh`, unit-tested in
 `scripts/e2e/lib/__tests__/flow-selection.test.sh` against synthetic temp directories (no
 simulator needed); the device-UDID pinning through `build-variant.sh`/`maestro test` (Toby
@@ -155,6 +169,27 @@ re-review, HAG-231 round 5 — see "Prerequisites" above) is proven by
 `scripts/e2e/__tests__/device-pinning.test.sh`, which stubs `npx`/`maestro`/`xcrun`/`log` with
 fake executables that record their argv instead of touching a real Simulator. All of these run
 via `npm run e2e:test-scripts`.
+
+**The check fails closed on three distinct capture/build failure modes, not just a suspicious
+hostname (Toby re-review round 6, 2 HIGHs).** Previously: (1) `run-maestro.sh` never checked
+`build-variant.sh`'s exit status, so a failed Expo build could fall straight through to the
+Maestro run and report PASS against whatever app was already installed; (2) `assert-no-network.sh`
+never checked whether its `log stream` processes actually started or stayed alive, so a capture
+that failed to start (permissions/log-service issue) or died mid-run produced an empty file —
+indistinguishable from a genuinely clean capture, and the check passed either way. Both scripts
+now use `set -euo pipefail` plus explicit checks (wrapped in `if`/`||` where a status needs to be
+inspected rather than let `-e` abort on, which bash's `-e` rules exempt): `run-maestro.sh` stops
+immediately if `build-variant.sh` fails; `assert-no-network.sh` checks both `log stream` PIDs are
+alive right after starting (fails if either already exited) and again right before the
+deliberate kill at the end (fails if either died mid-run), and separately requires the
+app-attributed capture file to be non-empty (`[ -s "$APP_LOG_FILE" ]` — a running app always
+emits *some* log activity, so a totally empty app-attributed capture means the capture mechanism
+itself is broken, not that the app was silent; the generic system-wide stream is **not** held to
+this rule, since a short run with no activity from any other process is a normal, expected
+result). `scripts/e2e/__tests__/fail-closed.test.sh` proves all three failure modes (log stream
+dead on arrival, log stream dies mid-run, log stream alive but silent) plus the build-failure
+case, each via stub executables, alongside a no-regression case proving the healthy path still
+passes.
 
 ## Flow 2 — camera scan to shade match
 
