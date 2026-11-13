@@ -77,10 +77,24 @@ test('installed callback fails closed until a known route renders, and immediate
   const event = { type: undefined, exception: { values: [{ type: 'Error', value: 'private', stacktrace: { frames: [{ filename: 'app:///main.js', lineno: 17 }] } }] } };
   expect(await options.beforeSend(event, {})).toBeNull();
   setCrashReportingRoute('/shop');
-  expect(await options.beforeSend(event, {})).toEqual({ type: undefined, platform: 'javascript', level: 'error', exception: { values: [{ type: 'Error', value: 'Crash details redacted', stacktrace: { frames: [{ filename:'main.js',lineno:17 }] } }] } });
+  expect(await options.beforeSend(event, {})).toEqual({ type: undefined, platform: 'javascript', level: 'error', sdk:{name:'sentry.javascript.react-native',version:'8.35.0',settings:{infer_ip:'never'}}, exception: { values: [{ type: 'Error', value: 'Crash details redacted', stacktrace: { frames: [{ filename:'main.js',lineno:17 }] } }] } });
   setCrashReportingRoute('/scan');
   expect(await options.beforeSend(event, {})).toBeNull();
   setCrashReportingRoute('/shop');
   expect(await options.beforeSend(event, {})).toBeNull();
   expect(options.beforeBreadcrumb({message:'private'},{})).toBeNull();
+});
+
+test('the group-stripped developer path keeps reporting suppressed after navigation away', () => {
+  process.env.EXPO_PUBLIC_SENTRY_DSN = dsn;
+  jest.doMock('../../supabase', () => ({ DEMO_MODE: false, SUPABASE_OFFLINE: false }));
+  const { initializeCrashReporting, setCrashReportingRoute }: typeof import('../runtime') = require('../runtime');
+  initializeCrashReporting();
+  const options = mockInit.mock.calls[0][0];
+  if (!options.beforeSend) throw new Error('Missing privacy hook');
+  const event = { type:undefined, exception:{values:[{type:'Error',stacktrace:{frames:[{filename:'app:///main.js',lineno:3}]}}]} };
+  setCrashReportingRoute('/bbox-overlay');
+  expect(options.beforeSend(event,{})).toBeNull();
+  setCrashReportingRoute('/shop');
+  expect(options.beforeSend(event,{})).toBeNull();
 });

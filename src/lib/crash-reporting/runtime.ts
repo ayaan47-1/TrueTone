@@ -9,7 +9,7 @@ let visitedSensitiveFlow = false;
 
 export function setCrashReportingRoute(route: string): void {
   // Bundled async stacks cannot always identify their originating feature after navigation.
-  if (/^\/(?:scan(?:[-/]|$)|routine(?:\/|$)|shade-feedback(?:\/|$)|setup(?:\/|$)|consent(?:\/|$)|data(?:\/|$)|\(dev\))/.test(route)) visitedSensitiveFlow = true;
+  if (/^\/(?:scan(?:[-/]|$)|routine(?:\/|$)|shade-feedback(?:\/|$)|setup(?:\/|$)|consent(?:\/|$)|data(?:\/|$)|bbox-overlay(?:\/|$)|\(dev\))/.test(route)) visitedSensitiveFlow = true;
   currentRoute = visitedSensitiveFlow ? '' : route;
 }
 
