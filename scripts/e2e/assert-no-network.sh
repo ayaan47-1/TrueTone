@@ -24,8 +24,16 @@
 # <device-udid> is passed straight through to `maestro test --device` (Toby re-review finding,
 # HAG-231 round 5) so this check runs against the exact simulator run-maestro.sh resolved and
 # booted, not whichever same-named simulator Maestro would otherwise pick.
-# Exit 0 = no suspicious outbound connection seen. Exit 1 = one was seen (prints it).
-set -uo pipefail
+# Exit 0 = no suspicious outbound connection seen AND both log captures ran for the whole flow.
+# Exit 1 = a suspicious connection was seen, a capture never started, or a capture died mid-run.
+#
+# Fail-closed sweep (HAG-231 round 6, Toby re-review HIGH 2): a `log stream` that fails to start
+# (log service/permissions issue) or dies partway through used to leave its file empty with no
+# exit-status check at all -- an empty capture and a genuinely clean capture were indistinguishable,
+# so a broken capture silently PASSED. `-e` is on script-wide; every command whose status this
+# script wants to inspect itself (rather than let `-e` abort on) is wrapped in an `if`/`||` form,
+# which bash's `-e` rules exempt from the abort-on-failure behavior.
+set -euo pipefail
 
 ROOT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/../.." && pwd)"
 # shellcheck source=lib/network-allowlist.sh
@@ -47,6 +55,11 @@ BUNDLE_ID="com.ayaan47.truetone"
 # silently hiding an app-originated request to one of those domains. Keeping the two streams in
 # SEPARATE files -- one `log stream` process per predicate -- preserves attribution at the
 # source instead of trying to re-derive it from log line text afterward.
+#
+# Dwight re-review round 6: the system-noise predicate is further scoped (via
+# build_system_noise_predicate, scripts/e2e/lib/network-allowlist.sh) so the OS-noise exemption
+# can only ever apply to a line positively attributed to SOME OTHER, specific, non-TrueTone
+# process -- never to an unattributed line, and never to this app.
 APP_LOG_FILE="$(mktemp)"
 SYSTEM_LOG_FILE="$(mktemp)"
 trap 'rm -f "$APP_LOG_FILE" "$SYSTEM_LOG_FILE"' EXIT
@@ -54,18 +67,63 @@ trap 'rm -f "$APP_LOG_FILE" "$SYSTEM_LOG_FILE"' EXIT
 export PATH="$PATH:$HOME/.maestro/bin"
 
 echo "== Starting log capture for $BUNDLE_ID (app-attributed + system network noise) =="
-log stream --predicate "processImagePath CONTAINS \"$BUNDLE_ID\"" --style compact > "$APP_LOG_FILE" &
+log stream --predicate "$(build_app_attributed_predicate "$BUNDLE_ID")" --style compact > "$APP_LOG_FILE" &
 APP_LOG_PID=$!
-log stream --predicate "subsystem == \"com.apple.network\"" --style compact > "$SYSTEM_LOG_FILE" &
+log stream --predicate "$(build_system_noise_predicate "$BUNDLE_ID")" --style compact > "$SYSTEM_LOG_FILE" &
 SYSTEM_LOG_PID=$!
 
+# Toby re-review HIGH 2: confirm both captures actually started (are still running, not already
+# dead) BEFORE trusting them to observe the flow run. A `log stream` that fails immediately
+# (e.g. permission denied) must not be allowed to silently produce an empty, falsely-clean file.
+sleep 1
+if ! kill -0 "$APP_LOG_PID" 2>/dev/null; then
+  echo "FAIL: the app-attributed log capture exited immediately -- log stream failed to start" >&2
+  exit 1
+fi
+if ! kill -0 "$SYSTEM_LOG_PID" 2>/dev/null; then
+  echo "FAIL: the system-wide log capture exited immediately -- log stream failed to start" >&2
+  exit 1
+fi
+
 echo "== Running flow(s) on device $DEVICE_UDID: ${FLOW_PATHS[*]} =="
-maestro test --device "$DEVICE_UDID" "${FLOW_PATHS[@]}"
-FLOW_STATUS=$?
+if maestro test --device "$DEVICE_UDID" "${FLOW_PATHS[@]}"; then
+  FLOW_STATUS=0
+else
+  FLOW_STATUS=$?
+fi
+
+# Toby re-review HIGH 2 (continued): check BEFORE killing whether either capture already died on
+# its own sometime during the flow run -- that's a silent mid-run capture failure, distinct from
+# (and not detectable via) the exit status AFTER we deliberately kill it below.
+APP_LOG_DIED=0
+kill -0 "$APP_LOG_PID" 2>/dev/null || APP_LOG_DIED=1
+SYSTEM_LOG_DIED=0
+kill -0 "$SYSTEM_LOG_PID" 2>/dev/null || SYSTEM_LOG_DIED=1
 
 sleep 2
 kill "$APP_LOG_PID" "$SYSTEM_LOG_PID" 2>/dev/null || true
 wait "$APP_LOG_PID" "$SYSTEM_LOG_PID" 2>/dev/null || true
+
+if [ "$APP_LOG_DIED" -eq 1 ] || [ "$SYSTEM_LOG_DIED" -eq 1 ]; then
+  echo "FAIL: a log capture process exited before the flow(s) finished -- an incomplete capture cannot be trusted as a pass" >&2
+  exit 1
+fi
+
+# Fail-closed sweep (HAG-231 round 6): a THIRD distinct failure mode from "the process never
+# started" and "the process died mid-run" -- a `log stream` that stays alive the whole time but
+# writes literally nothing (e.g. a logging-privacy/config issue that silently yields zero
+# events) is indistinguishable from a genuinely clean run once filtered. The app-attributed
+# predicate has no subsystem restriction at all, so it captures every log line this app's own
+# process emits during a real run (launch, lifecycle, framework diagnostics, ...) -- a totally
+# empty app-attributed capture means the capture mechanism itself didn't work, not that the app
+# was silent. The generic system-wide stream is NOT held to this rule: it's narrowly scoped
+# (network-subsystem activity from some OTHER specific process, HAG-231 round 6 above), and a
+# short flow run with no such activity from any other process is a normal, expected result, not
+# a broken capture.
+if [ ! -s "$APP_LOG_FILE" ]; then
+  echo "FAIL: the app-attributed log capture produced no output at all during the flow(s) -- a running app always emits SOME log activity, so an empty capture here means the capture mechanism itself is broken, not that nothing happened" >&2
+  exit 1
+fi
 
 echo "== Scanning captured log for any outbound destination outside the loopback allowlist =="
 # Toby review finding 2 (HAG-231) + re-review finding 3: a 3-item blacklist
@@ -80,9 +138,15 @@ echo "== Scanning captured log for any outbound destination outside the loopback
 # the OS-noise exemption, since it alone is genuinely dominated by unrelated system traffic. Both
 # live in scripts/e2e/lib/network-allowlist.sh so they can be unit-tested directly -- see
 # scripts/e2e/lib/__tests__/network-allowlist.test.sh.
-APP_SUSPICIOUS="$(filter_app_attributed_suspicious_hosts "$(cat "$APP_LOG_FILE" 2>/dev/null)")"
-SYSTEM_SUSPICIOUS="$(filter_suspicious_hosts "$(cat "$SYSTEM_LOG_FILE" 2>/dev/null)")"
-SUSPICIOUS="$(printf '%s\n%s\n' "$APP_SUSPICIOUS" "$SYSTEM_SUSPICIOUS" | grep -v '^$' | sort -u)"
+# Each of these pipelines ends in `grep`, which exits 1 (its own convention for "no lines
+# matched") whenever the clean/expected result is "nothing suspicious found" -- under `pipefail`
+# that makes the WHOLE pipeline's status nonzero even though nothing went wrong, and under `-e` a
+# bare `VAR="$(...)"` assignment whose command exits nonzero aborts the script immediately
+# (the classic `x=$(false)` gotcha). `|| true` inside each substitution absorbs that expected
+# "no matches" status without masking a genuine script error elsewhere.
+APP_SUSPICIOUS="$(filter_app_attributed_suspicious_hosts "$(cat "$APP_LOG_FILE" 2>/dev/null)" || true)"
+SYSTEM_SUSPICIOUS="$(filter_suspicious_hosts "$(cat "$SYSTEM_LOG_FILE" 2>/dev/null)" || true)"
+SUSPICIOUS="$(printf '%s\n%s\n' "$APP_SUSPICIOUS" "$SYSTEM_SUSPICIOUS" | grep -v '^$' | sort -u || true)"
 
 if [ -n "$SUSPICIOUS" ]; then
   echo "FAIL: found outbound destination(s) outside the zero-network contract during the capture window:" >&2

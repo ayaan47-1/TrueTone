@@ -1,7 +1,11 @@
 #!/usr/bin/env bash
 # Runs every Maestro flow variant for one platform and prints a per-flow pass/fail summary.
 # Usage: run-all.sh <ios|android> [simulator/emulator name] [runtime name]
-set -uo pipefail
+#
+# Fail-closed sweep (HAG-231 round 6): `-e` added for consistency with the rest of scripts/e2e.
+# Safe here because the only per-variant command already uses the `if cmd; then ... else ... fi`
+# idiom, which bash's `-e` rules exempt from abort-on-failure.
+set -euo pipefail
 
 PLATFORM="${1:?Usage: run-all.sh <ios|android> [device name]}"
 ROOT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/../.." && pwd)"

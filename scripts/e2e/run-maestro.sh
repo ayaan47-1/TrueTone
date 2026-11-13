@@ -11,7 +11,14 @@
 # finding 1) -- a same-named device can exist under more than one installed iOS runtime (e.g.
 # "iPhone 17" under iOS 26.2, 26.4, and 26.5 on the macos-26 runner image), so name alone is
 # ambiguous. See docs/ops/e2e.md "Prerequisites" for which runtime the pinned CI Xcode ships.
-set -uo pipefail
+#
+# Fail-closed sweep (HAG-231 round 6, Toby re-review HIGH 1): `-e` is on script-wide; a build
+# failure used to fall straight through to the Maestro run (no `-e`, no explicit status check),
+# so Maestro could pass against whatever was already installed on the simulator even though the
+# build that was supposed to replace it had just failed. Every command whose status this script
+# wants to inspect itself, rather than let `-e` abort on, is wrapped in an `if`/`||` form, which
+# bash's `-e` rules exempt from the abort-on-failure behavior.
+set -euo pipefail
 
 VARIANT="${1:?Usage: run-maestro.sh <demo|shopify-offline|camera-demo|camera-demo-fixture> [simulator name] [runtime name] [--skip-build]}"
 SIMULATOR="${2:-iPhone 17}"
@@ -37,7 +44,10 @@ if ! command -v maestro >/dev/null 2>&1; then
 fi
 
 echo "== Resolving simulator '$SIMULATOR' under runtime '$RUNTIME' =="
-SIMULATOR_UDID="$(resolve_simulator_udid "$SIMULATOR" "$RUNTIME" "$(xcrun simctl list devices available)")"
+# `|| true` absorbs resolve_simulator_udid's expected exit-1-on-not-found status so the bare
+# assignment doesn't trip `-e` before the explicit "is it empty" check below gets to run and
+# print the diagnostic.
+SIMULATOR_UDID="$(resolve_simulator_udid "$SIMULATOR" "$RUNTIME" "$(xcrun simctl list devices available)" || true)"
 if [ -z "$SIMULATOR_UDID" ]; then
   echo "No simulator named '$SIMULATOR' under runtime '$RUNTIME' is installed on this machine." >&2
   echo "Installed devices (xcrun simctl list devices available):" >&2
@@ -52,7 +62,15 @@ if [ "$SKIP_BUILD" != "--skip-build" ]; then
   # Toby re-review (HAG-231, round 5): pass the resolved UDID through, not just the name --
   # otherwise Expo's device resolver can match a same-named simulator booted under a DIFFERENT
   # runtime (see build-variant.sh's comment), silently installing onto the wrong one.
-  "$ROOT_DIR/scripts/e2e/build-variant.sh" "$VARIANT" "$SIMULATOR" "$SIMULATOR_UDID"
+  #
+  # Toby re-review HIGH 1 (HAG-231, round 6): explicitly check the build's own exit status.
+  # Without this, a failed build fell straight through to the Maestro run below, which could
+  # still pass against an OLDER app already installed on the simulator -- exactly the kind of
+  # build failure this suite exists to catch, masked.
+  if ! "$ROOT_DIR/scripts/e2e/build-variant.sh" "$VARIANT" "$SIMULATOR" "$SIMULATOR_UDID"; then
+    echo "FAIL: build-variant.sh failed for variant '$VARIANT' -- refusing to run Maestro against a stale or missing build" >&2
+    exit 1
+  fi
 fi
 
 echo "== Running Maestro flows: $FLOW_DIR =="
@@ -75,11 +93,19 @@ if [ -n "$MONITORED_FLOWS_RAW" ]; then
   while IFS= read -r f; do
     MONITORED_FLOWS+=("$f")
   done < <(printf '%s\n' "$MONITORED_FLOWS_RAW")
-  "$ROOT_DIR/scripts/e2e/assert-no-network.sh" "$SIMULATOR_UDID" "${MONITORED_FLOWS[@]}"
-  STATUS=$?
+  # `if cmd; then ... else ...; fi` (not a bare `cmd; STATUS=$?`) so `-e` doesn't abort before
+  # this script gets to capture the status itself and print its own PASS/FAIL line.
+  if "$ROOT_DIR/scripts/e2e/assert-no-network.sh" "$SIMULATOR_UDID" "${MONITORED_FLOWS[@]}"; then
+    STATUS=0
+  else
+    STATUS=$?
+  fi
 else
-  maestro test --device "$SIMULATOR_UDID" "$FLOW_DIR"
-  STATUS=$?
+  if maestro test --device "$SIMULATOR_UDID" "$FLOW_DIR"; then
+    STATUS=0
+  else
+    STATUS=$?
+  fi
 fi
 
 if [ $STATUS -eq 0 ]; then
