@@ -1,5 +1,5 @@
 import { act, render, fireEvent, waitFor } from '@testing-library/react-native';
-import { CheckoutScreen } from '../CheckoutScreen';
+import { CheckoutScreen, orderReference } from '../CheckoutScreen';
 import { useStripe } from '@stripe/stripe-react-native';
 import { supabase } from '../../../lib/supabase';
 import { encryptedStorage } from '../../../lib/encrypted-storage';
@@ -204,7 +204,8 @@ describe('order reference (MASVS L5)', () => {
   it('shows the server order id as the order reference', async () => {
     const random = jest.spyOn(Math, 'random');
     const view = await placeWith({ orderId: 'a1b2c3d4-0000-4000-8000-000000000001' });
-    expect(view.getByTestId('order-number').props.children).toBe('TT-A1B2C3D4');
+    // The full server id (the orders primary key), so the reference is unique by construction.
+    expect(view.getByTestId('order-number').props.children).toBe('TT-A1B2C3D4-0000-4000-8000-000000000001');
     expect(random).not.toHaveBeenCalled();
     random.mockRestore();
   });
@@ -214,4 +215,25 @@ describe('order reference (MASVS L5)', () => {
     expect(view.queryByTestId('order-number')).toBeNull();
   });
 });
+});
+
+// Toby round-2 MEDIUM: an 8-hex prefix is a 32-bit space and can name two orders.
+describe('orderReference', () => {
+  it('gives two orders that share an 8-hex prefix different references', () => {
+    const a = orderReference('a1b2c3d4-0000-4000-8000-000000000001');
+    const b = orderReference('a1b2c3d4-ffff-4fff-bfff-ffffffffffff');
+    expect(a).not.toBeNull();
+    expect(a).not.toBe(b);
+  });
+
+  it('maps back to exactly one server id (case-insensitive)', () => {
+    const id = 'a1b2c3d4-0000-4000-8000-000000000001';
+    expect(orderReference(id)?.replace(/^TT-/, '').toLowerCase()).toBe(id);
+  });
+
+  it('returns null for anything that is not a full uuid', () => {
+    for (const bad of ['a1b2c3d4-', 'a1b2c3d4-0000', 'not-a-uuid', 42, null, undefined]) {
+      expect(orderReference(bad)).toBeNull();
+    }
+  });
 });

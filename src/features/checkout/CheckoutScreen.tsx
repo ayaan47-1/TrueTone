@@ -31,13 +31,16 @@ import {
   type ShippingAddressField,
 } from '../../../supabase/functions/_shared/checkout/shipping-address';
 
+const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+
 /**
- * The customer-facing order reference: the first 8 hex digits of the server order id, so support
- * can find the row (MASVS L5). null when the server sent no id -- never a made-up number.
+ * The customer-facing order reference: the full server order id (the orders primary key), so it is
+ * unique by construction and support can find exactly one row (MASVS L5; a truncated prefix could
+ * collide). null when the server sent no valid id -- never a made-up number.
  */
 export function orderReference(orderId: unknown): string | null {
-  if (typeof orderId !== 'string' || !/^[0-9a-f]{8}-/i.test(orderId)) return null;
-  return `TT-${orderId.slice(0, 8).toUpperCase()}`;
+  if (typeof orderId !== 'string' || !UUID_RE.test(orderId)) return null;
+  return `TT-${orderId.toUpperCase()}`;
 }
 
 export function CheckoutScreen() {
