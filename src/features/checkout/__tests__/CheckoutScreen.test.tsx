@@ -185,4 +185,33 @@ describe('CheckoutScreen', () => {
       'Jordan Rivera',
     );
   });
+
+// MASVS L5: the confirmation shows a reference to the real server order, never a random number.
+describe('order reference (MASVS L5)', () => {
+  async function placeWith(data: Record<string, unknown>) {
+    (supabase.functions.invoke as jest.Mock).mockResolvedValue({
+      data: { paymentIntent: 'pi_secret', ephemeralKey: 'ek_secret', customer: 'cus_123', ...data },
+      error: null,
+    });
+    bag.add({ id: 'prod1', name: 'Test Product', price: 10, shadeName: 'Shade 1' } as any);
+    const view = await render(<CheckoutScreen />);
+    await fillValidShippingAddress(view);
+    await fireEvent.press(view.getByTestId('place-order'));
+    await waitFor(() => expect(view.getByText('Order placed')).toBeTruthy());
+    return view;
+  }
+
+  it('shows the server order id as the order reference', async () => {
+    const random = jest.spyOn(Math, 'random');
+    const view = await placeWith({ orderId: 'a1b2c3d4-0000-4000-8000-000000000001' });
+    expect(view.getByTestId('order-number').props.children).toBe('TT-A1B2C3D4');
+    expect(random).not.toHaveBeenCalled();
+    random.mockRestore();
+  });
+
+  it('shows no made-up number when the server sent no order id', async () => {
+    const view = await placeWith({});
+    expect(view.queryByTestId('order-number')).toBeNull();
+  });
+});
 });

@@ -30,9 +30,13 @@ function fakeDb(error: unknown = null) {
   const inserted: { table: string; row: unknown }[] = [];
   const db: OrderInsertDb = {
     from: (table) => ({
-      insert: async (row) => {
+      insert: (row) => {
         inserted.push({ table, row });
-        return { error };
+        return {
+          select: () => ({
+            single: async () => (error ? { data: null, error } : { data: { id: 'a1b2c3d4-0000-4000-8000-000000000001' }, error: null }),
+          }),
+        };
       },
     }),
   };
@@ -77,18 +81,26 @@ describe('buildPendingOrderRow', () => {
 describe('insertPendingOrder', () => {
   it('inserts the pending row into orders', async () => {
     const { db, inserted } = fakeDb();
-    await expect(insertPendingOrder(db, input)).resolves.toEqual({ error: null });
+    await expect(insertPendingOrder(db, input)).resolves.toEqual({
+      error: null,
+      orderId: 'a1b2c3d4-0000-4000-8000-000000000001',
+    });
     expect(inserted).toEqual([{ table: 'orders', row: buildPendingOrderRow(input) }]);
   });
 
   it('passes the database error back to the caller', async () => {
     const { db } = fakeDb({ message: 'boom' });
-    await expect(insertPendingOrder(db, input)).resolves.toEqual({ error: { message: 'boom' } });
+    await expect(insertPendingOrder(db, input)).resolves.toEqual({ error: { message: 'boom' }, orderId: null });
   });
 });
 
 describe('create-payment-intent wiring', () => {
   const src = readFileSync(join(__dirname, '../../../create-payment-intent/index.ts'), 'utf8');
+
+  it('returns the server order id so the confirmation shows a real order reference (MASVS L5)', () => {
+    expect(src).toMatch(/orderId[,\s}]/);
+    expect(src).toMatch(/Response\.json\(\{[\s\S]*orderId/);
+  });
 
   it('inserts the order through a service-role client, not the caller JWT client', () => {
     expect(src).toContain("Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')");
