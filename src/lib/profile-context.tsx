@@ -45,6 +45,8 @@ export function ProfileProvider({ children }: { children: React.ReactNode }) {
       setLoading(false);
       return;
     }
+    // Do not leave the cached home route usable while consent is being refreshed.
+    setLoading(true);
     try {
       // Clear a previous error only once the reload succeeds: dropping it up front would mount
       // the app on the stale route while a retry is still in flight.
