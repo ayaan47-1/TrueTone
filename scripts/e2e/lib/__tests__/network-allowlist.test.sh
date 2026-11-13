@@ -42,11 +42,15 @@ assert_flagged "attacker suffix on the loopback IP must NOT be allowlisted" \
   "127.0.0.1.evil.example" \
   "2026-11-13 Request to 127.0.0.1.evil.example failed"
 
-# The real allowed hosts, matched EXACTLY, must still be filtered (no regression).
-assert_not_flagged "the real forced-offline host is still filtered" \
+# Dwight re-review (HAG-231, round 5): under the zero-network contract, "offline.invalid" is a
+# forced-unreachable CONFIGURATION sentinel (the build-time Shopify/Supabase host), never an
+# allowed DESTINATION — any DNS/connection attempt to it is itself the regression this check
+# exists to catch, so it must be flagged, not filtered.
+assert_flagged "the forced-offline sentinel host is a regression, not an allowlisted destination" \
   "offline.invalid" \
   "2026-11-13 Connected to offline.invalid"
 
+# Loopback (used by the debug harness) remains narrowly allowed.
 assert_not_flagged "localhost is still filtered" \
   "localhost" \
   "2026-11-13 Connected to localhost"

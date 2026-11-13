@@ -13,12 +13,19 @@
 # Not run directly; sourced by assert-no-network.sh. See
 # scripts/e2e/lib/__tests__/network-allowlist.test.sh for a test harness that feeds this
 # synthetic log text instead of a real unified-log capture.
+#
+# Dwight re-review (HAG-231, round 5): "offline.invalid" is a forced-unreachable CONFIGURATION
+# sentinel (the build-time Shopify/Supabase host for camera-demo/camera-demo-fixture), not an
+# allowed network DESTINATION. Under the HAG-230 zero-network contract, CAMERA_DEMO makes no
+# network calls at all, so a DNS/connection attempt to that sentinel is itself the regression this
+# check exists to catch -- it must never be allowlisted. Only loopback, needed for the debug
+# harness, stays narrowly allowed.
 
 DOMAIN_PATTERN='[A-Za-z0-9](-?[A-Za-z0-9])*(\.[A-Za-z0-9](-?[A-Za-z0-9])*)+'
 
 # Exact-match only: the WHOLE extracted hostname must equal one of these, never merely contain
 # it as a substring.
-ALLOWED_EXACT_HOSTS='offline\.invalid|localhost|127\.0\.0\.1|::1'
+ALLOWED_EXACT_HOSTS='localhost|127\.0\.0\.1|::1'
 
 # Suffix-match: the WHOLE extracted hostname must equal one of these domains, or end in
 # "<dot><domain>". iOS's own connectivity/push infrastructure, unrelated to and not controlled
