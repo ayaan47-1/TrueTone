@@ -6,8 +6,8 @@ struct LocalFace {
   let y: Double
   let width: Double
   let height: Double
-  let yawAngle: Double
-  let rollAngle: Double
+  let yawAngle: Double?
+  let rollAngle: Double?
 }
 struct LocalDetection {
   let imageWidth: Double
@@ -24,11 +24,11 @@ enum VisionGeometry {
   }
 
   static func face(bounds: CGRect, yaw: Double?, roll: Double?) -> LocalFace? {
-    guard let yaw, let roll, yaw.isFinite, roll.isFinite,
-          bounds.minX.isFinite, bounds.minY.isFinite, bounds.width.isFinite, bounds.height.isFinite,
+    guard bounds.minX.isFinite, bounds.minY.isFinite, bounds.width.isFinite, bounds.height.isFinite,
           bounds.width > 0, bounds.height > 0, bounds.minX >= 0, bounds.minY >= 0,
           bounds.maxX <= 1, bounds.maxY <= 1 else { return nil }
     return LocalFace(x: bounds.minX, y: 1 - bounds.maxY, width: bounds.width, height: bounds.height,
-      yawAngle: yaw * 180 / .pi, rollAngle: roll * 180 / .pi)
+      yawAngle: yaw.flatMap { $0.isFinite ? $0 * 180 / .pi : nil },
+      rollAngle: roll.flatMap { $0.isFinite ? $0 * 180 / .pi : nil })
   }
 }

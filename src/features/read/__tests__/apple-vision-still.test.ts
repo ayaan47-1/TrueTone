@@ -28,6 +28,15 @@ test('native errors never leak image paths into diagnostic output', async () => 
   expect(JSON.stringify(result)).not.toContain('private-sensitive-path');
   expect(mockDispose).toHaveBeenCalledTimes(1);
 });
+test('unknown native pose still yields the measured face bounds, not an approximate read', async () => {
+  mockDetectStill.mockReturnValueOnce({ imageWidth: 400, imageHeight: 600, faces: [
+    { x: 0.1, y: 0.2, width: 0.5, height: 0.6 },
+  ] });
+  const result = await detectFacesOnStillDetailed('file:///synthetic-test.jpg');
+  expect(result.face).toEqual({ bounds: { x: 40, y: 120, width: 200, height: 360 } });
+  expect(result.report.outcome).toBe('ok');
+  expect(mockDispose).toHaveBeenCalledTimes(1);
+});
 
 test('unlinked detector is unavailable, not a fake successful detection', async () => {
   jest.mocked(createFaceDetector).mockImplementationOnce(() => { throw new Error('native module not installed'); });

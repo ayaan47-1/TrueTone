@@ -8,6 +8,8 @@ The ML Kit wrapper, its patch and its resolved dependency are removed globally. 
 
 Vision reports normalized lower-left bounds and pose angles in radians. The native core converts to upright, top-left normalized bounds and degrees. EXIF orientations 1–8, including mirrored orientations, determine the upright image dimensions. The live bridge uses the frame's orientation/mirror metadata. The front preview adapter mirrors once and projects into the centered aspect-fill viewport; still bounds map directly into the upright file's pixel dimensions. Missing pose or invalid bounds cannot pass the live face gate.
 
+Pose remains optional in the native result. Still-image region placement requires only valid bounds, so unknown yaw/roll never discards a measured still box or silently becomes zero degrees. Preview validation separately requires finite yaw and roll. Native positive tests inject `VNFaceObservation` through the same request/result path used by frames and still files; an always-empty result fails them. The still test uses a temporary blank JPEG with EXIF orientation 7, not a person's face. This tests observation handling and file/orientation metadata, not the model's accuracy on portraits or the device-only C++ interop.
+
 Vision rectangles do not provide the old detector's cheek/forehead contours. The still read uses its existing explicit detected-bounds fallback, not fabricated contour points. This changes the available geometry and requires the physical-device mapping check below before release. No accuracy or fairness claim follows from synthetic tests.
 
 ## Reproduce the checks
@@ -32,7 +34,7 @@ Nitrogen 0.35.9 is pinned as a build tool. Generated bindings are committed so a
 
 - No real face or device testing is authorized for this implementation task.
 - Before non-principal testing or launch, review the built iOS dependency graph and obtain the approved physical-iPhone capture network proof: no Google/third-party requests before, during or after capture. Run only with the legally approved identities/cohort and offline build.
-- On the same approved device, check upright and mirrored front-camera geometry, preview aspect-fill cropping, pose gating, still pixel alignment and cleanup on success/error. Include portrait orientations and rotation transitions. Do not persist faces or geometry as test evidence.
+- On the same approved device, check upright and mirrored front-camera geometry, preview aspect-fill cropping, pose gating, still pixel alignment and cleanup on success/error. Move the face to the left and right edges and test rotation transitions. The preview's one-mirror assumption is not proved by host tests; if device evidence contradicts it, pass the actual mirror state rather than changing the transform by guesswork. Do not persist faces or geometry as test evidence.
 - A new native binary is required. An over-the-air JavaScript update cannot remove old linked pods. Do not reuse a previously built ML Kit binary as evidence.
 
 Apple's contracts: [face observation and radians](https://developer.apple.com/documentation/vision/vnfaceobservation), [landmark coordinate origin](https://developer.apple.com/documentation/vision/vnfacelandmarks2d), [Vision face tracking example](https://developer.apple.com/documentation/vision/tracking-the-user-s-face-in-real-time). Those describe API behavior, not device verification of this adapter.

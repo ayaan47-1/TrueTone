@@ -22,6 +22,7 @@ namespace margelo::nitro::camera { class HybridFrameSpec; }
 #include "VisionResult.hpp"
 #include "VisionFace.hpp"
 #include <vector>
+#include <optional>
 #include <memory>
 #include <VisionCamera/HybridFrameSpec.hpp>
 #include <string>

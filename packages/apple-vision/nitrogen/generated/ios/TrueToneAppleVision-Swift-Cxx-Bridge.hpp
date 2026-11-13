@@ -31,6 +31,7 @@ namespace VisionCamera { class HybridFrameSpec_cxx; }
 #include <VisionCamera/HybridFrameSpec.hpp>
 #include <exception>
 #include <memory>
+#include <optional>
 #include <vector>
 
 /**
@@ -38,6 +39,21 @@ namespace VisionCamera { class HybridFrameSpec_cxx; }
  * as well as helper functions to interact with those C++ types from Swift.
  */
 namespace margelo::nitro::truetone::vision::bridge::swift {
+
+  // pragma MARK: std::optional<double>
+  /**
+   * Specialized version of `std::optional<double>`.
+   */
+  using std__optional_double_ = std::optional<double>;
+  inline std::optional<double> create_std__optional_double_(const double& value) noexcept {
+    return std::optional<double>(value);
+  }
+  inline bool has_value_std__optional_double_(const std::optional<double>& optional) noexcept {
+    return optional.has_value();
+  }
+  inline double get_std__optional_double_(const std::optional<double>& optional) noexcept {
+    return optional.value();
+  }
 
   // pragma MARK: std::vector<VisionFace>
   /**

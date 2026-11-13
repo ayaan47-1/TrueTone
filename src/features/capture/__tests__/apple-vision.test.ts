@@ -25,6 +25,14 @@ test('empty detections stay empty', () => {
   expect(visionStillFaces({ ...result, faces: [] })).toEqual([]);
   expect(visionPreviewFaces({ ...result, faces: [] }, { width: 300, height: 600 })).toEqual([]);
 });
+test.each([
+  { x: 0.1, y: 0.2, width: 0.4, height: 0.5 },
+  { ...result.faces[0], yawAngle: null, rollAngle: null, pitch: null },
+])('still bounds survive unknown pose while preview continues to fail closed', (face) => {
+  const raw = { ...result, faces: [face] };
+  expect(visionStillFaces(raw)).toEqual([{ bounds: { x: 40, y: 120, width: 160, height: 300 } }]);
+  expect(() => visionPreviewFaces(raw, { width: 300, height: 600 })).toThrow();
+});
 
 test.each([
   { ...result, imageWidth: 0 },

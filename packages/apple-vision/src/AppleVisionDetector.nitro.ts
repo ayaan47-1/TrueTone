@@ -6,8 +6,8 @@ export interface VisionFace {
   y: number;
   width: number;
   height: number;
-  yawAngle: number;
-  rollAngle: number;
+  yawAngle?: number;
+  rollAngle?: number;
 }
 export interface VisionResult {
   imageWidth: number;

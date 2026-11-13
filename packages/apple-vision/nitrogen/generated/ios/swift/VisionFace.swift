@@ -18,8 +18,20 @@ public extension VisionFace {
   /**
    * Create a new instance of `VisionFace`.
    */
-  init(x: Double, y: Double, width: Double, height: Double, yawAngle: Double, rollAngle: Double) {
-    self.init(x, y, width, height, yawAngle, rollAngle)
+  init(x: Double, y: Double, width: Double, height: Double, yawAngle: Double?, rollAngle: Double?) {
+    self.init(x, y, width, height, { () -> bridge.std__optional_double_ in
+      if let __unwrappedValue = yawAngle {
+        return bridge.create_std__optional_double_(__unwrappedValue)
+      } else {
+        return .init()
+      }
+    }(), { () -> bridge.std__optional_double_ in
+      if let __unwrappedValue = rollAngle {
+        return bridge.create_std__optional_double_(__unwrappedValue)
+      } else {
+        return .init()
+      }
+    }())
   }
 
   @inline(__always)
@@ -43,12 +55,26 @@ public extension VisionFace {
   }
 
   @inline(__always)
-  var yawAngle: Double {
-    return self.__yawAngle
+  var yawAngle: Double? {
+    return { () -> Double? in
+      if bridge.has_value_std__optional_double_(self.__yawAngle) {
+        let __unwrapped = bridge.get_std__optional_double_(self.__yawAngle)
+        return __unwrapped
+      } else {
+        return nil
+      }
+    }()
   }
 
   @inline(__always)
-  var rollAngle: Double {
-    return self.__rollAngle
+  var rollAngle: Double? {
+    return { () -> Double? in
+      if bridge.has_value_std__optional_double_(self.__rollAngle) {
+        let __unwrapped = bridge.get_std__optional_double_(self.__rollAngle)
+        return __unwrapped
+      } else {
+        return nil
+      }
+    }()
   }
 }

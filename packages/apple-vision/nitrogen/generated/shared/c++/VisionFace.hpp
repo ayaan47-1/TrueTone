@@ -30,7 +30,7 @@
 
 
 
-
+#include <optional>
 
 namespace margelo::nitro::truetone::vision {
 
@@ -43,12 +43,12 @@ namespace margelo::nitro::truetone::vision {
     double y     SWIFT_PRIVATE;
     double width     SWIFT_PRIVATE;
     double height     SWIFT_PRIVATE;
-    double yawAngle     SWIFT_PRIVATE;
-    double rollAngle     SWIFT_PRIVATE;
+    std::optional<double> yawAngle     SWIFT_PRIVATE;
+    std::optional<double> rollAngle     SWIFT_PRIVATE;
 
   public:
     VisionFace() = default;
-    explicit VisionFace(double x, double y, double width, double height, double yawAngle, double rollAngle): x(x), y(y), width(width), height(height), yawAngle(yawAngle), rollAngle(rollAngle) {}
+    explicit VisionFace(double x, double y, double width, double height, std::optional<double> yawAngle, std::optional<double> rollAngle): x(x), y(y), width(width), height(height), yawAngle(yawAngle), rollAngle(rollAngle) {}
 
   public:
     friend bool operator==(const VisionFace& lhs, const VisionFace& rhs) = default;
@@ -68,8 +68,8 @@ namespace margelo::nitro {
         JSIConverter<double>::fromJSI(runtime, obj.getProperty(runtime, PropNameIDCache::get(runtime, "y"))),
         JSIConverter<double>::fromJSI(runtime, obj.getProperty(runtime, PropNameIDCache::get(runtime, "width"))),
         JSIConverter<double>::fromJSI(runtime, obj.getProperty(runtime, PropNameIDCache::get(runtime, "height"))),
-        JSIConverter<double>::fromJSI(runtime, obj.getProperty(runtime, PropNameIDCache::get(runtime, "yawAngle"))),
-        JSIConverter<double>::fromJSI(runtime, obj.getProperty(runtime, PropNameIDCache::get(runtime, "rollAngle")))
+        JSIConverter<std::optional<double>>::fromJSI(runtime, obj.getProperty(runtime, PropNameIDCache::get(runtime, "yawAngle"))),
+        JSIConverter<std::optional<double>>::fromJSI(runtime, obj.getProperty(runtime, PropNameIDCache::get(runtime, "rollAngle")))
       );
     }
     static inline jsi::Value toJSI(jsi::Runtime& runtime, const margelo::nitro::truetone::vision::VisionFace& arg) {
@@ -78,8 +78,8 @@ namespace margelo::nitro {
       obj.setProperty(runtime, PropNameIDCache::get(runtime, "y"), JSIConverter<double>::toJSI(runtime, arg.y));
       obj.setProperty(runtime, PropNameIDCache::get(runtime, "width"), JSIConverter<double>::toJSI(runtime, arg.width));
       obj.setProperty(runtime, PropNameIDCache::get(runtime, "height"), JSIConverter<double>::toJSI(runtime, arg.height));
-      obj.setProperty(runtime, PropNameIDCache::get(runtime, "yawAngle"), JSIConverter<double>::toJSI(runtime, arg.yawAngle));
-      obj.setProperty(runtime, PropNameIDCache::get(runtime, "rollAngle"), JSIConverter<double>::toJSI(runtime, arg.rollAngle));
+      obj.setProperty(runtime, PropNameIDCache::get(runtime, "yawAngle"), JSIConverter<std::optional<double>>::toJSI(runtime, arg.yawAngle));
+      obj.setProperty(runtime, PropNameIDCache::get(runtime, "rollAngle"), JSIConverter<std::optional<double>>::toJSI(runtime, arg.rollAngle));
       return obj;
     }
     static inline bool canConvert(jsi::Runtime& runtime, const jsi::Value& value) {
@@ -94,8 +94,8 @@ namespace margelo::nitro {
       if (!JSIConverter<double>::canConvert(runtime, obj.getProperty(runtime, PropNameIDCache::get(runtime, "y")))) return false;
       if (!JSIConverter<double>::canConvert(runtime, obj.getProperty(runtime, PropNameIDCache::get(runtime, "width")))) return false;
       if (!JSIConverter<double>::canConvert(runtime, obj.getProperty(runtime, PropNameIDCache::get(runtime, "height")))) return false;
-      if (!JSIConverter<double>::canConvert(runtime, obj.getProperty(runtime, PropNameIDCache::get(runtime, "yawAngle")))) return false;
-      if (!JSIConverter<double>::canConvert(runtime, obj.getProperty(runtime, PropNameIDCache::get(runtime, "rollAngle")))) return false;
+      if (!JSIConverter<std::optional<double>>::canConvert(runtime, obj.getProperty(runtime, PropNameIDCache::get(runtime, "yawAngle")))) return false;
+      if (!JSIConverter<std::optional<double>>::canConvert(runtime, obj.getProperty(runtime, PropNameIDCache::get(runtime, "rollAngle")))) return false;
       return true;
     }
   };

@@ -6,6 +6,12 @@ import Vision
 enum VisionFailure: Error { case invalidLocalImage, invalidFrame }
 
 enum VisionEngine {
+  typealias RequestPerformer = (VNImageRequestHandler, VNDetectFaceRectanglesRequest) throws -> [VNFaceObservation]
+
+  static func performRequest(_ handler: VNImageRequestHandler, _ request: VNDetectFaceRectanglesRequest) throws -> [VNFaceObservation] {
+    try handler.perform([request])
+    return request.results ?? []
+  }
   private static func request() -> VNDetectFaceRectanglesRequest {
     let request = VNDetectFaceRectanglesRequest()
     #if os(macOS)
@@ -14,25 +20,26 @@ enum VisionEngine {
     #endif
     return request
   }
-  private static func result(_ request: VNDetectFaceRectanglesRequest, width: Double, height: Double,
+  private static func result(_ observations: [VNFaceObservation], width: Double, height: Double,
                              orientation: CGImagePropertyOrientation) -> LocalDetection {
     let size = VisionGeometry.uprightSize(width: width, height: height, orientation: orientation)
-    let faces = (request.results ?? []).compactMap { observation in
+    let faces = observations.compactMap { observation in
       VisionGeometry.face(bounds: observation.boundingBox, yaw: observation.yaw?.doubleValue, roll: observation.roll?.doubleValue)
     }
     return LocalDetection(imageWidth: size.width, imageHeight: size.height, faces: faces)
   }
 
-  static func detect(pixelBuffer: CVPixelBuffer, orientation: CGImagePropertyOrientation) throws -> LocalDetection {
+  static func detect(pixelBuffer: CVPixelBuffer, orientation: CGImagePropertyOrientation,
+                     perform: RequestPerformer = performRequest) throws -> LocalDetection {
     try autoreleasepool {
       let request = request()
-      try VNImageRequestHandler(cvPixelBuffer: pixelBuffer, orientation: orientation, options: [:]).perform([request])
-      return result(request, width: Double(CVPixelBufferGetWidth(pixelBuffer)),
+      let observations = try perform(VNImageRequestHandler(cvPixelBuffer: pixelBuffer, orientation: orientation, options: [:]), request)
+      return result(observations, width: Double(CVPixelBufferGetWidth(pixelBuffer)),
         height: Double(CVPixelBufferGetHeight(pixelBuffer)), orientation: orientation)
     }
   }
 
-  static func detectStill(uri: String) throws -> LocalDetection {
+  static func detectStill(uri: String, perform: RequestPerformer = performRequest) throws -> LocalDetection {
     try autoreleasepool {
       // No URLSession, remote schemes, image download or persistent image cache.
       let url: URL
@@ -47,8 +54,8 @@ enum VisionEngine {
       let raw = (properties[kCGImagePropertyOrientation] as? NSNumber)?.uint32Value ?? 1
       guard let orientation = CGImagePropertyOrientation(rawValue: raw) else { throw VisionFailure.invalidLocalImage }
       let request = request()
-      try VNImageRequestHandler(url: url, orientation: orientation, options: [:]).perform([request])
-      return result(request, width: width.doubleValue, height: height.doubleValue, orientation: orientation)
+      let observations = try perform(VNImageRequestHandler(url: url, orientation: orientation, options: [:]), request)
+      return result(observations, width: width.doubleValue, height: height.doubleValue, orientation: orientation)
     }
   }
 }
