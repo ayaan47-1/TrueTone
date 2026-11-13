@@ -21,6 +21,11 @@ test('SDK imports in a sensitive module fail the static guard', () => {
 });
 
 const configure = createRequire(import.meta.url)('../../app.config.js');
+test('installed Android SDK manifest disables startup before JavaScript runs', () => {
+  const manifest = readFileSync('node_modules/@sentry/react-native/android/src/main/AndroidManifest.xml','utf8');
+  assert.match(manifest, /<meta-data\s+android:name="io\.sentry\.auto-init"\s+android:value="false"\s*\/>/);
+});
+
 test('Expo plugin never includes auth token; upload is off without keys and in offline/demo/fixture builds', () => {
   const names = ['EXPO_PUBLIC_SENTRY_DSN', 'SENTRY_AUTH_TOKEN', 'EXPO_PUBLIC_DEMO', 'EXPO_PUBLIC_CAMERA_DEMO', 'EXPO_PUBLIC_E2E', 'NODE_ENV', 'EAS_BUILD_PROFILE'];
   const saved = Object.fromEntries(names.map(key => [key, process.env[key]]));
