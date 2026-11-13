@@ -26,6 +26,8 @@ jobs:
     steps:
       - uses: actions/checkout@v4
       - uses: supabase/setup-cli@v1
+        with:
+          version: 2.116.0
       - run: supabase start
       - run: supabase db reset --local
       - run: supabase test db --local
