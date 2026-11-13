@@ -6,8 +6,17 @@
 set +x
 set -euo pipefail
 
-VARIANT="${1:?Usage: build-variant.sh <demo|shopify-offline|camera-demo|camera-demo-fixture> [simulator name]}"
+VARIANT="${1:?Usage: build-variant.sh <demo|shopify-offline|camera-demo|camera-demo-fixture> [simulator name] [simulator udid]}"
 SIMULATOR="${2:-iPhone 17}"
+# Toby re-review (HAG-231, round 5): passing only a device NAME to `expo run:ios --device` lets
+# Expo's own device resolver pick the FIRST matching name among installed simulators
+# (node_modules/expo/node_modules/@expo/cli/build/src/run/ios/options/resolveDevice.js:
+# findDeviceFromSearchValue matches name OR udid) -- if a same-named simulator under a different
+# iOS runtime happens to already be booted, Expo can install onto that one instead of the exact
+# runtime run-maestro.sh resolved and booted. Passing the UDID instead removes the ambiguity
+# entirely, since the resolver matches it exactly. Optional so this script still works stand-alone
+# (no caller-resolved UDID) with name-based resolution as before.
+SIMULATOR_UDID="${3:-}"
 
 # Reads one KEY=value line out of an env-style file without ever printing the value. Only an
 # exact "KEY=" at line start matches; if the key appears more than once, the last line wins
@@ -92,5 +101,10 @@ case "$VARIANT" in
     ;;
 esac
 
-echo "== Building variant '$VARIANT' for simulator '$SIMULATOR' =="
-npx expo run:ios --device "$SIMULATOR"
+if [ -n "$SIMULATOR_UDID" ]; then
+  echo "== Building variant '$VARIANT' for simulator '$SIMULATOR' ($SIMULATOR_UDID) =="
+  npx expo run:ios --device "$SIMULATOR_UDID"
+else
+  echo "== Building variant '$VARIANT' for simulator '$SIMULATOR' =="
+  npx expo run:ios --device "$SIMULATOR"
+fi

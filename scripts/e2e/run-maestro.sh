@@ -22,6 +22,8 @@ ROOT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/../.." && pwd)"
 FLOW_DIR="$ROOT_DIR/.maestro/$VARIANT"
 # shellcheck source=lib/simulator-resolve.sh
 source "$ROOT_DIR/scripts/e2e/lib/simulator-resolve.sh"
+# shellcheck source=lib/flow-selection.sh
+source "$ROOT_DIR/scripts/e2e/lib/flow-selection.sh"
 
 if [ ! -d "$FLOW_DIR" ]; then
   echo "No flow directory for variant '$VARIANT' (looked for $FLOW_DIR)" >&2
@@ -47,32 +49,36 @@ xcrun simctl boot "$SIMULATOR_UDID" 2>/dev/null || true
 open -a Simulator --args -CurrentDeviceUDID "$SIMULATOR_UDID" 2>/dev/null || true
 
 if [ "$SKIP_BUILD" != "--skip-build" ]; then
-  "$ROOT_DIR/scripts/e2e/build-variant.sh" "$VARIANT" "$SIMULATOR"
+  # Toby re-review (HAG-231, round 5): pass the resolved UDID through, not just the name --
+  # otherwise Expo's device resolver can match a same-named simulator booted under a DIFFERENT
+  # runtime (see build-variant.sh's comment), silently installing onto the wrong one.
+  "$ROOT_DIR/scripts/e2e/build-variant.sh" "$VARIANT" "$SIMULATOR" "$SIMULATOR_UDID"
 fi
 
 echo "== Running Maestro flows: $FLOW_DIR =="
 # Toby review finding 2 (HAG-231): the network-silence check (assert-no-network.sh) used to be
 # optional/on-request only, so neither this script nor e2e.yml ever actually invoked it -- flow 7
 # only asserted the offline-notice UI, which a stray background request could pass alongside.
-# Run it for real here, on every local and CI pass, whenever this variant's directory has a
-# no-network flow; everything else in the directory still runs as one plain `maestro test`.
-NETWORK_CHECK_FLOW="$FLOW_DIR/07_offline_no_network.yaml"
-if [ -f "$NETWORK_CHECK_FLOW" ]; then
-  OTHER_FLOWS=()
-  for f in "$FLOW_DIR"/*.yaml; do
-    [ "$f" = "$NETWORK_CHECK_FLOW" ] || OTHER_FLOWS+=("$f")
-  done
-  OTHER_STATUS=0
-  if [ "${#OTHER_FLOWS[@]}" -gt 0 ]; then
-    maestro test "${OTHER_FLOWS[@]}"
-    OTHER_STATUS=$?
-  fi
-  "$ROOT_DIR/scripts/e2e/assert-no-network.sh" "$NETWORK_CHECK_FLOW"
-  NETWORK_STATUS=$?
-  STATUS=$OTHER_STATUS
-  [ "$STATUS" -eq 0 ] && STATUS=$NETWORK_STATUS
+# Dwight re-review round 5: running every OTHER flow unmonitored and wrapping only flow 7 left
+# the fixture scan itself (camera-demo-fixture's flow 02 -- the one flow that actually exercises
+# the capture/read/persist path) outside the capture window, so a fixture-only outbound request
+# could slip through undetected. Whenever this variant's directory has a no-network flow, run
+# EVERY flow in it (select_monitored_flows, scripts/e2e/lib/flow-selection.sh) inside ONE
+# continuous network capture instead.
+# Toby re-review (HAG-231, round 5): every `maestro test` call below is pinned to the exact
+# resolved $SIMULATOR_UDID via `--device`, for the same reason the build is -- Maestro has no
+# runtime-aware resolution of its own and would otherwise run against whichever same-named
+# simulator happens to be in the foreground/booted.
+MONITORED_FLOWS_RAW="$(select_monitored_flows "$FLOW_DIR")"
+if [ -n "$MONITORED_FLOWS_RAW" ]; then
+  MONITORED_FLOWS=()
+  while IFS= read -r f; do
+    MONITORED_FLOWS+=("$f")
+  done < <(printf '%s\n' "$MONITORED_FLOWS_RAW")
+  "$ROOT_DIR/scripts/e2e/assert-no-network.sh" "$SIMULATOR_UDID" "${MONITORED_FLOWS[@]}"
+  STATUS=$?
 else
-  maestro test "$FLOW_DIR"
+  maestro test --device "$SIMULATOR_UDID" "$FLOW_DIR"
   STATUS=$?
 fi
 
