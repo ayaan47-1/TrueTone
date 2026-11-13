@@ -76,7 +76,33 @@ echo "== Resolved app executable on $DEVICE_UDID: $EXECUTABLE_NAME =="
 # process -- never to an unattributed line, and never to this app.
 APP_LOG_FILE="$(mktemp)"
 SYSTEM_LOG_FILE="$(mktemp)"
-trap 'rm -f "$APP_LOG_FILE" "$SYSTEM_LOG_FILE"' EXIT
+APP_LOG_PID=""
+SYSTEM_LOG_PID=""
+
+# Toby re-review (HAG-231, round 8, review-toby.md latest MEDIUM): this trap used to only remove
+# the two temp files. If one capture died at startup (or any other early-exit path fired before
+# this script reached its own deliberate `kill` near the end), the OTHER capture -- an
+# `xcrun simctl spawn ... log stream` process, backgrounded and still running -- was never killed
+# or reaped at all. It leaked past this script's own exit as an orphan. cleanup() kills and waits
+# on every PID that was actually started, guarding with `kill -0` first since one may already be
+# dead (an already-reaped PID is a no-op here, not an error), then removes the files. Registered
+# on EXIT (covers both a normal exit and a `set -e` abort) and ERR; INT/TERM get their own traps
+# that `exit` with the conventional 128+signal code, since bash resumes the script after a
+# trapped signal's handler returns rather than terminating on its own once a handler is
+# registered -- that `exit` itself triggers the EXIT trap below, running cleanup exactly once.
+cleanup() {
+  local pid
+  for pid in "${APP_LOG_PID:-}" "${SYSTEM_LOG_PID:-}"; do
+    if [ -n "$pid" ] && kill -0 "$pid" 2>/dev/null; then
+      kill "$pid" 2>/dev/null || true
+      wait "$pid" 2>/dev/null || true
+    fi
+  done
+  rm -f "$APP_LOG_FILE" "$SYSTEM_LOG_FILE"
+}
+trap cleanup EXIT ERR
+trap 'exit 130' INT
+trap 'exit 143' TERM
 
 export PATH="$PATH:$HOME/.maestro/bin"
 
