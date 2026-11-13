@@ -1,0 +1,27 @@
+# Flow 7 (fixture variant) — camera-demo-fixture build makes no network calls either.
+# Toby re-review finding 2 (HAG-231): camera-demo-fixture is its own build (see
+# scripts/e2e/build-variant.sh's camera-demo-fixture case) and previously had no
+# 07_offline_no_network.yaml, so run-maestro.sh's network-check branch never ran for it and the
+# variant took the plain `maestro test` path with no runtime-level egress proof — contradicting
+# assert-no-network.sh's own header comment, which claimed every fixture pass checks egress.
+#
+# This build sets EXACTLY the same offline host overrides as camera-demo (SUPABASE_OFFLINE ==
+# CAMERA_DEMO forces every Shopify screen to ShopOfflineNotice before any request, same as
+# .maestro/camera-demo/07_offline_no_network.yaml) plus EXPO_PUBLIC_E2E_FIXTURE_SCAN=1, which
+# only affects the /scan capture step and has no bearing on this flow. See that file's header
+# comment for the full rationale; this is the same proof, run against the fixture binary too.
+appId: com.ayaan47.truetone
+---
+- launchApp:
+    clearState: true
+
+- tapOn:
+    id: "dob-submit"
+- tapOn:
+    id: "consent-check"
+- tapOn:
+    id: "consent-submit"
+- assertVisible: "Home"
+
+- tapOn: "Shop"
+- assertVisible: "This build runs on your device only. Nothing is loaded from or sent to Shopify."

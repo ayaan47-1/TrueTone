@@ -1,0 +1,31 @@
+# Flow 3b — catalogue retry state (negative path).
+# Run against the DEMO build (EXPO_PUBLIC_DEMO=1, same gate-skipping behavior as 03a) with
+# EXPO_PUBLIC_SHOPIFY_STORE_DOMAIN pointed at an unreachable host (reusing the exact pattern
+# eas.json's "testflight-camera" profile already uses for the same reason — see
+# scripts/e2e/build-variant.sh "shopify-offline"). Deterministic and needs no device-level
+# network toggle: Maestro's setAirplaneMode is Android-only and silently no-ops on iOS
+# Simulator (confirmed against Maestro's own docs), so a build-time unreachable host is the only
+# reliable way to force this state on iOS.
+#
+# Asserts the existing CatalogueNotice retry surface (src/features/catalog/CatalogueNotice.tsx)
+# renders and that its retry control is present and tappable — not that retrying succeeds
+# (it can't, the host is unreachable by construction).
+appId: com.ayaan47.truetone
+---
+- launchApp:
+    clearState: true
+
+- assertVisible: "Home"
+- tapOn: "Shop"
+- tapOn: "Continue to shop"
+
+# ---- catalogue fails to load: retry surface renders ----
+- assertVisible:
+    id: "catalogue-notice"
+    timeout: 15000
+- assertVisible: "Try again"
+- tapOn: "Try again"
+
+# ---- retry is wired (still unreachable, so the notice persists rather than crashing) ----
+- assertVisible:
+    id: "catalogue-notice"
