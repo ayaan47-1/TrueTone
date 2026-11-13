@@ -127,12 +127,34 @@ is itself the regression this check exists to catch, not a permitted destination
 substring** (Toby re-review finding 3, HAG-231): the filtering previously used unanchored
 `grep -viE`, so a logged host like `offline.invalid.attacker.example` or
 `127.0.0.1.evil.example` was silently dropped from the suspicious list for merely *containing* an
-allowed host, even though it's a different, attacker-controlled destination. The filtering logic
-lives in `scripts/e2e/lib/network-allowlist.sh`, unit-tested in
+allowed host, even though it's a different, attacker-controlled destination.
+
+**The capture runs as TWO separate log streams, each kept in its own file, not merged (Dwight
+re-review round 5, re-review of `e83ef82`).** `assert-no-network.sh` used to `OR` an
+app-process-scoped predicate (`processImagePath CONTAINS` the bundle id) together with a
+generic system-wide one (`subsystem == "com.apple.network"`, which also carries unrelated
+traffic from every other process on the machine) into one `log stream` call, flattened into one
+text blob. Once merged, there was no way to tell which captured hostname came from which stream,
+so the OS-noise exemption (Apple/Crashlytics domains, needed to keep the generic stream from
+drowning the check in unrelated system noise) applied to BOTH — silently exempting an
+app-originated request to one of those domains exactly like real system noise, which defeats
+the zero-network contract. The fix runs two independent `log stream` processes (one per
+predicate) into two files, so attribution is preserved at the source instead of re-derived from
+log text afterward: the app-attributed stream is scanned with the strict
+`filter_app_attributed_suspicious_hosts` (loopback only — no OS-noise exemption, since a line
+the OS already scoped to this app's own process can't be "someone else's" traffic by
+definition), and only the generic system-wide stream keeps the OS-noise-exempting
+`filter_suspicious_hosts`.
+
+Both filtering functions live in `scripts/e2e/lib/network-allowlist.sh`, unit-tested in
 `scripts/e2e/lib/__tests__/network-allowlist.test.sh`; the flow-selection logic lives in
 `scripts/e2e/lib/flow-selection.sh`, unit-tested in
 `scripts/e2e/lib/__tests__/flow-selection.test.sh` against synthetic temp directories (no
-simulator needed). Both run via `npm run e2e:test-scripts`.
+simulator needed); the device-UDID pinning through `build-variant.sh`/`maestro test` (Toby
+re-review, HAG-231 round 5 — see "Prerequisites" above) is proven by
+`scripts/e2e/__tests__/device-pinning.test.sh`, which stubs `npx`/`maestro`/`xcrun`/`log` with
+fake executables that record their argv instead of touching a real Simulator. All of these run
+via `npm run e2e:test-scripts`.
 
 ## Flow 2 — camera scan to shade match
 
