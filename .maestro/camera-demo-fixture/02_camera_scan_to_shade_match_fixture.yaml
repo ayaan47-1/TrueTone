@@ -35,6 +35,14 @@ appId: com.ayaan47.truetone
     visible: "We found your match"
     timeout: 15000
 - assertVisible: "Your shade"
+# "Light Warm" is the SPECIFIC shade the real, unmodified pipeline derives from this exact
+# fixture image (decode -> downscale -> regions -> scoreFromRgb -> deriveShade) -- pinned and
+# proven in src/features/capture/__tests__/e2e-fixture-real-pipeline.test.ts. Unlike the static
+# page text above, only a genuine run of the real read pipeline on the real fixture bytes can
+# produce this exact string (Dwight review fix (c), HAG-231) -- a silent stub/garbage-decode
+# substitution would show a different shade or (with run-read.ts's fixture-flag change) fail
+# loudly before reaching this screen at all.
+- assertVisible: "Light Warm"
 
 # ---- persistence proof (Toby review finding 1, HAG-231) ----
 # The two assertions above only prove the IN-MEMORY shade was published --

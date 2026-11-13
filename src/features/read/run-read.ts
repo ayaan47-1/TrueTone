@@ -7,6 +7,7 @@ import { CvReadEngine } from './cv-read-engine';
 import { stubRead } from './stub-read';
 import { recordScan } from '../../lib/scans';
 import { E2E_FORCE_PERSIST_FAILURE } from '../../lib/e2e-force-persist-failure';
+import { E2E_FIXTURE_SCAN } from '../../lib/e2e-fixture';
 import { estimateSkinAge } from '../age/skin-age-engine';
 import { personalization, type CurrentShade } from '../session/personalization';
 import { deriveShade, deriveToneFromLab } from '../shade/derive-shade';
@@ -49,7 +50,11 @@ export async function runRead(
     if (shade) personalization.setScan(shade);
     await persist(result, shade);
   } catch (err) {
-    if (__DEV__) {
+    // HAG-231, Dwight review fix (c): under the E2E fixture flag, a failure must fail loudly,
+    // never silently substitute stubRead() -- that silent substitution is exactly what let a
+    // broken fixture image pass undetected. __DEV__-gated in e2e-fixture.ts, so this condition
+    // is always false in any release build regardless of the env var.
+    if (__DEV__ && !E2E_FIXTURE_SCAN) {
       // Preview-only fallback: the device decode is unavailable off-device. Never reached on a
       // real Android dev build, where engine.run() returns a real cv-1 result.
       await persist(stubRead(), null);
