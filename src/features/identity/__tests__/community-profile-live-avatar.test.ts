@@ -1,13 +1,11 @@
 // M1 (MASVS review + Dwight ruling): the device-local avatar path must never reach the server.
 // The live repository keeps the photo URI in encrypted local storage only, writes avatar_uri = null,
-// ignores any legacy path still on the server, and Delete My Data clears the server column.
+// ignores any legacy path still on the server, and never writes avatar_uri at all: the column is
+// scrubbed and client-locked by the profile_avatar_lock migration, and delete_my_data nulls it server-side.
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { wipeEncryptedLocalData } from '../../../lib/encrypted-storage';
-import {
-  clearServerAvatarUri,
-  createSupabaseCommunityProfileRepository,
-  type ProfilesClient,
-} from '../community-profile-repository';
+import * as repoModule from '../community-profile-repository';
+import { createSupabaseCommunityProfileRepository, type ProfilesClient } from '../community-profile-repository';
 
 jest.mock('../../../lib/supabase', () => ({ supabase: {} }));
 
@@ -15,13 +13,9 @@ const LOCAL_URI = 'file:///var/mobile/Containers/Data/Application/ABCD-1234/Libr
 
 function fakeClient(row: { username: string | null; avatar_uri: string | null }) {
   const update = jest.fn((_values: Record<string, unknown>) => ({ eq: jest.fn(async () => ({ error: null })) }));
-  const client = {
-    from: () => ({
-      select: () => ({ eq: () => ({ single: async () => ({ data: row, error: null }) }) }),
-      update,
-    }),
-  } as unknown as ProfilesClient;
-  return { client, update };
+  const select = jest.fn((_columns: string) => ({ eq: () => ({ single: async () => ({ data: row, error: null }) }) }));
+  const client = { from: () => ({ select, update }) } as unknown as ProfilesClient;
+  return { client, update, select };
 }
 
 beforeEach(async () => {
@@ -32,7 +26,8 @@ test('saving a profile never sends the device-local avatar path to the server', 
   const { client, update } = fakeClient({ username: 'ada', avatar_uri: null });
   const repo = createSupabaseCommunityProfileRepository(client);
   const saved = await repo.save({ userId: 'u1', username: 'ada', avatarUri: LOCAL_URI });
-  expect(update).toHaveBeenCalledWith({ username: 'ada', avatar_uri: null });
+  // Clients have no UPDATE privilege on avatar_uri after the lock migration: send username only.
+  expect(update).toHaveBeenCalledWith({ username: 'ada' });
   expect(JSON.stringify(update.mock.calls)).not.toContain('file://');
   expect(saved.avatarUri).toBe(LOCAL_URI);
 });
@@ -61,31 +56,12 @@ test('a legacy file path still on the server is ignored on load', async () => {
   expect(profile).toEqual({ userId: 'u1', username: 'ada', avatarUri: null });
 });
 
-describe('clearServerAvatarUri (Delete My Data)', () => {
-  function serverClient(opts: { uid?: string | null; error?: unknown }) {
-    const eq = jest.fn(async () => ({ error: opts.error ?? null }));
-    const update = jest.fn(() => ({ eq }));
-    const client = {
-      auth: { getSession: async () => ({ data: { session: opts.uid ? { user: { id: opts.uid } } : null } }) },
-      from: () => ({ update }),
-    };
-    return { client, update, eq };
-  }
+test('load never reads the server avatar column', async () => {
+  const { client, select } = fakeClient({ username: 'ada', avatar_uri: null });
+  await createSupabaseCommunityProfileRepository(client).load('u1');
+  expect(select).toHaveBeenCalledWith('username');
+});
 
-  test('sets profiles.avatar_uri to null for the signed-in user', async () => {
-    const { client, update, eq } = serverClient({ uid: 'u1' });
-    await clearServerAvatarUri(client);
-    expect(update).toHaveBeenCalledWith({ avatar_uri: null });
-    expect(eq).toHaveBeenCalledWith('id', 'u1');
-  });
-
-  test('rejects when the server clear fails so the caller can surface a retry', async () => {
-    const { client } = serverClient({ uid: 'u1', error: { message: 'offline' } });
-    await expect(clearServerAvatarUri(client)).rejects.toBeTruthy();
-  });
-
-  test('rejects when there is no session (cannot prove the column was cleared)', async () => {
-    const { client } = serverClient({ uid: null });
-    await expect(clearServerAvatarUri(client)).rejects.toThrow();
-  });
+test('the client-side server avatar clear is gone (delete_my_data clears it authoritatively)', () => {
+  expect('clearServerAvatarUri' in repoModule).toBe(false);
 });

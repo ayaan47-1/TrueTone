@@ -5,7 +5,8 @@
 //
 // DEFERRED (explicit boundary): `avatarUri` is a user-scoped LOCAL file URI in this
 // release, in both backends, and is stored only in encrypted on-device storage; the live
-// backend always writes `profiles.avatar_uri = null` (MASVS M1). Cross-device avatar media storage (uploading the picked
+// backend never writes `profiles.avatar_uri` (MASVS M1): the column is scrubbed, client-locked and
+// constrained to null by the profile_avatar_lock migration, and delete_my_data clears it server-side. Cross-device avatar media storage (uploading the picked
 // image to a Supabase Storage bucket) is NOT implemented here -- there is no
 // approved bucket/policy for it yet. Do not add an upload path behind this repository
 // without that approval; a picked avatar simply does not follow the user to a second
@@ -77,28 +78,6 @@ async function saveLocalAvatar(userId: string, uri: string | null): Promise<void
   else await encryptedStorage.removeItem(localAvatarKey(userId));
 }
 
-/** Minimal client shape for clearing the server avatar column (Delete My Data). */
-export interface AvatarClearClient {
-  auth: { getSession(): Promise<{ data: { session: { user: { id: string } } | null } }> };
-  from(table: 'profiles'): {
-    update(values: { avatar_uri: null }): { eq(column: string, value: string): PromiseLike<{ error: unknown }> };
-  };
-}
-
-/**
- * MASVS M1: Delete My Data keeps the profile row, so clear any (legacy) avatar_uri explicitly.
- * Rejects on any failure so the caller reports the deletion as incomplete and offers a retry.
- */
-export async function clearServerAvatarUri(
-  client: AvatarClearClient = supabase as unknown as AvatarClearClient,
-): Promise<void> {
-  const { data } = await client.auth.getSession();
-  const uid = data.session?.user.id;
-  if (!uid) throw new Error('no session: cannot clear the server avatar path');
-  const { error } = await client.from('profiles').update({ avatar_uri: null }).eq('id', uid);
-  if (error) throw error;
-}
-
 // Minimal shape of the Supabase query chain this repository needs, so it can be
 // exercised in tests without a live Supabase (the real client structurally satisfies
 // this -- see community-profile-repository.test.ts for the fake).
@@ -106,10 +85,10 @@ export interface ProfilesClient {
   from(table: 'profiles'): {
     select(columns: string): {
       eq(column: string, value: string): {
-        single(): Promise<{ data: { username: string | null; avatar_uri: string | null } | null; error: unknown }>;
+        single(): Promise<{ data: { username: string | null } | null; error: unknown }>;
       };
     };
-    update(values: { username: string; avatar_uri: null }): {
+    update(values: { username: string }): {
       eq(column: string, value: string): Promise<{ error: unknown }>;
     };
   };
@@ -132,18 +111,18 @@ export function createSupabaseCommunityProfileRepository(
     async load(userId) {
       const { data, error } = await client
         .from('profiles')
-        .select('username, avatar_uri')
+        .select('username')
         .eq('id', userId)
         .single();
       if (error || !data || typeof data.username !== 'string') return null;
-      // MASVS M1: any avatar_uri still on the server is a legacy device path -- never trust it.
+      // MASVS M1: the photo path is device-local only; the server column is never read.
       return { userId, username: data.username, avatarUri: await loadLocalAvatar(userId) };
     },
     async save(profile) {
-      // MASVS M1: the photo URI is device-local state; the server column is always cleared.
+      // MASVS M1: the photo URI is device-local state; clients may update only username.
       const { error } = await client
         .from('profiles')
-        .update({ username: profile.username, avatar_uri: null })
+        .update({ username: profile.username })
         .eq('id', profile.userId);
       if (error) throw error;
       await saveLocalAvatar(profile.userId, profile.avatarUri);

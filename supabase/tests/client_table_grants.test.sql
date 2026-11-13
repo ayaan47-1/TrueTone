@@ -56,12 +56,11 @@ select results_eq(
       privilege_type collate "C"
     from (
       values
-        ('authenticated'::text, 'profiles'::text, 'avatar_uri'::text, 'UPDATE'::text),
         ('authenticated'::text, 'profiles'::text, 'username'::text, 'UPDATE'::text)
     ) as allowed(grantee, table_name, column_name, privilege_type)
     order by grantee, table_name, column_name, privilege_type
   $$,
-  'profiles UPDATE grants are limited to username and avatar_uri'
+  'profiles UPDATE grants are limited to username (avatar_uri locked by 0042)'
 );
 
 select * from finish();

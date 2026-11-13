@@ -16,8 +16,9 @@ select ok(not has_table_privilege('anon', 'public.profiles', 'UPDATE'),
   'anon has no table UPDATE on profiles');
 select ok(has_column_privilege('authenticated', 'public.profiles', 'username', 'UPDATE'),
   'authenticated may update username');
-select ok(has_column_privilege('authenticated', 'public.profiles', 'avatar_uri', 'UPDATE'),
-  'authenticated may update avatar_uri');
+-- avatar_uri was client-writable here until 0042_profile_avatar_lock (MASVS M1) revoked it.
+select ok(not has_column_privilege('authenticated', 'public.profiles', 'avatar_uri', 'UPDATE'),
+  'authenticated cannot update avatar_uri');
 select ok(not has_column_privilege('authenticated', 'public.profiles', 'consent_active', 'UPDATE'),
   'authenticated cannot update consent_active');
 select ok(not has_column_privilege('authenticated', 'public.profiles', 'is_18_plus', 'UPDATE'),
@@ -57,15 +58,16 @@ select throws_ok(
   '42501', null, 'authenticated cannot forge a consent receipt');
 
 select lives_ok(
-  $$ update public.profiles set username = 'flags_user_a2', avatar_uri = 'file:///avatar-a.jpg'
+  $$ update public.profiles set username = 'flags_user_a2'
      where id = '26262626-2626-2626-2626-262626262601' $$,
-  'authenticated may update its username and avatar');
+  'authenticated may update its username');
 select is(
   (select username from public.profiles where id = '26262626-2626-2626-2626-262626262601'),
   'flags_user_a2', 'username update persisted');
-select is(
-  (select avatar_uri from public.profiles where id = '26262626-2626-2626-2626-262626262601'),
-  'file:///avatar-a.jpg', 'avatar update persisted');
+select throws_ok(
+  $$ update public.profiles set avatar_uri = 'file:///avatar-a.jpg'
+     where id = '26262626-2626-2626-2626-262626262601' $$,
+  '42501', null, 'authenticated cannot write a device path into avatar_uri');
 select lives_ok(
   $$ update public.profiles set username = 'stolen_name'
      where id = '26262626-2626-2626-2626-262626262602' $$,
