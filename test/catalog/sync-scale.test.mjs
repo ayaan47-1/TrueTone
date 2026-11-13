@@ -7,6 +7,34 @@ const config={shop:'synthetic.myshopify.com',accessToken:'not-a-real-token',publ
 const end={hasNextPage:false,endCursor:null};
 const snapshot=id=>({product_gid:id,variants:[]});
 
+test('unseen 250-point product queries never overdraw a partially depleted 1000-point bucket',async()=>{
+  let balance=1000,last=Date.now(),throttles=0;
+  const source=new ShopifyCatalogue({...config,fetcher:async(_url,init)=>{
+    const {variables}=JSON.parse(init.body),cost=variables.id?250:150;
+    const now=Date.now();balance=Math.min(1000,balance+(now-last)*10);last=now;
+    const allowed=balance>=cost;
+    if(allowed)balance-=cost;else throttles++;
+    const extensions={cost:{requestedQueryCost:cost,actualQueryCost:allowed?cost:null,throttleStatus:{maximumAvailable:1000,currentlyAvailable:balance,restoreRate:10000}}};
+    const data=variables.id?{shop:{currencyCode:'USD'},product:{id:variables.id,title:'Synthetic',vendor:'Synthetic',status:'ACTIVE',publishedOnPublication:true,formula:null,variants:{nodes:[],pageInfo:end}}}:
+      {products:{nodes:Array.from({length:8},(_,i)=>({id:`gid://shopify/Product/${i}`})),pageInfo:end}};
+    await new Promise(resolve=>setTimeout(resolve,2));
+    return Response.json(allowed?{data,extensions}:{errors:[{extensions:{code:'THROTTLED'}}],extensions});
+  }});
+  assert.equal((await source.page(null)).products.length,8);
+  assert.equal(throttles,0);
+});
+
+test('continuation restores and persists learned requested costs even when its page fails',async()=>{
+  let restored,persisted;
+  const handler=createReconcileHandler({secret:'synthetic',logger:()=>{},store:{
+    claimReconcile:async()=>({id:'00000000-0000-4000-8000-000000000001',lease_token:'00000000-0000-4000-8000-000000000002',cursor:null,started_at:'2026-11-13T00:00:00Z',query_costs:{product:250}}),
+    retryReconcile:async(job)=>{persisted=job.query_costs;},
+  },shopify:{restoreCosts:costs=>{restored=costs;},queryCosts:()=>({product:250,inventory:100}),page:async()=>{throw Error('synthetic');}}});
+  await handler(new Request('https://local.invalid/job',{method:'POST',headers:{authorization:'Bearer synthetic'},body:'{}'}));
+  assert.deepEqual(restored,{product:250});
+  assert.deepEqual(persisted,{product:250,inventory:100});
+});
+
 test('Shopify throttling is classified and never retried in a hot loop',async()=>{
   let calls=0;
   const source=new ShopifyCatalogue({...config,fetcher:async()=>{calls++;return Response.json({errors:[{message:'private response',extensions:{code:'THROTTLED'}}]});}});

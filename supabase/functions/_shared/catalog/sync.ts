@@ -121,9 +121,11 @@ export function createReconcileHandler({ secret, store, shopify, logger=catalogL
       if(!input.success) return new Response('invalid job',{status:400});
       job=await store.claimReconcile(input.data.job_id??null);
       if(!job) return new Response('already active or complete',{status:202});
+      shopify.restoreCosts?.(job.query_costs);
       const started=now();
       do {
         const page=await shopify.page(job.cursor);
+        job={...job,query_costs:shopify.queryCosts?.()??job.query_costs};
         await store.checkpointReconcile(job,page);
         if(page.nextCursor===null) return new Response('reconciled');
         job={...job,cursor:page.nextCursor};
@@ -133,10 +135,10 @@ export function createReconcileHandler({ secret, store, shopify, logger=catalogL
     } catch(error) {
       logger({event:'catalog_reconcile_failed',code:failureCode(error)});
       if(job) {
-        try { await store.retryReconcile(job); }
+        try { await store.retryReconcile({...job,query_costs:shopify.queryCosts?.()??job.query_costs},true,failureCode(error)); }
         catch(error) { logger({event:'catalog_reconcile_bookkeeping_failed',code:failureCode(error)}); }
       }
-      return new Response('reconcile failed; retry scheduled', { status: 503 });
+      return new Response('reconcile failed', { status: 503 });
     }
   };
 }

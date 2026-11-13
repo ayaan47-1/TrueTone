@@ -1,5 +1,5 @@
 import { z } from 'zod';
-import { productSchema, type ProductPage, type CatalogueSource, type InventorySnapshot, type ProductSnapshot } from './contracts.ts';
+import { productSchema, queryCostsSchema, type QueryCosts, type ProductPage, type CatalogueSource, type InventorySnapshot, type ProductSnapshot } from './contracts.ts';
 import { CatalogFailure } from './diagnostics.ts';
 
 const pageInfo = z.object({ hasNextPage: z.boolean(), endCursor: z.string().nullable() });
@@ -29,7 +29,7 @@ export class ShopifyCatalogue implements CatalogueSource {
   private restoreRate=50;
   private budgetAt=Date.now();
   private reserved=0;
-  private readonly costs=new Map<string,number>();
+  private costs:QueryCosts={};
   private readonly deadline=Date.now()+95_000;
   private readonly stop=new AbortController();
   private readonly config: {
@@ -43,10 +43,15 @@ export class ShopifyCatalogue implements CatalogueSource {
     this.config = config;
   }
 
-  private async query(query: string, variables: Record<string, unknown>): Promise<unknown> {
-    const cost=this.costs.get(query)??150;
-    if(cost>this.maximum) throw new CatalogFailure('shopify_throttled');
+  restoreCosts(costs:QueryCosts):void { this.costs=queryCostsSchema.parse(costs); }
+  queryCosts():QueryCosts { return {...this.costs}; }
+
+  private async query(shape:keyof QueryCosts,query: string, variables: Record<string, unknown>): Promise<unknown> {
+    // Shopify caps a single query at 1000 requested points. Do not guess before calibration.
+    let cost=0;
     while(true) {
+      cost=this.costs[shape]??Math.min(1000,this.maximum);
+      if(cost>this.maximum) throw new CatalogFailure('shopify_throttled');
       const now=Date.now();
       this.available=Math.min(this.maximum,this.available+(now-this.budgetAt)*this.restoreRate/1000);
       this.budgetAt=now;
@@ -66,7 +71,7 @@ export class ShopifyCatalogue implements CatalogueSource {
       const bill=envelope.extensions.cost;
       this.maximum=bill.throttleStatus.maximumAvailable;
       this.restoreRate=bill.throttleStatus.restoreRate;
-      this.costs.set(query,bill.requestedQueryCost);
+      if(bill.requestedQueryCost>0 && bill.requestedQueryCost<=1000) this.costs[shape]=bill.requestedQueryCost;
       this.reserved-=cost;
       // A remote balance may predate other in-flight reservations. Only reduce against it.
       this.available=Math.max(0,Math.min(this.maximum,
@@ -93,7 +98,7 @@ export class ShopifyCatalogue implements CatalogueSource {
     const seen = new Set<string>();
     while (page.hasNextPage) {
       const cursor = nextCursor(page, seen);
-      const data = z.object({ inventoryItem: itemSchema }).parse(await this.query(
+      const data = z.object({ inventoryItem: itemSchema }).parse(await this.query('inventory',
         `query($id:ID!,$levelsAfter:String){inventoryItem(id:$id){${inventoryFields}}}`, { id: item.id, levelsAfter: cursor }));
       levels.push(...this.mapLevels(data.inventoryItem.inventoryLevels));
       page = data.inventoryItem.inventoryLevels.pageInfo;
@@ -102,7 +107,7 @@ export class ShopifyCatalogue implements CatalogueSource {
   }
 
   async inventory(id: string): Promise<InventorySnapshot> {
-    const data = z.object({ inventoryItem: itemSchema }).parse(await this.query(
+    const data = z.object({ inventoryItem: itemSchema }).parse(await this.query('inventory',
       `query($id:ID!,$levelsAfter:String){inventoryItem(id:$id){${inventoryFields}}}`, { id, levelsAfter: null }));
     return { inventory_item_gid: data.inventoryItem.id, levels: await this.remainingLevels(data.inventoryItem) };
   }
@@ -114,7 +119,7 @@ export class ShopifyCatalogue implements CatalogueSource {
     let metadata: z.infer<typeof productInfo> | null = null;
     let currency: string | null = null;
     do {
-      const data = z.object({ product: productInfo.nullable(), shop: z.object({ currencyCode: z.string().length(3) }) }).parse(await this.query(
+      const data = z.object({ product: productInfo.nullable(), shop: z.object({ currencyCode: z.string().length(3) }) }).parse(await this.query('product',
         `query($id:ID!,$publication:ID!,$variantsAfter:String,$levelsAfter:String){shop{currencyCode} product(id:$id){${productFields}}}`,
         { id, publication: this.config.publicationId, variantsAfter: cursor, levelsAfter: null }));
       if (!data.product) {
@@ -140,7 +145,7 @@ export class ShopifyCatalogue implements CatalogueSource {
 
   async page(cursor:string|null):Promise<ProductPage> {
     try {
-      const data = z.object({ products: z.object({ nodes: z.array(z.object({ id: gid })).max(100), pageInfo }) }).parse(await this.query(
+      const data = z.object({ products: z.object({ nodes: z.array(z.object({ id: gid })).max(100), pageInfo }) }).parse(await this.query('products',
         'query($after:String){products(first:100,after:$after){nodes{id} pageInfo{hasNextPage endCursor}}}', { after: cursor }));
       const products:ProductSnapshot[]=[];
       for(let from=0;from<data.products.nodes.length;from+=8) {

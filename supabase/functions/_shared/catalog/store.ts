@@ -29,10 +29,10 @@ export class SupabaseCatalogueStore implements CatalogueStore {
     return reconcileJobSchema.nullable().parse(await this.rpc('catalog_claim_reconcile',{p_job_id:id}));
   }
   async checkpointReconcile(job:ReconcileJob,page:ProductPage):Promise<void> {
-    await this.rpc('catalog_checkpoint_reconcile',{p_job_id:job.id,p_lease_token:job.lease_token,p_products:page.products,p_next_cursor:page.nextCursor});
+    await this.rpc('catalog_checkpoint_reconcile',{p_job_id:job.id,p_lease_token:job.lease_token,p_products:page.products,p_next_cursor:page.nextCursor,p_query_costs:job.query_costs});
   }
-  async retryReconcile(job:ReconcileJob,failed=true):Promise<void> {
-    await this.rpc('catalog_retry_reconcile',{p_job_id:job.id,p_lease_token:job.lease_token,p_failed:failed});
+  async retryReconcile(job:ReconcileJob,failed=true,code:import('./diagnostics.ts').FailureCode='operation_failed'):Promise<void> {
+    await this.rpc('catalog_retry_reconcile',{p_job_id:job.id,p_lease_token:job.lease_token,p_failed:failed,p_error_code:code,p_query_costs:job.query_costs});
   }
   async complete(id: string): Promise<void> { await this.rpc('catalog_finish_event', { p_event_id: id, p_success: true }); }
   async fail(id: string): Promise<void> { await this.rpc('catalog_finish_event', { p_event_id: id, p_success: false }); }

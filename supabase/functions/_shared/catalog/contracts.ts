@@ -19,6 +19,8 @@ export type ProductSnapshot = z.infer<typeof productSchema>;
 export type InventorySnapshot = { inventory_item_gid: string; levels: z.infer<typeof inventoryLevelSchema>[] };
 
 export interface CatalogueSource {
+  restoreCosts?(costs:QueryCosts):void;
+  queryCosts?():QueryCosts;
   product(id: string): Promise<ProductSnapshot | null>;
   inventory(id: string): Promise<InventorySnapshot>;
   products(): AsyncIterable<ProductSnapshot>;
@@ -26,13 +28,16 @@ export interface CatalogueSource {
 }
 
 export type ProductPage = { products: ProductSnapshot[]; nextCursor: string | null };
-export const reconcileJobSchema = z.object({ id:z.uuid(),lease_token:z.uuid(),cursor:z.string().nullable(),started_at:z.iso.datetime({offset:true}) });
+const queryCost=z.number().positive().max(1000);
+export const queryCostsSchema=z.object({products:queryCost.optional(),product:queryCost.optional(),inventory:queryCost.optional()}).strict();
+export type QueryCosts=z.infer<typeof queryCostsSchema>;
+export const reconcileJobSchema = z.object({ id:z.uuid(),lease_token:z.uuid(),cursor:z.string().nullable(),started_at:z.iso.datetime({offset:true}),query_costs:queryCostsSchema.default({}) });
 export type ReconcileJob = z.infer<typeof reconcileJobSchema>;
 
 export interface CatalogueStore {
   claimReconcile(id: string | null): Promise<ReconcileJob | null>;
   checkpointReconcile(job: ReconcileJob, page: ProductPage): Promise<void>;
-  retryReconcile(job: ReconcileJob, failed?:boolean): Promise<void>;
+  retryReconcile(job: ReconcileJob, failed?:boolean,code?:import('./diagnostics.ts').FailureCode): Promise<void>;
   claim(id: string, topic: string): Promise<'claimed' | 'done' | 'busy'>;
   complete(id: string): Promise<void>;
   fail(id: string): Promise<void>;
