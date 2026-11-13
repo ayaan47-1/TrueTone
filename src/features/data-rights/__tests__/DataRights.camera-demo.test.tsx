@@ -17,11 +17,37 @@ jest.mock('../../../lib/scans', () => ({
 }));
 const mockClearDiary = jest.fn(() => Promise.resolve());
 jest.mock('../../diary/diary-storage', () => ({ clearDiary: () => mockClearDiary() }));
+const mockClearFeedback = jest.fn(() => Promise.resolve());
+jest.mock('../../shade-feedback/runtime', () => {
+  const { createFeedbackCleanup } = jest.requireActual('../../shade-feedback/cleanup');
+  const storage = require('@react-native-async-storage/async-storage');
+  const feedbackCleanup = createFeedbackCleanup(storage, () => mockClearFeedback(), {
+    readConsent: async () => 'inactive', hasFeedback: async () => false,
+  });
+  return { feedbackCleanup, clearAllLocalFeedback: () => feedbackCleanup.clear() };
+});
 
 beforeEach(() => {
   jest.clearAllMocks();
+  mockClearFeedback.mockReset().mockResolvedValue(undefined);
   cameraDemoSetIs18();
   cameraDemoSetConsent();
+});
+
+test('withdrawal refreshes the consent gate despite cleanup failure and leaves cleanup retryable', async () => {
+  mockClearFeedback.mockRejectedValueOnce(new Error('storage unavailable'));
+  const onChanged = jest.fn();
+  const view = await render(<DataRights onChanged={onChanged} confirm={async () => true} />);
+  await fireEvent.press(view.getByTestId('withdraw'));
+  await waitFor(() => expect(view.getByText(/Some local shade feedback could not be cleared/)).toBeTruthy());
+  expect(onChanged).toHaveBeenCalledTimes(1);
+  expect(cameraDemoState().consentActive).toBe(false);
+  expect(mockRpc).not.toHaveBeenCalled();
+  await fireEvent.press(view.getByTestId('withdraw'));
+  await waitFor(() => expect(onChanged).toHaveBeenCalledTimes(2));
+  expect(mockClearFeedback).toHaveBeenCalledTimes(2);
+  expect(cameraDemoState().consentActive).toBe(false);
+  expect(view.queryByText(/Some local shade feedback could not be cleared/)).toBeNull();
 });
 
 test('withdraw clears the local consent flag only, no RPC', async () => {

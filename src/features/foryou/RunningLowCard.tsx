@@ -11,6 +11,7 @@ import { SectionHead } from './HomeV3Parts';
 import { SAMPLE_RUNNING_LOW, SAMPLE_RUNNING_LOW_LABEL } from './home-sample-data';
 
 export function RunningLowCard() {
+  if (SAMPLE_RUNNING_LOW.length === 0) return null;
   return (
     <GlassCard radius={26} className="px-[18px] pb-2 pt-4">
       <SectionHead title="Buy Again" sub="Restock before you run out" />

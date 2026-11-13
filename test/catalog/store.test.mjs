@@ -23,3 +23,19 @@ test('database error responses are retriable, without reflecting database conten
 test('insecure nonlocal persistence URLs are rejected', () => {
   assert.throws(() => new SupabaseCatalogueStore({ url: 'http://example.com', serviceKey: 'synthetic' }));
 });
+
+test('catalogue persistence rejects307/308 without forwarding the service credentials',async()=>{
+  for(const status of [307,308]) {
+    const requests=[];
+    const store=new SupabaseCatalogueStore({url:'https://example.supabase.co',serviceKey:'synthetic-only',fetcher:async(url,init)=>{
+      requests.push({url,init});
+      const redirect=new Response(null,{status,headers:{Location:'https://untrusted.example/collect'}});
+      if(init.redirect==='error') return redirect;
+      requests.push({url:redirect.headers.get('Location'),init});
+      return Response.json('claimed');
+    }});
+    await assert.rejects(()=>store.claim('event','products/update'),/catalogue persistence failed/);
+    assert.equal(requests.length,1);
+    assert.equal(requests[0].init.redirect,'error');
+  }
+});

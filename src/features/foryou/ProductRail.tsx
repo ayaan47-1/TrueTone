@@ -23,13 +23,14 @@ interface ProductRailProps {
   onSeeAll?: () => void;
   /** Visible text of that action; defaults to "See all". */
   seeAllLabel?: string;
+  onOpenProduct?: (id: string) => void;
 }
 
 const railTestId = (title: string): string =>
   `rail-${title.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/(^-|-$)/g, '')}`;
 
 /** A titled horizontal rail of ProductCards. Renders nothing for an empty product list. */
-export function ProductRail({ title, subtitle, products, profile, onSeeAll, seeAllLabel }: ProductRailProps) {
+export function ProductRail({ title, subtitle, products, profile, onSeeAll, seeAllLabel, onOpenProduct }: ProductRailProps) {
   if (products.length === 0) return null;
 
   return (
@@ -48,6 +49,7 @@ export function ProductRail({ title, subtitle, products, profile, onSeeAll, seeA
               product={product}
               profile={profile}
               isBestMatch={Boolean(profile) && index === 0}
+              onOpen={onOpenProduct}
             />
           </View>
         ))}

@@ -5,7 +5,7 @@
 import { useMemo, useState } from 'react';
 import { View } from 'react-native';
 import { Body, Caption, GlassCard, PressableScale, Subheading } from '../../../components/ui';
-import { catalog } from '../../match/product-catalog';
+import { catalog, useProductCatalogue } from '../../match/product-catalog';
 import { useDailyRoutine } from '../use-daily-routine';
 import { suggestProducts } from '../routine-suggestions';
 import type { RoutineSlot } from '../routine-types';
@@ -30,12 +30,13 @@ interface Props {
 }
 
 export function RoutineEditor({ userId, purchasedIds, savedIds }: Props) {
+  useProductCatalogue();
   const { today, addToSlot, removeFromSlot, replaceInSlot } = useDailyRoutine(userId);
   const [target, setTarget] = useState<PickerTarget | null>(null);
 
   const suggestions = useMemo(
     () => (target ? suggestProducts({ purchasedIds, savedIds, exclude: today[target.slot] }) : []),
-    [target, purchasedIds, savedIds, today],
+    [target, purchasedIds, savedIds, today, catalog],
   );
 
   const onPick = (productId: string): void => {

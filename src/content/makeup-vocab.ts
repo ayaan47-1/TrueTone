@@ -58,7 +58,8 @@ export const SKIP_LABELS: Record<Skip, string> = {
 export const FINISHES = ['sheer', 'natural', 'satin', 'dewy', 'matte', 'glam'] as const;
 export type Finish = (typeof FINISHES)[number];
 
-export const FINISH_LABELS: Record<Finish, string> = {
+export const FINISH_LABELS: Record<Finish | 'unknown', string> = {
+  unknown: 'Finish not specified',
   sheer: 'Sheer',
   natural: 'Natural',
   satin: 'Satin',

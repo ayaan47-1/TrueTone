@@ -9,9 +9,12 @@ import { orderHistory } from '../checkout/order-history-store';
 import { clearPublishedRoutines } from '../routine/routine-publish';
 import { wipeEncryptedLocalData } from '../../lib/encrypted-storage';
 import { Screen, GlassCard, Display, Eyebrow, Body, Caption } from '../../components/ui';
+import { FeedbackDataPanel } from '../shade-feedback/FeedbackDataPanel';
+import { clearAllLocalFeedback } from '../shade-feedback/runtime';
+import { FeedbackCleanupNotice } from '../shade-feedback/FeedbackCleanupNotice';
 
 type RpcName = 'withdraw_consent' | 'clear_shade_history' | 'delete_my_data' | 'delete_account';
-type Props = { onChanged: () => void; confirm: (msg: string) => Promise<boolean> };
+type Props = { onChanged: () => void; confirm: (msg: string) => Promise<boolean>; feedbackOwner?:string|null };
 
 const ACTIONS: { id: string; rpc: RpcName; label: string; hint: string; danger?: boolean; confirm: string }[] = [
   { id: 'withdraw', rpc: 'withdraw_consent', label: 'Withdraw Consent', hint: 'Stop future scans until you consent again.', confirm: 'Withdraw consent?' },
@@ -33,6 +36,7 @@ const LOCAL_WIPES: (() => Promise<void>)[] = [
   clearDiary,
   clearAllRoutines,
   clearPublishedRoutines,
+  clearAllLocalFeedback,
 ];
 
 /** Runs every wipe even if one fails; true only when all of them succeeded. */
@@ -46,7 +50,7 @@ async function wipeLocalData(includeAuthSession: boolean): Promise<boolean> {
   return localResults.every((r) => r.status === 'fulfilled') && encryptedResult.status === 'fulfilled';
 }
 
-export function DataRights({ onChanged, confirm }: Props) {
+export function DataRights({ onChanged, confirm, feedbackOwner }: Props) {
   const [wipeIncomplete, setWipeIncomplete] = useState(false);
 
   const wiping = useRef(false);
@@ -68,11 +72,6 @@ export function DataRights({ onChanged, confirm }: Props) {
   // Camera build (Dwight FAIL on PR #60): there is no server account, so every action applies to
   // this device only -- the in-memory scans and the local age/consent gates -- and never calls an RPC.
   async function runLocalOnly(fn: RpcName) {
-    if (fn === 'withdraw_consent') {
-      cameraDemoWithdrawConsent();
-      onChanged();
-      return;
-    }
     if (fn === 'clear_shade_history') {
       await clearShadeHistory();
       onChanged();
@@ -85,6 +84,19 @@ export function DataRights({ onChanged, confirm }: Props) {
 
   async function run(fn: RpcName, msg: string) {
     if (!(await confirm(msg))) return;
+    if(fn==='withdraw_consent') {
+      if (SUPABASE_OFFLINE) cameraDemoWithdrawConsent();
+      else {
+        const { error } = await supabase.rpc(fn);
+        if (error) return;
+      }
+      // Invalidate saves synchronously, then refresh the revoked gate without waiting
+      // for disk access. The shared notice survives navigation while cleanup runs.
+      const cleaning = clearAllLocalFeedback();
+      onChanged();
+      await cleaning.catch(() => undefined);
+      return;
+    }
     if (SUPABASE_OFFLINE) return runLocalOnly(fn);
     if (fn === 'clear_shade_history') {
       try {
@@ -115,6 +127,7 @@ export function DataRights({ onChanged, confirm }: Props) {
         <Display className="text-3xl">Your Data</Display>
       </View>
       <View className="gap-3">
+        {feedbackOwner ? <FeedbackDataPanel owner={feedbackOwner} confirm={confirm} /> : null}
         {ACTIONS.map((a) => (
           <Pressable
             key={a.id}
@@ -131,6 +144,7 @@ export function DataRights({ onChanged, confirm }: Props) {
           </Pressable>
         ))}
       </View>
+      <FeedbackCleanupNotice />
       {wipeIncomplete && (
         <GlassCard flat intensity={28} radius={22} className="px-5 py-4 gap-2 mt-4">
           <Text accessibilityRole="alert" className="font-body-semibold text-base text-clay">

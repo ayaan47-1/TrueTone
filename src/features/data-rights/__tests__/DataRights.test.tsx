@@ -4,6 +4,7 @@ import * as SecureStore from 'expo-secure-store';
 import { DataRights } from '../DataRights';
 import { encryptedStorage, ENCRYPTION_KEY_NAME } from '../../../lib/encrypted-storage';
 import { supabaseAuthStorage } from '../../../lib/supabase-auth-storage';
+import { localFeedback } from '../../shade-feedback/runtime';
 
 const AUTH_KEY = 'sb-project-auth-token';
 const SESSION = JSON.stringify({ access_token: 'access', refresh_token: 'refresh' });
@@ -16,6 +17,34 @@ const mockClearDiary = jest.fn(() => Promise.resolve());
 jest.mock('../../diary/diary-storage', () => ({ clearDiary: () => mockClearDiary() }));
 
 beforeEach(() => jest.clearAllMocks());
+
+test('withdrawal revokes first and refreshes the gate without waiting for the queued local wipe', async () => {
+  const order: string[] = [];
+  const wipe = jest.spyOn(localFeedback, 'clearAll').mockImplementationOnce(async () => { order.push('wipe'); });
+  mockRpc.mockImplementationOnce(async () => { order.push('revoked'); return { error: null }; });
+  try {
+    const view = await render(<DataRights onChanged={() => { order.push('gate'); }} confirm={async () => true} />);
+    await fireEvent.press(view.getByTestId('withdraw'));
+    expect(order).toEqual(['revoked', 'gate', 'wipe']);
+  } finally { wipe.mockRestore(); }
+});
+
+test('feedback cleanup failure still withdraws and refreshes server consent while cleanup remains retryable', async () => {
+  const clear = jest.spyOn(localFeedback, 'clearAll').mockRejectedValueOnce(new Error('storage unavailable'));
+  const onChanged = jest.fn();
+  try {
+    const view = await render(<DataRights onChanged={onChanged} confirm={async () => true} />);
+    await fireEvent.press(view.getByTestId('withdraw'));
+    await waitFor(() => expect(mockRpc).toHaveBeenCalledWith('withdraw_consent'));
+    expect(view.getByText(/Some local shade feedback could not be cleared/)).toBeTruthy();
+    expect(onChanged).toHaveBeenCalledTimes(1);
+    await fireEvent.press(view.getByTestId('withdraw'));
+    await waitFor(() => expect(onChanged).toHaveBeenCalledTimes(2));
+    expect(clear).toHaveBeenCalledTimes(2);
+  } finally {
+    clear.mockRestore();
+  }
+});
 
 test('withdraw/delete/account call correct RPCs after confirm', async () => {
   const { getByTestId } = await render(<DataRights onChanged={jest.fn()} confirm={async () => true} />);

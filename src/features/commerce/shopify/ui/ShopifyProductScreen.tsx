@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from 'react';
-import { SUPABASE_OFFLINE } from '../../../../lib/supabase';
+import { supabase, SUPABASE_OFFLINE } from '../../../../lib/supabase';
 import { ShopOfflineNotice } from './ShopOfflineNotice';
 import { Image, Pressable, ScrollView, Text, View } from 'react-native';
 import { Body, Caption, Display, GlassCard, PrimaryButton, Subheading } from '../../../../components/ui';
@@ -7,11 +7,13 @@ import { formatMoney } from '../money';
 import { pickPurchasableVariant } from '../product-mapper';
 import { hasAcceptedShopPrivacy } from '../shop-privacy';
 import { shopifyStore, useShopifyStore } from '../shopify-store';
+import { catalogueIsDemo, useProductCatalogue } from '../../../match/product-catalog';
 
 interface Props {
   readonly handle: string;
   readonly onBack: () => void;
   readonly onAdded: () => void;
+  readonly onFeedback?: (variantId: string) => void;
 }
 
 // Camera build (Dwight FAIL on PR #60): no store reads, no Shopify requests, no checkout sheet.
@@ -20,7 +22,8 @@ export function ShopifyProductScreen(props: Props) {
   return <ShopifyProductScreenOnline {...props} />;
 }
 
-function ShopifyProductScreenOnline({ handle, onBack, onAdded }: Props) {
+function ShopifyProductScreenOnline({ handle, onBack, onAdded, onFeedback }: Props) {
+  const catalogue=useProductCatalogue();
   const privacyAccepted = hasAcceptedShopPrivacy();
   const {
     products,
@@ -31,7 +34,12 @@ function ShopifyProductScreenOnline({ handle, onBack, onAdded }: Props) {
     catalogUpdatedAt,
     liveProductHandles,
   } = useShopifyStore();
-  const product = useMemo(() => products.find((item) => item.handle === handle), [handle, products]);
+  const product = useMemo(() => {
+    const match=products.find(item=>item.handle===handle);
+    if(!match || catalogueIsDemo) return match;
+    const allowed=new Set(catalogue.products.map(item=>item.id));
+    return {...match,variants:match.variants.filter(item=>allowed.has(item.id))};
+  }, [handle, products, catalogue.products]);
   const [selectedVariantId, setSelectedVariantId] = useState<string | null>(null);
   const variant = product
     ? product.variants.find((item) => item.id === selectedVariantId && item.availableForSale)
@@ -39,6 +47,27 @@ function ShopifyProductScreenOnline({ handle, onBack, onAdded }: Props) {
     : null;
   const [quantity] = useState(1);
   const productLive = liveProductHandles.includes(handle);
+  const [approvedFeedbackVariant, setApprovedFeedbackVariant] = useState<string | null>(null);
+  const variantId = variant?.id;
+
+  useEffect(() => {
+    let current = true;
+    setApprovedFeedbackVariant(null);
+    if (!privacyAccepted || !onFeedback || !variantId) return;
+    async function checkApproval() {
+      try {
+        const { data, error } = await supabase.from('catalog_recommendable')
+          .select('variant_gid').eq('variant_gid', variantId).limit(1);
+        if (current && !error && data?.some((row) => row.variant_gid === variantId)) {
+          setApprovedFeedbackVariant(variantId ?? null);
+        }
+      } catch {
+        // Unavailable approval is not permission to solicit feedback for this shade.
+      }
+    }
+    void checkApproval();
+    return () => { current = false; };
+  }, [privacyAccepted, onFeedback, variantId]);
 
   useEffect(() => {
     if (privacyAccepted && !product) void shopifyStore.loadProduct(handle);
@@ -116,6 +145,14 @@ function ShopifyProductScreenOnline({ handle, onBack, onAdded }: Props) {
           onPress={() => void add()}
         />
         <PrimaryButton className="mt-3" label="Back to shop" variant="glass" onPress={onBack} />
+        {variantId && approvedFeedbackVariant === variantId && onFeedback ? (
+          <PrimaryButton
+            className="mt-3"
+            label="How did this shade look?"
+            variant="ghost"
+            onPress={() => onFeedback(variantId)}
+          />
+        ) : null}
       </View>
     </ScrollView>
   );

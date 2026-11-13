@@ -62,6 +62,7 @@ export const FEATURED_IDS = [
 
 /** Resolve FEATURED_IDS to real catalog products, preserving order. */
 export function featuredProducts(products: readonly Product[] = catalog): Product[] {
+  if (products.some(product => product.catalogue)) return [...products].sort((a,b) => a.shade-b.shade || a.id.localeCompare(b.id)).slice(0,PICKED_FOR_YOU_COUNT);
   return FEATURED_IDS.map((id) => products.find((p) => p.id === id)).filter(
     (p): p is Product => p !== undefined,
   );

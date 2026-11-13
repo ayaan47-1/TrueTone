@@ -49,6 +49,8 @@ The migration schedules `truetone-catalog-reconcile` at 04:00 UTC daily. The ope
 
 ## Label a shade
 
+Staff can use the Node command-line tool in [catalog-label-tool.md](catalog-label-tool.md) to list the queue, export evidence, save drafts, and approve reviewed labels. It has no browser or mobile UI. Migration `0037_catalog_label_tool.sql` adds its service-role-only atomic submission function.
+
 Use a restricted server-side admin workflow with the service role. Mobile authenticated clients can read only `catalog_recommendable`; they cannot read audit history, the needs-label queue, or call sync RPCs. There are no anonymous catalogue grants.
 
 New variants create `unverified` labels. Approval requires depth and base undertone with M/B/C evidence, source/audit fields, and identified reviewers. C evidence requires two reviewers. Independent modifiers carry their own tier map. A rank is ordinal within its formula only. Instrument Lab requires the complete applied-product protocol; M-labelled results are excluded until `lab_validated` is true. B/C rows remain coarse catalogue suggestions.
@@ -61,6 +63,12 @@ Deleted/re-imported variants retain history. Unique vendor plus SKU/barcode matc
 
 `chooseAvailableShades` is a pure on-device stock fallback. It preserves the unavailable best shade ID for explanation, then ranks suitable verified in-stock same-formula options ahead of cross-brand options. It checks depth-band proximity and known base undertone, finish, coverage, currency, and budget. The caller supplies validated suitability limits and explicit preferences. It never treats a within-formula rank as a cross-brand colour distance, forces an option, or emits an exact-match claim.
 
-This delivery supplies the catalogue read model, sync functions, and fallback module. Admin UI and replacing the app's synthetic catalogue imports are not wired here. The current shade-engine branch's measured-colour adapter still needs integration and validation. No Match My Foundation data or feedback logging is loaded. Those require their separate approved steps.
+The app reads `catalog_recommendable` through an authenticated, paginated projection. It refreshes on foregrounding and once per minute while mounted; failures and empty results show an explicit retry state, never synthetic products. Synthetic products remain only in the explicit demo build and test fixtures. Camera-offline builds make no catalogue or Shopify requests.
+
+Home and product detail use actual variant IDs, prices and reviewed evidence. The current UI supports USD only; other currencies are rejected rather than mislabelled. Missing finish, images and swatches are shown as unavailable, not invented. An unavailable previously viewed shade can offer alternatives after the shopper confirms the displayed finish, coverage and budget criteria; matching stays in the same depth band and uses the shared same-formula-first ranking.
+
+After the existing Shopify privacy notice is accepted, Storefront reads join only currently approved variant IDs. Persistent commerce caches are disabled because they cannot establish current approval. Adding a shade rechecks the view and sends only its variant ID and quantity to Shopify. No skin, scan or recommendation context is sent. Shopify still verifies final price and inventory at checkout.
+
+Operators label shades with the labelling CLI; there is no admin UI yet. The shade-engine branch's measured-colour adapter still needs integration and validation. Match My Foundation estimates are imported only as unverified source data (migration 0038). No feedback logging is loaded; that requires its separate approved step.
 
 Full reconciliation traverses all product, variant, and inventory pages before marking anything missing. A page or API failure leaves existing rows intact and records failure. Retry on the next scheduled or operator-triggered run. Large catalogues may exceed the Edge Function runtime; measure the actual product count and run time before enabling production, then add durable chunked continuation if needed. Shopify throttling fails the run safely rather than hiding partial results as a successful reconcile.

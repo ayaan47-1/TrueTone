@@ -7,7 +7,7 @@ import { Text, View } from 'react-native';
 import { useRouter } from 'expo-router';
 import { Caption, GlassCard, PressableScale, PrimaryButton } from '../../components/ui';
 import { useProfile } from '../../lib/profile-context';
-import { catalog } from '../match/product-catalog';
+import { catalog, useProductCatalogue } from '../match/product-catalog';
 import { useDailyRoutine } from '../routine/use-daily-routine';
 import type { DailyRoutine, RoutineSlot } from '../routine/routine-types';
 import { SectionTitle } from './HomeV3Parts';
@@ -37,6 +37,7 @@ export function TodaysRoutineCard() {
 }
 
 export function TodaysRoutineCardView({ routine, onOpen }: { routine: DailyRoutine; onOpen: () => void }) {
+  useProductCatalogue();
   const [slot, setSlot] = useState<RoutineSlot>('am');
   const steps = routine[slot];
   const empty = routine.am.length + routine.pm.length === 0;

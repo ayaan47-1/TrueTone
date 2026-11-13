@@ -14,6 +14,7 @@ import {
   PrimaryButton,
 } from '../../components/ui';
 import { palette } from '../../theme/tokens';
+import { FeedbackCleanupNotice } from '../shade-feedback/FeedbackCleanupNotice';
 
 export function Consent({
   onConsent,
@@ -40,6 +41,7 @@ export function Consent({
         <Display accessibilityRole="header" className="text-[30px]">Your photo stays yours</Display>
         <Body className="text-ink-muted">Review and choose before any scan can begin.</Body>
       </View>
+      <FeedbackCleanupNotice />
 
       <GlassCard flat radius={22} className="px-5 py-5 gap-4">
         <Heading accessibilityRole="header" className="text-[20px]">{C.title}</Heading>

@@ -13,6 +13,7 @@ jobs:
       # copy in web/ drifts across the cosmetic/medical line (CLAUDE.md §1).
       - run: npm run check:compliance
       - run: npm run check:no-egress
+      - run: node scripts/check-shade-feedback-boundary.mjs
       - run: npm run test:catalog
       - run: npm run check:catalog
       # Unit tests (integration tests need a live Supabase and run separately).
@@ -20,3 +21,15 @@ jobs:
       # Jest only collects .ts/.tsx, so the node:test suites covering the compliance
       # scripts and the waitlist client need their own step or they never run.
       - run: npm run test:scripts
+  feedback-database:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: supabase/setup-cli@v1
+        with:
+          version: 2.116.0
+      - run: supabase start
+      - run: supabase db reset --local
+      - run: supabase test db --local
+      - if: always()
+        run: supabase stop --no-backup

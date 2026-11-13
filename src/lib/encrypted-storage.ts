@@ -26,6 +26,7 @@ const SECURE_OPTS = { keychainAccessible: SecureStore.WHEN_UNLOCKED_THIS_DEVICE_
 
 const USER_DATA_KEY_PREFIXES: readonly string[] = [
   'truetone.diary.',
+  'truetone.shadeFeedback.',
   'truetone.routine.',
   'truetone.community.published.',
   'truetone.community-profile.',

@@ -31,3 +31,11 @@ test('is decorative for screen readers but labelled by product name', async () =
   const view = await render(<ProductArt product={product} height={120} />);
   expect(view.getByLabelText(product.name)).toBeTruthy();
 });
+
+test('live missing art is a labelled image using mist and caption typography', async () => {
+  const {palette}=require('../../../theme/tokens');
+  const live={...product,catalogue:{currency:'USD'}} as typeof product;
+  const view=await render(<ProductArt product={live} height={120} />);
+  expect(view.getByRole('image',{name:`Product image unavailable, ${product.name}`})).toHaveStyle({backgroundColor:palette.mist100});
+  expect(view.getByText('Image unavailable').props.className).toContain('font-body');
+});

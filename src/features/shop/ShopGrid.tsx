@@ -10,7 +10,7 @@ import { Body, Caption, Display, GlassSurface, PressableScale, Subheading } from
 import { CameraGlyph, ShopGlyph } from '../../components/ui/tab-icons';
 import { glass, palette } from '../../theme/tokens';
 import type { MatchProfile, Product } from '../match/match-types';
-import { catalog } from '../match/product-catalog';
+import { catalog, useProductCatalogue } from '../match/product-catalog';
 import type { Filter } from '../../content/makeup-vocab';
 import { bagCount, useBag } from '../checkout/bag-store';
 import { FilterTabs } from './FilterTabs';
@@ -47,6 +47,7 @@ export function ShopGrid({
   onBag,
   showRatings = SAMPLE_RATINGS_ENABLED,
 }: ShopGridProps) {
+  useProductCatalogue();
   const [filter, setFilter] = useState<Filter>(initialFilter);
   const [query, setQuery] = useState('');
   const [sort, setSort] = useState<ShelfSort>('match');
@@ -96,7 +97,7 @@ export function ShopGrid({
           <ChevronGlyph color={palette.ink} size={7} dir="down" />
         </PressableScale>
       </View>
-      <Caption testID="sample-catalog-label" className="-mt-1 mb-3 text-[11px] text-ink-soft">{SAMPLE_CATALOG_LABEL}</Caption>
+      {products.some(product => product.catalogue) ? null : products.length ? <Caption testID="sample-catalog-label" className="-mt-1 mb-3 text-[11px] text-ink-soft">{SAMPLE_CATALOG_LABEL}</Caption> : null}
       {items.length ? <Grid items={items} showRatings={showRatings} onOpen={onOpen} /> : <NoResults />}
       <FilterSheet
         visible={sheetOpen}

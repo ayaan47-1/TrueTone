@@ -56,7 +56,7 @@ test('RunningLow lists items and shows an empty state', async () => {
 
 test('RunningLow (v3 video): subtitle, product art and a Reorder button per item', async () => {
   const { fireEvent } = jest.requireActual('@testing-library/react-native');
-  const { catalog } = jest.requireActual('../../match/product-catalog');
+  const { catalog } = jest.requireActual('../../match/demo-product-catalog');
   const onReorder = jest.fn();
   const product = catalog[0];
   const view = await render(
