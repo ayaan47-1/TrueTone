@@ -53,8 +53,11 @@ touches the dependency graph a lock would need to pin.
 
 **Validation** checks lock entries by content, not just key presence: the version `deno.json`
 pins must be exact semver, `deno.lock`'s recorded version for that specifier must equal it
-(not just exist), and `npm`/`remote` integrity hashes must be non-empty and hash-shaped rather
-than merely present.
+(not just exist), `npm` integrity must be a well-formed SRI `sha512-` digest (exactly 86
+base64 characters plus `==` padding — rejects `sha1`/other algorithms and any merely
+hash-looking string), and `remote` entries (both a direct remote URL import and an import-map
+specifier that resolves to a remote URL, not just an `npm:` one) must be exactly 64 lowercase
+hex characters (a raw SHA-256 digest).
 
 This catches the real failure modes the previous round's regex extractor and presence-only
 checks couldn't: a version bump in `deno.json` (or a CDN import string) that nobody re-ran

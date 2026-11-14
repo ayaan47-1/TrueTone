@@ -19,7 +19,14 @@ import { join, dirname, normalize } from 'node:path';
 
 const SUPPORTED_LOCK_VERSION = '5';
 const EXACT_SEMVER = /^\d+\.\d+\.\d+(?:[-+][0-9A-Za-z.-]+)?$/;
-const HASH_LIKE = /^[^\s]{8,}$/; // non-empty, no whitespace, long enough to be a real digest
+// deno.lock v5's npm integrity is a standard SRI sha512 digest: base64 of 64 bytes is always
+// exactly 86 significant characters plus "==" padding. Any other length or algorithm (sha1,
+// truncated/garbage strings) is rejected rather than accepted as "long enough to look real".
+const NPM_INTEGRITY_SHA512 = /^sha512-[A-Za-z0-9+/]{86}==$/;
+// deno.lock v5's remote entries are always a raw SHA-256 hex digest (64 lowercase hex chars) —
+// applies to a direct remote URL import and to an import-map specifier that resolves to a
+// remote URL (as opposed to an npm: specifier).
+const REMOTE_HASH_SHA256 = /^[0-9a-f]{64}$/;
 
 // ---------------------------------------------------------------------------
 // 1. Module graph walk (TypeScript AST) — Scalia HIGH #2
@@ -177,7 +184,7 @@ export function validateLockAgainstSpecifiers({ name, denoJson, denoLock, specif
             'the lock is stale or was never regenerated for this import'
         );
       }
-      if (typeof hash !== 'string' || !HASH_LIKE.test(hash)) {
+      if (typeof hash !== 'string' || !REMOTE_HASH_SHA256.test(hash)) {
         throw new Error(`${name}: deno.lock has a malformed remote hash for '${spec}' (got ${JSON.stringify(hash)})`);
       }
       continue;
@@ -190,11 +197,18 @@ export function validateLockAgainstSpecifiers({ name, denoJson, denoLock, specif
 
     if (!resolved.startsWith('npm:')) {
       // An import-map target that isn't an npm: specifier (a raw URL pin, say) is checked the
-      // same way a direct remote import is, against deno.lock.remote.
+      // same way a direct remote import is, against deno.lock.remote — including validating the
+      // hash's shape, not just that a key exists (an empty-string entry must not pass).
       const hash = remoteEntries[resolved];
       if (hash === undefined) {
         throw new Error(
           `${name}: deno.json resolves '${spec}' to '${resolved}', but deno.lock has no matching remote entry`
+        );
+      }
+      if (typeof hash !== 'string' || !REMOTE_HASH_SHA256.test(hash)) {
+        throw new Error(
+          `${name}: deno.json resolves '${spec}' to '${resolved}', but deno.lock has a malformed ` +
+            `remote hash for it (got ${JSON.stringify(hash)})`
         );
       }
       continue;
@@ -235,7 +249,7 @@ export function validateLockAgainstSpecifiers({ name, denoJson, denoLock, specif
           'is the pinned version — the lock may have been hand-edited rather than regenerated'
       );
     }
-    if (typeof npmEntry.integrity !== 'string' || !HASH_LIKE.test(npmEntry.integrity)) {
+    if (typeof npmEntry.integrity !== 'string' || !NPM_INTEGRITY_SHA512.test(npmEntry.integrity)) {
       throw new Error(
         `${name}: deno.lock has no valid integrity hash for '${pkgAtVersion}' ` +
           `(got ${JSON.stringify(npmEntry.integrity)})`

@@ -202,16 +202,21 @@ const GOOD_DENO_JSON = {
   imports: { '@supabase/supabase-js': 'npm:@supabase/supabase-js@2.108.2' },
 };
 
+// Real deno.lock v5 hash shapes: npm integrity is SRI sha512 (base64 of 64 bytes is always
+// exactly 86 significant chars + "==" padding); remote entries are 64-char lowercase hex
+// SHA-256. Placeholder digits/letters below are shape-valid, not real hashes.
+const GOOD_SHA512 = `sha512-${'A'.repeat(86)}==`;
+const GOOD_SHA256 = 'a'.repeat(64);
+
 const GOOD_DENO_LOCK = {
   version: '5',
   specifiers: { 'npm:@supabase/supabase-js@2.108.2': '2.108.2' },
   npm: {
-    '@supabase/supabase-js@2.108.2': { integrity: 'sha512-realhash==' },
+    '@supabase/supabase-js@2.108.2': { integrity: GOOD_SHA512 },
   },
   remote: {
-    'https://deno.land/std@0.224.0/http/server.ts':
-      'f9313804bf6467a1704f45f76cb6cd0a3396a3b31c316035e6a4c2035d1ea514',
-    'https://esm.sh/stripe@14.19.0': 'def4567890123456789012345678901234567890123456789012345678abcd',
+    'https://deno.land/std@0.224.0/http/server.ts': GOOD_SHA256,
+    'https://esm.sh/stripe@14.19.0': GOOD_SHA256,
   },
   workspace: { dependencies: ['npm:@supabase/supabase-js@2.108.2'] },
 };
@@ -267,7 +272,7 @@ test('throws when specifiers records a different version than the pin (Scalia ME
   const lock = {
     version: '5',
     specifiers: { 'npm:pkg@1.2.3': '0.0.0' },
-    npm: { 'pkg@1.2.3': { integrity: 'sha512-realhash==' } },
+    npm: { 'pkg@1.2.3': { integrity: GOOD_SHA512 } },
     remote: {},
     workspace: { dependencies: ['npm:pkg@1.2.3'] },
   };
@@ -308,6 +313,38 @@ test('throws when npm integrity is present but empty (Scalia MEDIUM exact probe)
   );
 });
 
+test('throws when npm integrity looks hash-like but is not a valid SRI sha512 digest (Scalia round 2 MEDIUM probe)', () => {
+  // The exact probe: 'abcdefgh' is 8 non-whitespace chars, so it used to pass under the old
+  // "long enough to look real" check. It is not sha512-shaped at all.
+  const denoJson = { imports: { pkg: 'npm:pkg@1.2.3' } };
+  const lock = {
+    version: '5',
+    specifiers: { 'npm:pkg@1.2.3': '1.2.3' },
+    npm: { 'pkg@1.2.3': { integrity: 'abcdefgh' } },
+    remote: {},
+    workspace: { dependencies: ['npm:pkg@1.2.3'] },
+  };
+  assert.throws(
+    () => validateLockAgainstSpecifiers({ name: 'fn', denoJson, denoLock: lock, specifiers: ['pkg'] }),
+    /no valid integrity hash/
+  );
+});
+
+test('rejects an sha1-shaped (or otherwise wrong-algorithm) npm integrity value', () => {
+  const denoJson = { imports: { pkg: 'npm:pkg@1.2.3' } };
+  const lock = {
+    version: '5',
+    specifiers: { 'npm:pkg@1.2.3': '1.2.3' },
+    npm: { 'pkg@1.2.3': { integrity: `sha1-${'A'.repeat(27)}=` } },
+    remote: {},
+    workspace: { dependencies: ['npm:pkg@1.2.3'] },
+  };
+  assert.throws(
+    () => validateLockAgainstSpecifiers({ name: 'fn', denoJson, denoLock: lock, specifiers: ['pkg'] }),
+    /no valid integrity hash/
+  );
+});
+
 test('throws when a remote URL import has no matching key in deno.lock.remote', () => {
   assert.throws(
     () =>
@@ -325,6 +362,54 @@ test('throws when a remote entry has an empty/malformed hash', () => {
   };
   assert.throws(
     () => validateLockAgainstSpecifiers(goodFixture({ denoLock: lock })),
+    /malformed remote hash/
+  );
+});
+
+// The import-map-resolved-to-a-remote-URL branch (a deno.json import-map target that is a raw
+// URL pin, not an npm: specifier) had zero test coverage before this round — Scalia's round 2
+// MEDIUM exact probe was an empty-string hash there passing silently.
+test('accepts an import-map specifier that resolves to a remote URL with a valid remote-entry hash', () => {
+  const denoJson = { imports: { pinned: 'https://esm.sh/pinned@1.0.0' } };
+  const lock = {
+    version: '5',
+    specifiers: {},
+    npm: {},
+    remote: { 'https://esm.sh/pinned@1.0.0': GOOD_SHA256 },
+    workspace: { dependencies: [] },
+  };
+  assert.deepEqual(
+    validateLockAgainstSpecifiers({ name: 'fn', denoJson, denoLock: lock, specifiers: ['pinned'] }),
+    { ok: true }
+  );
+});
+
+test('throws when an import-map-resolved remote URL has an empty hash (Scalia round 2 MEDIUM exact probe)', () => {
+  const denoJson = { imports: { pinned: 'https://esm.sh/pinned@1.0.0' } };
+  const lock = {
+    version: '5',
+    specifiers: {},
+    npm: {},
+    remote: { 'https://esm.sh/pinned@1.0.0': '' },
+    workspace: { dependencies: [] },
+  };
+  assert.throws(
+    () => validateLockAgainstSpecifiers({ name: 'fn', denoJson, denoLock: lock, specifiers: ['pinned'] }),
+    /malformed remote hash/
+  );
+});
+
+test('throws when an import-map-resolved remote URL has a non-sha256-shaped hash', () => {
+  const denoJson = { imports: { pinned: 'https://esm.sh/pinned@1.0.0' } };
+  const lock = {
+    version: '5',
+    specifiers: {},
+    npm: {},
+    remote: { 'https://esm.sh/pinned@1.0.0': 'not-a-real-digest' },
+    workspace: { dependencies: [] },
+  };
+  assert.throws(
+    () => validateLockAgainstSpecifiers({ name: 'fn', denoJson, denoLock: lock, specifiers: ['pinned'] }),
     /malformed remote hash/
   );
 });
