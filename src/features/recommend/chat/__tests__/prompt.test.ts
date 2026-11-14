@@ -1,37 +1,23 @@
-import { buildChatPrompt, scoreToBand } from '../prompt';
-import type { Routine } from '../../routine-types';
-import type { ScoreVector } from '../../../read/read-types';
+import { buildChatPrompt } from '../prompt';
 
-const scores: ScoreVector = {
-  hydration: 0.1, oiliness: 0.5, texture: 0.5, pores: 0.5,
-  darkSpots: 0.5, redness: 0.5, fineLines: 0.5, darkCircles: 0.5,
-};
-const routine: Routine = {
-  version: 'skincare-1',
-  am: [{ category: 'a broad-spectrum SPF 30+ sunscreen', habit: 'apply every morning', rationale: 'daily habit', dimensions: [] }],
-  pm: [], notes: ['note'],
-};
-
-test('low hydration maps to the lowest band label', () => {
-  expect(scoreToBand('hydration', 0.1)).toBe('Looks dehydrated');
-});
-
-test('system prompt forbids diagnosis and scopes to the read + routine', () => {
-  const { system } = buildChatPrompt({ scores, skinType: 'dry', routine, history: [], message: 'hi' });
+test('system prompt forbids diagnosis and denies access to saved personal context', () => {
+  const { system } = buildChatPrompt({ history: [], message: 'hi' });
   expect(system.toLowerCase()).toContain('dermatologist');
   expect(system.toLowerCase()).toContain('do not diagnose');
+  expect(system).toContain('You have no access to any scan');
+  expect(system).toContain('Do not infer skincare needs from a photo or shade');
 });
 
-test('context carries band labels and the routine, never raw numeric scores', () => {
-  const { system } = buildChatPrompt({ scores, skinType: 'dry', routine, history: [], message: 'hi' });
-  expect(system).toContain('Looks dehydrated');
-  expect(system).toContain('a broad-spectrum SPF 30+ sunscreen');
-  expect(system).not.toContain('0.1'); // raw scores are never surfaced
+test('system instructions are constant across conversations, with no personalized template', () => {
+  const one = buildChatPrompt({ history: [], message: 'hi' });
+  const two = buildChatPrompt({ history: [{ role: 'user', content: 'I prefer fragrance-free products' }], message: 'cleanser?' });
+  expect(one.system).toBe(two.system);
+  expect(two.system).not.toContain('fragrance-free');
+  expect(two.system).not.toContain("This user's skin reads");
 });
 
 test('history and the new message are appended in order', () => {
   const { messages } = buildChatPrompt({
-    scores, skinType: 'dry', routine,
     history: [{ role: 'user', content: 'earlier' }, { role: 'assistant', content: 'reply' }],
     message: 'why SPF?',
   });

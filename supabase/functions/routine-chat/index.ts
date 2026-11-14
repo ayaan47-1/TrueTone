@@ -1,6 +1,6 @@
 // DEVICE/DENO-ONLY SHELL — the only network/LLM piece. All real logic is handleChat (Jest-tested).
-// Compliance: loads ONLY the caller's derived scores+routine under RLS; never an image. Anthropic key
-// is server-side only (Supabase secret). Chat is ephemeral — nothing is persisted.
+// H1: no scan/profile/routine lookup. Only bounded conversation text may reach completion.
+// External chat remains disabled until separate consent, disclosures and processor approval land.
 //
 // Import strategy: shared pure modules are copied into ../_shared/recommend/ (source of truth:
 // src/features/recommend/chat/ + src/lib/cosmetic-filter.ts + src/content/cosmetic-vocab.ts).
@@ -10,76 +10,37 @@
 import { serve } from 'https://deno.land/std@0.224.0/http/server.ts';
 import { createClient } from '@supabase/supabase-js';
 import Anthropic from 'https://esm.sh/@anthropic-ai/sdk@0.32.1';
-import { handleChat, type ChatDeps } from '../_shared/recommend/handle.ts';
-import { parseChatRequest } from '../_shared/recommend/validate.ts';
+import { createChatEndpoint } from '../_shared/recommend/endpoint.ts';
+import { ROUTINE_CHAT_AVAILABLE } from '../_shared/recommend/availability.ts';
 
 const MODEL = 'claude-sonnet-4-6';
 
-serve(async (req) => {
-  if (req.method !== 'POST') return new Response('method not allowed', { status: 405 });
-
-  const authHeader = req.headers.get('Authorization');
-  if (!authHeader) return new Response('unauthorized', { status: 401 });
-
-  // Client scoped to the caller's JWT -> RLS applies to every query.
-  const supabase = createClient(
-    Deno.env.get('SUPABASE_URL')!,
-    Deno.env.get('SUPABASE_ANON_KEY')!,
-    { global: { headers: { Authorization: authHeader } } },
-  );
-  const anthropic = new Anthropic({ apiKey: Deno.env.get('ANTHROPIC_API_KEY')! });
-
-  let raw: unknown;
-  try { raw = await req.json(); } catch { return new Response('bad request', { status: 400 }); }
-
-  // MASVS M3: validate every field, including each history turn (role allowlist, per-turn and
-  // total size caps). Only the parsed copy -- never the raw body -- reaches handleChat.
-  const parsed = parseChatRequest(raw);
-  if (!parsed.ok) return new Response('bad request', { status: 400 });
-
-  const deps: ChatDeps = {
-    async loadScan(scanId) {
-      // RLS guarantees the row belongs to the caller; a non-owned id returns no row.
-      const { data } = await supabase
-        .from('scans')
-        .select('score_hydration,score_oiliness,score_texture,score_pores,score_dark_spots,score_redness,score_fine_lines,score_dark_circles,skin_type_feel,routine')
-        .eq('id', scanId).maybeSingle();
-      if (!data) return null;
-      return {
-        scores: {
-          hydration: Number(data.score_hydration), oiliness: Number(data.score_oiliness),
-          texture: Number(data.score_texture), pores: Number(data.score_pores),
-          darkSpots: Number(data.score_dark_spots), redness: Number(data.score_redness),
-          fineLines: Number(data.score_fine_lines), darkCircles: Number(data.score_dark_circles),
-        },
-        skinType: data.skin_type_feel,
-        routine: data.routine,
-      };
-    },
-    async consumeQuota() {
-      // Per-user daily limit (migration 0042). Any RPC failure fails closed: no model call.
-      const { data, error } = await supabase.rpc('consume_chat_quota');
-      return !error && data === true;
-    },
-    async complete(system, messages) {
-      const res = await anthropic.messages.create({
-        model: MODEL, max_tokens: 600, system,
-        messages: messages.map((m) => ({ role: m.role, content: m.content })),
-      });
-      const block = res.content[0];
-      return block && block.type === 'text' ? block.text : '';
-    },
-  };
-
-  try {
-    const out = await handleChat(deps, parsed.value);
-    if (out.blocked) console.warn('routine-chat: output blocked by post-filter');
-    return Response.json(out);
-  } catch (e) {
-    const msg = e instanceof Error ? e.message : 'error';
-    if (msg === 'scan-not-found') return new Response('not found', { status: 404 });
-    if (msg === 'rate-limited') return new Response('daily chat limit reached', { status: 429 });
-    console.error('routine-chat: chat failed', e instanceof Error ? e.message : 'unknown');
-    return new Response('chat unavailable', { status: 502 });
-  }
-});
+serve(createChatEndpoint({
+  // Deliberately not an environment switch. Activation requires a reviewed consent implementation.
+  enabled: ROUTINE_CHAT_AVAILABLE,
+  logFailure: (kind) => console.error(JSON.stringify({ function: 'routine-chat', kind })),
+  createDeps(authHeader) {
+    // Only the existing authenticated quota RPC is needed. No scan/profile/routine query.
+    const supabase = createClient(
+      Deno.env.get('SUPABASE_URL')!,
+      Deno.env.get('SUPABASE_ANON_KEY')!,
+      { global: { headers: { Authorization: authHeader } } },
+    );
+    const anthropic = new Anthropic({ apiKey: Deno.env.get('ANTHROPIC_API_KEY')! });
+    return {
+      async consumeQuota() {
+        // Per-user daily limit (migration 0042). Any RPC failure fails closed: no model call.
+        const { data, error } = await supabase.rpc('consume_chat_quota');
+        return !error && data === true;
+      },
+      async complete(system, messages) {
+        const res = await anthropic.messages.create({
+          model: MODEL, max_tokens: 600, system,
+          messages: messages.map((m) => ({ role: m.role, content: m.content })),
+        });
+        const block = res.content[0];
+        return block && block.type === 'text' ? block.text : '';
+      },
+    };
+  },
+}));

@@ -5,15 +5,11 @@ import { MistBackground, GlassCard, Body } from '../../components/ui';
 import { useInsets } from '../../components/ui/use-insets';
 import { palette } from '../../theme/tokens';
 
-interface ChatScreenProps {
-  scanId: string;
-}
-
 // UI-only message model. `referred` drives the distinct referral card and is NEVER sent to the
 // backend (the wire format is ChatTurn = { role, content }).
 type Msg = { role: 'user' | 'assistant'; content: string; referred?: boolean };
 
-export function ChatScreen({ scanId }: ChatScreenProps) {
+export function ChatScreen() {
   const [history, setHistory] = useState<Msg[]>([]); // session-only; cleared on unmount
   const [input, setInput] = useState('');
   const [error, setError] = useState(false);
@@ -31,7 +27,7 @@ export function ChatScreen({ scanId }: ChatScreenProps) {
     // Strip the UI-only `referred` flag — the backend sees only { role, content }.
     const wire: ChatTurn[] = history.map(({ role, content }) => ({ role, content }));
     try {
-      const { reply, referred } = await sendChat(scanId, message, wire);
+      const { reply, referred } = await sendChat(message, wire);
       setHistory([...nextHistory, { role: 'assistant', content: reply, referred }]);
     } catch {
       setError(true);

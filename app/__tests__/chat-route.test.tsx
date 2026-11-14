@@ -11,15 +11,17 @@ import ChatRoute from '../scan/chat';
 
 beforeEach(() => jest.clearAllMocks());
 
-test('renders the chat when a scanId param is present', async () => {
+test('an old scan link cannot open the chat composer while external chat is unapproved', async () => {
   mockParams.mockReturnValue({ scanId: 's1' });
   await render(<ChatRoute />);
-  expect(screen.getByPlaceholderText(/ask about your routine/i)).toBeTruthy();
+  expect(screen.getByText(/routine chat is not available yet/i)).toBeTruthy();
+  expect(screen.queryByPlaceholderText(/ask about your routine/i)).toBeNull();
 });
 
-test('renders a fallback (not the chat) when scanId is missing', async () => {
+test('the unavailable state does not ask the user to scan or enter conversation text', async () => {
   mockParams.mockReturnValue({});
   await render(<ChatRoute />);
-  expect(screen.getByText(/no scan yet/i)).toBeTruthy();
+  expect(screen.getByText(/routine chat is not available yet/i)).toBeTruthy();
+  expect(screen.queryByText(/run a scan/i)).toBeNull();
   expect(screen.queryByPlaceholderText(/ask about your routine/i)).toBeNull();
 });

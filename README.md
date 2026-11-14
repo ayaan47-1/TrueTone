@@ -25,9 +25,10 @@ Known gaps found during the scope review:
   gate the legacy path before presenting skincare as preference-based. Its upstream measurement
   caveats are not resolved by changing the app description.
 - [`chat/prompt.ts`](src/features/recommend/chat/prompt.ts) and its
-  [backend copy](supabase/functions/_shared/recommend/prompt.ts) still supply scan bands/type to
-  skincare chat. Migrate both, including stored legacy routine provenance, so recommendations and
-  explanations cannot disguise a scan inference as a user preference.
+  [backend copy](supabase/functions/_shared/recommend/prompt.ts) now use only conversation text,
+  with no scan bands/type or saved routine. External chat remains disabled until separate
+  versioned consent, disclosures and processor contracts are approved. See
+  [routine-chat privacy](docs/ops/routine-chat-privacy.md).
 - Existing shade/fit descriptions include inferred finish and numeric match percentages. Audit
   their live render paths and validation gates; finish must be a preference and unsupported
   confidence/equity claims must not ship.

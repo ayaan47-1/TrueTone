@@ -149,10 +149,10 @@ test('cold start renders the stored routine order with no emphasis', async () =>
 });
 
 // Press-heavy test LAST in the file (repo gotcha: unsettled React work leaks forward).
-test('navigates to /scan/chat with the scanId when the button is pressed', async () => {
+test('opens chat without putting a scan identifier in navigation params', async () => {
   mockFetchScanHistory.mockResolvedValue([scan('s1')]);
   await render(<RoutineRoute />);
   const button = await screen.findByText(/why these/i);
   fireEvent.press(button);
-  expect(mockPush).toHaveBeenCalledWith({ pathname: '/scan/chat', params: { scanId: 's1' } });
+  expect(mockPush).toHaveBeenCalledWith('/scan/chat');
 });

@@ -11,7 +11,7 @@ const normalize = (s: string) =>
     .join('\n')
     .trim();
 
-test.each(['handle', 'validate'])('_shared/recommend/%s.ts matches its source of truth', (name) => {
+test.each(['handle', 'prompt', 'validate', 'endpoint', 'availability'])('_shared/recommend/%s.ts matches its source of truth', (name) => {
   const src = readFileSync(join(ROOT, `src/features/recommend/chat/${name}.ts`), 'utf8');
   const copy = readFileSync(join(ROOT, `supabase/functions/_shared/recommend/${name}.ts`), 'utf8');
   expect(normalize(copy)).toBe(normalize(src));

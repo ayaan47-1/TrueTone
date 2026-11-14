@@ -157,7 +157,7 @@ describe('camera demo with production-looking env', () => {
   test('chat fails closed without invoking the edge function', async () => {
     const { supa, chat } = load(CAM);
     const invokeSpy = jest.spyOn(supa.supabase.functions, 'invoke');
-    await expect(chat.sendChat('scan-1', 'hi', [])).rejects.toThrow('chat-offline');
+    await expect(chat.sendChat('hi', [])).rejects.toThrow('chat-offline');
     expect(invokeSpy).not.toHaveBeenCalled();
     expect(fetchSpy).not.toHaveBeenCalled();
   });
