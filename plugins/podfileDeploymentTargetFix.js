@@ -18,6 +18,20 @@ function buildSnippet(minVersion) {
   ].join("\n");
 }
 
+// A complete, intact installation: the post_install hook still exists AND the full sweep body
+// (not just the leading marker comment) is still present under it. Checked structurally rather
+// than by re-running the insertion, so an edited-but-marker-left-behind Podfile is told apart
+// from a genuinely untouched one.
+function hasIntactSweep(podfileContents, minVersion) {
+  return (
+    POST_INSTALL_ANCHOR.test(podfileContents) &&
+    podfileContents.includes("installer.pods_project.targets.each do |target|") &&
+    podfileContents.includes(
+      `config.build_settings['IPHONEOS_DEPLOYMENT_TARGET'] = '${minVersion}'`
+    )
+  );
+}
+
 // react-native's own `updateOSDeploymentTarget` (scripts/cocoapods/utils.rb) only walks
 // `installer.target_installation_results.pod_target_installation_results` — the per-pod
 // library targets. It never touches the resource-bundle / privacy-manifest sub-targets
@@ -29,7 +43,18 @@ function buildSnippet(minVersion) {
 // (not just the library ones) closes it without touching anything RN already set correctly.
 function insertDeploymentTargetFix(podfileContents, minVersion) {
   if (podfileContents.includes(MARKER)) {
-    return podfileContents;
+    if (hasIntactSweep(podfileContents, minVersion)) {
+      return podfileContents;
+    }
+    // The marker comment alone is not proof of installation — only re-checking it caught
+    // Scalia's finding that a Podfile keeping the comment while losing post_install (or the
+    // sweep body under it) was silently accepted as "already fixed".
+    throw new Error(
+      'podfileDeploymentTargetFix: found the marker comment but the post_install hook and/or ' +
+        "its deployment-target sweep is missing or incomplete — the Podfile was edited after " +
+        "the fix was applied. Remove the stale marker comment or restore the sweep rather than " +
+        "re-running this blindly."
+    );
   }
 
   const match = podfileContents.match(POST_INSTALL_ANCHOR);

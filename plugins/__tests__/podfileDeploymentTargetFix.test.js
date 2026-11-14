@@ -56,3 +56,38 @@ test('throws loudly if the Podfile template no longer has a post_install block',
     /post_install do \|installer\|/
   );
 });
+
+test('throws loudly when the marker comment survives but post_install was removed entirely', () => {
+  // Reproduces Scalia's finding: a Podfile that kept the marker as a stray comment but lost
+  // the post_install block (and therefore the sweep) it was supposed to prove was installed.
+  const markerWithoutHook = [
+    "platform :ios, '16.4'",
+    "target 'TrueTone' do",
+    `  ${MARKER}`,
+    "end",
+    "",
+  ].join("\n");
+
+  expect(() => insertDeploymentTargetFix(markerWithoutHook, '15.1')).toThrow(
+    /marker comment.*but.*post_install/is
+  );
+});
+
+test('throws loudly when the marker comment survives but the sweep body under it was stripped', () => {
+  // post_install still exists, but someone deleted the target-sweep lines underneath the
+  // marker comment while leaving the comment itself in place.
+  const markerWithEmptyHook = [
+    "platform :ios, '16.4'",
+    "target 'TrueTone' do",
+    "  post_install do |installer|",
+    `    ${MARKER}`,
+    "    react_native_post_install(installer)",
+    "  end",
+    "end",
+    "",
+  ].join("\n");
+
+  expect(() => insertDeploymentTargetFix(markerWithEmptyHook, '15.1')).toThrow(
+    /marker comment.*but.*post_install/is
+  );
+});
