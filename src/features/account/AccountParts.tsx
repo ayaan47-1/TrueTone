@@ -3,7 +3,7 @@
 // logo mark + notifications bell, the profile card with stats, and the grouped row sections.
 // Local View-drawn glyphs (the app's icon convention, no icon library, no image assets). The
 // bell reuses the shipped Liquid Glass control (GlassSurface), exactly like the Bag button.
-import type { ReactNode } from 'react';
+import { useState, type ReactNode } from 'react';
 import { Image, Text, View } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
 import { Caption, Display, GlassCard, GlassSurface, ListRow, PressableScale, Eyebrow } from '../../components/ui';
@@ -75,7 +75,8 @@ interface ProfileCardProps {
 }
 
 function Avatar({ initial, scanned, uri }: { initial: string; scanned: boolean; uri: string | null }) {
-  if (uri) return <Image testID="avatar-image" source={{ uri }} style={{ width: 62, height: 62, borderRadius: 31 }} />;
+  const [failed, setFailed] = useState(false);
+  if (uri && !failed) return <Image testID="avatar-image" source={{ uri }} onError={() => setFailed(true)} style={{ width: 62, height: 62, borderRadius: 31 }} />;
   const colors = scanned ? shadeGradient : ([palette.mist300, palette.mist300] as const);
   return (
     <LinearGradient colors={colors} style={{ width: 62, height: 62, borderRadius: 31, alignItems: 'center', justifyContent: 'center' }}>
@@ -89,7 +90,7 @@ export function ProfileCard({ summary, scanned, avatarUri, avatarDisabled, onAva
     <GlassCard flat radius={26} className="px-[18px] py-[18px]">
       <View className="flex-row items-center gap-3.5">
         <PressableScale testID="avatar-picker" accessibilityRole="button" accessibilityLabel="Change avatar" accessibilityState={{ disabled: avatarDisabled }} disabled={avatarDisabled} onPress={onAvatar}>
-          <Avatar initial={summary.initial} scanned={scanned} uri={avatarUri} />
+          <Avatar key={avatarUri} initial={summary.initial} scanned={scanned} uri={avatarUri} />
         </PressableScale>
         <View className="flex-1">
           <Text className="font-display text-[18px] font-bold text-ink" numberOfLines={1}>{summary.displayName}</Text>
