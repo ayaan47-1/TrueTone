@@ -175,6 +175,17 @@ async function getItem(storageKey: string): Promise<string | null> {
 /** AsyncStorage-shaped, encrypted-at-rest storage for on-device user data. */
 export const encryptedStorage = {
   getItem,
+  /** Replace a previously read value without overwriting a concurrent save or deletion. */
+  replaceIfUnchanged: (k: string, expected: string, next: string | null): Promise<boolean> => exclusive(async () => {
+    const raw = await AsyncStorage.getItem(k);
+    if (raw == null) return false;
+    const key = raw.startsWith(ENVELOPE) ? await readKey(k) : null;
+    const current = raw.startsWith(ENVELOPE) ? (key ? open(key, k, raw) : null) : raw;
+    if (current !== expected) return false;
+    if (next === null) await AsyncStorage.removeItem(k);
+    else await writeSealed(k, next);
+    return true;
+  }),
   setItem: (k: string, v: string): Promise<void> => exclusive(() => writeSealed(k, v)),
   removeItem: (k: string): Promise<void> => exclusive(() => AsyncStorage.removeItem(k)),
   getAllKeys: (): Promise<readonly string[]> => AsyncStorage.getAllKeys(),

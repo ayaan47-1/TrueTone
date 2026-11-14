@@ -1,7 +1,7 @@
 // src/features/identity/community-profile-repository.ts
 // Repository boundary for CommunityProfile. Demo/camera-demo modes persist a
 // user-scoped identity on-device (encrypted AsyncStorage, no network); live mode reads/writes
-// Supabase `profiles.username` / `profiles.avatar_uri`.
+// Supabase `profiles.username` only.
 //
 // DEFERRED (explicit boundary): `avatarUri` is a user-scoped LOCAL file URI in this
 // release, in both backends, and is stored only in encrypted on-device storage; the live
@@ -28,20 +28,45 @@ function isCommunityProfileShape(v: unknown): v is { username: string; avatarUri
   return !!v && typeof v === 'object' && typeof (v as Record<string, unknown>).username === 'string';
 }
 
+/** Returns the stored record after cleanup, or a fresh read if a concurrent write won. */
+async function clearMissingAvatar(
+  key: string, stored: string, uri: string | null, next: string | null,
+): Promise<string | null> {
+  if (!uri || !uri.startsWith('file://')) return stored;
+  try {
+    const fs: typeof import('expo-file-system/legacy') = require('expo-file-system/legacy');
+    if ((await fs.getInfoAsync(uri)).exists !== false) return stored;
+    if (await encryptedStorage.replaceIfUnchanged(key, stored, next)) return next;
+  } catch {
+    // A failed metadata read or storage write is not proof that the reference can be removed.
+    return stored;
+  }
+  // Cleanup lost a race with a save or deletion. Do not fall back to the stale record if re-reading fails.
+  return encryptedStorage.getItem(key);
+}
+
+function parseLocalProfile(raw: string | null, userId: string): CommunityProfile | null {
+  if (!raw) return null;
+  const parsed: unknown = JSON.parse(raw);
+  if (!isCommunityProfileShape(parsed)) return null;
+  return {
+    userId,
+    username: parsed.username,
+    avatarUri: typeof parsed.avatarUri === 'string' ? parsed.avatarUri : null,
+  };
+}
+
 /** Demo / camera-demo backend: user-scoped encrypted AsyncStorage, no network, no cross-user check. */
 export function createLocalCommunityProfileRepository(): CommunityProfileRepository {
   return {
     async load(userId) {
       try {
         const raw = await encryptedStorage.getItem(localKey(userId));
-        if (!raw) return null;
-        const parsed: unknown = JSON.parse(raw);
-        if (!isCommunityProfileShape(parsed)) return null;
-        return {
-          userId,
-          username: parsed.username,
-          avatarUri: typeof parsed.avatarUri === 'string' ? parsed.avatarUri : null,
-        };
+        const profile = parseLocalProfile(raw, userId);
+        if (!profile || !raw) return null;
+        const current = await clearMissingAvatar(localKey(userId), raw, profile.avatarUri,
+          JSON.stringify({ ...profile, avatarUri: null }));
+        return parseLocalProfile(current, userId);
       } catch {
         // Corrupt or unreadable storage -- fail safe to "no profile yet".
         return null;
@@ -67,7 +92,9 @@ function localAvatarKey(userId: string): string {
 
 async function loadLocalAvatar(userId: string): Promise<string | null> {
   try {
-    return (await encryptedStorage.getItem(localAvatarKey(userId))) || null;
+    const key = localAvatarKey(userId);
+    const uri = await encryptedStorage.getItem(key);
+    return uri ? await clearMissingAvatar(key, uri, uri, null) : null;
   } catch {
     return null;
   }
