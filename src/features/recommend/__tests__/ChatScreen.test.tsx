@@ -8,7 +8,7 @@ beforeEach(() => jest.clearAllMocks());
 
 test('sends a message and shows the reply', async () => {
   (sendChat as jest.Mock).mockResolvedValue({ reply: 'The SPF step helps.', referred: false });
-  const { getByPlaceholderText, getByText } = await render(<ChatScreen scanId="s1" />);
+  const { getByPlaceholderText, getByText } = await render(<ChatScreen />);
   await fireEvent.changeText(getByPlaceholderText(/ask about your routine/i), 'why SPF?');
   await fireEvent.press(getByText(/send/i));
   await waitFor(() => expect(getByText('The SPF step helps.')).toBeTruthy());
@@ -16,7 +16,7 @@ test('sends a message and shows the reply', async () => {
 
 test('shows a graceful error when the call fails', async () => {
   (sendChat as jest.Mock).mockRejectedValue(new Error('chat-failed'));
-  const { getByPlaceholderText, getByText } = await render(<ChatScreen scanId="s1" />);
+  const { getByPlaceholderText, getByText } = await render(<ChatScreen />);
   await fireEvent.changeText(getByPlaceholderText(/ask about your routine/i), 'hi');
   await fireEvent.press(getByText(/send/i));
   await waitFor(() => expect(getByText(/couldn.t load/i)).toBeTruthy());
@@ -28,7 +28,7 @@ test('renders a distinct referral card (not a plain bubble) for a referral reply
       "I can only describe how skin looks — please see a board-certified dermatologist, who can examine it properly.",
     referred: true,
   });
-  const { getByPlaceholderText, getByText, getByTestId } = await render(<ChatScreen scanId="s1" />);
+  const { getByPlaceholderText, getByText, getByTestId } = await render(<ChatScreen />);
   await fireEvent.changeText(getByPlaceholderText(/ask about your routine/i), 'is this mole a problem?');
   await fireEvent.press(getByText(/send/i));
   await waitFor(() => expect(getByTestId('referral-card')).toBeTruthy());
@@ -38,7 +38,7 @@ test('renders a distinct referral card (not a plain bubble) for a referral reply
 
 test('a non-referral reply renders a plain bubble, not the referral card', async () => {
   (sendChat as jest.Mock).mockResolvedValue({ reply: 'The SPF step helps.', referred: false });
-  const { getByPlaceholderText, getByText, queryByTestId } = await render(<ChatScreen scanId="s1" />);
+  const { getByPlaceholderText, getByText, queryByTestId } = await render(<ChatScreen />);
   await fireEvent.changeText(getByPlaceholderText(/ask about your routine/i), 'why SPF?');
   await fireEvent.press(getByText(/send/i));
   await waitFor(() => expect(getByText('The SPF step helps.')).toBeTruthy());
@@ -48,7 +48,7 @@ test('a non-referral reply renders a plain bubble, not the referral card', async
 test('shows the sending indicator while awaiting and hides it after', async () => {
   let resolveSend!: (v: { reply: string; referred: boolean }) => void;
   (sendChat as jest.Mock).mockReturnValue(new Promise((r) => { resolveSend = r; }));
-  const { getByPlaceholderText, getByText, queryByTestId } = await render(<ChatScreen scanId="s1" />);
+  const { getByPlaceholderText, getByText, queryByTestId } = await render(<ChatScreen />);
   await fireEvent.changeText(getByPlaceholderText(/ask about your routine/i), 'why SPF?');
   // Do not await — we want to inspect state while the send Promise is still in-flight.
   void fireEvent.press(getByText(/send/i));
@@ -61,14 +61,14 @@ test('strips the UI-only referred flag from the history sent to the backend', as
   (sendChat as jest.Mock)
     .mockResolvedValueOnce({ reply: 'please see a dermatologist', referred: true })
     .mockResolvedValueOnce({ reply: 'the SPF step helps', referred: false });
-  const { getByPlaceholderText, getByText } = await render(<ChatScreen scanId="s1" />);
+  const { getByPlaceholderText, getByText } = await render(<ChatScreen />);
   await fireEvent.changeText(getByPlaceholderText(/ask about your routine/i), 'is this mole bad?');
   await fireEvent.press(getByText(/send/i));
   await waitFor(() => expect(getByText(/isn.t a diagnosis/i)).toBeTruthy());
   await fireEvent.changeText(getByPlaceholderText(/ask about your routine/i), 'why SPF?');
   await fireEvent.press(getByText(/send/i));
   await waitFor(() => expect((sendChat as jest.Mock).mock.calls.length).toBe(2));
-  const secondCallHistory = (sendChat as jest.Mock).mock.calls[1][2];
+  const secondCallHistory = (sendChat as jest.Mock).mock.calls[1][1];
   expect(secondCallHistory).toEqual([
     { role: 'user', content: 'is this mole bad?' },
     { role: 'assistant', content: 'please see a dermatologist' },

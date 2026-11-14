@@ -1,22 +1,22 @@
 // MASVS M3: every routine-chat request field is validated at the boundary.
 import { parseChatRequest, MAX_TURN_CHARS, MAX_HISTORY_CHARS, MAX_HISTORY_TURNS } from '../validate';
 
-const ok = { scanId: 's1', message: 'why SPF?', history: [] };
+const ok = { message: 'why SPF?', history: [] };
 
 test('a well-formed request passes and is returned as a fresh, typed value', () => {
   const history = [{ role: 'user', content: 'hi' }, { role: 'assistant', content: 'hello' }];
   const r = parseChatRequest({ ...ok, history });
-  expect(r).toEqual({ ok: true, value: { scanId: 's1', message: 'why SPF?', history } });
+  expect(r).toEqual({ ok: true, value: { message: 'why SPF?', history } });
 });
 
 test('missing history is treated as empty', () => {
-  expect(parseChatRequest({ scanId: 's1', message: 'hi' })).toEqual({ ok: true, value: { scanId: 's1', message: 'hi', history: [] } });
+  expect(parseChatRequest({ message: 'hi' })).toEqual({ ok: true, value: { message: 'hi', history: [] } });
 });
 
 test.each([
   ['non-object body', null],
-  ['missing scanId', { message: 'hi' }],
-  ['non-string scanId', { scanId: 5, message: 'hi' }],
+  ['missing message', { history: [] }],
+  ['non-string message', { message: 5 }],
   ['empty message', { scanId: 's1', message: '   ' }],
   ['oversized message', { scanId: 's1', message: 'x'.repeat(MAX_TURN_CHARS + 1) }],
   ['history not an array', { ...ok, history: 'x' }],

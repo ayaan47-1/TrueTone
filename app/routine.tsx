@@ -96,7 +96,7 @@ export default function RoutineRoute() {
           <ScanSection
             state={scanState}
             onRetry={() => void refetch()}
-            onAsk={(scanId) => router.push({ pathname: '/scan/chat', params: { scanId } })}
+            onAsk={() => router.push('/scan/chat')}
           />
         </View>
       </Rise>
