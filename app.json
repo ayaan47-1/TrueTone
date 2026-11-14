@@ -43,6 +43,7 @@
       "favicon": "./assets/favicon.png"
     },
     "plugins": [
+      "./plugins/withIOSDeploymentTargetFix",
       "expo-router",
       [
         "expo-image-picker",

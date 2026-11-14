@@ -63,6 +63,9 @@
     "typescript": "~6.0.3",
     "zod": "^4.4.3"
   },
+  "overrides": {
+    "expo-modules-jsi": "56.0.14"
+  },
   "scripts": {
     "postinstall": "patch-package",
     "start": "expo start",
