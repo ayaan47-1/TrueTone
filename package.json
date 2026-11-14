@@ -83,6 +83,7 @@
     "generate:apple-vision": "node scripts/generate-apple-vision.mjs",
     "check:compliance": "node scripts/check-no-analytics-sdk.mjs && node scripts/check-waitlist-copy.mjs && node scripts/check-crash-reporting.mjs && npm run check:apple-vision",
     "check:no-egress": "node scripts/check-no-image-egress.mjs",
+    "check:edge-locks": "node scripts/check-edge-locks.mjs",
     "eval:invariance": "jest -c jest.eval.config.js eval/invariance/__tests__/report-writer.test.ts",
     "e2e:ios": "bash scripts/e2e/run-all.sh ios",
     "e2e:ios:demo": "bash scripts/e2e/run-maestro.sh demo",
