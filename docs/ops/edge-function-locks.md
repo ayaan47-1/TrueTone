@@ -27,28 +27,63 @@ configuration.
 ## What HAG-245 adds: a local, offline lock-consistency preflight
 
 `npm run check:edge-locks` (`scripts/check-edge-locks.mjs`) goes further than "a lock exists":
-it statically parses each pinned function's `deno.json` + `index.ts` and verifies the committed
-`deno.lock` actually matches what they currently declare —
+it discovers every deployable function, walks its real module graph, and verifies the committed
+lock actually matches what that graph currently declares.
 
-- Every bare specifier the source imports (e.g. `@supabase/supabase-js`) resolves through
-  `deno.json`'s import map, and that resolved specifier (e.g.
-  `npm:@supabase/supabase-js@2.108.2`) must appear in `deno.lock`'s `specifiers` map, in its
-  `workspace.dependencies` list, and have a recorded integrity entry under `deno.lock.npm` for
-  that exact `package@version`.
-- Every direct remote URL import (e.g. `https://esm.sh/stripe@14.19.0`) must have an exact
-  matching key in `deno.lock.remote`.
-- A missing `deno.lock`, an unrecognized lock schema version (only `"5"` is trusted), or any of
-  the above mismatches is a hard failure (`process.exit(1)`), never a silent pass.
+**Discovery** enumerates every `supabase/functions/*/index.ts` (skipping `_shared`) and asserts
+the result against an explicit `EXPECTED_FUNCTIONS` list in the script — zero functions found,
+or a set that doesn't match, is a hard failure, not a silent zero-item pass. Each discovered
+function must resolve its lock config one of three ways: its own `deno.json` (`stripe-webhook`,
+`create-payment-intent`, `routine-chat`); a shared import map declared in
+`supabase/config.toml`'s `[functions.<name>].import_map` (`catalog-reconcile`,
+`shopify-catalog-webhook`, both via `supabase/functions/catalog-import-map.json`); or an explicit
+`ALLOWLIST` entry in the script carrying a reason (currently empty — see the gap below). Anything
+else fails closed.
 
-This catches the real failure mode the existing pin test can't: someone bumps the version in
-`deno.json` (or a CDN import's version string in source) without re-running `deno install` to
-regenerate `deno.lock`, so the committed lock silently stops matching what the function actually
-declares. `scripts/__tests__/check-edge-locks.test.mjs` has a RED-first regression test for that
-exact scenario (deno.json pins `2.108.3`, lock only records `2.108.2`), plus cases for a missing
-npm integrity entry, an internally inconsistent `workspace.dependencies`, a stale remote-URL
-pin, and an import with no import-map entry at all. It was also run against this repo's real
-files with a deliberately mutated `deno.json` (not committed) to confirm it rejects a real, not
-just a synthetic, mismatch, then restored.
+**Parsing** uses the TypeScript compiler API (`typescript`, already a devDependency) to walk
+`index.ts`'s real AST — static `import`, `export ... from`, `import type`, and a dynamic
+`import()` with a string-literal specifier — and recurses into every *value* relative import it
+reaches, so a bare specifier only ever imported by a `_shared/` file (this repo's `zod`, reached
+only through `_shared/catalog/*.ts`) is still found. A dynamic `import()` with a non-literal
+specifier fails closed rather than being silently skipped. A relative `import type` is not
+required to resolve — it is erased before Deno ever loads the module graph (one `_shared/match`
+file in this repo omits its extension for exactly this reason), but a *remote or bare* `import
+type` specifier is still collected and checked, since resolving its type declaration still
+touches the dependency graph a lock would need to pin.
+
+**Validation** checks lock entries by content, not just key presence: the version `deno.json`
+pins must be exact semver, `deno.lock`'s recorded version for that specifier must equal it
+(not just exist), and `npm`/`remote` integrity hashes must be non-empty and hash-shaped rather
+than merely present.
+
+This catches the real failure modes the previous round's regex extractor and presence-only
+checks couldn't: a version bump in `deno.json` (or a CDN import string) that nobody re-ran
+`deno install` for; a double-quoted or dynamically-imported dependency the old single-quote
+regex never saw at all; and a hand-edited lock entry with the right key but a wrong or empty
+value. `scripts/__tests__/check-edge-locks.test.mjs` (31 tests) has a RED-first regression test
+for each of these, plus the discovery/allowlist/expected-set paths. It was also re-run against
+this repo's real files with several deliberate mutations (a version bump, a double-quoted
+unlocked import, a literal dynamic unlocked import) to confirm it rejects a real, not just a
+synthetic, mismatch — each reverted after.
+
+### A real gap this round surfaced: `catalog-reconcile` and `shopify-catalog-webhook` have no lock
+
+Running the fixed discovery against this repo for real shows it is working as intended:
+`catalog-reconcile` and `shopify-catalog-webhook` only ever pin `zod` (via
+`catalog-import-map.json`, reached transitively through `_shared/catalog/*.ts`, never directly
+in their own `index.ts`), and **no `deno.lock` is committed anywhere for that shared import
+map** — there is no `supabase/functions/deno.lock` for it to check. The previous round's
+`deno.json`-presence-based discovery silently never looked at these two functions at all; this
+round correctly discovers them and correctly fails them. `npm run check:edge-locks` therefore
+exits non-zero against this repo's current real state, and that is the honest result, not a
+bug: these two functions genuinely have zero committed dependency-lock coverage today.
+
+Generating a real `deno.lock` for that shared import map needs `deno install`/`deno cache`
+against the npm registry — a network call, outside this card's "no hosted calls" boundary — so
+it is not done here. This is deliberately **not** papered over with an `ALLOWLIST` entry: the
+allowlist exists for a function that genuinely has no remote/npm dependency to lock, not for one
+that has an unaddressed gap. Closing it is follow-up work for whoever can run `deno install`
+against the shared import map and commit the resulting lock.
 
 ### What this gate still does NOT prove
 
