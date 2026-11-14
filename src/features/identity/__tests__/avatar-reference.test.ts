@@ -68,7 +68,22 @@ describe.each(['local', 'live'] as const)('%s avatar reference', (mode) => {
       await repo.save({ ...profile, username: 'ada-new', avatarUri: newUri });
       return { exists: false, uri: oldUri, isDirectory: false };
     });
-    await repo.load('u1');
+    const loaded = await repo.load('u1');
+    expect(loaded?.avatarUri).toBe(newUri);
+    if (mode === 'local') expect(loaded?.username).toBe('ada-new');
+    if (!loaded) throw new Error('expected current profile');
+    await repo.save({ ...loaded, username: 'updated-handle' });
     expect(await encryptedStorage.getItem(key)).toContain(newUri);
+  });
+
+  test('a deletion during the file check is reflected in the load result', async () => {
+    const repo = repository();
+    await repo.save(profile);
+    jest.mocked(getInfoAsync).mockImplementationOnce(async () => {
+      await encryptedStorage.removeItem(key);
+      return { exists: false, uri: oldUri, isDirectory: false };
+    });
+    expect(await repo.load('u1')).toEqual(mode === 'local' ? null : { ...profile, avatarUri: null });
+    expect(await encryptedStorage.getItem(key)).toBeNull();
   });
 });
