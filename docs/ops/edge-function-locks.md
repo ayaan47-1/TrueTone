@@ -37,8 +37,8 @@ function must resolve its lock config one of three ways: its own `deno.json` (`s
 `create-payment-intent`, `routine-chat`); a shared import map declared in
 `supabase/config.toml`'s `[functions.<name>].import_map` (`catalog-reconcile`,
 `shopify-catalog-webhook`, both via `supabase/functions/catalog-import-map.json`); or an explicit
-`ALLOWLIST` entry in the script carrying a reason (currently empty — see the gap below). Anything
-else fails closed.
+`ALLOWLIST` entry in the script carrying a reason (currently empty — every discovered function
+resolves through a real lock, see below). Anything else fails closed.
 
 **Parsing** uses the TypeScript compiler API (`typescript`, already a devDependency) to walk
 `index.ts`'s real AST — static `import`, `export ... from`, `import type`, and a dynamic
@@ -66,36 +66,43 @@ this repo's real files with several deliberate mutations (a version bump, a doub
 unlocked import, a literal dynamic unlocked import) to confirm it rejects a real, not just a
 synthetic, mismatch — each reverted after.
 
-### A real gap this round surfaced: `catalog-reconcile` and `shopify-catalog-webhook` have no lock
+### Resolved: `catalog-reconcile` and `shopify-catalog-webhook` now have a committed shared lock
 
-Running the fixed discovery against this repo for real shows it is working as intended:
-`catalog-reconcile` and `shopify-catalog-webhook` only ever pin `zod` (via
-`catalog-import-map.json`, reached transitively through `_shared/catalog/*.ts`, never directly
-in their own `index.ts`), and **no `deno.lock` is committed anywhere for that shared import
-map** — there is no `supabase/functions/deno.lock` for it to check. The previous round's
-`deno.json`-presence-based discovery silently never looked at these two functions at all; this
-round correctly discovers them and correctly fails them. `npm run check:edge-locks` therefore
-exits non-zero against this repo's current real state, and that is the honest result, not a
-bug: these two functions genuinely have zero committed dependency-lock coverage today.
+A prior round of this check surfaced a real, previously-invisible gap: `catalog-reconcile` and
+`shopify-catalog-webhook` only ever pin `zod` (via `catalog-import-map.json`, reached
+transitively through `_shared/catalog/*.ts`, never directly in their own `index.ts`), and no
+`deno.lock` was committed anywhere for that shared import map. The previous round's
+`deno.json`-presence-based discovery had silently never looked at these two functions at all;
+once discovery was fixed it correctly found and correctly failed them. This was deliberately
+**not** papered over with an `ALLOWLIST` entry — the allowlist exists for a function that
+genuinely has no remote/npm dependency to lock, not for one with an unaddressed gap.
 
-Generating a real `deno.lock` for that shared import map needs `deno install`/`deno cache`
-against the npm registry — a network call, outside this card's "no hosted calls" boundary — so
-it is not done here. This is deliberately **not** papered over with an `ALLOWLIST` entry: the
-allowlist exists for a function that genuinely has no remote/npm dependency to lock, not for one
-that has an unaddressed gap. Closing it is follow-up work for whoever can run `deno install`
-against the shared import map and commit the resulting lock.
+With a boundary exception approved for this one case (reaching only the public npm registry /
+`deno.land` to resolve `zod`; still no `supabase functions deploy`, no hosted Supabase calls, no
+secrets), the lock was generated locally and committed at `supabase/functions/deno.lock`
+(schema version `"5"`), covering **`zod@4.4.3`**
+(`sha512-ytENFjIJFl2UwYglde2jchW2Hwm4GJFLDiSXWdTrJQBIN9Fcyp7n4DhxJEiWNAJMV1/BqWfW/kkg71UDcHJyTQ==`).
+`npm run check:edge-locks` now passes for all 5 discovered functions against this repo's real
+state. `scripts/__tests__/catalog-edge-locks.test.mjs` is a dedicated real-repo integration test
+(no synthetic fixtures) proving, via `check-edge-locks.mjs`'s own exported functions: `config.toml`
+resolves both functions through the shared import map rather than a per-function `deno.json`;
+each function's real module graph reaches `zod` transitively through `_shared/catalog/*.ts`; the
+committed lock validates against that graph; and the lock's recorded version/integrity match the
+exact pin in `catalog-import-map.json`.
 
 ### What this gate still does NOT prove
 
 **This is a static, offline check of the committed files — it does not run `deno`, `edge-
 runtime`, or the Supabase CLI, and it makes no network or deploy call.** It cannot and does not
 prove that Supabase's actual deploy path *enforces* the lock at bundle time (the open gate
-above). A local `deno` (`2.9.8`, installed via Homebrew this round for inspection only — not
-invoked by the shipped script) could in principle run `deno cache --frozen` to make Deno itself
-verify a lock during real module resolution, but doing that meaningfully requires resolving
-every import against `deno.land`/`esm.sh`/the npm registry — i.e. the "no hosted calls" boundary
-this card was dispatched under. That remains the separate, explicitly out-of-scope preflight
-called for above, not something this script claims to close.
+above). **The shipped `check-edge-locks.mjs` script itself never invokes `deno` or makes a
+network call** — it only reads and statically validates committed files. A local `deno`
+(`2.9.8`, installed via Homebrew for inspection) was separately invoked by hand, once, under an
+explicit boundary exception scoped to this one case (generating the catalog `zod` lock above,
+reaching only the npm registry / `deno.land`) — that exception does not extend to deploy-time
+enforcement. Verifying *that* would mean running `deno cache --frozen` (or the real Supabase/
+edge-runtime bundler) against every import at deploy time, which remains the separate,
+explicitly out-of-scope preflight called for above, not something this script claims to close.
 
 **So: a function whose lock matches its own declared imports is a necessary condition for a
 reproducible deploy, not a sufficient one.** If Supabase's deploy path turns out to ignore
@@ -108,5 +115,6 @@ every commit regardless of how the deploy mechanism behaves.
 ```sh
 npm run check:edge-locks
 node --test scripts/__tests__/check-edge-locks.test.mjs
+node --test scripts/__tests__/catalog-edge-locks.test.mjs
 node --test scripts/__tests__/edge-function-pins.test.mjs
 ```
