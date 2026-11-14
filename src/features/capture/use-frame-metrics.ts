@@ -3,9 +3,8 @@
 // Quality metrics that drive the guided-capture gate (see ./quality-gate). Two real, on-device
 // signals are merged — the image never leaves the phone (CLAUDE.md §3):
 //
-//   • FACE (presence / centering / distance) — react-native-vision-camera-face-detector v2
-//     (vision-camera v5 + NitroModules) via `useFaceDetectorOutput`. Bounds → FrameMetrics by the
-//     pure, unit-tested `facesToMetrics` (autoMode + screen dims → screen-space bounds).
+//   • FACE (presence / centering / distance) — the local Apple Vision Nitro bridge.
+//     Upright normalized bounds → mirrored aspect-fill preview → facesToMetrics.
 //   • LIGHT + FOCUS (brightness / sharpness) — a `useFrameOutput` worklet samples the Y (luma)
 //     plane down to a small grid and hands it to the pure, unit-tested `computeLumaStats` on the JS
 //     thread. The pure metric functions sample the centered face area.
@@ -17,10 +16,11 @@
 //
 // SIMULATION (simulate: true): a scripted metrics sequence so the full gate → countdown → capture
 // flow is demonstrable without a real face/scene. Default off now that both real signals are wired.
-import { useCallback, useEffect, useRef, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useWindowDimensions } from 'react-native';
 import { useFrameOutput, type Frame } from 'react-native-vision-camera';
-import { useFaceDetector } from 'react-native-vision-camera-face-detector';
+import { createFaceDetector } from './apple-vision-detector';
+import { visionPreviewFaces } from './apple-vision-mapping';
 import { runOnJS } from 'react-native-worklets';
 import type { FrameMetrics } from './quality-gate';
 import { facesToMetrics, ASSUMED_BRIGHTNESS, ASSUMED_SHARPNESS } from './face-metrics';
@@ -100,33 +100,18 @@ export function useFrameMetrics({ simulate = !FRAME_PROCESSORS_INSTALLED }: UseF
   // despite the conditional call (the lint rule is safe to suppress here for that reason).
   /* eslint-disable react-hooks/rules-of-hooks */
   // FACE signal -------------------------------------------------------------
-  // Deliberately `useFaceDetector` (a detector object callable inside a worklet) and NOT
-  // `useFaceDetectorOutput` (which owns its own camera output). DEVICE-ONLY finding, Fold 7:
-  //
-  //   IllegalArgumentException: No supported surface combination is found for camera device Id 1.
-  //   May be attempting to bind too many use cases.
-  //
-  // Each camera output is a CameraX use case. With photoOutput + faceDetectorOutput + frameOutput
-  // we bound Preview + ImageCapture + TWO ImageAnalysis (confirmed in logcat: four applyFeatures-
-  // ToConfig lines, two of them ImageAnalysis). CameraX only guarantees Preview + ImageCapture +
-  // ONE ImageAnalysis; a second concurrent ImageAnalysis is not a supported surface combination on
-  // this hardware. That is a platform constraint, not a tuning problem — no threshold fixes it.
-  //
-  // Running detection INSIDE the existing luma worklet keeps us at three use cases. autoMode +
-  // windowWidth/Height still apply, so bounds arrive in screen space exactly as before and
-  // facesToMetrics is unchanged.
-  const faceDetector = FRAME_PROCESSORS_INSTALLED
-    ? useFaceDetector({
-        cameraFacing: 'front',
-        performanceMode: 'fast',
-        autoMode: true,
-        windowWidth: width,
-        windowHeight: height,
-      })
-    : undefined;
+  // Detection shares the luma frame output. Do not bind a second camera analysis output.
+  const faceDetector = useMemo(() => {
+    if (simulate || !FRAME_PROCESSORS_INSTALLED) return null;
+    try { return createFaceDetector(); }
+    catch { return null; }
+  }, [simulate]);
 
   const onFaces = useCallback(
-    (faces: Array<{ bounds: { x: number; y: number; width: number; height: number }; yawAngle: number; rollAngle: number }>) => {
+    (raw: unknown) => {
+      let faces: ReturnType<typeof visionPreviewFaces> = [];
+      try { faces = visionPreviewFaces(raw, { width, height }); }
+      catch { /* Missing geometry or pose cannot clear the face gate. */ }
       const m = facesToMetrics(faces, width, height);
       faceRef.current = {
         faceDetected: m.faceDetected,
@@ -165,21 +150,12 @@ export function useFrameMetrics({ simulate = !FRAME_PROCESSORS_INSTALLED }: UseF
     onFrame: (frame: Frame) => {
       'worklet';
       try {
-        // FACE first, on the same frame the luma/chroma grids come from — one ImageAnalysis for
-        // both signals (see the surface-combination note above). Copied into PLAIN objects before
-        // runOnJS: a Face is a Nitro HybridObject and does not survive the worklet->JS boundary.
+        // Native results are plain structs, not retained image/frame objects.
         if (faceDetector) {
-          const detected = faceDetector.detectFaces(frame);
-          const plain = [];
-          for (let i = 0; i < detected.length; i++) {
-            const f = detected[i];
-            plain.push({
-              bounds: { x: f.bounds.x, y: f.bounds.y, width: f.bounds.width, height: f.bounds.height },
-              yawAngle: f.yawAngle,
-              rollAngle: f.rollAngle,
-            });
-          }
-          runOnJS(onFaces)(plain);
+          try { runOnJS(onFaces)(faceDetector.detectFrame(frame)); }
+          catch { runOnJS(onFaces)(null); }
+        } else {
+          runOnJS(onFaces)(null);
         }
 
         if (!frame.isPlanar) return;

@@ -12,12 +12,9 @@ export interface DetectedFaceBounds {
 }
 
 /**
- * Minimal shape of a vision-camera-face-detector `Face`. `yawAngle`/`rollAngle` are REQUIRED here
- * because they are required on MLKit's real `Face` type (`Face.nitro.ts`: `readonly yawAngle:
- * number`, no detector option needed, no extra cost) — surfaced here for the pose check. Required,
- * not optional: the gate fails closed (CLAUDE.md — refusing to scan is the safe direction), and an
- * optional field defaulting to 0 would silently read as "dead straight" for any caller that omits
- * it, clearing a check that was supposed to block capture.
+ * Backend-independent preview geometry. Pose is required: missing angles must not silently
+ * become "straight ahead" and clear the capture gate. The Apple Vision adapter rejects missing
+ * pose before it reaches this function.
  */
 export interface DetectedFace {
   bounds: DetectedFaceBounds;
@@ -49,8 +46,8 @@ const area = (b: DetectedFaceBounds): number => Math.max(0, b.width) * Math.max(
 
 /**
  * Map detected faces to a FrameMetrics for the quality gate. `faces` bounds MUST be in the same
- * coordinate space as windowWidth/windowHeight — use the detector's `autoMode` with the screen
- * dimensions so bounds arrive in screen pixels. The largest face wins.
+ * coordinate space as windowWidth/windowHeight. The preview adapter performs the aspect-fill
+ * projection before this call. The largest face wins.
  *
  * faceFraction is the LINEAR height fraction (face height / frame height) — that's what the
  * quality-gate thresholds (0.2–0.6) are calibrated against, not an area fraction.

@@ -33,3 +33,31 @@ jobs:
       - run: supabase test db --local
       - if: always()
         run: supabase stop --no-backup
+  apple-vision-native:
+    runs-on: macos-26
+    steps:
+      - uses: actions/checkout@v4
+      - name: Use the supported Expo SDK 56 toolchain
+        run: |
+          set -euo pipefail
+          XCODE_PATH="/Applications/Xcode_26.4.1.app/Contents/Developer"
+          test -d "$XCODE_PATH"
+          sudo xcode-select --switch "$XCODE_PATH"
+          xcodebuild -version
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+      - run: npm ci
+      - run: npm run generate:apple-vision && git diff --exit-code -- packages/apple-vision/nitrogen
+      - run: swift test --package-path packages/apple-vision
+      - run: npx expo prebuild --platform ios --no-install
+        env:
+          EXPO_NO_DOTENV: '1'
+          SENTRY_DISABLE_AUTO_UPLOAD: 'true'
+      - run: pod install --project-directory=ios
+        env:
+          SENTRY_DISABLE_AUTO_UPLOAD: 'true'
+      - run: npm run check:apple-vision -- --native
+      - run: xcodebuild -workspace ios/TrueTone.xcworkspace -scheme TrueTone -configuration Debug -destination 'generic/platform=iOS' -derivedDataPath /tmp/truetone-vision-build CODE_SIGNING_ALLOWED=NO
+        env:
+          SENTRY_DISABLE_AUTO_UPLOAD: 'true'
