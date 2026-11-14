@@ -11,6 +11,21 @@ import {
 
 const KEY = 'truetone.diary.v1';
 
+test('conditional replacement preserves newer values and never recreates deleted data', async () => {
+  await encryptedStorage.setItem(KEY, 'old');
+  expect(await encryptedStorage.replaceIfUnchanged(KEY, 'old', 'cleared')).toBe(true);
+  expect(await encryptedStorage.getItem(KEY)).toBe('cleared');
+  await encryptedStorage.setItem(KEY, 'new');
+  expect(await encryptedStorage.replaceIfUnchanged(KEY, 'old', null)).toBe(false);
+  expect(await encryptedStorage.getItem(KEY)).toBe('new');
+  await encryptedStorage.removeItem(KEY);
+  expect(await encryptedStorage.replaceIfUnchanged(KEY, 'old', 'cleared')).toBe(false);
+  expect(await encryptedStorage.getItem(KEY)).toBeNull();
+  await encryptedStorage.setItem(KEY, 'old');
+  expect(await encryptedStorage.replaceIfUnchanged(KEY, 'old', null)).toBe(true);
+  expect(await encryptedStorage.getItem(KEY)).toBeNull();
+});
+
 beforeEach(async () => {
   await AsyncStorage.clear();
   __resetKeyCacheForTests();
