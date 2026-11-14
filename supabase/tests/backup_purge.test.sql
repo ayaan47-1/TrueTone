@@ -1,4 +1,5 @@
 -- supabase/tests/backup_purge.test.sql
+-- Owner/security-definer paths execute these helpers. Direct service-role execution is not allowed.
 begin;
 select plan(24);
 
@@ -22,12 +23,12 @@ select ok(
   'authenticated cannot execute truetone_reconcile_deletions'
 );
 select ok(
-  has_function_privilege('service_role', 'public.audit_deletion(text,uuid)', 'EXECUTE'),
-  'service_role can execute audit_deletion'
+  not has_function_privilege('service_role', 'public.audit_deletion(text,uuid)', 'EXECUTE'),
+  'service_role cannot execute audit_deletion'
 );
 select ok(
-  has_function_privilege('service_role', 'public.truetone_reconcile_deletions()', 'EXECUTE'),
-  'service_role can execute truetone_reconcile_deletions'
+  not has_function_privilege('service_role', 'public.truetone_reconcile_deletions()', 'EXECUTE'),
+  'service_role cannot execute truetone_reconcile_deletions'
 );
 select ok(
   has_function_privilege(
@@ -61,8 +62,8 @@ select ok(
   'authenticated cannot execute truetone_retention_sweep'
 );
 select ok(
-  has_function_privilege('service_role', 'public.truetone_retention_sweep()', 'EXECUTE'),
-  'service_role can execute truetone_retention_sweep'
+  not has_function_privilege('service_role', 'public.truetone_retention_sweep()', 'EXECUTE'),
+  'service_role cannot execute truetone_retention_sweep'
 );
 select ok(
   has_function_privilege(
@@ -81,8 +82,8 @@ select ok(
   'authenticated cannot execute waitlist_retention_sweep'
 );
 select ok(
-  has_function_privilege('service_role', 'public.waitlist_retention_sweep()', 'EXECUTE'),
-  'service_role can execute waitlist_retention_sweep'
+  not has_function_privilege('service_role', 'public.waitlist_retention_sweep()', 'EXECUTE'),
+  'service_role cannot execute waitlist_retention_sweep'
 );
 select ok(
   has_function_privilege(
@@ -101,8 +102,8 @@ select ok(
   'authenticated cannot execute gen_waitlist_code'
 );
 select ok(
-  has_function_privilege('service_role', 'public.gen_waitlist_code()', 'EXECUTE'),
-  'service_role can execute gen_waitlist_code'
+  not has_function_privilege('service_role', 'public.gen_waitlist_code()', 'EXECUTE'),
+  'service_role cannot execute gen_waitlist_code'
 );
 select ok(
   has_function_privilege(
